@@ -1,0 +1,350 @@
+---
+const platforms = [
+  {
+    id: 'unix',
+    label: 'macOS / Linux',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+    commands: [
+      { label: 'Quick install', cmd: 'curl -fsSL https://kairolang.org/install.sh | bash' },
+      { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo-lang.git && cd kairo-lang && xmake build -j8' },
+    ],
+  },
+  {
+    id: 'windows',
+    label: 'Windows',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>`,
+    commands: [
+      { label: 'PowerShell', cmd: 'irm https://kairolang.org/install.ps1 | iex' },
+      { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo-lang.git\ncd kairo-lang && xmake build -j8' },
+    ],
+  },
+  {
+    id: 'source',
+    label: 'From Source',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+    commands: [
+      { label: 'Clone', cmd: 'git clone https://github.com/kairolang/kairo-lang.git' },
+      { label: 'Build', cmd: 'cd kairo-lang && xmake build -j8 -v' },
+      { label: 'Test', cmd: 'xmake run tests' },
+    ],
+  },
+];
+---
+
+<section style="padding:7rem 0;background:var(--bg-2);border-top:1px solid var(--border);position:relative;overflow:hidden;">
+  <!-- Background circuit lines -->
+  <div class="install-circuit" aria-hidden="true">
+    <span class="ic ic-1"></span>
+    <span class="ic ic-2"></span>
+    <span class="ic ic-3"></span>
+  </div>
+
+  <div class="container" style="position:relative;z-index:1;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;" class="install-grid">
+
+      <!-- Left: Text -->
+      <div data-reveal>
+        <div class="section-label">Install</div>
+        <h2 style="
+          font-family:'Space Grotesk',sans-serif;
+          font-size:clamp(1.75rem,4vw,2.75rem);
+          font-weight:700;
+          letter-spacing:-0.03em;
+          line-height:1.1;
+          color:var(--text);
+          margin-bottom:1.25rem;
+        ">
+          Get Kairo in<br>
+          <span style="color:var(--red);">seconds.</span>
+        </h2>
+        <p style="
+          font-family:'Inter',sans-serif;
+          font-size:1rem;
+          color:var(--text-2);
+          line-height:1.7;
+          margin-bottom:2rem;
+          max-width:380px;
+        ">
+          One command gets you the compiler, formatter, LSP, and package manager.
+          No separate installs, no configuration.
+        </p>
+
+        <div style="
+          background:rgba(189,9,32,0.06);
+          border:1px solid rgba(189,9,32,0.15);
+          border-left:3px solid var(--red);
+          padding:1rem 1.25rem;
+          border-radius:2px;
+          margin-bottom:1.5rem;
+        ">
+          <p style="font-family:'Space Grotesk',sans-serif;font-size:0.8rem;font-weight:600;color:var(--red);margin-bottom:0.4rem;letter-spacing:0.05em;text-transform:uppercase;">Alpha Notice</p>
+          <p style="font-family:'Inter',sans-serif;font-size:0.85rem;color:var(--text-2);line-height:1.6;margin:0;">
+            The compiler is currently in alpha. Written in C++, being
+            rewritten in Kairo itself. APIs may change.
+          </p>
+        </div>
+
+        <a href="/docs/install" class="btn-primary" style="text-decoration:none;">
+          Full Install Guide
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Right: Terminal -->
+      <div data-reveal data-reveal-delay="100">
+        <!-- Platform tabs -->
+        <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:0;" id="install-tabs">
+          {platforms.map((p, i) => (
+            <button class={`tab-btn ${i === 0 ? 'active' : ''}`} data-tab={p.id} style="display:flex;align-items:center;gap:6px;">
+              <Fragment set:html={p.icon} />
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {platforms.map((p, i) => (
+          <div data-panel={p.id} class="install-panel" style={i !== 0 ? 'display:none;' : ''}>
+            {p.commands.map(cmd => (
+              <div class="cmd-block">
+                <!-- Header — same style as hero code block -->
+                <div class="cmd-header">
+                  <div class="cmd-dots">
+                    <span style="background:#ff5f57;"></span>
+                    <span style="background:#febc2e;"></span>
+                    <span style="background:#28c840;"></span>
+                  </div>
+                  <span class="cmd-filename">{cmd.label}</span>
+                  <button class="copy-btn" data-copy={cmd.cmd}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+                <!-- Body — scrollable on mobile -->
+                <div class="cmd-body cmd-line">
+                  <span class="cmd-prompt">$ </span><span class="cmd-text typer-cursor" data-cmd={cmd.cmd}>{cmd.cmd}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @media (max-width: 768px) {
+    .install-grid {
+      grid-template-columns: 1fr !important;
+      gap: 2.5rem !important;
+    }
+  }
+
+  /* Grid children must have min-width:0 so 1fr columns don't expand
+     to fit content — without this overflow-x:auto on cmd-body never fires */
+  .install-grid > * {
+    min-width: 0;
+  }
+
+  #install-tabs .tab-btn {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+  }
+
+  /* Code block — same look as hero */
+  .cmd-block {
+    margin-top: 1rem;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0,0,0,0.3), 0 0 16px var(--red-glow2);
+    transition: box-shadow 0.3s, transform 0.3s;
+  }
+  .cmd-block:hover {
+    box-shadow: 0 0 40px rgba(0,0,0,0.4), 0 0 30px var(--red-glow);
+    transform: translateY(-1px);
+  }
+
+  .cmd-header {
+    background: var(--bg-3);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .cmd-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .cmd-dots span {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: block;
+    flex-shrink: 0;
+  }
+  .cmd-filename {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .copy-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 2px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .copy-btn:hover { color: var(--red); }
+
+  .cmd-body {
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-2);
+    overflow-x: auto;
+    white-space: pre;
+    -webkit-overflow-scrolling: touch;
+    background: transparent;
+    /* Constrain width so the block scrolls rather than expanding */
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .cmd-prompt {
+    color: var(--red);
+    user-select: none;
+  }
+
+  /* Circuit line decorations */
+  .install-circuit {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.15;
+  }
+  .ic {
+    position: absolute;
+    background: var(--red);
+  }
+  .ic-1 {
+    width: 1px;
+    height: 200px;
+    top: 10%;
+    left: 5%;
+    animation: dataStream 12s linear infinite;
+  }
+  .ic-2 {
+    width: 150px;
+    height: 1px;
+    top: 40%;
+    left: 3%;
+    animation: beamMove 8s linear infinite;
+  }
+  .ic-3 {
+    width: 1px;
+    height: 150px;
+    bottom: 15%;
+    right: 8%;
+    animation: dataStream 9s linear 3s infinite;
+  }
+</style>
+
+<script>
+  function initInstall() {
+    const tabsContainer = document.getElementById('install-tabs');
+    if (!tabsContainer) return;
+
+    const buttons = tabsContainer.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.install-panel');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = (btn as HTMLElement).dataset.tab;
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        panels.forEach(panel => {
+          const p = panel as HTMLElement;
+          p.style.display = p.dataset.panel === target ? 'block' : 'none';
+        });
+      });
+    });
+
+    // Copy buttons
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = (btn as HTMLElement).dataset.copy || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          const original = btn.innerHTML;
+          btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+          (btn as HTMLElement).style.color = 'var(--red)';
+          setTimeout(() => {
+            btn.innerHTML = original;
+            (btn as HTMLElement).style.color = 'var(--text-3)';
+          }, 2000);
+        } catch (_) {}
+      });
+    });
+  }
+
+  function initTypewriters() {
+    const cmdTexts = document.querySelectorAll('.cmd-text');
+    cmdTexts.forEach(el => {
+      const fullCmd = (el as HTMLElement).dataset.cmd || '';
+      let typed = false;
+      const obs = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && !typed) {
+          typed = true;
+          el.textContent = '';
+          el.classList.add('typer-cursor');
+          let i = 0;
+          const speed = Math.max(18, Math.min(40, 1800 / fullCmd.length));
+          function typeNext() {
+            if (i < fullCmd.length) {
+              el.textContent += fullCmd[i++];
+              setTimeout(typeNext, speed);
+            } else {
+              setTimeout(() => el.classList.remove('typer-cursor'), 1500);
+            }
+          }
+          setTimeout(typeNext, 300);
+        }
+      }, { threshold: 0.5 });
+      obs.observe(el);
+    });
+  }
+
+  initInstall();
+  initTypewriters();
+  document.addEventListener('astro:page-load', () => { initInstall(); initTypewriters(); });
+</script>

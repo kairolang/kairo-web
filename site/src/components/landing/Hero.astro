@@ -1,0 +1,568 @@
+---
+import { Code } from 'astro:components';
+
+let kairoLang: any = 'rust';
+try {
+  const res = await fetch(
+    'https://raw.githubusercontent.com/kairolang/kairo-lsp/lsp-v1/public/syntaxes/kairo.tmLanguage.json'
+  );
+  if (res.ok) kairoLang = await res.json();
+} catch {}
+
+const heroCode = `import std::Parallel;
+
+fn <T: Numeric> dot(a: [T], b: [T]) -> T! {
+    if a.len() != b.len() {
+        return error("Length mismatch");
+    }
+    return Parallel::zip(a, b)
+        .map(|(x, y)| x * y)
+        .sum();
+}
+
+fn main() {
+    let a = [1.0, 2.0, 3.0];
+    let b = [4.0, 5.0, 6.0];
+    let result = dot(a, b)!;
+    print(f"Dot product: {result}");
+}`;
+---
+
+<section class="hero" id="hero">
+  <!-- Mouse-tracking spotlight -->
+  <div id="hero-spotlight" class="hero-spotlight" aria-hidden="true"></div>
+
+  <!-- Particle canvas -->
+  <canvas id="particle-canvas" class="hero-canvas" aria-hidden="true"></canvas>
+
+  <!-- Animated grid -->
+  <div class="hero-grid"></div>
+
+  <!-- Scan line overlay -->
+  <div class="scan-line"></div>
+
+  <!-- Data stream lines (decorative vertical falling lines) -->
+  <div class="data-streams" aria-hidden="true">
+    <span class="ds ds-1"></span>
+    <span class="ds ds-2"></span>
+    <span class="ds ds-3"></span>
+    <span class="ds ds-4"></span>
+    <span class="ds ds-5"></span>
+  </div>
+
+  <!-- Floating geometric decorations -->
+  <div class="hero-geo hero-geo-1 float-anim" aria-hidden="true"></div>
+  <div class="hero-geo hero-geo-2 float-anim-delay" aria-hidden="true"></div>
+  <!-- Extra small geo shapes -->
+  <div class="hero-geo hero-geo-3 float-anim-slow" aria-hidden="true"></div>
+  <div class="hero-geo hero-geo-4" aria-hidden="true"></div>
+
+  <!-- Pulsing orbit ring (right side decoration) -->
+  <div class="hero-orbit" aria-hidden="true">
+    <div class="hero-orbit-ring hero-orbit-ring-1"></div>
+    <div class="hero-orbit-ring hero-orbit-ring-2"></div>
+    <div class="hero-orbit-dot"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="container hero-inner">
+    <!-- Left: text + CTA -->
+    <div class="hero-text">
+      <div class="hero-badge fade-in-up">
+        <span class="hero-badge-dot"></span>
+        v0.1.0-alpha &nbsp;·&nbsp; Open Source &nbsp;·&nbsp; Systems Language
+      </div>
+
+      <h1 class="hero-title fade-in-up" id="hero-title-main">
+        <span class="hero-title-line glitch-hover" id="scramble-1">Control</span>
+        <span class="hero-title-line glitch-hover" id="scramble-2">everything.</span>
+        <span class="hero-title-line hero-red neon-text" id="scramble-3">Compromise</span>
+        <span class="hero-title-line glitch-hover" id="scramble-4">nothing.</span>
+      </h1>
+
+      <p class="hero-sub fade-in-up">
+        Kairo is a modern systems programming language. The raw power of C++.
+        The ergonomics of modern design. Zero compromises on performance.
+      </p>
+
+      <!-- Status bar (HUD style) -->
+      <div class="hero-hud fade-in-up">
+        <span class="hud-item">
+          <span class="hud-dot"></span>COMPILER ALPHA
+        </span>
+        <span class="hud-sep">|</span>
+        <span class="hud-item">SELF-HOSTING IN PROGRESS</span>
+        <span class="hud-sep">|</span>
+        <span class="hud-item">C++ BOOTSTRAP</span>
+      </div>
+
+      <div class="fade-in-up hero-actions">
+        <a href="/docs" class="btn-primary border-beam">
+          Get Started
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="https://github.com/kairolang/kairo-lang" class="btn-outline" target="_blank" rel="noopener noreferrer">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+          </svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+
+    <!-- Right: code block -->
+    <div class="hero-code-col fade-in-up hud-card">
+      <div class="hero-code-wrap">
+        <div class="hero-code-header">
+          <div class="hero-code-dots">
+            <span style="background:#ff5f57;"></span>
+            <span style="background:#febc2e;"></span>
+            <span style="background:#28c840;"></span>
+          </div>
+          <span class="hero-code-filename">dot_product.kairo</span>
+          <span class="hero-code-badge">kairo</span>
+        </div>
+        <div class="hero-code-body">
+          <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark', light: 'github-light' }} defaultColor={false} />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-fade-bottom"></div>
+</section>
+
+<style>
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* Mouse spotlight */
+  .hero-spotlight {
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(189,9,32,0.07) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s;
+    opacity: 0;
+  }
+
+  /* Particle canvas */
+  .hero-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Data streams */
+  .data-streams { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+  .ds {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 120px;
+    background: linear-gradient(to bottom, transparent, var(--red), transparent);
+    opacity: 0;
+    animation: dataStream linear infinite;
+  }
+  .ds-1 { left: 8%;  animation-duration: 7s;  animation-delay: 0s; }
+  .ds-2 { left: 60%; animation-duration: 11s; animation-delay: 3s; }
+  .ds-3 { left: 88%; animation-duration: 9s;  animation-delay: 6s; }
+  .ds-4 { left: 23%; animation-duration: 14s; animation-delay: 2s; }
+  .ds-5 { left: 76%; animation-duration: 8s;  animation-delay: 9s; }
+
+  /* Floating geometrics */
+  .hero-geo {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+    border: 1px solid rgba(189,9,32,0.2);
+    border-radius: 2px;
+    transform: rotate(45deg);
+  }
+  .hero-geo-1 {
+    width: 60px; height: 60px;
+    right: 12%; top: 20%;
+    border-color: rgba(189,9,32,0.25);
+    box-shadow: 0 0 20px rgba(189,9,32,0.1);
+  }
+  .hero-geo-2 {
+    width: 30px; height: 30px;
+    right: 8%; top: 65%;
+    border-color: rgba(189,9,32,0.15);
+  }
+  .hero-geo-3 {
+    width: 16px; height: 16px;
+    left: 3%; top: 30%;
+    border-color: rgba(189,9,32,0.12);
+  }
+  .hero-geo-4 {
+    width: 8px; height: 8px;
+    left: 6%; top: 55%;
+    border-color: rgba(189,9,32,0.2);
+    animation: glowPulse 3s ease-in-out infinite;
+    background: rgba(189,9,32,0.1);
+  }
+
+  /* Orbit ring decoration */
+  .hero-orbit {
+    position: absolute;
+    right: 3%; top: 50%;
+    transform: translateY(-50%);
+    width: 80px; height: 80px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .hero-orbit-ring {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(189,9,32,0.15);
+    border-radius: 50%;
+    animation: hexPulse 3s ease-in-out infinite;
+  }
+  .hero-orbit-ring-2 {
+    inset: 10px;
+    animation-delay: 1s;
+    border-color: rgba(189,9,32,0.2);
+  }
+  .hero-orbit-dot {
+    position: absolute;
+    width: 4px; height: 4px;
+    background: var(--red);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--red-glow);
+    top: 50%; left: 50%;
+    margin: -2px 0 0 -2px;
+    animation: orbitCW 5s linear infinite;
+  }
+
+  /* Two-column layout */
+  .hero-inner {
+    position: relative;
+    z-index: 2;
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+  @media (min-width: 1024px) {
+    .hero-inner { grid-template-columns: 1fr 1fr; gap: 4rem; }
+    .hero-geo-1 { display: block; }
+    .hero-geo-2 { display: block; }
+  }
+  @media (max-width: 1023px) {
+    .hero-geo-1, .hero-geo-2, .hero-geo-3, .hero-geo-4 { display: none; }
+    .hero-orbit { display: none; }
+    .ds-2, .ds-3, .ds-4, .ds-5 { display: none; }
+  }
+
+  /* Badge */
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-3);
+    border: 1px solid var(--border-hi);
+    color: var(--text-2);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 6px 14px;
+    border-radius: 2px;
+    margin-bottom: 2rem;
+  }
+  .hero-badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red-glow);
+    animation: glowPulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  /* Title */
+  .hero-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(2.8rem, 7vw, 6rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero-title-line { display: block; }
+  .hero-red { color: var(--red); text-shadow: 0 0 40px var(--red-glow), 0 0 80px var(--red-glow2); }
+
+  /* Subtitle */
+  .hero-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+    color: var(--text-2);
+    max-width: 480px;
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+  }
+
+  /* HUD status bar */
+  .hero-hud {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+    flex-wrap: wrap;
+  }
+  .hud-dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 6px var(--red-glow);
+    animation: glowPulse 1.5s ease-in-out infinite;
+    margin-right: 4px;
+  }
+  .hud-sep { color: var(--border-hi); }
+
+  /* Actions */
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* Code block */
+  .hero-code-col { width: 100%; align-self: start; }
+  .hero-code-wrap {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4), 0 0 30px var(--red-glow2);
+    transition: box-shadow 0.4s, transform 0.4s;
+  }
+  .hero-code-col:hover .hero-code-wrap {
+    box-shadow: 0 0 60px rgba(0,0,0,0.5), 0 0 50px var(--red-glow);
+    transform: translateY(-3px);
+  }
+  .hero-code-header {
+    background: var(--bg-3);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-code-dots { display: flex; gap: 6px; align-items: center; }
+  .hero-code-dots span { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .hero-code-filename {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+  }
+  .hero-code-badge {
+    margin-left: auto;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.65rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--red);
+    background: rgba(189,9,32,0.1);
+    border: 1px solid rgba(189,9,32,0.2);
+    padding: 2px 8px; border-radius: 2px;
+  }
+  .hero-code-body :global(pre.astro-code) {
+    margin: 0 !important; border: none !important; border-radius: 0 !important;
+    padding: 1.25rem 1.5rem !important;
+    font-size: 0.82rem !important; line-height: 1.75 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    background: transparent !important;
+  }
+
+  .hero-fade-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 160px;
+    background: linear-gradient(to bottom, transparent, var(--bg));
+    pointer-events: none; z-index: 1;
+  }
+</style>
+
+<script>
+  // ── Particle canvas ──
+  function initParticles() {
+    const canvas = document.getElementById('particle-canvas') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    let W = canvas.width = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }, { passive: true });
+
+    const COUNT = 55;
+    const MAX_DIST = 130;
+    let mouseX = W / 2, mouseY = H / 2;
+    window.addEventListener('mousemove', (e: MouseEvent) => { mouseX = e.clientX; mouseY = e.clientY; }, { passive: true });
+
+    const particles = Array.from({ length: COUNT }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: (Math.random() - 0.5) * 0.35,
+      r: Math.random() * 1.5 + 0.5,
+      alpha: Math.random() * 0.35 + 0.08,
+      red: Math.random() < 0.12,
+    }));
+
+    let raf = 0;
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      particles.forEach(p => {
+        const dx = p.x - mouseX, dy = p.y - mouseY;
+        const md = Math.sqrt(dx * dx + dy * dy);
+        if (md < 120) { p.vx += (dx / md) * 0.025; p.vy += (dy / md) * 0.025; }
+        const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        if (spd > 0.7) { p.vx = p.vx / spd * 0.7; p.vy = p.vy / spd * 0.7; }
+        p.x = (p.x + p.vx + W) % W;
+        p.y = (p.y + p.vy + H) % H;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.red
+          ? `rgba(189,9,32,${p.alpha * 2.5})`
+          : `rgba(255,255,255,${p.alpha})`;
+        ctx.fill();
+      });
+      for (let i = 0; i < COUNT - 1; i++) {
+        for (let j = i + 1; j < COUNT; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < MAX_DIST) {
+            const a = (1 - d / MAX_DIST) * 0.14;
+            const isRed = particles[i].red || particles[j].red;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = isRed ? `rgba(189,9,32,${a * 2.5})` : `rgba(255,255,255,${a})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+      raf = requestAnimationFrame(draw);
+    }
+
+    // Only animate when visible
+    const section = document.getElementById('hero');
+    const vis = new IntersectionObserver((entries: IntersectionObserverEntry[]) => {
+      if (entries[0].isIntersecting) { if (!raf) draw(); }
+      else { cancelAnimationFrame(raf); raf = 0; }
+    });
+    section && vis.observe(section);
+    draw();
+  }
+
+  // ── Text scramble ──
+  function scramble(el: HTMLElement, final: string, delay = 0) {
+    // ASCII-only chars so all glyphs share the same metrics — no Cyrillic
+    const CHARS = '!<>-_\\/[]{}=+*^?#@ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let frame = 0;
+
+    setTimeout(() => {
+      // Lock the element's current dimensions so random chars can't cause
+      // any layout reflow that would shift the code block on the right.
+      const lockedH = el.offsetHeight;
+      el.style.height   = lockedH + 'px';
+      el.style.overflow = 'hidden';
+
+      const len = final.length;
+      const queue = Array.from({ length: len }, (_, i) => ({
+        to: final[i],
+        start: Math.floor(i * 1.8),
+        end: Math.floor(i * 1.8) + Math.floor(Math.random() * 12 + 6),
+        char: '',
+      }));
+      let rafId = 0;
+      function step() {
+        let out = '';
+        let done = 0;
+        queue.forEach(q => {
+          if (frame >= q.end) {
+            done++;
+            out += q.to === ' ' ? ' ' : `<span>${q.to}</span>`;
+          } else if (frame >= q.start) {
+            if (!q.char || Math.random() < 0.3) q.char = CHARS[Math.floor(Math.random() * CHARS.length)];
+            out += `<span class="scramble-char">${q.char}</span>`;
+          } else {
+            out += q.to === ' ' ? ' ' : '<span style="opacity:0">X</span>';
+          }
+        });
+        el.innerHTML = out;
+        frame++;
+        if (done < len) {
+          rafId = requestAnimationFrame(step);
+        } else {
+          el.textContent = final;
+          // Release the locked dimensions
+          el.style.height   = '';
+          el.style.overflow = '';
+        }
+      }
+      step();
+    }, delay);
+  }
+
+  function initHero() {
+    initParticles();
+
+    // Hero mouse spotlight
+    const heroEl = document.getElementById('hero');
+    const spotlight = document.getElementById('hero-spotlight');
+    if (heroEl && spotlight) {
+      heroEl.addEventListener('mousemove', (e: MouseEvent) => {
+        const rect = heroEl.getBoundingClientRect();
+        spotlight.style.left = (e.clientX - rect.left) + 'px';
+        spotlight.style.top  = (e.clientY - rect.top)  + 'px';
+        spotlight.style.opacity = '1';
+      }, { passive: true });
+      heroEl.addEventListener('mouseleave', () => {
+        spotlight.style.opacity = '0';
+      });
+    }
+
+    // Scramble headline after initial fade-in
+    const lines = [
+      { id: 'scramble-1', text: 'Control',     delay: 500 },
+      { id: 'scramble-2', text: 'everything.', delay: 700 },
+      { id: 'scramble-3', text: 'Compromise',  delay: 900 },
+      { id: 'scramble-4', text: 'nothing.',    delay: 1100 },
+    ];
+    lines.forEach(({ id, text, delay }) => {
+      const el = document.getElementById(id);
+      if (el) scramble(el, text, delay);
+    });
+  }
+
+  initHero();
+  document.addEventListener('astro:page-load', initHero);
+</script>

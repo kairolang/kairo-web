@@ -1,0 +1,103 @@
+---
+title: Installation
+description: How to install the Kairo compiler on your system.
+order: 2
+section: Getting Started
+---
+
+# Installation
+
+> **Note**: The Kairo compiler is currently in **alpha**. It is written in C++ and is not yet feature-complete. We're actively working on a self-hosted compiler written in Kairo itself.
+
+## For Users
+
+Download a pre-built binary from [GitHub Releases](https://github.com/kairolang/kairo-lang/releases).
+
+### macOS / Linux
+
+```bash
+# Download and extract
+curl -L https://github.com/kairolang/kairo-lang/releases/latest/download/kairo-linux.tar.gz | tar xz
+
+# Add to PATH
+export PATH=$PATH:~/kairo/bin
+```
+
+Or use the installer script:
+
+```bash
+curl -fsSL https://kairolang.org/install.sh | bash
+```
+
+### Windows
+
+Download `kairo-windows.zip` from releases, extract to `C:\Kairo`, and add `C:\Kairo\bin` to your PATH environment variable.
+
+Or via PowerShell:
+
+```powershell
+irm https://kairolang.org/install.ps1 | iex
+```
+
+### Verify Installation
+
+```bash
+kairo --version
+# Kairo version 0.1.0-alpha
+```
+
+## For Contributors (Build from Source)
+
+### Prerequisites
+
+- GCC 11+ / Clang 12+ / MSVC 19.29+
+- [Xmake](https://xmake.io) build tool
+- Python 3.x (for build scripts)
+- Git
+
+### Build
+
+```bash
+git clone https://github.com/kairolang/kairo-lang.git
+cd kairo-lang
+xmake build -j8 -v
+```
+
+Build time is approximately 20–30 minutes on an 8-core machine.
+
+### Run Tests
+
+```bash
+xmake run tests
+xmake run helix -h
+```
+
+### Install Locally
+
+```bash
+xmake install -o ~/.local
+```
+
+## Editor Support
+
+### VS Code
+
+Install the **Kairo Language Extension** from the marketplace for syntax highlighting and LSP integration.
+
+### Neovim / Vim
+
+Use the `kairo.vim` syntax plugin, available at [kairolang/kairo.vim](https://github.com/kairolang/kairo.vim).
+
+### Other Editors
+
+The Kairo LSP (`kairo-lsp`) ships with the compiler and works with any editor that supports the Language Server Protocol.
+
+## Troubleshooting
+
+**Command not found after install?**
+
+Make sure `~/.kairo/bin` (or your install directory) is in your `PATH`.
+
+**Build fails?**
+
+Ensure you have a recent C++ compiler. Check the [GitHub Issues](https://github.com/kairolang/kairo-lang/issues) for known build problems.

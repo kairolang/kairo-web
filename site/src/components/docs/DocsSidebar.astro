@@ -1,0 +1,112 @@
+---
+interface Props {
+  currentPath: string;
+  allDocs: Array<{ slug: string; data: { title: string; section?: string; order?: number } }>;
+}
+
+const { currentPath, allDocs } = Astro.props;
+
+// Group docs by section
+const sections: Record<string, typeof allDocs> = {
+  'Getting Started': [],
+  'Language Basics': [],
+  'Functions': [],
+  'Memory & Safety': [],
+  'Concurrency': [],
+  'Advanced': [],
+  'Standard Library': [],
+  'Tooling': [],
+  'Contributing': [],
+};
+
+// Map docs to sections
+for (const doc of allDocs) {
+  const section = doc.data.section || 'Getting Started';
+  if (sections[section]) {
+    sections[section].push(doc);
+  } else {
+    sections['Getting Started'].push(doc);
+  }
+}
+
+// Sort by order within each section
+for (const key of Object.keys(sections)) {
+  sections[key].sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+}
+
+function isActive(slug: string): boolean {
+  const normalized = currentPath.replace(/^\/docs\/?/, '').replace(/\/$/, '');
+  const docSlug = slug.replace(/^docs\//, '');
+  return normalized === docSlug || (normalized === '' && docSlug === 'index');
+}
+
+function docHref(slug: string): string {
+  const clean = slug.replace(/^docs\//, '').replace(/\/index$/, '');
+  if (!clean || clean === 'index') return '/docs';
+  return `/docs/${clean}`;
+}
+---
+
+<nav class="docs-sidebar-nav">
+  <div style="padding:0.5rem 0;">
+    <!-- Back to home on mobile -->
+    <div style="padding:0 1.5rem 1.5rem;display:none;" class="sidebar-back">
+      <a href="/" style="
+        font-family:'Space Grotesk',sans-serif;
+        font-size:0.75rem;
+        color:var(--text-3);
+        text-decoration:none;
+        display:flex;
+        align-items:center;
+        gap:6px;
+        transition:color 0.2s;
+      ">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to home
+      </a>
+    </div>
+
+    {Object.entries(sections).map(([sectionName, docs]) => docs.length > 0 && (
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">{sectionName}</div>
+        {docs.map(doc => (
+          <a
+            href={docHref(doc.slug)}
+            class={`sidebar-link ${isActive(doc.slug) ? 'active' : ''}`}
+          >
+            {doc.data.title}
+          </a>
+        ))}
+      </div>
+    ))}
+
+    <!-- Placeholder sections for future content -->
+    {[
+      { name: 'Functions', links: [] },
+      { name: 'Memory & Safety', links: [] },
+      { name: 'Concurrency', links: [] },
+    ].map(s => s.links.length === 0 && (
+      <div class="sidebar-group" style="opacity:0.4;">
+        <div class="sidebar-group-label">{s.name}</div>
+        <span style="
+          display:block;
+          font-size:0.75rem;
+          color:var(--text-3);
+          padding:4px 1.5rem 8px;
+          font-family:'Inter',sans-serif;
+          font-style:italic;
+        ">Coming soon</span>
+      </div>
+    ))}
+  </div>
+</nav>
+
+<style>
+  @media (max-width: 1024px) {
+    .sidebar-back {
+      display: block !important;
+    }
+  }
+</style>

@@ -1,0 +1,431 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import DocsSidebar from '../components/docs/DocsSidebar.astro';
+import DocsSearch from '../components/docs/DocsSearch.astro';
+import TableOfContents from '../components/docs/TableOfContents.astro';
+import CodeBlockEnhancer from '../components/docs/CodeBlockEnhancer.astro';
+import { getCollection } from 'astro:content';
+
+interface Props {
+  title: string;
+  description?: string;
+  prev?: { href: string; title: string } | null;
+  next?: { href: string; title: string } | null;
+  headings?: Array<{ depth: number; slug: string; text: string }>;
+}
+
+const { title, description, prev, next, headings = [] } = Astro.props;
+const allDocs = await getCollection('docs');
+const currentPath = Astro.url.pathname;
+---
+<BaseLayout title={`${title} — Kairo Docs`} description={description}>
+  <!-- Mobile top bar -->
+  <div class="docs-mobile-bar" id="docs-mobile-bar">
+    <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Open navigation">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="15" y2="12"/>
+        <line x1="3" y1="18" x2="18" y2="18"/>
+      </svg>
+      <span>Navigation</span>
+    </button>
+    <span class="docs-mobile-title">{title}</span>
+    {headings.filter(h => h.depth <= 3).length > 0 && (
+      <button id="toc-toggle" class="sidebar-toggle-btn" aria-label="On this page" style="margin-left:auto;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="8" y1="6" x2="21" y2="6"/>
+          <line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/>
+          <line x1="3" y1="12" x2="3.01" y2="12"/>
+          <line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        On this page
+      </button>
+    )}
+  </div>
+
+  <!-- Sidebar backdrop (mobile) -->
+  <div id="sidebar-backdrop" class="mobile-backdrop"></div>
+
+  <div class="docs-layout">
+    <!-- Left sidebar -->
+    <aside class="docs-sidebar-col" id="docs-sidebar-col">
+      <div class="docs-sidebar-inner">
+        <!-- Close button (mobile only) -->
+        <button id="sidebar-close" class="sidebar-close-btn" aria-label="Close navigation">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+        <DocsSearch />
+        <DocsSidebar currentPath={currentPath} allDocs={allDocs} />
+      </div>
+    </aside>
+
+    <!-- Center: main content -->
+    <main class="docs-content">
+      <!-- Breadcrumb -->
+      <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+        <a href="/" class="breadcrumb-link">Home</a>
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        <a href="/docs" class="breadcrumb-link">Docs</a>
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        <span style="color:var(--text-2);">{title}</span>
+      </nav>
+
+      <!-- Article -->
+      <article class="prose">
+        <slot />
+      </article>
+
+      <!-- Prev / Next -->
+      {(prev || next) && (
+        <nav class="docs-nav-grid" aria-label="Page navigation">
+          <div>
+            {prev && (
+              <a href={prev.href} class="docs-nav-card">
+                <span class="nav-card-label">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  Previous
+                </span>
+                <span class="nav-card-title">{prev.title}</span>
+              </a>
+            )}
+          </div>
+          <div>
+            {next && (
+              <a href={next.href} class="docs-nav-card" style="text-align:right;">
+                <span class="nav-card-label" style="justify-content:flex-end;">
+                  Next
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </span>
+                <span class="nav-card-title">{next.title}</span>
+              </a>
+            )}
+          </div>
+        </nav>
+      )}
+
+      <footer class="docs-footer">
+        <a href="https://github.com/kairolang/kairo-lang/issues" target="_blank" rel="noopener noreferrer" class="docs-footer-link">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          Report an issue
+        </a>
+        <a href="https://github.com/kairolang/kairo-web/edit/main/site/src/content/docs" target="_blank" rel="noopener noreferrer" class="docs-footer-link">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          Edit this page
+        </a>
+      </footer>
+    </main>
+
+    <!-- Right: TOC -->
+    <aside class="docs-toc-col">
+      <div class="docs-toc-inner">
+        <TableOfContents headings={headings} />
+      </div>
+    </aside>
+  </div>
+
+  <!-- Mobile TOC drawer -->
+  <div id="toc-drawer" class="toc-drawer">
+    <TableOfContents headings={headings} />
+  </div>
+
+  <CodeBlockEnhancer />
+</BaseLayout>
+
+<style>
+  /* ── Mobile top bar ── */
+  .docs-mobile-bar {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-2);
+    position: sticky;
+    top: 64px;
+    z-index: 40;
+  }
+  .sidebar-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem;
+    padding: 6px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .sidebar-toggle-btn:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .docs-mobile-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    color: var(--text-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .sidebar-close-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    padding: 4px;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ── Mobile backdrop ── */
+  .mobile-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(4px);
+    z-index: 99;
+  }
+
+  /* ── Docs layout grid ── */
+  .docs-layout {
+    display: grid;
+    grid-template-columns: 272px minmax(0, 1fr) 220px;
+    min-height: calc(100vh - 64px);
+    align-items: start;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ── Left sidebar ── */
+  .docs-sidebar-col {
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    scrollbar-width: thin;
+  }
+  .docs-sidebar-inner {
+    padding: 1.5rem 0;
+    min-height: 100%;
+  }
+
+  /* ── Main content ── */
+  .docs-content {
+    padding: 2.5rem 3.5rem 5rem;
+    min-width: 0;
+  }
+
+  /* ── Right TOC ── */
+  .docs-toc-col {
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+    scrollbar-width: thin;
+  }
+  .docs-toc-inner {
+    padding: 2rem 1.5rem 2rem 0;
+  }
+
+  /* ── Breadcrumb ── */
+  .docs-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-3);
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+  .breadcrumb-link {
+    color: var(--text-3);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb-link:hover { color: var(--red); }
+
+  /* ── Prev/Next ── */
+  .docs-nav-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+  .docs-nav-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 16px 20px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .docs-nav-card:hover {
+    border-color: var(--red);
+    box-shadow: 0 0 16px var(--red-glow2);
+  }
+  .nav-card-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.7rem;
+    color: var(--text-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .nav-card-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  /* ── Docs footer ── */
+  .docs-footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .docs-footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    color: var(--text-3);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .docs-footer-link:hover { color: var(--red); }
+
+  /* ── Mobile TOC drawer ── */
+  .toc-drawer {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg-2);
+    border-top: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    padding: 1.5rem;
+    z-index: 200;
+    max-height: 50vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .toc-drawer.open {
+    transform: translateY(0);
+  }
+
+  /* ── Hide TOC on medium screens ── */
+  @media (max-width: 1280px) {
+    .docs-layout {
+      grid-template-columns: 272px minmax(0, 1fr);
+    }
+    .docs-toc-col { display: none; }
+    .toc-drawer { display: block; }
+    #toc-toggle { display: flex !important; }
+  }
+
+  /* ── Mobile: single column ── */
+  @media (max-width: 1024px) {
+    .docs-mobile-bar { display: flex; }
+    .docs-layout { grid-template-columns: 1fr; }
+    .docs-nav-grid { grid-template-columns: 1fr; }
+    .docs-content { padding: 1.5rem 1.25rem 4rem; }
+
+    /* Sidebar slides in from left */
+    .docs-sidebar-col {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: min(300px, 85vw);
+      height: 100vh;
+      z-index: 100;
+      background: var(--bg-2);
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-right: 1px solid var(--border);
+    }
+    .docs-sidebar-col.open {
+      transform: translateX(0);
+    }
+    .sidebar-close-btn { display: flex; margin: 1rem 1.5rem 0.5rem; }
+    .docs-sidebar-inner { padding-top: 0.5rem; }
+  }
+
+  @media (max-width: 640px) {
+    .docs-content { padding: 1.25rem 1rem 4rem; }
+    .docs-nav-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  function initDocs() {
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebarClose = document.getElementById('sidebar-close');
+    const sidebarCol = document.getElementById('docs-sidebar-col');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const tocToggle = document.getElementById('toc-toggle');
+    const tocDrawer = document.getElementById('toc-drawer');
+
+    function openSidebar() {
+      sidebarCol?.classList.add('open');
+      if (backdrop) backdrop.style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+      sidebarCol?.classList.remove('open');
+      if (backdrop) backdrop.style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    sidebarToggle?.addEventListener('click', openSidebar);
+    sidebarClose?.addEventListener('click', closeSidebar);
+    backdrop?.addEventListener('click', () => {
+      closeSidebar();
+      tocDrawer?.classList.remove('open');
+    });
+
+    tocToggle?.addEventListener('click', () => {
+      tocDrawer?.classList.toggle('open');
+    });
+
+    // Close sidebar on link click (mobile navigation)
+    sidebarCol?.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', closeSidebar);
+    });
+
+    // Close TOC drawer on link click
+    tocDrawer?.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => tocDrawer.classList.remove('open'));
+    });
+  }
+
+  initDocs();
+  document.addEventListener('astro:page-load', initDocs);
+</script>

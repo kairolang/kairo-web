@@ -1,0 +1,123 @@
+---
+title: "Proposal: New Operator Syntax"
+description: "A design proposal for the fn op <operator> syntax in Kairo, replacing the old operator overloading approach."
+pubDate: 2025-04-15
+author: dhruvan
+tags: [design, syntax, announcement]
+---
+
+# Proposal: New Operator Syntax
+
+We're proposing a new, cleaner syntax for operator overloading in Kairo. This replaces the previous approach of using `impl std::ops::Add` style trait implementations with a more direct, readable syntax.
+
+## The Problem
+
+The old approach required implementing external interfaces for operator overloading:
+
+```kairo
+impl std::ops::Add for Vector2 {
+    fn add(self, rhs: Vector2) -> Vector2 {
+        return Vector2 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        };
+    }
+}
+```
+
+This is verbose, requires knowing which interface maps to which operator, and separates the operator implementation from the type definition in a way that can be confusing.
+
+## The Proposal: `fn op <operator>`
+
+We're introducing direct operator function syntax using `fn op`:
+
+```kairo
+struct Vector2 {
+    x: f64,
+    y: f64,
+}
+
+impl Vector2 {
+    // Operator overloading — clean and explicit
+    fn op +(self, rhs: Vector2) -> Vector2 {
+        return Vector2 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        };
+    }
+
+    fn op -(self, rhs: Vector2) -> Vector2 {
+        return Vector2 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        };
+    }
+
+    fn op *(self, scalar: f64) -> Vector2 {
+        return Vector2 {
+            x: self.x * scalar,
+            y: self.y * scalar,
+        };
+    }
+
+    fn op ==(self, rhs: Vector2) -> bool {
+        return self.x == rhs.x && self.y == rhs.y;
+    }
+}
+```
+
+## Usage
+
+The syntax is exactly what you'd expect:
+
+```kairo
+fn main() {
+    let a = Vector2 { x: 1.0, y: 2.0 };
+    let b = Vector2 { x: 3.0, y: 4.0 };
+
+    let c = a + b;           // Vector2 { x: 4.0, y: 6.0 }
+    let d = a * 2.0;         // Vector2 { x: 2.0, y: 4.0 }
+    let equal = a == b;      // false
+
+    print(f"c = ({c.x}, {c.y})");
+}
+```
+
+## Supported Operators
+
+The following operators can be overloaded with `fn op`:
+
+| Operator | Description |
+|----------|-------------|
+| `+`  | Addition |
+| `-`  | Subtraction / unary negation |
+| `*`  | Multiplication |
+| `/`  | Division |
+| `%`  | Remainder |
+| `==` | Equality |
+| `!=` | Inequality |
+| `<`  | Less than |
+| `>`  | Greater than |
+| `<=` | Less than or equal |
+| `>=` | Greater than or equal |
+| `[]` | Index |
+| `()` | Call |
+
+## Comparison with Other Languages
+
+- **C++**: `operator+` — similar idea, but buried in C++'s syntax noise
+- **Rust**: `impl Add for T` — trait-based, more flexible but verbose
+- **Zig**: No operator overloading — intentionally excluded
+- **Kairo**: `fn op +` — explicit, readable, lives with the type
+
+## Open Questions
+
+1. Should `fn op` be allowed in `interface` definitions?
+2. How should operator overloading interact with generics?
+3. Should there be restrictions on which operators can return types other than `Self`?
+
+We'd love feedback from the community. Open an issue on [GitHub](https://github.com/kairolang/kairo-lang/issues) or discuss in Discord.
+
+## Timeline
+
+This change is targeted for the `0.2.0-alpha` release. The old `impl std::ops::*` syntax will continue to work for one release cycle before being removed.

@@ -1,0 +1,100 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="404 — Kairo" description="Page not found.">
+  <section style="
+    min-height:80vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow:hidden;
+    background:var(--bg);
+  ">
+    <div class="hero-grid" style="opacity:0.4;"></div>
+    <div class="scan-line"></div>
+
+    <div class="container" style="position:relative;z-index:1;text-align:center;max-width:600px;">
+      <!-- Big 404 -->
+      <div style="
+        font-family:'Space Grotesk',sans-serif;
+        font-size:clamp(8rem,20vw,14rem);
+        font-weight:700;
+        line-height:1;
+        letter-spacing:-0.05em;
+        color:var(--red);
+        text-shadow:0 0 60px var(--red-glow), 0 0 120px var(--red-glow2);
+        margin-bottom:1.5rem;
+        position:relative;
+        display:inline-block;
+        animation:glowPulse 3s ease-in-out infinite;
+      ">404</div>
+
+      <!-- Decorative line -->
+      <div style="
+        width:80px;
+        height:2px;
+        background:linear-gradient(to right, transparent, var(--red), transparent);
+        margin:0 auto 2rem;
+      "></div>
+
+      <h1 style="
+        font-family:'Space Grotesk',sans-serif;
+        font-size:clamp(1.25rem,3vw,1.75rem);
+        font-weight:600;
+        color:var(--text);
+        margin-bottom:1rem;
+        letter-spacing:-0.01em;
+      ">This page doesn't exist in any timeline.</h1>
+
+      <p style="
+        font-family:'Inter',sans-serif;
+        font-size:1rem;
+        color:var(--text-2);
+        line-height:1.7;
+        margin-bottom:2.5rem;
+      ">
+        The page you're looking for has been moved, deleted,
+        or may have never existed. Check the URL and try again.
+      </p>
+
+      <!-- Error code box -->
+      <div style="
+        background:var(--bg-2);
+        border:1px solid var(--border);
+        border-left:3px solid var(--red);
+        padding:12px 16px;
+        border-radius:2px;
+        font-family:'JetBrains Mono',monospace;
+        font-size:0.8rem;
+        color:var(--text-3);
+        text-align:left;
+        margin-bottom:2.5rem;
+        max-width:440px;
+        margin-left:auto;
+        margin-right:auto;
+      ">
+        <span style="color:var(--red);">error</span><span style="color:var(--text-2);">[E404]</span>: page not found<br>
+        <span style="color:var(--text-3);">  --&gt; </span>
+        <span id="current-path" style="color:var(--text-2);">/unknown</span>
+        <br>
+        <span style="color:var(--text-3);">hint</span>: try <a href="/" style="color:var(--red);text-decoration:none;">/</a> or <a href="/docs" style="color:var(--red);text-decoration:none;">/docs</a>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;">
+        <a href="/" class="btn-primary" style="text-decoration:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Go Home
+        </a>
+        <a href="/docs" class="btn-outline" style="text-decoration:none;">
+          View Docs
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const el = document.getElementById('current-path');
+  if (el) el.textContent = window.location.pathname;
+</script>

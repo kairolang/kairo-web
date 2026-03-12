@@ -1,0 +1,47 @@
+---
+import { getCollection } from 'astro:content';
+import DocsLayout from '../../layouts/DocsLayout.astro';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+
+  const sorted = [...docs].sort((a, b) => {
+    const orderA = a.data.order ?? 99;
+    const orderB = b.data.order ?? 99;
+    return orderA - orderB;
+  });
+
+  return docs.map(doc => {
+    const idx = sorted.findIndex(d => d.slug === doc.slug);
+    const prevDoc = idx > 0 ? sorted[idx - 1] : null;
+    const nextDoc = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+
+    function docHref(slug: string): string {
+      const clean = slug.replace(/^docs\//, '').replace(/\/index$/, '');
+      if (!clean || clean === 'index') return '/docs';
+      return `/docs/${clean}`;
+    }
+
+    return {
+      params: { slug: doc.slug === 'index' ? undefined : doc.slug },
+      props: {
+        doc,
+        prev: prevDoc ? { href: docHref(prevDoc.slug), title: prevDoc.data.title } : null,
+        next: nextDoc ? { href: docHref(nextDoc.slug), title: nextDoc.data.title } : null,
+      },
+    };
+  });
+}
+
+const { doc, prev, next } = Astro.props;
+const { Content, headings } = await doc.render();
+---
+<DocsLayout
+  title={doc.data.title}
+  description={doc.data.description}
+  prev={prev}
+  next={next}
+  headings={headings}
+>
+  <Content />
+</DocsLayout>

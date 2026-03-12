@@ -1,0 +1,188 @@
+---
+const features = [
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`,
+    title: 'Zero-cost Abstractions',
+    desc: "Write clean, expressive code that compiles to exactly what you'd hand-write in assembly. No hidden overhead, no runtime cost.",
+  },
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/><path d="M8 6h8M8 10h4"/></svg>`,
+    title: 'Memory Control',
+    desc: "Manual memory management with optional borrow checking. Raw pointers when you need them. Smart pointers when you don't.",
+  },
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+    title: 'C/C++ Interop',
+    desc: 'First-class FFI. Call C and C++ code directly. Bit-level ABI compatibility. No wrappers, no overhead, no ceremony.',
+  },
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>`,
+    title: 'Blazing Performance',
+    desc: 'Predictable performance. No background GC. No hidden allocations. You control every nanosecond of execution.',
+  },
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+    title: 'Modern Ergonomics',
+    desc: 'Generics, interfaces, lambdas, pattern matching. All the tools you expect — none of the runtime cost. Expressive by design.',
+  },
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+    title: 'Built-in Tooling',
+    desc: 'Formatter, linter, package manager, LSP — all ship with the compiler. One toolchain, zero config, maximum productivity.',
+  },
+];
+---
+<section style="padding:7rem 0;background:var(--bg);position:relative;overflow:hidden;">
+  <!-- Diagonal red accent -->
+  <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:0.4;pointer-events:none;animation:beamMove 6s linear infinite;"></div>
+  <!-- Animated diagonal striping (neo-grid) -->
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(135deg,rgba(189,9,32,0.02) 0,rgba(189,9,32,0.02) 1px,transparent 0,transparent 50%);background-size:24px 24px;pointer-events:none;"></div>
+
+  <div class="container">
+    <div style="margin-bottom:3.5rem;" data-reveal>
+      <div class="section-label">Features</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:var(--text);max-width:500px;">
+        Built for the demanding.<br>
+        <span style="color:var(--text-2);font-weight:400;">Not the comfortable.</span>
+      </h2>
+    </div>
+
+    <div class="features-grid">
+      {features.map((f, i) => (
+        <div
+          class="feature-card hud-card"
+          data-reveal
+          data-reveal-delay={i * 80}
+          style={`--i:${i}`}
+        >
+          <!-- Beams that sweep on hover -->
+          <div class="card-beam"></div>
+          <div class="card-vbeam"></div>
+          <div class="card-bottom-line"></div>
+
+          <div class="feature-icon">
+            <Fragment set:html={f.icon} />
+          </div>
+          <h3 class="feature-title">{f.title}</h3>
+          <p class="feature-desc">{f.desc}</p>
+
+          <!-- HUD index -->
+          <span class="feature-index">0{i + 1}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .feature-card {
+    background: var(--bg-2);
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+    border-left: none;
+    border-radius: 0;
+  }
+  .feature-card:hover { background: var(--bg-3); }
+
+  /* Beam sweep on hover */
+  .card-beam {
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--red), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .feature-card:hover .card-beam {
+    opacity: 1;
+    animation: beamMove 1.5s linear;
+  }
+
+  /* Vertical scan beam (right side) */
+  .card-vbeam {
+    position: absolute;
+    right: 0; top: -100%;
+    width: 1px; height: 60%;
+    background: linear-gradient(to bottom, transparent, var(--red), transparent);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .feature-card:hover .card-vbeam {
+    opacity: 1;
+    animation: scanSweep 1.2s ease-out;
+  }
+
+  /* Bottom accent line (always visible, pulses on hover) */
+  .card-bottom-line {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(189,9,32,0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .feature-card:hover .card-bottom-line { opacity: 1; }
+
+  .feature-icon {
+    width: 44px; height: 44px;
+    background: rgba(189,9,32,0.08);
+    border: 1px solid rgba(189,9,32,0.15);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--red);
+    margin-bottom: 1.25rem;
+    transition: all 0.3s;
+  }
+  .feature-card:hover .feature-icon {
+    background: rgba(189,9,32,0.15);
+    border-color: rgba(189,9,32,0.4);
+    box-shadow: 0 0 16px var(--red-glow), inset 0 0 8px rgba(189,9,32,0.05);
+    transform: scale(1.05);
+  }
+
+  .feature-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin-bottom: 0.6rem;
+  }
+  .feature-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    color: var(--text-2);
+    line-height: 1.65;
+  }
+
+  /* HUD index badge */
+  .feature-index {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--text-3);
+    letter-spacing: 0.1em;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .feature-card:hover .feature-index { opacity: 1; color: var(--red); }
+
+  @media (max-width: 900px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
+</style>

@@ -1,0 +1,121 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+interface Props {
+  headings: Heading[];
+}
+const { headings } = Astro.props;
+const toc = headings.filter(h => h.depth === 2 || h.depth === 3);
+---
+
+{toc.length > 0 && (
+  <nav id="toc" aria-label="On this page">
+    <p class="toc-title">On this page</p>
+    <ul>
+      {toc.map(h => (
+        <li>
+          <a
+            href={`#${h.slug}`}
+            class={`toc-link toc-h${h.depth}`}
+          >{h.text}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
+
+<style>
+  #toc {
+    padding: 0 0 2rem 1.25rem;
+    border-left: 1px solid var(--border);
+  }
+  .toc-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .toc-link {
+    display: block;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    color: var(--text-3);
+    text-decoration: none;
+    padding: 5px 0 5px 10px;
+    border-left: 2px solid transparent;
+    margin-left: -1px;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+  .toc-link:hover {
+    color: var(--text-2);
+    border-left-color: var(--border-hi);
+  }
+  .toc-link.active {
+    color: var(--red);
+    border-left-color: var(--red);
+    font-weight: 500;
+  }
+  .toc-h3 {
+    padding-left: 22px;
+    font-size: 0.76rem;
+  }
+</style>
+
+<script>
+  function initTOC() {
+    const links = document.querySelectorAll<HTMLAnchorElement>('.toc-link');
+    if (!links.length) return;
+
+    const ids = Array.from(links)
+      .map(l => l.getAttribute('href')?.slice(1))
+      .filter(Boolean) as string[];
+
+    const els = ids
+      .map(id => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[];
+
+    // Add IDs to headings if missing
+    els.forEach(el => {
+      if (!el.id) {
+        const text = el.textContent ?? '';
+        el.id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+      }
+    });
+
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            links.forEach(l => l.classList.remove('active'));
+            const link = document.querySelector<HTMLAnchorElement>(
+              `.toc-link[href="#${entry.target.id}"]`
+            );
+            link?.classList.add('active');
+          }
+        });
+      },
+      { rootMargin: '-64px 0px -65% 0px', threshold: 0 }
+    );
+
+    els.forEach(el => observer.observe(el));
+  }
+
+  initTOC();
+  document.addEventListener('astro:page-load', initTOC);
+</script>

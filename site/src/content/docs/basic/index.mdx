@@ -1,0 +1,212 @@
+---
+title: Basic Syntax
+description: Core syntax and language constructs in Kairo.
+order: 4
+section: Language Basics
+---
+
+# Basic Syntax
+
+This page covers the core syntax and fundamental language constructs in Kairo.
+
+## Variables
+
+Variables are **immutable by default**. Use `let mut` for mutable variables.
+
+```kairo
+let x = 42;           // immutable — cannot be reassigned
+let mut y = 10;       // mutable
+let z: i32 = 100;     // explicit type annotation
+
+y = 20;               // ok — y is mutable
+// x = 5;            // error — x is immutable
+```
+
+## Functions
+
+```kairo
+fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+// Functions with no return value
+fn greet(name: str) {
+    print(f"Hello, {name}!");
+}
+
+// Error-returning functions (T! means "T or error")
+fn divide(a: f64, b: f64) -> f64! {
+    if b == 0.0 {
+        return error("Division by zero");
+    }
+    return a / b;
+}
+```
+
+### Calling error-returning functions
+
+Use `!` to propagate errors (like Rust's `?`), or handle them explicitly:
+
+```kairo
+fn main() {
+    // Propagate error up
+    let result = divide(10.0, 2.0)!;
+
+    // Or handle it
+    match divide(10.0, 0.0) {
+        ok(v)  => print(f"Result: {v}"),
+        err(e) => print(f"Error: {e}"),
+    }
+}
+```
+
+## Control Flow
+
+### if / else
+
+```kairo
+if x > 0 {
+    print("positive");
+} else if x < 0 {
+    print("negative");
+} else {
+    print("zero");
+}
+```
+
+### for loops
+
+```kairo
+// Range loop
+for i in 0..10 {
+    print(f"i = {i}");
+}
+
+// Inclusive range
+for i in 0..=10 {
+    print(f"i = {i}");
+}
+
+// Iterate over array
+let arr = [1, 2, 3, 4, 5];
+for x in arr {
+    print(f"{x}");
+}
+```
+
+### while
+
+```kairo
+let mut n = 10;
+while n > 0 {
+    print(f"n = {n}");
+    n -= 1;
+}
+```
+
+### match
+
+```kairo
+match value {
+    0        => print("zero"),
+    1..=9    => print("single digit"),
+    10..=99  => print("two digits"),
+    _        => print("large"),
+}
+```
+
+## Types
+
+### Primitive types
+
+```kairo
+let a: i8   = 127;
+let b: i16  = 32767;
+let c: i32  = 2147483647;
+let d: i64  = 9223372036854775807;
+let e: u8   = 255;
+let f: u32  = 4294967295;
+let g: f32  = 3.14;
+let h: f64  = 3.14159265358979;
+let i: bool = true;
+let j: char = 'K';
+```
+
+### Arrays
+
+```kairo
+let arr: [i32; 5] = [1, 2, 3, 4, 5];
+let first = arr[0];
+let len = arr.len();  // 5
+```
+
+### Strings
+
+```kairo
+let s: str = "Hello, Kairo!";
+let len = s.len();
+let upper = s.to_upper();
+
+// f-strings for interpolation
+let name = "world";
+let msg = f"Hello, {name}!";
+```
+
+## Structs
+
+```kairo
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+impl Point {
+    fn new(x: f64, y: f64) -> Point {
+        return Point { x, y };
+    }
+
+    fn distance(self, other: Point) -> f64 {
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        return (dx*dx + dy*dy).sqrt();
+    }
+}
+
+fn main() {
+    let p1 = Point::new(0.0, 0.0);
+    let p2 = Point::new(3.0, 4.0);
+    print(f"Distance: {p1.distance(p2)}");  // 5.0
+}
+```
+
+## Interfaces
+
+Kairo uses interfaces (similar to traits/protocols) for polymorphism:
+
+```kairo
+interface Printable {
+    fn print(self);
+}
+
+struct Cat {
+    name: str,
+}
+
+impl Printable for Cat {
+    fn print(self) {
+        print(f"Cat: {self.name}");
+    }
+}
+```
+
+## Generics
+
+```kairo
+fn max<T: Comparable>(a: T, b: T) -> T {
+    if a > b { return a; }
+    return b;
+}
+
+let bigger = max(10, 20);       // i32
+let bigger2 = max(3.14, 2.71);  // f64
+```
