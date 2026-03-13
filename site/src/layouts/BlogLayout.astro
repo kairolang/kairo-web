@@ -23,8 +23,23 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 const slot = await Astro.slots.render('default');
 const wordCount = slot.replace(/<[^>]+>/g, '').split(/\s+/).length;
 const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Blog', url: '/blog' },
+  { name: title, url: Astro.url.pathname },
+];
 ---
-<BaseLayout title={`${title} — Kairo Blog`} description={description}>
+<BaseLayout
+  title={`${title} — Kairo Blog`}
+  description={description}
+  type="blog"
+  ogType="article"
+  pubDate={pubDate}
+  author={author}
+  tags={tags}
+  breadcrumbs={breadcrumbs}
+>
   <div class="blog-post-container">
     <div class="blog-post-grid">
 

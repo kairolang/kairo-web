@@ -17,8 +17,19 @@ interface Props {
 const { title, description, prev, next, headings = [] } = Astro.props;
 const allDocs = await getCollection('docs');
 const currentPath = Astro.url.pathname;
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Docs', url: '/docs' },
+  { name: title, url: currentPath },
+];
 ---
-<BaseLayout title={`${title} — Kairo Docs`} description={description}>
+<BaseLayout
+  title={`${title} — Kairo Docs`}
+  description={description}
+  type="docs"
+  breadcrumbs={breadcrumbs}
+>
   <!-- Mobile top bar -->
   <div class="docs-mobile-bar" id="docs-mobile-bar">
     <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Open navigation">

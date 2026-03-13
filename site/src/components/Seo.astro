@@ -1,0 +1,185 @@
+---
+/**
+ * Seo.astro — complete SEO head component
+ * Handles meta tags, Open Graph, Twitter/X cards, and JSON-LD structured data.
+ */
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalURL: string;
+  ogImage: string;
+  /** 'website' for most pages, 'article' for blog posts */
+  ogType?: 'website' | 'article';
+  /** Controls which JSON-LD schemas are emitted */
+  type?: 'home' | 'docs' | 'blog' | 'page';
+  pubDate?: Date;
+  modDate?: Date;
+  author?: string;
+  tags?: string[];
+  breadcrumbs?: Array<{ name: string; url: string }>;
+  noindex?: boolean;
+}
+
+const {
+  title,
+  description,
+  canonicalURL,
+  ogImage,
+  ogType = 'website',
+  type = 'page',
+  pubDate,
+  modDate,
+  author,
+  tags = [],
+  breadcrumbs = [],
+  noindex = false,
+} = Astro.props;
+
+const siteURL = (Astro.site ?? new URL('https://kairolang.org')).toString().replace(/\/$/, '');
+const siteName = 'Kairo';
+
+// Ensure ogImage is absolute
+const ogImageAbs = ogImage.startsWith('http') ? ogImage : `${siteURL}${ogImage}`;
+
+// ── JSON-LD schemas ──────────────────────────────────────────────────────────
+const schemas: object[] = [];
+
+// WebSite (every page) — enables sitelinks search box
+schemas.push({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteName,
+  url: siteURL,
+  description: 'Kairo is a modern systems programming language. Control everything. Compromise nothing.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${siteURL}/docs?q={search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
+});
+
+// Homepage — SoftwareApplication
+if (type === 'home') {
+  schemas.push({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Kairo',
+    description,
+    url: siteURL,
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Linux, macOS, Windows',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Kairo Software Foundation',
+      url: `${siteURL}/ksf`,
+    },
+  });
+}
+
+// Blog post — BlogPosting
+if (type === 'blog' && pubDate) {
+  schemas.push({
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: title,
+    description,
+    url: canonicalURL,
+    datePublished: pubDate.toISOString(),
+    ...(modDate ? { dateModified: modDate.toISOString() } : {}),
+    author: { '@type': 'Person', name: author ?? 'Kairo Team' },
+    publisher: {
+      '@type': 'Organization',
+      name: siteName,
+      url: siteURL,
+      logo: { '@type': 'ImageObject', url: `${siteURL}/kairo-logo.svg` },
+    },
+    image: ogImageAbs,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalURL },
+    ...(tags.length ? { keywords: tags.join(', ') } : {}),
+  });
+}
+
+// Docs page — TechArticle
+if (type === 'docs') {
+  schemas.push({
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    name: title,
+    description,
+    url: canonicalURL,
+    publisher: {
+      '@type': 'Organization',
+      name: siteName,
+      url: siteURL,
+    },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalURL },
+  });
+}
+
+// Breadcrumbs
+if (breadcrumbs.length > 0) {
+  schemas.push({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbs.map((crumb, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: crumb.name,
+      item: crumb.url.startsWith('http') ? crumb.url : `${siteURL}${crumb.url}`,
+    })),
+  });
+}
+---
+
+<!-- Primary meta -->
+<meta name="description" content={description} />
+<meta name="theme-color" content="#09090b" />
+{noindex
+  ? <meta name="robots" content="noindex, nofollow" />
+  : <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+}
+{author && <meta name="author" content={author} />}
+{tags.length > 0 && <meta name="keywords" content={tags.join(', ')} />}
+
+<!-- Open Graph -->
+<meta property="og:site_name" content={siteName} />
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content={ogType} />
+<meta property="og:url" content={canonicalURL} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImageAbs} />
+<meta property="og:image:alt" content={`${siteName} — ${title}`} />
+{ogType === 'article' && pubDate && (
+  <meta property="article:published_time" content={pubDate.toISOString()} />
+)}
+{ogType === 'article' && modDate && (
+  <meta property="article:modified_time" content={modDate.toISOString()} />
+)}
+{ogType === 'article' && author && (
+  <meta property="article:author" content={author} />
+)}
+{ogType === 'article' && tags.map(tag => (
+  <meta property="article:tag" content={tag} />
+))}
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content="@kairolang" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImageAbs} />
+<meta name="twitter:image:alt" content={`${siteName} — ${title}`} />
+
+<!-- Canonical -->
+<link rel="canonical" href={canonicalURL} />
+
+<!-- JSON-LD structured data -->
+{schemas.map(schema => (
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+))}

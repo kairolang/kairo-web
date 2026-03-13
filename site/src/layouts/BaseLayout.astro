@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import Seo from '../components/Seo.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 
@@ -8,6 +9,16 @@ interface Props {
   description?: string;
   ogImage?: string;
   canonical?: string;
+  /** Controls structured data output; defaults to 'page' */
+  type?: 'home' | 'docs' | 'blog' | 'page';
+  /** 'article' for blog posts */
+  ogType?: 'website' | 'article';
+  pubDate?: Date;
+  modDate?: Date;
+  author?: string;
+  tags?: string[];
+  breadcrumbs?: Array<{ name: string; url: string }>;
+  noindex?: boolean;
 }
 
 const {
@@ -15,32 +26,39 @@ const {
   description = 'Kairo is a modern systems programming language. Control everything. Compromise nothing.',
   ogImage = '/kairo-logo.svg',
   canonical,
+  type = 'page',
+  ogType = 'website',
+  pubDate,
+  modDate,
+  author,
+  tags = [],
+  breadcrumbs = [],
+  noindex = false,
 } = Astro.props;
 
-const canonicalURL = canonical || new URL(Astro.url.pathname, Astro.site).href;
+const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
 ---
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content={description} />
-    <meta name="theme-color" content="#09090b" />
 
-    <!-- Open Graph -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={canonicalURL} />
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
-    <meta property="og:image" content={ogImage} />
+    <Seo
+      title={title}
+      description={description}
+      canonicalURL={canonicalURL}
+      ogImage={ogImage}
+      ogType={ogType}
+      type={type}
+      pubDate={pubDate}
+      modDate={modDate}
+      author={author}
+      tags={tags}
+      breadcrumbs={breadcrumbs}
+      noindex={noindex}
+    />
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={ogImage} />
-
-    <link rel="canonical" href={canonicalURL} />
     <link rel="icon" href="/kairo-file-icon.svg" type="image/svg+xml" />
 
     <!-- Google Fonts -->

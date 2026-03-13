@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
+import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 
 // Fetch Kairo TextMate grammar at build time
@@ -19,7 +20,7 @@ try {
 export default defineConfig({
   site: 'https://kairolang.org',
   output: 'static',
-  integrations: [mdx()],
+  integrations: [mdx(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
   },
