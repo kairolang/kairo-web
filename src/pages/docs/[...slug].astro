@@ -1,8 +1,18 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, render } from 'astro:content';
 import DocsLayout from '../../layouts/DocsLayout.astro';
 
 export async function getStaticPaths() {
+  function idToSlug(id: string): string {
+    return id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
+  }
+
+  function docHref(id: string): string {
+    const clean = idToSlug(id);
+    if (!clean || clean === 'index') return '/docs';
+    return `/docs/${clean}`;
+  }
+
   const docs = await getCollection('docs');
 
   const sorted = [...docs].sort((a, b) => {
@@ -12,29 +22,24 @@ export async function getStaticPaths() {
   });
 
   return docs.map(doc => {
-    const idx = sorted.findIndex(d => d.slug === doc.slug);
+    const slug = idToSlug(doc.id);
+    const idx = sorted.findIndex(d => d.id === doc.id);
     const prevDoc = idx > 0 ? sorted[idx - 1] : null;
     const nextDoc = idx < sorted.length - 1 ? sorted[idx + 1] : null;
 
-    function docHref(slug: string): string {
-      const clean = slug.replace(/^docs\//, '').replace(/\/index$/, '');
-      if (!clean || clean === 'index') return '/docs';
-      return `/docs/${clean}`;
-    }
-
     return {
-      params: { slug: doc.slug === 'index' ? undefined : doc.slug },
+      params: { slug: slug === 'index' ? undefined : slug },
       props: {
         doc,
-        prev: prevDoc ? { href: docHref(prevDoc.slug), title: prevDoc.data.title } : null,
-        next: nextDoc ? { href: docHref(nextDoc.slug), title: nextDoc.data.title } : null,
+        prev: prevDoc ? { href: docHref(prevDoc.id), title: prevDoc.data.title } : null,
+        next: nextDoc ? { href: docHref(nextDoc.id), title: nextDoc.data.title } : null,
       },
     };
   });
 }
 
 const { doc, prev, next } = Astro.props;
-const { Content, headings } = await doc.render();
+const { Content, headings } = await render(doc);
 ---
 <DocsLayout
   title={doc.data.title}

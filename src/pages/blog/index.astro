@@ -64,7 +64,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
               day: 'numeric',
             });
             return (
-              <a href={`/blog/${post.slug}`} class="blog-card">
+              <a href={`/blog/${post.id.replace(/\.mdx?$/, '')}`} class="blog-card">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
                   <span style="
                     font-family:'Space Grotesk',sans-serif;

@@ -4,7 +4,7 @@ import { getCollection } from 'astro:content';
 export const GET: APIRoute = async () => {
   const docs = await getCollection('docs');
   const results = docs.map(doc => {
-    const rawSlug = doc.slug.replace(/^docs\//, '').replace(/\/index$/, '');
+    const rawSlug = doc.id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
     const url = !rawSlug || rawSlug === 'index' ? '/docs' : `/docs/${rawSlug}`;
     return {
       title: doc.data.title,

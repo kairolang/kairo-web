@@ -62,7 +62,7 @@ schemas.push({
   },
 });
 
-// Homepage — SoftwareApplication
+// Homepage — SoftwareApplication + Organization
 if (type === 'home') {
   schemas.push({
     '@context': 'https://schema.org',
@@ -78,6 +78,16 @@ if (type === 'home') {
       name: 'Kairo Software Foundation',
       url: `${siteURL}/ksf`,
     },
+  });
+  schemas.push({
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Kairo Software Foundation',
+    url: `${siteURL}/ksf`,
+    logo: { '@type': 'ImageObject', url: `${siteURL}/kairo-logo.svg` },
+    sameAs: [
+      'https://github.com/kairolang',
+    ],
   });
 }
 

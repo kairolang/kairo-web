@@ -1,7 +1,7 @@
 ---
 interface Props {
   currentPath: string;
-  allDocs: Array<{ slug: string; data: { title: string; section?: string; order?: number } }>;
+  allDocs: Array<{ id: string; data: { title: string; section?: string; order?: number } }>;
 }
 
 const { currentPath, allDocs } = Astro.props;
@@ -34,14 +34,14 @@ for (const key of Object.keys(sections)) {
   sections[key].sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
 }
 
-function isActive(slug: string): boolean {
+function isActive(id: string): boolean {
   const normalized = currentPath.replace(/^\/docs\/?/, '').replace(/\/$/, '');
-  const docSlug = slug.replace(/^docs\//, '');
-  return normalized === docSlug || (normalized === '' && docSlug === 'index');
+  const docSlug = id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
+  return normalized === docSlug || (normalized === '' && (docSlug === 'index' || docSlug === ''));
 }
 
-function docHref(slug: string): string {
-  const clean = slug.replace(/^docs\//, '').replace(/\/index$/, '');
+function docHref(id: string): string {
+  const clean = id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
   if (!clean || clean === 'index') return '/docs';
   return `/docs/${clean}`;
 }
@@ -73,8 +73,8 @@ function docHref(slug: string): string {
         <div class="sidebar-group-label">{sectionName}</div>
         {docs.map(doc => (
           <a
-            href={docHref(doc.slug)}
-            class={`sidebar-link ${isActive(doc.slug) ? 'active' : ''}`}
+            href={docHref(doc.id)}
+            class={`sidebar-link ${isActive(doc.id) ? 'active' : ''}`}
           >
             {doc.data.title}
           </a>
