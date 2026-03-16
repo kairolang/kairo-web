@@ -11,74 +11,207 @@ try {
 
 const examples = [
   {
-    id: 'hello',
-    label: 'Hello World',
-    filename: 'hello.kairo',
-    code: `fn main() {
-    // Variables are immutable by default
-    let name = "Kairo";
-    let mut count: i32 = 0;
+    id: 'syntax',
+    label: 'Printing to the console',
+    filename: 'hello.kro',
+    code: `import std  // import only what you need, nothing more
 
-    // f-strings for string interpolation
-    for i in 0..3 {
-        print(f"[{i}] Hello from {name}!");
-        count += 1;
-    }
+// No main() required top-level code runs immediately
+// or is callable when imported as a module.
+const name  = "Kairo"
+var   count = 0
 
-    print(f"Ran {count} times.");
-}`,
+for i in 0..5 {
+    std::print(f"Hello, {name}! Count is {count}.")
+    count++
+}
+
+std::print(f"Ran {count} times.")`,
+    blurb: {
+      heading: 'Readable from day one',
+      points: [
+        { label: 'Type inference', body: 'Write `var count = 0` the compiler knows it\'s an integer. Annotate when you want to, not because you have to.' },
+        { label: 'String interpolation', body: '`f""` strings let you embed expressions directly. No concatenation, no format specifiers.' },
+        { label: 'Top-level code', body: 'Skip the `main()` boilerplate. Code at the top level runs on execution and can still be imported as a module.' },
+      ],
+    },
   },
   {
     id: 'memory',
     label: 'Memory Safety',
-    filename: 'memory.kairo',
-    code: `// Kairo's ownership model prevents use-after-free
-struct Buffer {
-    data: *mut u8,
-    len:  usize,
-}
-
-impl Buffer {
-    fn new(size: usize) -> Buffer {
-        return Buffer {
-            data: alloc(size),
-            len: size,
-        };
-    }
-
-    fn ~Buffer() {  // destructor
-        free(self.data);
-    }
-}
-
-fn main() {
-    let buf = Buffer::new(1024);
-    // buf freed automatically here
-}`,
+    filename: 'memory.kro',
+    code: ` import std
+ 
+ struct Buffer {
+     const size:  usize
+     var   data: *u8  // safe pointer, bounds checked automatically
+                      // unless you explicitly opt out.
+ 
+     fn op new (self, size: usize) {
+         self.data = std::Memory::alloc(size)
+         self.size = size  // only the constructor can set size.
+     }
+ 
+     fn op delete (self) { // required since we own an allocation.
+         std::Memory::free(self.data)
+     }
+ }
+ 
+ var buf = Buffer(1024)  // 1KB on the heap.
+                         // destructor runs automatically when buf goes out of scope.
+ 
+ buf.data[0] = 42  // bounds checked; panics at runtime if out of range.
+                   // we can also set up the compiler to make out-of-bounds
+                   // do a no-op or return a default value instead of panicking.
+ 
+ try {
+     buf.data[buf.size] = 99  // out of bounds
+ } catch std::Error::OutOfBounds {
+     std::print("Caught out of bounds access!")
+ }`,
+    blurb: {
+      heading: 'Control without the footguns',
+      points: [
+        { label: 'Manual allocation', body: 'You decide what goes on the heap. No GC, no hidden allocations, no surprises at runtime.' },
+        { label: 'Automatic cleanup', body: 'Kairo tracks ownership and places the destructor exactly where `buf` goes out of scope, or earlier if the function returns or panics. No leaks, no double frees, no annotations required.' },
+        { label: 'Bounds checking by default', body: 'Pointer accesses are checked at runtime under default settings. Out-of-range writes panic with a catchable error instead of silently corrupting memory.' },
+        { label: 'Opt out when you need to', body: 'Safety features can be disabled per-module or per-type. When you need raw performance or bare-metal access, you\'re not fighting the language to get it.' },
+      ],
+    },
   },
   {
-    id: 'interop',
-    label: 'C++ Interop',
-    filename: 'ffi.kairo',
-    code: `// Direct C/C++ interop — zero overhead
-extern "C" {
-    fn printf(fmt: *const char, ...) -> i32;
-    fn malloc(size: usize) -> *mut void;
-    fn free(ptr: *mut void);
-}
+    id: 'using c++ in kairo interop',
+    label: 'C++ in Kairo',
+    filename: 'ffi.kro',
+    code: ` // Call C++ code directly from Kairo with perfect ABI compatibility.
+ // my_cpp_lib.hpp contains:
+ // namespace my_cpp_lib {
+ //     int add(int a, int b) { return a + b; }
+ //     std::string greet(std::string name) { return "Hello, " + name + "!"; }
+ // }
+ //
+ // C++ namespaces map directly to Kairo module syntax.
+ // Functions with no namespace are callable without qualification.
+ 
+ ffi "c++" import "my_cpp_lib.hpp"  // import a C++ header directly as a module.
+                                    // no wrapper generation, no binding step.
+ 
+ const sum      = my_cpp_lib::add(3, 4)  // direct call, zero overhead.
+ var   greeting = my_cpp_lib::greet("Kairo")
+ 
+ greeting += " Welcome to seamless interop!"  // C++ std::string, manipulated
+                                              // directly in Kairo, no conversion.
+ 
+ std::print(greeting)  // Hello, Kairo! Welcome to seamless interop!`,
+    blurb: {
+      heading: 'Drop in, not rewrite',
+      points: [
+        { label: 'No binding step', body: 'Point Kairo at a C++ header and call it. Full type and ABI compatibility, no generated wrappers, no intermediate layer.' },
+        { label: 'Namespaces just work', body: 'C++ namespaces map to Kairo module syntax automatically. Your existing library surface stays exactly as you designed it.' },
+        { label: 'Migrate at your own pace', body: 'Move files to Kairo one at a time while the rest of your codebase stays in C++. There\'s no cutover point, no rewrite cliff.' },
+      ],
+    },
+  },
+  {
+    id: 'using kairo in c++ interop',
+    label: 'Kairo in C++',
+    filename: 'kairo_ffi.cpp',
+    code: `// Call Kairo functions directly from C++ with full ABI compatibility.
+// Compile the Kairo module with \`kairo -cc\` to expose it to C++.
+// Without -cc, use \`kairo --emit-bindings\` to generate C++ or C headers
+// for shipping a Kairo library to C++ consumers.
+//
+// kairo_ffi.kro:
+//   import std
+//   fn add(a: i32, b: i32) -> i32 { return a + b }
+//   fn greet(name: string) -> string { return f"Hello, {name}!" }
+//
+// Kairo wraps the module under its filename as the exposed C++ namespace.
 
-// Link against C++ libraries
-@link("stdc++")
-extern "C++" {
-    class std::vector<T>;
-}
+#include "kairo_ffi.kro"  // include the Kairo module directly.
+#include <iostream>
 
-fn main() {
-    // Call C directly — no wrapping
-    unsafe {
-        printf(c"Hello from C: %d\\n", 42);
-    }
+int main() {
+    int sum = kairo_ffi::add(3, 4);  // direct call, no overhead.
+    std::string greeting = kairo_ffi::greet("C++");
+
+    greeting += " Welcome to seamless interop!";
+
+    std::cout << greeting << std::endl;  // Hello, C++! Welcome to seamless interop!
+    return 0;
 }`,
+    blurb: {
+      heading: 'Adopt Kairo without touching your C++ codebase',
+      points: [
+        { label: 'Include like any header', body: 'With `kairo -cc`, your Kairo module is includable directly from C++. No build system changes, no extra steps.' },
+        { label: 'Full ABI compatibility', body: 'Kairo functions are callable from C++ with perfect type fidelity. The module is exposed under its filename as a C++ namespace, no surprises.' },
+        { label: 'Ship Kairo as a C++ library', body: 'Without `-cc`, use `--emit-bindings` to generate clean C++ or C headers. Consumers see a normal library. They never need to know it\'s Kairo.' },
+      ],
+    },
+  },
+  {
+    id: 'error-handling',
+    label: 'Error Handling',
+    filename: 'errors.kro',
+    code: `import std
+import json // imagine this is a complex JSON library
+
+@json::Serializable
+struct Config {
+    host:    string,
+    port:    u16,
+    workers: u32 = 4,
+}
+
+fn <T impl json::Serializable> json_parse(raw: string) panic -> T;
+// imagine this has a complex implementation that can panic with Json::Error::Parse
+
+fn read_file(path: string) panic -> string;
+// imagine this has a complex implementation that can panic with Fs::Error::NotFound,
+// or Fs::Error::PermissionDenied
+
+fn parse_config(path: string) panic -> Config {
+    var raw: string
+
+    try { // try catch is required if function is not marked \`panic\`
+          // and all catches must be exhaustive on reachable panics.
+          // The compiler verifies this at compile time.
+        raw = read_file(path)
+        return json_parse(raw)
+    } catch Fs::Error::NotFound {
+        std::print(f"Config file not found: {path}")
+        return Config { host: "localhost", port: 8080 }  // recover with a default.
+    } catch Json::Error::Parse as e {
+        std::print(f"Failed to parse config with error: {e}")
+        return Config { host: "localhost", port: 8080 }  // recover with a default.
+    } catch e { // We don't care about Fs::Error::PermissionDenied thats the
+                // caller\'s problem, if we don't catch all possible panics,
+                // the compiler will error, we can catch it and re-panic.
+        panic e // propagate unexpected errors without wrapping or losing context.
+    }
+}
+
+fn start_server(path: string) -> Config {
+    try {
+        const config = parse_config(path)
+        // parse_config is marked \`panic\`, so we must catch its errors that
+        // can reach this scope (in this case, Fs::Error::PermissionDenied).
+        std::print(f"Starting {config.host}:{config.port} {config.workers}workers...")
+        return config
+    } catch Fs::Error::PermissionDenied {
+        std::print(f"Permission denied when reading config file: {path}")
+        return Config { host: "localhost", port: 8080 }  // recover with a default.
+    } // every reachable panic is handled, no panic is needed in this function.
+}     // callers of start_server need no error handling at all.`,
+    blurb: {
+      heading: 'The compiler knows what can fail',
+      points: [
+        { label: '`panic` on the signature', body: 'Mark a function `panic` and the compiler traces every failure reachable in its entire call graph. Nothing hidden, nothing implicit.' },
+        { label: 'Exhaustive catch blocks', body: 'Catch blocks work like a switch on an enum. Handle every reachable panic type and the compiler clears your function\'s signature. Your callers inherit the guarantee automatically, no annotations, no propagation to think about.' },
+        { label: 'Propagate what you don\'t own', body: 'Use `catch e { panic e }` to handle what you care about and push the rest upstream. The original panic travels intact, no wrapping, no lost context.' },
+        { label: 'Dead catches are flagged too', body: 'If a catch block handles a panic type that can\'t actually reach that scope, the compiler tells you. Catch blocks stay honest as code changes over time.' },
+      ],
+    },
   },
 ];
 ---
@@ -87,65 +220,157 @@ fn main() {
   <!-- Subtle diagonal pattern -->
   <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(45deg,rgba(189,9,32,0.015) 0,rgba(189,9,32,0.015) 1px,transparent 0,transparent 50%);background-size:30px 30px;pointer-events:none;"></div>
   <div class="container" style="position:relative;z-index:1;">
-    <div style="margin-bottom:3rem;" data-reveal>
-      <div class="section-label">Code</div>
-      <h2 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:clamp(1.75rem,4vw,2.75rem);
-        font-weight:700;
-        letter-spacing:-0.03em;
-        line-height:1.1;
-        color:var(--text);
-        max-width:500px;
-      ">
-        See it in action - <br>
-        <span style="color:var(--text-2);font-weight:400;">Clean syntax.<br>No magic.</span>
-      </h2>
-    </div>
 
-    <div style="max-width:760px;" data-reveal data-reveal-delay="100">
-      <!-- Tab buttons -->
-      <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:0;" id="code-tabs">
+    <div class="showcase-grid">
+      <!-- LEFT: code block -->
+      <div class="showcase-right" data-reveal>
+        <!-- Tab buttons -->
+        <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:0;" id="code-tabs">
+          {examples.map((ex, i) => (
+            <button
+              class={`tab-btn ${i === 0 ? 'active' : ''}`}
+              data-tab={ex.id}
+            >{ex.label}</button>
+          ))}
+        </div>
+
+        <!-- Tab panels -->
         {examples.map((ex, i) => (
-          <button
-            class={`tab-btn ${i === 0 ? 'active' : ''}`}
-            data-tab={ex.id}
-          >{ex.label}</button>
+          <div
+            class="code-panel"
+            data-panel={ex.id}
+            style={i !== 0 ? 'display:none;' : ''}
+          >
+            <!-- Header -->
+            <div class="showcase-header">
+              <div class="showcase-dots">
+                <span style="background:#ff5f57;"></span>
+                <span style="background:#febc2e;"></span>
+                <span style="background:#28c840;"></span>
+              </div>
+              <span class="showcase-filename">{ex.filename}</span>
+              <span class="showcase-badge">kairo</span>
+            </div>
+            <div class="showcase-body">
+              <Code
+                code={ex.code}
+                lang={kairoLang}
+                themes={{ dark: 'github-dark-default', light: 'github-light-default' }}
+                defaultColor={false}
+              />
+            </div>
+          </div>
         ))}
       </div>
 
-      <!-- Tab panels -->
-      {examples.map((ex, i) => (
-        <div
-          class="code-panel"
-          data-panel={ex.id}
-          style={i !== 0 ? 'display:none;' : ''}
-        >
-          <!-- Header — matches hero code block style -->
-          <div class="showcase-header">
-            <div class="showcase-dots">
-              <span style="background:#ff5f57;"></span>
-              <span style="background:#febc2e;"></span>
-              <span style="background:#28c840;"></span>
-            </div>
-            <span class="showcase-filename">{ex.filename}</span>
-            <span class="showcase-badge">kairo</span>
+      <!-- RIGHT: heading + per-tab blurb -->
+      <div class="showcase-left" data-reveal data-reveal-delay="100">
+        <div class="section-label">Code</div>
+        <h2 style="
+          font-family:'Space Grotesk',sans-serif;
+          font-size:clamp(1.75rem,3vw,2.75rem);
+          font-weight:700;
+          letter-spacing:-0.03em;
+          line-height:1.1;
+          color:var(--text);
+          margin-bottom:2.5rem;
+        ">
+          See it in action. <br>
+          <span style="color:var(--text-2);font-weight:400;">Clean syntax.<br>No magic.</span>
+        </h2>
+
+        <!-- Blurb panels - one per tab -->
+        {examples.map((ex, i) => (
+          <div class="blurb-panel" data-blurb={ex.id} style={i !== 0 ? 'display:none;' : ''}>
+            <p class="blurb-heading">{ex.blurb.heading}</p>
+            <ul class="blurb-list">
+              {ex.blurb.points.map(pt => (
+                <li>
+                  <span class="blurb-label">{pt.label}</span>
+                  <span class="blurb-body" set:html={pt.body.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+                </li>
+              ))}
+            </ul>
           </div>
-          <div class="showcase-body">
-            <Code
-              code={ex.code}
-              lang={kairoLang}
-              themes={{ dark: 'github-dark', light: 'github-light' }}
-              defaultColor={false}
-            />
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
+
   </div>
 </section>
 
 <style>
+  .showcase-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 4rem;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .showcase-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+  }
+
+  .showcase-left {
+    align-self: start;
+  }
+
+  /* Blurb */
+  .blurb-heading {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin: 0 0 1.25rem;
+  }
+  .blurb-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .blurb-list li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--border);
+    transition: border-color 0.2s;
+  }
+  .blurb-list li:hover {
+    border-color: var(--red);
+  }
+  .blurb-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.01em;
+  }
+  .blurb-body {
+    font-size: 0.82rem;
+    color: var(--text-2);
+    line-height: 1.6;
+  }
+  .blurb-body :global(code) {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--red);
+    background: rgba(189,9,32,0.08);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .blurb-panel {
+    transition: opacity 0.15s;
+  }
+
+  /* Code block */
   .code-panel {
     background: var(--bg-2);
     border: 1px solid var(--border);
@@ -209,6 +434,7 @@ fn main() {
 
     const buttons = tabsContainer.querySelectorAll('.tab-btn');
     const panels = document.querySelectorAll('.code-panel');
+    const blurbs = document.querySelectorAll('.blurb-panel');
 
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -227,6 +453,11 @@ fn main() {
             p.classList.add('glitch-in');
             p.addEventListener('animationend', () => p.classList.remove('glitch-in'), { once: true });
           }
+        });
+
+        blurbs.forEach(blurb => {
+          const b = blurb as HTMLElement;
+          b.style.display = b.dataset.blurb === target ? 'block' : 'none';
         });
       });
     });

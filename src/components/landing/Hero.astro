@@ -9,22 +9,30 @@ try {
   if (res.ok) kairoLang = await res.json();
 } catch {}
 
-const heroCode = `import std::Parallel;
+const heroCode = `import std::Parallel
+import std::Error::DimensionError
+import std::Interfaces::Numeric
 
-fn <T: Numeric> dot(a: [T], b: [T]) -> T! {
-    if a.len() != b.len() {
-        return error("Length mismatch");
+fn <T impl Numeric> dot(a: [T], b: [T]) -> T {
+    if a.length() != b.length() {
+        panic DimensionError("dot requires equal lengths")
     }
-    return Parallel::zip(a, b)
-        .map(|(x, y)| x * y)
-        .sum();
+
+    var result = Parallel::reduce(
+        policy:  Parallel::Policy::SIMD,
+        range:   0..(a.length()),
+        init:    0 as T,
+        step:    fn (i: usize)   -> T = a[i] * b[i],
+        combine: fn (x: T, y: T) -> T = x + y
+    )
+
+    return result ?? 0
 }
 
-fn main() {
-    let a = [1.0, 2.0, 3.0];
-    let b = [4.0, 5.0, 6.0];
-    let result = dot(a, b)!;
-    print(f"Dot product: {result}");
+test "dot product of two vectors" {
+    var a, b = [1, 2, 3, 4, 5], [6, 7, 8, 9, 10]
+    var result = dot(a, b)
+    assert result == 130, f"excepted 130, got {result}"
 }`;
 ---
 
@@ -81,19 +89,18 @@ fn main() {
       </h1>
 
       <p class="hero-sub fade-in-up">
-        Kairo is a modern systems programming language. The raw power of C++.
-        The ergonomics of modern design. Zero compromises on performance.
+        Kairo is a systems programming language. The raw power of C++.
+        Designed for developers who demand control without sacrificing
+        safety or expressiveness.
       </p>
 
       <!-- Status bar (HUD style) -->
       <div class="hero-hud fade-in-up">
         <span class="hud-item">
-          <span class="hud-dot"></span>COMPILER ALPHA
+          <span class="hud-dot"></span> STAGE(1) WRITTEN IN KAIRO IN PROGRESS
         </span>
         <span class="hud-sep">|</span>
-        <span class="hud-item">SELF-HOSTING IN PROGRESS</span>
-        <span class="hud-sep">|</span>
-        <span class="hud-item">C++ BOOTSTRAP</span>
+        <span class="hud-item">STAGE(0) WRITTEN IN C++</span>
       </div>
 
       <div class="fade-in-up hero-actions">
@@ -123,7 +130,7 @@ fn main() {
           <span class="hero-code-badge">kairo</span>
         </div>
         <div class="hero-code-body">
-          <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark', light: 'github-light' }} defaultColor={false} />
+          <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark-default', light: 'github-light-default' }} defaultColor={false} />
         </div>
       </div>
     </div>
@@ -484,7 +491,7 @@ fn main() {
 
   // ── Text scramble ──
   function scramble(el: HTMLElement, final: string, delay = 0) {
-    // ASCII-only chars so all glyphs share the same metrics — no Cyrillic
+    // ASCII-only chars so all glyphs share the same metrics - no Cyrillic
     const CHARS = '!<>-_\\/[]{}=+*^?#@ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let frame = 0;
 

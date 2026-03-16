@@ -3,32 +3,32 @@ const features = [
   {
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`,
     title: 'Zero-cost Abstractions',
-    desc: "Write clean, expressive code that compiles to exactly what you'd hand-write in assembly. No hidden overhead, no runtime cost.",
+    desc: "Write clean, expressive code that compiles to almost the same assembly as hand-optimized C. But with safety RAII, and borrow checking when you want it. No hidden costs, no surprises.",
   },
   {
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/><path d="M8 6h8M8 10h4"/></svg>`,
     title: 'Memory Control',
-    desc: "Manual memory management with optional borrow checking. Raw pointers when you need them. Smart pointers when you don't.",
+    desc: "Manual memory management with optional borrow checking. Raw pointers when you need them. Smart pointers when you don't. Fine-grained control over allocation, deallocation, and lifetimes. No GC, no hidden costs, just you and the metal.",
   },
   {
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
     title: 'C/C++ Interop',
-    desc: 'First-class FFI. Call C and C++ code directly. Bit-level ABI compatibility. No wrappers, no overhead, no ceremony.',
+    desc: 'First-class FFI. Call C++ and C code directly. Bit-level ABI compatibility. No C++ to Kairo wrappers, no Kairo to C++ wrappers (if using kairo -\c\c), no overhead, no ceremony. Seamlessly integrate with existing codebases and libraries.',
   },
   {
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>`,
     title: 'Blazing Performance',
-    desc: 'Predictable performance. No background GC. No hidden allocations. You control every nanosecond of execution.',
+    desc: 'Predictable performance. No background GC. No hidden allocations. You control every nanosecond of execution. Write high-level code that compiles down to tight, efficient machine code. Perfect for performance-critical applications. In most cases matching or outperforming C++.',
   },
   {
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
-    title: 'Modern Ergonomics',
-    desc: 'Generics, interfaces, lambdas, pattern matching. All the tools you expect — none of the runtime cost. Expressive by design.',
+    title: 'Ergonomics Without Compromise',
+    desc: 'Modern syntax and powerful abstractions without sacrificing control or performance. Pattern matching, algebraic data types, interfaces, generics, and more. Theres no need to choose between expressiveness and performance.',
   },
   {
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
     title: 'Built-in Tooling',
-    desc: 'Formatter, linter, package manager, LSP — all ship with the compiler. One toolchain, zero config, maximum productivity.',
+    desc: 'A powerful standard library and built-in tools for testing, benchmarking, formatting, linting. The toolchain includes a formatter, package manager, lsp server, compiler, and a linker. No need to cobble together a collection of third-party tools to get a complete development experience.',
   },
 ];
 ---

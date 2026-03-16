@@ -108,7 +108,7 @@ const platforms = [
           <div data-panel={p.id} class="install-panel" style={i !== 0 ? 'display:none;' : ''}>
             {p.commands.map(cmd => (
               <div class="cmd-block">
-                <!-- Header — same style as hero code block -->
+                <!-- Header - same style as hero code block -->
                 <div class="cmd-header">
                   <div class="cmd-dots">
                     <span style="background:#ff5f57;"></span>
@@ -124,7 +124,7 @@ const platforms = [
                     Copy
                   </button>
                 </div>
-                <!-- Body — scrollable on mobile -->
+                <!-- Body - scrollable on mobile -->
                 <div class="cmd-body cmd-line">
                   <span class="cmd-prompt">$ </span><span class="cmd-text typer-cursor" data-cmd={cmd.cmd}>{cmd.cmd}</span>
                 </div>
@@ -146,7 +146,7 @@ const platforms = [
   }
 
   /* Grid children must have min-width:0 so 1fr columns don't expand
-     to fit content — without this overflow-x:auto on cmd-body never fires */
+     to fit content - without this overflow-x:auto on cmd-body never fires */
   .install-grid > * {
     min-width: 0;
   }
@@ -156,7 +156,7 @@ const platforms = [
     padding: 8px 12px;
   }
 
-  /* Code block — same look as hero */
+  /* Code block - same look as hero */
   .cmd-block {
     margin-top: 1rem;
     background: var(--bg-2);

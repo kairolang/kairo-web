@@ -951,7 +951,7 @@ code {
   font-size: 0.9em;
 }
 
-/* Pulse ring — add data-pulse-ring on stat containers */
+/* Pulse ring - add data-pulse-ring on stat containers */
 .pulse-ring {
   position: absolute;
   inset: -8px;

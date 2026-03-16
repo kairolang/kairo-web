@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ site }) => {
     return `${siteURL}/blog/${id.replace(/\.mdx?$/, '')}`;
   };
 
-  let content = `# Kairo — Complete Documentation\n`;
+  let content = `# Kairo - Complete Documentation\n`;
   content += `Source: ${siteURL}/llms-full.txt\n`;
   content += `Generated: ${new Date().toISOString()}\n\n`;
   content += `---\n\n`;

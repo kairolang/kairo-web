@@ -1,6 +1,6 @@
 ---
 /**
- * Seo.astro — complete SEO head component
+ * Seo.astro - complete SEO head component
  * Handles meta tags, Open Graph, Twitter/X cards, and JSON-LD structured data.
  */
 
@@ -45,7 +45,7 @@ const ogImageAbs = ogImage.startsWith('http') ? ogImage : `${siteURL}${ogImage}`
 // ── JSON-LD schemas ──────────────────────────────────────────────────────────
 const schemas: object[] = [];
 
-// WebSite (every page) — enables sitelinks search box
+// WebSite (every page) - enables sitelinks search box
 schemas.push({
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -62,7 +62,7 @@ schemas.push({
   },
 });
 
-// Homepage — SoftwareApplication + Organization
+// Homepage - SoftwareApplication + Organization
 if (type === 'home') {
   schemas.push({
     '@context': 'https://schema.org',
@@ -91,7 +91,7 @@ if (type === 'home') {
   });
 }
 
-// Blog post — BlogPosting
+// Blog post - BlogPosting
 if (type === 'blog' && pubDate) {
   schemas.push({
     '@context': 'https://schema.org',
@@ -114,7 +114,7 @@ if (type === 'blog' && pubDate) {
   });
 }
 
-// Docs page — TechArticle
+// Docs page - TechArticle
 if (type === 'docs') {
   schemas.push({
     '@context': 'https://schema.org',
@@ -164,7 +164,7 @@ if (breadcrumbs.length > 0) {
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:image" content={ogImageAbs} />
-<meta property="og:image:alt" content={`${siteName} — ${title}`} />
+<meta property="og:image:alt" content={`${siteName} - ${title}`} />
 {ogType === 'article' && pubDate && (
   <meta property="article:published_time" content={pubDate.toISOString()} />
 )}
@@ -184,7 +184,7 @@ if (breadcrumbs.length > 0) {
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={ogImageAbs} />
-<meta name="twitter:image:alt" content={`${siteName} — ${title}`} />
+<meta name="twitter:image:alt" content={`${siteName} - ${title}`} />
 
 <!-- Canonical -->
 <link rel="canonical" href={canonicalURL} />

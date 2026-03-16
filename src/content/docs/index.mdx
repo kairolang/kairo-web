@@ -7,17 +7,19 @@ section: Getting Started
 
 # Welcome to Kairo
 
-Kairo is a modern, compiled systems programming language designed for developers who care deeply about **control**, **performance**, and **clarity**.
+Kairo is a statically typed compiled language designed for systems programming, prioritizing **control**, **performance**, and **clarity**
 
-Built by the [Kairo Software Foundation](/ksf), Kairo targets the same problem space as Rust and Zig — but with a distinct philosophy: you should be able to do anything the hardware supports, without the language standing in your way.
+Built by the [Kairo Software Foundation](/ksf), Kairo targets the same problem space as Rust and Zig - but with a distinct philosophy: you should be able to do anything the hardware supports, while still preserving code readability and long-term maintainability.
+
+Kairo also provides **native C++ interoperability**, allowing Kairo code to integrate directly with existing C++ codebases and libraries.
 
 ## Key Features
 
-- **Zero-cost abstractions** — Expressive code that compiles to optimal machine code
-- **Memory control** — Manual or assisted, you choose
-- **C/C++ interop** — First-class FFI, bit-level ABI compatibility
-- **Modern ergonomics** — Generics, interfaces, pattern matching, lambdas
-- **Built-in tooling** — Formatter, linter, package manager, LSP in one binary
+- **Zero-cost abstractions** - Expressive code that compiles to optimal machine code
+- **Memory control** - Manual or assisted, you choose
+- **C/C++ interop** - First-class FFI, bit-level ABI compatibility
+- **Modern ergonomics** - Generics, interfaces, pattern matching, lambdas
+- **Built-in tooling** - Formatter, linter, package manager, LSP in one binary
 
 ## Quick Example
 
@@ -30,10 +32,10 @@ fn main() {
 
 ## Status
 
-Kairo is currently in **alpha**. The compiler is written in C++ and is being rewritten in Kairo itself (self-hosting). APIs and syntax may change before the 1.0 release.
+The Kairo compiler is currently in **stage 0**, which is written in C++ and is being rewritten in Kairo itself (self-hosting). APIs and syntax may change before the 1.0 release.
 
 ## Next Steps
 
-- [Install Kairo](/docs/install) — Get the compiler on your machine
-- [Language Philosophy](/docs/philosophy) — Understand the design decisions
-- [Basic Syntax](/docs/basic) — Start writing Kairo code
+- [Install Kairo](/docs/install) - Get the compiler on your machine
+- [Language Philosophy](/docs/philosophy) - Understand the design decisions
+- [Basic Syntax](/docs/basic) - Start writing Kairo code

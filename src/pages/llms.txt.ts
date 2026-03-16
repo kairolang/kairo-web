@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ site }) => {
   };
 
   let content = `# Kairo\n\n`;
-  content += `> Kairo is a modern, compiled systems programming language designed for control, performance, and clarity. Built by the Kairo Software Foundation, it targets the same problem space as Rust and Zig — with a distinct philosophy: you should be able to do anything the hardware supports, without the language standing in your way. Zero-cost abstractions, manual or assisted memory control, first-class C/C++ interop, and modern ergonomics (generics, interfaces, pattern matching, lambdas) — all compiled to optimal machine code.\n\n`;
+  content += `> Kairo is a compiled systems programming language designed for control, performance, and clarity. Built by the Kairo Software Foundation, it targets the same problem space as Rust and Zig - with a distinct philosophy: you should be able to do anything the hardware supports, without the language standing in your way. Zero-cost abstractions, manual or assisted memory control, first-class C/C++ interop, and modern ergonomics (generics, interfaces, pattern matching, lambdas) - all compiled to optimal machine code.\n\n`;
 
   // Docs sections
   for (const [section, entries] of sections) {

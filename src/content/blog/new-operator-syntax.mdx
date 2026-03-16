@@ -38,7 +38,7 @@ struct Vector2 {
 }
 
 impl Vector2 {
-    // Operator overloading — clean and explicit
+    // Operator overloading - clean and explicit
     fn op +(self, rhs: Vector2) -> Vector2 {
         return Vector2 {
             x: self.x + rhs.x,
@@ -105,10 +105,10 @@ The following operators can be overloaded with `fn op`:
 
 ## Comparison with Other Languages
 
-- **C++**: `operator+` — similar idea, but buried in C++'s syntax noise
-- **Rust**: `impl Add for T` — trait-based, more flexible but verbose
-- **Zig**: No operator overloading — intentionally excluded
-- **Kairo**: `fn op +` — explicit, readable, lives with the type
+- **C++**: `operator+` - similar idea, but buried in C++'s syntax noise
+- **Rust**: `impl Add for T` - trait-based, more flexible but verbose
+- **Zig**: No operator overloading - intentionally excluded
+- **Kairo**: `fn op +` - explicit, readable, lives with the type
 
 ## Open Questions
 

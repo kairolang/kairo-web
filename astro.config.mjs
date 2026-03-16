@@ -1,7 +1,7 @@
-import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'astro/config';
 
 // Fetch Kairo TextMate grammar at build time
 let kairoLang = null;
@@ -23,6 +23,9 @@ export default defineConfig({
   integrations: [mdx(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
+    server: {
+        allowedHosts: ["072c-107-5-102-209.ngrok-free.app"],
+    },
   },
   markdown: {
     shikiConfig: {
