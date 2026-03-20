@@ -1,0 +1,119 @@
+---
+title: std::Questionable<T>
+description: Represents a type that can be nullable or panicable
+---
+
+# `Questionable<T>`
+
+Represents a type that can be nullable or panicable
+
+## Constructors
+
+### [Questionable](./questionable/constructors/questionable-1)
+
+Default constructor (null)
+
+```kairo
+Questionable() noexcept
+```
+
+### [Questionable](./questionable/constructors/questionable-2)
+
+Null constructor
+
+```kairo
+Questionable(const std::null_t&) noexcept
+```
+
+### [Questionable](./questionable/constructors/questionable-3)
+
+Value constructor
+
+```kairo
+Questionable(const T& value)
+```
+
+### [Questionable](./questionable/constructors/questionable-4)
+
+Move value constructor
+
+```kairo
+Questionable(T&& value)
+```
+
+### [Questionable](./questionable/constructors/questionable-5)
+
+Error constructor
+
+```kairo
+Questionable(const std::Panic::Frame& error)
+```
+
+## Operators
+
+### [operator==](./questionable/operators/operator-1)
+
+Equality comparison with null
+
+```kairo
+op ==(self, const std::null_t&) -> bool
+```
+
+### [operator!=](./questionable/operators/operator-2)
+
+Inequality comparison with null
+
+```kairo
+op !=(self, const std::null_t&) -> bool
+```
+
+### [operator?](./questionable/operators/operator-3)
+
+Collapse operator to get T | null_t | Error
+
+```kairo
+op ?(self) -> bool
+```
+
+### [operator in](./questionable/operators/operator-in-4)
+
+Contains operator
+
+```kairo
+op in(self, const E& other) -> bool
+```
+
+### [operator as](./questionable/operators/operator-as-5)
+
+Cast to error type
+
+```kairo
+op as(self, E*) -> E
+```
+
+### [operator as](./questionable/operators/operator-as-6)
+
+Cast to value type
+
+```kairo
+op as(self, T*) -> T
+```
+
+### [operator*](./questionable/operators/operator-7)
+
+Dereference operator
+
+```kairo
+op *(self) -> &T
+```
+
+### [operator T](./questionable/operators/operator-t-8)
+
+Implicit conversion to T
+
+```kairo
+op T(self) -> T
+```
+
+
+

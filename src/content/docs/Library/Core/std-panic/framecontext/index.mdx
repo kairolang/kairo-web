@@ -1,0 +1,45 @@
+---
+title: std::Panic::FrameContext
+description: Provides context for a panic frame
+---
+
+# FrameContext
+
+Provides context for a panic frame
+
+## Methods
+
+### [crash](./framecontext/methods/crash-1)
+
+Terminates the program with the panic context
+
+```kairo
+crash(self) -> void
+```
+
+### [object](./framecontext/methods/object-2)
+
+Returns a pointer to the object that caused the panic
+
+```kairo
+object(self) -> *void
+```
+
+### [type_name](./framecontext/methods/type_name-3)
+
+Returns the type name of the object that caused the panic
+
+```kairo
+type_name(self) -> string
+```
+
+### [operator==](./framecontext/methods/operator-4)
+
+Equality comparison with type_info
+
+```kairo
+op ==(self, const libcxx::type_info& other) -> bool
+```
+
+
+

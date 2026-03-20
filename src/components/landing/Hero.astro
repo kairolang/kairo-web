@@ -82,10 +82,10 @@ test "dot product of two vectors" {
       </div>
 
       <h1 class="hero-title fade-in-up" id="hero-title-main">
-        <span class="hero-title-line glitch-hover" id="scramble-1">Control</span>
-        <span class="hero-title-line glitch-hover" id="scramble-2">everything.</span>
+        <span class="hero-title-line" id="scramble-1">Control</span>
+        <span class="hero-title-line" id="scramble-2">everything.</span>
         <span class="hero-title-line hero-red neon-text" id="scramble-3">Compromise</span>
-        <span class="hero-title-line glitch-hover" id="scramble-4">nothing.</span>
+        <span class="hero-title-line" id="scramble-4">nothing.</span>
       </h1>
 
       <p class="hero-sub fade-in-up">
@@ -356,7 +356,7 @@ test "dot product of two vectors" {
   }
 
   /* Code block */
-  .hero-code-col { width: 100%; align-self: start; }
+  .hero-code-col { width: 100%; align-self: start; min-width: 0; }
   .hero-code-wrap {
     background: var(--bg-2);
     border: 1px solid var(--border);
@@ -396,12 +396,20 @@ test "dot product of two vectors" {
     border: 1px solid rgba(189,9,32,0.2);
     padding: 2px 8px; border-radius: 2px;
   }
+
+  .hero-code-body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .hero-code-body :global(pre.astro-code) {
     margin: 0 !important; border: none !important; border-radius: 0 !important;
     padding: 1.25rem 1.5rem !important;
     font-size: 0.82rem !important; line-height: 1.75 !important;
     font-family: 'JetBrains Mono', monospace !important;
     background: transparent !important;
+    min-width: 0;
+    width: max-content;
   }
 
   .hero-fade-bottom {

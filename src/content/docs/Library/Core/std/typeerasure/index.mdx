@@ -1,0 +1,45 @@
+---
+title: std::TypeErasure
+description: A type erasure mechanism that allows for type removal
+---
+
+# TypeErasure
+
+A type erasure mechanism that allows for type removal
+
+## Methods
+
+### [destroy](./typeerasure/methods/destroy-1)
+
+Destroys the type-erased object
+
+```kairo
+destroy(self) -> void
+```
+
+### [operator*](./typeerasure/methods/operator-2)
+
+Dereference operator to access the erased object
+
+```kairo
+op *(self) -> *void
+```
+
+### [type_info](./typeerasure/methods/type_info-3)
+
+Returns type information about the erased object
+
+```kairo
+type_info(self) -> libcxx::type_info
+```
+
+### [clone](./typeerasure/methods/clone-4)
+
+Creates a copy of the type-erased object
+
+```kairo
+clone(self) -> *TypeErasure
+```
+
+
+

@@ -1,0 +1,173 @@
+---
+title: libcxx Namespace
+description: Comprehensive guide to the `libcxx` namespace, including C standard library headers, C++ standard library headers, and platform-specific extensions.
+order: 1
+---
+
+# `libcxx`
+
+The `libcxx` namespace encompasses the C and C++ standard library headers for use in the current version of Kairo.
+
+## C Standard Library Headers
+
+### Cross-Platform C Headers
+  - [`<fcntl.h>`](https://en.cppreference.com/w/c/io) - File control options
+  - [`<malloc.h>`](https://en.cppreference.com/w/c/memory/malloc) - Memory allocation (non-standard)
+  - [`<memory.h>`](https://en.cppreference.com/w/c/string/byte) - Memory operations (non-standard)
+  - [`<sys/stat.h>`](https://en.cppreference.com/w/c/io) - File status
+  - [`<sys/timeb.h>`](https://en.cppreference.com/w/c/chrono) - Time utilities
+  - [`<sys/types.h>`](https://en.cppreference.com/w/c/types) - System types
+  - [`<sys/utime.h>`](https://en.cppreference.com/w/c/chrono) - File time modification
+
+### Windows-Specific C Headers
+  - `<conio.h>` - Console I/O (Microsoft-specific)
+  - `<corecrt.h>` - Core runtime (Microsoft-specific)
+  - `<corecrt_io.h>` - Core runtime I/O (Microsoft-specific)
+  - `<corecrt_malloc.h>` - Core runtime memory allocation (Microsoft-specific)
+  - `<corecrt_math.h>` - Core runtime math (Microsoft-specific)
+  - `<corecrt_math_defines.h>` - Core runtime math defines (Microsoft-specific)
+  - `<corecrt_memcpy_s.h>` - Core runtime secure memory copy (Microsoft-specific)
+  - `<corecrt_memory.h>` - Core runtime memory (Microsoft-specific)
+  - `<corecrt_search.h>` - Core runtime search (Microsoft-specific)
+  - `<corecrt_share.h>` - Core runtime sharing (Microsoft-specific)
+  - `<corecrt_startup.h>` - Core runtime startup (Microsoft-specific)
+  - `<corecrt_stdio_config.h>` - Core runtime stdio config (Microsoft-specific)
+  - `<corecrt_terminate.h>` - Core runtime termination (Microsoft-specific)
+  - `<corecrt_wconio.h>` - Core runtime wide console I/O (Microsoft-specific)
+  - `<corecrt_wctype.h>` - Core runtime wide character types (Microsoft-specific)
+  - `<corecrt_wdirect.h>` - Core runtime wide directory (Microsoft-specific)
+  - `<corecrt_wio.h>` - Core runtime wide I/O (Microsoft-specific)
+  - `<corecrt_wprocess.h>` - Core runtime wide process (Microsoft-specific)
+  - `<corecrt_wstdio.h>` - Core runtime wide stdio (Microsoft-specific)
+  - `<corecrt_wstdlib.h>` - Core runtime wide stdlib (Microsoft-specific)
+  - `<corecrt_wstring.h>` - Core runtime wide string (Microsoft-specific)
+  - `<corecrt_wtime.h>` - Core runtime wide time (Microsoft-specific)
+  - `<crtdbg.h>` - Debug heap (Microsoft-specific)
+  - `<direct.h>` - Directory control (Microsoft-specific)
+  - `<dos.h>` - DOS interface (Microsoft-specific)
+  - `<fpieee.h>` - IEEE floating point (Microsoft-specific)
+  - `<io.h>` - Low-level I/O (Microsoft-specific)
+  - `<mbctype.h>` - Multibyte character types (Microsoft-specific)
+  - `<mbstring.h>` - Multibyte string (Microsoft-specific)
+  - `<minmax.h>` - Min/max macros (Microsoft-specific)
+  - `<new.h>` - New operator (Microsoft-specific)
+  - `<process.h>` - Process control (Microsoft-specific)
+  - `<safeint.h>` - Safe integer operations (Microsoft-specific)
+  - `<safeint_internal.h>` - Safe integer internals (Microsoft-specific)
+  - `<share.h>` - File sharing (Microsoft-specific)
+  - `<sys/locking.h>` - File locking (Microsoft-specific)
+  - `<tchar.h>` - Generic text mappings (Microsoft-specific)
+
+### Unix-Specific C Headers
+  - [`<pthread.h>`](https://en.cppreference.com/w/c/thread) - POSIX threads
+  - [`<sys/mman.h>`](https://en.cppreference.com/w/c/io) - Memory management (POSIX)
+  - [`<sys/resource.h>`](https://en.cppreference.com/w/c/program) - Resource usage (POSIX)
+  - [`<unistd.h>`](https://en.cppreference.com/w/c/io) - POSIX operating system API
+
+## C++ Standard Library Headers
+
+### C++ Wrapper Headers for C Standard Library
+  - [`<cassert>`](https://en.cppreference.com/w/cpp/header/cassert) - Conditionally compiled macro for assertion checking
+  - [`<cctype>`](https://en.cppreference.com/w/cpp/header/cctype) - Functions to determine character types
+  - [`<cerrno>`](https://en.cppreference.com/w/cpp/header/cerrno) - Macro containing the last error number
+  - [`<cfenv>`](https://en.cppreference.com/w/cpp/header/cfenv) - Floating-point environment
+  - [`<cfloat>`](https://en.cppreference.com/w/cpp/header/cfloat) - Limits of float types
+  - [`<cinttypes>`](https://en.cppreference.com/w/cpp/header/cinttypes) - Formatting macros, intmax_t and uintmax_t math
+  - [`<clocale>`](https://en.cppreference.com/w/cpp/header/clocale) - Localization utilities
+  - [`<cmath>`](https://en.cppreference.com/w/cpp/header/cmath) - Mathematical functions
+  - [`<csetjmp>`](https://en.cppreference.com/w/cpp/header/csetjmp) - Macro for non-local jumps
+  - [`<csignal>`](https://en.cppreference.com/w/cpp/header/csignal) - Functions and macro constants for signal management
+  - [`<cstdarg>`](https://en.cppreference.com/w/cpp/header/cstdarg) - Handling of variable length argument lists
+  - [`<cstddef>`](https://en.cppreference.com/w/cpp/header/cstddef) - Standard type definitions
+  - [`<cstdio>`](https://en.cppreference.com/w/cpp/header/cstdio) - C-style input/output functions
+  - [`<cstdlib>`](https://en.cppreference.com/w/cpp/header/cstdlib) - General purpose utilities
+  - [`<cstring>`](https://en.cppreference.com/w/cpp/header/cstring) - Null-terminated byte string utilities
+  - [`<ctime>`](https://en.cppreference.com/w/cpp/header/ctime) - C-style time utilities
+  - [`<cuchar>`](https://en.cppreference.com/w/cpp/header/cuchar) - Unicode character conversion facilities
+  - [`<cwchar>`](https://en.cppreference.com/w/cpp/header/cwchar) - Wide string utilities
+  - [`<cwctype>`](https://en.cppreference.com/w/cpp/header/cwctype) - Functions for determining wide character types
+
+### Mathematical C++ Headers
+  - [`<ccomplex>`](https://en.cppreference.com/w/cpp/header/ccomplex) - Complex number type
+  - [`<complex>`](https://en.cppreference.com/w/cpp/header/complex) - Complex number type
+  - [`<ctgmath>`](https://en.cppreference.com/w/cpp/header/ctgmath) - Type-generic math functions
+  - [`<numeric>`](https://en.cppreference.com/w/cpp/header/numeric) - Numeric operations on values in ranges
+  - [`<random>`](https://en.cppreference.com/w/cpp/header/random) - Random number generation facilities
+  - [`<valarray>`](https://en.cppreference.com/w/cpp/header/valarray) - Class for representing and manipulating arrays
+
+### Algorithms and Utilities
+  - [`<algorithm>`](https://en.cppreference.com/w/cpp/header/algorithm) - Algorithms for ranges of elements
+  - [`<functional>`](https://en.cppreference.com/w/cpp/header/functional) - Function objects, function invocations, bind operations
+  - [`<iterator>`](https://en.cppreference.com/w/cpp/header/iterator) - Iterator utilities
+  - [`<ranges>`](https://en.cppreference.com/w/cpp/header/ranges) - Range access, primitives, requirements, utilities and adaptors
+  - [`<utility>`](https://en.cppreference.com/w/cpp/header/utility) - Utility components
+
+### Containers
+  - [`<array>`](https://en.cppreference.com/w/cpp/header/array) - Fixed-size sequence container
+  - [`<bitset>`](https://en.cppreference.com/w/cpp/header/bitset) - Bit array
+  - [`<deque>`](https://en.cppreference.com/w/cpp/header/deque) - Double-ended queue
+  - [`<list>`](https://en.cppreference.com/w/cpp/header/list) - Doubly-linked list
+  - [`<map>`](https://en.cppreference.com/w/cpp/header/map) - Associative containers
+  - [`<queue>`](https://en.cppreference.com/w/cpp/header/queue) - Queue container adaptors
+  - [`<set>`](https://en.cppreference.com/w/cpp/header/set) - Associative containers
+  - [`<stack>`](https://en.cppreference.com/w/cpp/header/stack) - Stack container adaptor
+  - [`<unordered_map>`](https://en.cppreference.com/w/cpp/header/unordered_map) - Unordered associative containers
+  - [`<unordered_set>`](https://en.cppreference.com/w/cpp/header/unordered_set) - Unordered associative containers
+  - [`<vector>`](https://en.cppreference.com/w/cpp/header/vector) - Dynamic array
+
+### Strings and Text Processing
+  - [`<codecvt>`](https://en.cppreference.com/w/cpp/header/codecvt) - Unicode conversion facilities
+  - [`<locale>`](https://en.cppreference.com/w/cpp/header/locale) - Localization utilities
+  - [`<regex>`](https://en.cppreference.com/w/cpp/header/regex) - Regular expressions
+  - [`<string>`](https://en.cppreference.com/w/cpp/header/string) - String types
+  - [`<string_view>`](https://en.cppreference.com/w/cpp/header/string_view) - String view
+
+### Input/Output
+  - [`<fstream>`](https://en.cppreference.com/w/cpp/header/fstream) - File stream classes
+  - [`<iomanip>`](https://en.cppreference.com/w/cpp/header/iomanip) - Input/output manipulators
+  - [`<ios>`](https://en.cppreference.com/w/cpp/header/ios) - Input/output stream base classes
+  - [`<iosfwd>`](https://en.cppreference.com/w/cpp/header/iosfwd) - Forward declarations of input/output streams
+  - [`<iostream>`](https://en.cppreference.com/w/cpp/header/iostream) - Standard input/output streams
+  - [`<istream>`](https://en.cppreference.com/w/cpp/header/istream) - Input stream classes
+  - [`<ostream>`](https://en.cppreference.com/w/cpp/header/ostream) - Output stream classes
+  - [`<sstream>`](https://en.cppreference.com/w/cpp/header/sstream) - String stream classes
+  - [`<streambuf>`](https://en.cppreference.com/w/cpp/header/streambuf) - Stream buffer classes
+
+### Memory Management
+  - [`<memory>`](https://en.cppreference.com/w/cpp/header/memory) - Higher level memory management utilities
+  - [`<scoped_allocator>`](https://en.cppreference.com/w/cpp/header/scoped_allocator) - Nested allocator class
+
+### Threading and Concurrency
+  - [`<atomic>`](https://en.cppreference.com/w/cpp/header/atomic) - Atomic operations library
+  - [`<condition_variable>`](https://en.cppreference.com/w/cpp/header/condition_variable) - Thread waiting conditions
+  - [`<future>`](https://en.cppreference.com/w/cpp/header/future) - Asynchronous computations
+  - [`<mutex>`](https://en.cppreference.com/w/cpp/header/mutex) - Mutual exclusion primitives
+  - [`<shared_mutex>`](https://en.cppreference.com/w/cpp/header/shared_mutex) - Shared mutual exclusion primitives
+  - [`<thread>`](https://en.cppreference.com/w/cpp/header/thread) - Thread support library
+
+### Type Support and Metaprogramming
+  - [`<exception>`](https://en.cppreference.com/w/cpp/header/exception) - Exception handling utilities
+  - [`<limits>`](https://en.cppreference.com/w/cpp/header/limits) - Standardized way to query properties of fundamental types
+  - [`<stdexcept>`](https://en.cppreference.com/w/cpp/header/stdexcept) - Standard exception objects
+  - [`<system_error>`](https://en.cppreference.com/w/cpp/header/system_error) - System error support
+  - [`<tuple>`](https://en.cppreference.com/w/cpp/header/tuple) - Tuple types
+  - [`<type_traits>`](https://en.cppreference.com/w/cpp/header/type_traits) - Compile-time type information
+  - [`<typeindex>`](https://en.cppreference.com/w/cpp/header/typeindex) - Wrapper around type_info objects
+  - [`<typeinfo>`](https://en.cppreference.com/w/cpp/header/typeinfo) - Runtime type information utilities
+  - [`<variant>`](https://en.cppreference.com/w/cpp/header/variant) - Type-safe union
+
+### C++20 and Later Features
+  - [`<chrono>`](https://en.cppreference.com/w/cpp/header/chrono) - Time utilities
+  - [`<coroutine>`](https://en.cppreference.com/w/cpp/header/coroutine) - Coroutine support library
+  - [`<optional>`](https://en.cppreference.com/w/cpp/header/optional) - Optional objects
+  - [`<span>`](https://en.cppreference.com/w/cpp/header/span) - Object that can refer to a contiguous sequence of objects
+
+## Platform-Specific Extensions
+
+### Unix/Linux Extensions
+  - `<cxxabi.h>` - C++ ABI support (GCC-specific)
+
+### Windows Extensions
+  - `<processthreadsapi.h>` - Process and thread API (Windows-specific)
+  - `<tlhelp32.h>` - Tool help functions (Windows-specific)
+  - `<windows.h>` - Windows API (Windows-specific)

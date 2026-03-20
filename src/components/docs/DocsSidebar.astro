@@ -1,38 +1,15 @@
 ---
+import { getCollection } from 'astro:content';
+import { buildDocTree, formatSectionName, type TreeSection, type TreePage } from '../../lib/docs-tree';
+
 interface Props {
   currentPath: string;
-  allDocs: Array<{ id: string; data: { title: string; section?: string; order?: number } }>;
 }
 
-const { currentPath, allDocs } = Astro.props;
+const { currentPath } = Astro.props;
 
-// Group docs by section
-const sections: Record<string, typeof allDocs> = {
-  'Getting Started': [],
-  'Language Basics': [],
-  'Functions': [],
-  'Memory & Safety': [],
-  'Concurrency': [],
-  'Advanced': [],
-  'Standard Library': [],
-  'Tooling': [],
-  'Contributing': [],
-};
-
-// Map docs to sections
-for (const doc of allDocs) {
-  const section = doc.data.section || 'Getting Started';
-  if (sections[section]) {
-    sections[section].push(doc);
-  } else {
-    sections['Getting Started'].push(doc);
-  }
-}
-
-// Sort by order within each section
-for (const key of Object.keys(sections)) {
-  sections[key].sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
-}
+const allDocs = await getCollection('docs');
+const tree = buildDocTree(allDocs);
 
 function isActive(id: string): boolean {
   const normalized = currentPath.replace(/^\/docs\/?/, '').replace(/\/$/, '');
@@ -40,11 +17,68 @@ function isActive(id: string): boolean {
   return normalized === docSlug || (normalized === '' && (docSlug === 'index' || docSlug === ''));
 }
 
-function docHref(id: string): string {
-  const clean = id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
-  if (!clean || clean === 'index') return '/docs';
-  return `/docs/${clean}`;
+function esc(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
+
+const chevron = `<svg class="sidebar-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>`;
+
+// Render a collapsible section (top-level or sub-section)
+function renderSection(section: TreeSection, sectionPath: string, isSub: boolean): string {
+  const collapsed = section.defaultCollapsed;
+  const labelActive = section.indexPage && isActive(section.indexPage.id) ? ' active' : '';
+  const labelClass = `sidebar-group-label${isSub ? ' sidebar-sublabel' : ''} sidebar-grouplabel-link${labelActive}`;
+
+  const labelHtml = section.indexPage
+    ? `<a href="${section.indexPage.href}" class="${labelClass}">${esc(formatSectionName(section.name))}</a>`
+    : `<div class="sidebar-group-label${isSub ? ' sidebar-sublabel' : ''}">${esc(formatSectionName(section.name))}</div>`;
+
+  const headerHtml = `<div class="sidebar-collapsible-header">${labelHtml}<button class="sidebar-section-btn" aria-label="Toggle ${esc(section.name)} section">${chevron}</button></div>`;
+  const bodyHtml = `<div class="sidebar-collapsible-body">${renderChildren(section, sectionPath)}</div>`;
+  const containerClass = isSub ? 'sidebar-subgroup sidebar-collapsible' : 'sidebar-group sidebar-collapsible';
+
+  return `<div class="${containerClass}" data-section="${esc(sectionPath)}" data-collapsed="${collapsed}">${headerHtml}${bodyHtml}</div>`;
+}
+
+// Render children of a section (pages and sub-sections)
+function renderChildren(section: TreeSection, parentPath: string): string {
+  let html = '';
+  for (const child of section.children) {
+    if (child.kind === 'section') {
+      const childPath = `${parentPath}/${child.name}`;
+      html += renderSection(child, childPath, true);
+    } else {
+      const active = isActive(child.id) ? ' active' : '';
+      html += `<a href="${child.href}" class="sidebar-link${active}">${esc(child.title)}</a>`;
+    }
+  }
+  return html;
+}
+
+// Root-level pages (no containing folder) and top-level sections
+const rootPages = tree.children.filter((c): c is TreePage => c.kind === 'page');
+const rootSections = tree.children.filter((c): c is TreeSection => c.kind === 'section');
+
+// Root group: index + root pages shown flat (no section label, not collapsible)
+const rootItems: string[] = [];
+if (tree.indexPage) {
+  const active = isActive(tree.indexPage.id) ? ' active' : '';
+  rootItems.push(`<a href="${tree.indexPage.href}" class="sidebar-link${active}">${esc(tree.indexPage.title)}</a>`);
+}
+for (const p of rootPages) {
+  const active = isActive(p.id) ? ' active' : '';
+  rootItems.push(`<a href="${p.href}" class="sidebar-link${active}">${esc(p.title)}</a>`);
+}
+
+const rootGroupHtml = rootItems.length > 0
+  ? `<div class="sidebar-group">${rootItems.join('')}</div>`
+  : '';
+
+const sectionsHtml = rootSections.map(s => renderSection(s, s.name, false)).join('');
 ---
 
 <nav class="docs-sidebar-nav">
@@ -68,38 +102,7 @@ function docHref(id: string): string {
       </a>
     </div>
 
-    {Object.entries(sections).map(([sectionName, docs]) => docs.length > 0 && (
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">{sectionName}</div>
-        {docs.map(doc => (
-          <a
-            href={docHref(doc.id)}
-            class={`sidebar-link ${isActive(doc.id) ? 'active' : ''}`}
-          >
-            {doc.data.title}
-          </a>
-        ))}
-      </div>
-    ))}
-
-    <!-- Placeholder sections for future content -->
-    {[
-      { name: 'Functions', links: [] },
-      { name: 'Memory & Safety', links: [] },
-      { name: 'Concurrency', links: [] },
-    ].map(s => s.links.length === 0 && (
-      <div class="sidebar-group" style="opacity:0.4;">
-        <div class="sidebar-group-label">{s.name}</div>
-        <span style="
-          display:block;
-          font-size:0.75rem;
-          color:var(--text-3);
-          padding:4px 1.5rem 8px;
-          font-family:'Inter',sans-serif;
-          font-style:italic;
-        ">Coming soon</span>
-      </div>
-    ))}
+    <Fragment set:html={rootGroupHtml + sectionsHtml} />
   </div>
 </nav>
 
@@ -110,3 +113,29 @@ function docHref(id: string): string {
     }
   }
 </style>
+
+<script>
+  function initCollapsible() {
+    document.querySelectorAll<HTMLElement>('.sidebar-collapsible').forEach(section => {
+      const key = `sidebar-section:${section.dataset.section}`;
+      const saved = localStorage.getItem(key);
+
+      // Restore saved state; but always expand if this section contains the active page
+      const hasActive = section.querySelector('.sidebar-link.active, .sidebar-grouplabel-link.active');
+      if (hasActive) {
+        section.dataset.collapsed = 'false';
+      } else if (saved !== null) {
+        section.dataset.collapsed = saved;
+      }
+
+      section.querySelector('.sidebar-section-btn')?.addEventListener('click', () => {
+        const isCollapsed = section.dataset.collapsed === 'true';
+        section.dataset.collapsed = isCollapsed ? 'false' : 'true';
+        localStorage.setItem(key, section.dataset.collapsed);
+      });
+    });
+  }
+
+  initCollapsible();
+  document.addEventListener('astro:page-load', initCollapsible);
+</script>

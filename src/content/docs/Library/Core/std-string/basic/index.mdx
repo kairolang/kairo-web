@@ -1,0 +1,544 @@
+---
+title: std::String::basic<Char, Traits>
+description: Represents a basic string type with specified character type and traits, similar to std::basic_string in C++
+---
+
+# `basic<Char, Traits>`
+
+Represents a basic string type with specified character type and traits, similar to std::basic_string in C++
+
+## Template Parameters
+
+- `Char`
+- `Traits`
+
+## Type Aliases
+
+- `char_traits = Traits`
+- `char_t = CharT`
+- `size_t = usize`
+- `string_t = libcxx::basic_string<CharT, Traits>`
+- `slice_t = slice`
+- `slice_vec = vec<slice_t>`
+- `char_vec = vec<CharT>`
+
+## Constructors
+
+### [`basic`](./basic/constructors/basic-1)
+
+Default constructor
+
+```kairo
+basic() noexcept
+```
+
+### [`basic`](./basic/constructors/basic-2)
+
+Copy constructor
+
+```kairo
+basic(const basic& other) noexcept
+```
+
+### [`basic`](./basic/constructors/basic-3)
+
+Move constructor
+
+```kairo
+basic(basic&& other) noexcept
+```
+
+### [`basic`](./basic/constructors/basic-4)
+
+Constructor from C++ string
+
+```kairo
+basic(const libcxx::basic_string<CharT, Traits>& str) noexcept
+```
+
+### [`basic`](./basic/constructors/basic-5)
+
+Constructor from C-style string
+
+```kairo
+basic(const CharT* str) noexcept
+```
+
+### [`basic`](./basic/constructors/basic-6)
+
+Constructor with character repeated count times
+
+```kairo
+basic(const CharT chr, size_t count) noexcept
+```
+
+### [`basic`](./basic/constructors/basic-7)
+
+Constructor from C-style string with length
+
+```kairo
+basic(const CharT* str, size_t len) noexcept
+```
+
+### [`basic`](./basic/constructors/basic-8)
+
+Constructor from string slice
+
+```kairo
+basic(const slice_t& s) noexcept
+```
+
+## Operators
+
+### [`operator=`](./basic/operators/operator-1)
+
+Copy assignment operator
+
+```kairo
+op =(self, const basic& other) -> &basic
+```
+
+### [`operator=`](./basic/operators/operator-2)
+
+Move assignment operator
+
+```kairo
+op =(self, basic&& other) -> &basic
+```
+
+### [`operator=`](./basic/operators/operator-3)
+
+Assignment from C-style string
+
+```kairo
+op =(self, const CharT* str) -> &basic
+```
+
+### [`operator[]`](./basic/operators/operator-4)
+
+Access character at index (mutable)
+
+```kairo
+op [``](self, index: size_t) -> &CharT
+```
+
+### [`operator[]`](./basic/operators/operator-5)
+
+Access character at index (const)
+
+```kairo
+op [``](self, index: size_t) -> const &CharT
+```
+
+### [`operator+=`](./basic/operators/operator-6)
+
+Append another string
+
+```kairo
+op +=(self, const basic& other) -> &basic
+```
+
+### [`operator+=`](./basic/operators/operator-7)
+
+Append C-style string
+
+```kairo
+op +=(self, const CharT* str) -> &basic
+```
+
+### [`operator+=`](./basic/operators/operator-8)
+
+Append character
+
+```kairo
+op +=(self, const U chr) -> &basic
+```
+
+### [`operator+`](./basic/operators/operator-9)
+
+Concatenate with another string
+
+```kairo
+op +(self, const basic& other) -> basic
+```
+
+### [`operator+`](./basic/operators/operator-10)
+
+Concatenate with C-style string
+
+```kairo
+op +(self, const CharT* str) -> basic
+```
+
+### [`operator+`](./basic/operators/operator-11)
+
+Concatenate with character
+
+```kairo
+op +(self, const U chr) -> basic
+```
+
+### [`operator==`](./basic/operators/operator-12)
+
+Equality comparison
+
+```kairo
+op ==(self, const basic& other) -> bool
+```
+
+### [`operator!=`](./basic/operators/operator-13)
+
+Inequality comparison
+
+```kairo
+op !=(self, const basic& other) -> bool
+```
+
+### [`operator<`](./basic/operators/operator-14)
+
+Less than comparison
+
+```kairo
+op <(self, const basic& other) -> bool
+```
+
+### [`operator>`](./basic/operators/operator-15)
+
+Greater than comparison
+
+```kairo
+op >(self, const basic& other) -> bool
+```
+
+### [`operator<=`](./basic/operators/operator-16)
+
+Less than or equal comparison
+
+```kairo
+op <=(self, const basic& other) -> bool
+```
+
+### [`operator>=`](./basic/operators/operator-17)
+
+Greater than or equal comparison
+
+```kairo
+op >=(self, const basic& other) -> bool
+```
+
+### [`operator slice_t`](./basic/operators/operator-slice_t-18)
+
+Conversion to slice
+
+```kairo
+op slice_t(self) -> slice_t
+```
+
+### [`operator as`](./basic/operators/operator-as-19)
+
+Cast to slice
+
+```kairo
+op as(self, const slice_t*) -> slice_t
+```
+
+### [`operator as`](./basic/operators/operator-as-20)
+
+Cast to C-style string
+
+```kairo
+op as(self, const char_t*) -> const char_t*
+```
+
+### [`operator in`](./basic/operators/operator-in-21)
+
+Contains operator for slice
+
+```kairo
+op in(self, needle: slice) -> bool
+```
+
+### [`operator in`](./basic/operators/operator-in-22)
+
+Contains operator for character
+
+```kairo
+op in(self, chr: CharT) -> bool
+```
+
+## Methods
+
+### [`push_back`](./basic/methods/push_back-1)
+
+Appends a character to the end of the string
+
+```kairo
+push_back(self, c: CharT) -> void
+```
+
+### [`append`](./basic/methods/append-2)
+
+Appends another string
+
+```kairo
+append(self, const basic& other) -> void
+```
+
+### [`append`](./basic/methods/append-3)
+
+Appends C-style string with length
+
+```kairo
+append(self, const CharT* str, len: size_t) -> void
+```
+
+### [`append`](./basic/methods/append-4)
+
+Appends string slice
+
+```kairo
+append(self, const slice_t& s) -> void
+```
+
+### [`clear`](./basic/methods/clear-5)
+
+Clears the string content
+
+```kairo
+clear(self) -> void
+```
+
+### [`replace`](./basic/methods/replace-6)
+
+Replaces portion of string with another slice
+
+```kairo
+replace(self, pos: size_t, len: size_t, const slice_t& other) -> void
+```
+
+### [`reserve`](./basic/methods/reserve-7)
+
+Reserves capacity for the string
+
+```kairo
+reserve(self, new_cap: size_t) -> void
+```
+
+### [`resize`](./basic/methods/resize-8)
+
+Resizes the string to new size
+
+```kairo
+resize(self, new_size: size_t, c: CharT = CharT()) -> void
+```
+
+### [`empty`](./basic/methods/empty-9)
+
+Checks if string is empty
+
+```kairo
+empty(self) -> bool
+```
+
+### [`raw`](./basic/methods/raw-10)
+
+Returns raw C-style string pointer
+
+```kairo
+raw(self) -> const CharT*
+```
+
+### [`size`](./basic/methods/size-11)
+
+Returns the size of the string
+
+```kairo
+size(self) -> size_t
+```
+
+### [`length`](./basic/methods/length-12)
+
+Returns the length of the string
+
+```kairo
+length(self) -> size_t
+```
+
+### [`is_empty`](./basic/methods/is_empty-13)
+
+Checks if string is empty
+
+```kairo
+is_empty(self) -> bool
+```
+
+### [`raw_string`](./basic/methods/raw_string-14)
+
+Returns reference to underlying C++ string
+
+```kairo
+raw_string(self) -> &string_t
+```
+
+### [`subslice`](./basic/methods/subslice-15)
+
+Returns a substring
+
+```kairo
+subslice(self, pos: size_t, len: size_t) -> basic
+```
+
+### [`l_strip`](./basic/methods/l_strip-16)
+
+Strips whitespace from the left
+
+```kairo
+l_strip(self, const char_vec& delim = {' ', '\t', '\n', '\r'}) -> basic
+```
+
+### [`r_strip`](./basic/methods/r_strip-17)
+
+Strips whitespace from the right
+
+```kairo
+r_strip(self, const char_vec& delim = {' ', '\t', '\n', '\r'}) -> basic
+```
+
+### [`strip`](./basic/methods/strip-18)
+
+Strips whitespace from both ends
+
+```kairo
+strip(self, const char_vec& delim = {' ', '\t', '\n', '\r'}) -> basic
+```
+
+### [`split`](./basic/methods/split-19)
+
+Splits string by delimiter
+
+```kairo
+split(self, const basic& delim, op: slice_t::Operation = slice_t::Operation::Remove) -> vec<basic>
+```
+
+### [`split_lines`](./basic/methods/split_lines-20)
+
+Splits string by newlines
+
+```kairo
+split_lines(self) -> vec<basic>
+```
+
+### [`starts_with`](./basic/methods/starts_with-21)
+
+Checks if string starts with needle
+
+```kairo
+starts_with(self, const basic& needle) -> bool
+```
+
+### [`starts_with`](./basic/methods/starts_with-22)
+
+Checks if string starts with character
+
+```kairo
+starts_with(self, c: CharT) -> bool
+```
+
+### [`starts_with`](./basic/methods/starts_with-23)
+
+Checks if string starts with slice
+
+```kairo
+starts_with(self, needle: slice) -> bool
+```
+
+### [`ends_with`](./basic/methods/ends_with-24)
+
+Checks if string ends with needle
+
+```kairo
+ends_with(self, const basic& needle) -> bool
+```
+
+### [`ends_with`](./basic/methods/ends_with-25)
+
+Checks if string ends with character
+
+```kairo
+ends_with(self, c: CharT) -> bool
+```
+
+### [`ends_with`](./basic/methods/ends_with-26)
+
+Checks if string ends with slice
+
+```kairo
+ends_with(self, needle: slice) -> bool
+```
+
+### [`contains`](./basic/methods/contains-27)
+
+Checks if string contains needle
+
+```kairo
+contains(self, const basic& needle) -> bool
+```
+
+### [`contains`](./basic/methods/contains-28)
+
+Checks if string contains character
+
+```kairo
+contains(self, c: CharT) -> bool
+```
+
+### [`lfind`](./basic/methods/lfind-29)
+
+Finds first occurrence of needle
+
+```kairo
+lfind(self, needle: slice) -> usize?
+```
+
+### [`rfind`](./basic/methods/rfind-30)
+
+Finds last occurrence of needle
+
+```kairo
+rfind(self, needle: slice) -> usize?
+```
+
+### [`find_first_of`](./basic/methods/find_first_of-31)
+
+Finds first occurrence of any character in needle
+
+```kairo
+find_first_of(self, needle: slice) -> usize?
+```
+
+### [`find_last_of`](./basic/methods/find_last_of-32)
+
+Finds last occurrence of any character in needle
+
+```kairo
+find_last_of(self, needle: slice) -> usize?
+```
+
+### [`find_first_not_of`](./basic/methods/find_first_not_of-33)
+
+Finds first character not in needle
+
+```kairo
+find_first_not_of(self, needle: slice) -> usize?
+```
+
+### [`find_last_not_of`](./basic/methods/find_last_not_of-34)
+
+Finds last character not in needle
+
+```kairo
+find_last_not_of(self, needle: slice) -> usize?
+```
+
+
+

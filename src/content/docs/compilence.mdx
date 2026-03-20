@@ -1,0 +1,382 @@
+---
+title: Compiler Compliance
+description: The standards and specifications Kairo targets, what compliance means in practice, and where Kairo intentionally deviates and why.
+order: 1
+section: Language
+---
+
+# Kairo Compiler Standards & Compliance
+
+This document covers every standard, ABI, and specification Kairo targets,
+what compliance means in practice, and where Kairo intentionally deviates and
+why. It is written for engineers who need to know exactly what guarantees the
+compiler makes and what it doesn't.
+
+---
+
+## Floating-Point: IEEE 754-2019
+
+Kairo targets **IEEE 754-2019** (the 2019 revision of IEEE 754-2008) for all
+binary floating-point types: `f16`, `f32`, `f64`, `f128`.
+
+What this means concretely:
+
+- All four basic arithmetic operations (`+`, `-`, `*`, `/`), `sqrt`, and `fma`
+  produce correctly rounded results in round-to-nearest-even mode (the IEEE
+  default). The result is the representable value closest to the infinitely
+  precise result, with ties going to even.
+- Intermediate results within a single expression may be fused into FMA
+  operations by the compiler (FP contraction is `on` by default, not `fast`).
+  This can produce results that differ from performing the operations separately
+  with two roundings. If you need strict per-operation rounding, use
+  `--fp-contract=off`.
+- `nan!` and `inf!` are first-class language constructs. They are the only
+  correct way to introduce these values intentionally. Silent production of NaN
+  or Inf from arithmetic (e.g. `0.0 / 0.0`, `1.0 / 0.0`) panics in debug
+  builds with a precise diagnostic pointing at the operation. In release builds
+  these produce IEEE-conformant results without a trap (matching `precise` mode
+  behavior).
+- NaN payload bits are not guaranteed to be preserved across arithmetic
+  operations and are not guaranteed to be portable across architectures.
+  Inspecting NaN bit patterns is explicitly unsupported behavior. If you need
+  NaN payloads, use `f32::from_bits` / `f64::from_bits` and document why.
+- The 2019 standard deprecated the non-associative `minNum`/`maxNum` operations
+  from 2008 and replaced them with `minimum`/`maximum` which have well-defined
+  NaN handling. Kairo's `min`/`max` builtins follow the 2019 semantics.
+- Subnormal (denormal) numbers are handled per IEEE spec by default. Flush-to-
+  zero mode is not enabled unless you explicitly opt in with `--fp-model=fast`
+  or the `@float_mode(fast)` block annotation.
+
+**What Kairo does not guarantee:**
+
+- Reproducibility of floating-point results across different optimization levels,
+  different target architectures, or different LLVM versions. If you need
+  bitwise-reproducible results, use `--fp-contract=off --fp-model=strict` and
+  target a specific CPU with `--mcpu`.
+- Strict exception observability by default. FP exceptions (divide-by-zero,
+  overflow, underflow, inexact, invalid) are not observable through `fenv.h`
+  equivalents unless you compile with `--fp-model=strict`. The default
+  (`precise`) treats exceptions as ignorable, which is what lets the optimizer
+  e.g. hoist FP computations out of loops.
+
+**FP mode quick reference:**
+
+| Mode | What it does | When to use |
+|---|---|---|
+| `precise` (default) | IEEE arithmetic, no unsafe rewrites, FMA on | General use |
+| `strict` | IEEE + observable exceptions + no FMA | Scientific code, reproducibility audits |
+| `fast` | Everything unsafe on (`-ffast-math`) | SIMD kernels, numerical code you've already validated |
+| `@float_mode(fast)` | Block-scoped fast-math | Hot inner loops only |
+
+---
+
+## Text Encoding: Unicode 15.1 / UTF-32 Internal / UTF-8 Source
+
+### Source Files
+
+Kairo source files are **UTF-8** only. No BOM. No other encoding is accepted.
+The lexer validates UTF-8 byte sequences using SIMD acceleration and rejects
+invalid sequences as hard errors with a diagnostic pointing at the exact byte
+offset and offending bytes. A BOM at the start of a `.kro` file is an error.
+
+### String Internal Representation
+
+Kairo's `string` type is backed by `std::u32string` (`char32_t`, always exactly
+32 bits on every platform, defined by C++11). This is intentional and not
+negotiable:
+
+- **Every index is a Unicode scalar value.** `s[i]` always returns a complete
+  code point. No surrogate pairs, no multi-element emoji, no platform-dependent
+  behavior.
+- **Identical on all platforms.** `wchar_t` is 16-bit on Windows and 32-bit on
+  POSIX. Kairo does not use `wchar_t` or `wstring` for its string type
+  precisely to avoid this split. `char32_t` is always 32 bits everywhere.
+- **O(1) indexing by scalar value.** This is the correct primitive for a systems
+  language. Grapheme cluster segmentation (UAX #29) is a method on `string`,
+  not the default indexing behavior.
+
+Memory cost: UTF-32 uses 4 bytes per code point regardless of content. ASCII-
+heavy strings (identifiers, keywords, most source text) use 4x more memory than
+a UTF-8 representation would. Strings for this exact reason are optimized internally
+to use a UTF-8 representation when possible, but this is an implementation detail
+though a string internal union and SBO optimization. The language-level
+guarantee is that `string` is always UTF-32 indexed by scalar value.
+Union looks like this:
+```kairo
+union StringRepr {
+  var utf32:   *char;
+  var utf8:    *i8;
+  var SBO:     [32; u8]; // 31 bytes + 1 (minium size of every string)
+}
+```
+
+### Identifiers
+
+Kairo identifiers may contain any Unicode scalar value that has the `ID_Start`
+or `ID_Continue` property (Unicode UAX #31), **plus** emoji and other
+non-letter code points that UAX #31 excludes. This is an intentional extension
+beyond the standard identifier grammar. Concretely:
+
+- Letters and digits from any script: Latin, Arabic, Chinese, Cyrillic,
+  Devanagari, etc. all valid.
+- Emoji: valid. `var 🚀: f64 = 0.0;` compiles.
+- Combining marks: valid as continuation characters.
+- Whitespace, control characters, surrogates (U+D800-U+DFFF): never valid in
+  identifiers.
+
+Two identifiers are equal if and only if their sequences of scalar values are
+equal. Kairo does not perform Unicode normalization on identifiers. `café`
+(U+00E9 for `é`) and `café` (U+0065 U+0301 for `e` + combining acute) are
+different identifiers. This matches the behavior of most modern languages
+including Rust and Swift. If you want normalization, normalize your source
+before feeding it to the compiler.
+
+### String Indexing and Grapheme Clusters
+
+Indexing a `string` by integer (`s[i]`) returns the scalar value at position
+`i`, not a grapheme cluster. For most text this is the same thing, but for
+combining sequences and emoji with modifiers it is not:
+
+- `"café"` where `é` is U+00E9: `s[3]` → `é`. Four scalar values, four
+  elements.
+- `"café"` where `é` is U+0065 U+0301 (e + combining acute): `s[3]` → `e`,
+  `s[4]` → combining acute. Five scalar values, five elements.
+- `"👨‍👩‍👧"` (family emoji, ZWJ sequence): multiple scalar values, multiple
+  elements. `len()` returns the scalar value count, not the visual glyph count.
+
+`string.graphemes()` returns an iterator of grapheme clusters per UAX #29 for
+code that needs to operate on user-visible characters.
+
+### Conversions and C/C++ Interop
+
+`string` provides explicit conversion methods, when calling c++ functions with kairo primitives; these conversions are implicit:
+
+| Method | Output | Use case |
+|---|---|---|
+| `as libcxx::string` | UTF-8 code units | Interop with C++ APIs expecting `std::string` or `*char` (C++ char **not** Kairo `char`) |
+| `as libcxx::u16string` | UTF-16 code units | Windows WinAPI (`LPWSTR`), Java interop |
+| `as libcxx::u32string` | UTF-32 code units | Lossless round-trip, interop with UTF-32 APIs |
+| `as *i8` or `as *u8` | Null-terminated UTF-8, borrowed | Passing to C functions expecting `const char*` |
+| `as *wchar` | Null-terminated UTF-16, borrowed | Passing to Windows APIs expecting `LPCWSTR` |
+| `as *u32` | Null-terminated UTF-32, borrowed | Passing to C functions expecting `char32_t*` |
+| `as *char` | Null-terminated UTF-32, borrowed | Passing to C functions expecting `char32_t*` |
+
+When calling C++ via FFI, `libcxx::string` (`std::string`) is a byte buffer
+with no encoding guarantee. Kairo does not automatically transcode when crossing
+the FFI boundary. If you assign a Kairo `string` to a `libcxx::string`, you get
+the UTF-32 bytes verbatim, which is almost certainly not what you want. Call
+`.to_utf8()` explicitly and construct the `libcxx::string` from the result.
+`libcxx::u32string` (`std::u32string`) round-trips without transcoding.
+
+### What Kairo Does Not Do
+
+- **Normalization**: Kairo does not normalize source text or string values.
+  NFC, NFD, NFKC, NFKD are not applied automatically anywhere.
+- **Locale-sensitive operations**: `string` comparison is binary (scalar value
+  by scalar value). Locale-sensitive collation is not in the standard library.
+  Use a third-party ICU binding if you need locale-aware sorting.
+- **Encoding detection**: Kairo does not detect or guess source file encoding.
+  UTF-8, no BOM, period.
+- **Null termination**: `string` is not null-terminated internally. `.c_str()`
+  and `.to_utf8()` add a null byte for C interop. Passing `.data()` directly
+  to a C function expecting a null-terminated string is undefined behavior and
+  the compiler will warn.
+  
+---
+
+## ABI: Platform psABIs
+
+Kairo follows the platform processor ABI for the target triple. It does not
+define its own ABI and does not need to because Kairo compiles to native object
+files via Clang's backend. The relevant documents per platform:
+
+### x86-64 Linux / BSD / macOS
+- **System V AMD64 psABI v1.0** - calling convention, register usage, stack
+  alignment (16-byte at call site), parameter passing, return value encoding,
+  varargs layout, TLS model, ELF object format.
+- Kairo respects the red zone (128 bytes below RSP) by default. Kernel code
+  should compile with `--kernel-mode` which passes `-mno-red-zone` to Clang.
+- SIMD types (`f32x4`, `f32x8`, etc.) follow the psABI's XMM/YMM/ZMM
+  classification rules. Vectors passed on the stack are 16-byte aligned minimum.
+
+### AArch64 Linux
+- **ARM64 ELF psABI (AAPCS64)** - 16 general-purpose argument registers (x0-x7
+  for integers, v0-v7 for floats/vectors), caller-saved x0-x17, callee-saved
+  x19-x28.
+- Pointer authentication is not enabled by default. Use `--mbranch-protection`
+  to opt in.
+
+### macOS (Mach-O)
+- **Apple ARM64 ABI** on Apple Silicon - extends AAPCS64. Stack pointer must be
+  16-byte aligned at all call sites. Clang enforces this.
+- **System V AMD64** on Intel Mac.
+- `--macos-version-min` is required if you target macOS older than the build
+  machine SDK. Kairo does not guess a deployment target.
+
+### Windows (PE/COFF)
+- **Microsoft x64 calling convention** - 4 register parameters (rcx, rdx, r8,
+  r9 for integers; xmm0-xmm3 for floats), shadow space requirement (32 bytes),
+  caller cleans stack.
+- C++ ABI on Windows is MSVC. Set `--cxx-abi=msvc` when interoperating with
+  MSVC-compiled C++ code. The default is Itanium which is what Clang uses on
+  Windows by default for Clang-compiled code.
+
+### WASM / WASI
+- **WebAssembly MVP + proposals** per the flags you enable. WASI preview1 or
+  preview2 depending on `--wasi-version`. The WASM calling convention is defined
+  by the Wasm binary format spec; there is no psABI in the traditional sense.
+
+---
+
+## Debug Info: DWARF 5
+
+When compiled with `-g` / `--debug-info`, Kairo emits **DWARF 5** by default.
+DWARF 4 is available via `--dwarf-version=4` for targets that require it
+(e.g., older GDB versions, some embedded targets).
+
+What Kairo emits:
+
+- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14` for the LLVM-generated
+  portions (since Kairo compiles through Clang's backend and uses C++ as an IR).
+  This is a toolchain limitation. A proper `DW_LANG_Kairo` language tag will
+  be registered with the DWARF committee once the language spec stabilizes.
+- Source file paths in DWARF use the paths as given to the compiler, resolved
+  relative to `--working-dir` if set. Use `--remap-path-prefix` or
+  `--debug-prefix-map` to strip build-machine-specific paths for reproducible
+  builds.
+- Line tables include column information (DWARF 5 `DW_LNS_set_column`), which
+  allows debuggers to point at the specific expression within a line.
+- Split DWARF (`--split-dwarf`) produces `.dwo` files. This reduces link-time
+  memory usage on large projects. The `.dwo` files must be accessible at debug
+  time (either in the same directory or via `debuginfod`).
+- Type units are emitted for types defined in headers, reducing debug info size
+  in multi-TU builds.
+
+**Comments and trivia in debug info:**
+
+The Kairo CST preserves comments and whitespace trivia. These are currently not
+emitted into DWARF (there's no standard DWARF attribute for them). They are
+preserved in the CST for tooling use (formatters, LSP, etc.) but stripped before
+codegen.
+
+---
+
+## Object Format: ELF / Mach-O / PE-COFF / WASM
+
+Kairo emits the native object format for the target:
+
+| Platform | Format | Notes |
+|---|---|---|
+| Linux, BSD, Android | ELF64 (ELF32 with `--m32`) | |
+| macOS, iOS | Mach-O 64-bit | |
+| Windows | PE/COFF | |
+| WASM | WebAssembly binary | |
+| Bare metal | ELF (usually) | depends on target ABI |
+
+Kairo does not emit its own intermediate object format. The output of a
+compilation is a standard native object file that any conformant linker for that
+platform can process.
+
+---
+
+## C++ Interop ABI
+
+When Kairo calls into C++ via `ffi "c++" import`, the C++ code is compiled by
+Clang using the same backend invocation. The ABI boundary between Kairo-emitted
+code and C++-emitted code is:
+
+- **Itanium C++ ABI** on all platforms except Windows MSVC targets. This is what
+  Clang uses by default on Linux/macOS.
+- **MSVC C++ ABI** on Windows when `--cxx-abi=msvc` is set.
+- Name mangling follows the ABI. Kairo functions exported across the FFI boundary
+  use `extern "C"` linkage (no mangling) by default. C++-mangled names are only
+  produced for Kairo code that explicitly opts in, which is rare and generally
+  only needed when subclassing C++ types.
+- C++ exceptions propagate across the Kairo/C++ boundary normally because both
+  sides use the same unwinding tables (`.eh_frame` / `__eh_frame`). Kairo
+  functions do not emit `nounwind` attributes by default, so the unwinder can
+  unwind through them.
+- Virtual dispatch into C++ classes works without special handling because Kairo
+  lowers method calls on C++ objects directly to Clang, which handles vtable
+  dispatch normally.
+
+---
+
+## Linker: LLD / Platform Linker
+
+`kld` (Kairo's linker driver) defaults to **LLD** for all targets. LLD's
+compatibility targets:
+
+| Mode | Compatibility |
+|---|---|
+| ELF | GNU ld compatible |
+| Mach-O | Apple ld64 compatible |
+| PE/COFF | MSVC link.exe compatible |
+| WASM | wasm-ld (LLD's WASM mode) |
+
+Kairo does not require LLD. You can use the platform linker by passing
+`--ld-flags` to forward arguments directly, though the default flag translation
+assumes LLD syntax. GNU ld is supported for ELF targets.
+
+---
+
+## Reproducible Builds
+
+Kairo supports reproducible builds when the following conditions are met:
+
+1. Same source, same flags, same `--target`, same `--cxx-std`.
+2. `--no-timestamps` is set (strips all embedded timestamps).
+3. `--remap-path-prefix` is used to normalize absolute paths.
+4. `SOURCE_DATE_EPOCH` environment variable is set (Clang reads this for
+   embedded timestamps in DWARF; `--source-date-epoch` sets it for you).
+5. `--lto=off` (LTO can produce non-deterministic output across runs due to
+   parallel section ordering in ThinLTO).
+6. Same LLVM version. The backend is not byte-for-byte stable across LLVM major
+   versions.
+
+Kairo does not guarantee reproducibility across different `--opt` levels or when
+`--fp-model=fast` is used (fast-math can produce different reassociations
+depending on whether the optimizer's heuristics fire).
+
+---
+
+## What Kairo Explicitly Does Not Target
+
+- **POSIX.1-2024**: Kairo's standard library does not wrap POSIX. You call POSIX
+  functions via FFI if you need them. The Kairo stdlib provides its own file,
+  threading, and memory abstractions that map to the platform without requiring
+  POSIX compliance from the target.
+- **C++ standard (ISO/IEC 14882)**: Kairo is not C++ and does not attempt C++
+  conformance. C++ interop works through Clang, not through implementing the C++
+  standard in Kairo.
+- **MISRA / CERT / SEI coding standards**: These are auditable properties of
+  specific programs, not language-level guarantees. Kairo does not ship a MISRA
+  checker. You can run your Kairo-generated C++ through existing MISRA tools if
+  your target requires this.
+- **ISO/IEC 9899 (C standard)**: Same as C++. C interop works through the FFI
+  layer. Kairo is not a C compiler.
+
+---
+
+## Version Pinning
+
+| Standard | Version targeted |
+|---|---|
+| IEEE floating-point | 754-2019 |
+| Unicode | 15.1 |
+| UTF-8 encoding | RFC 3629 |
+| DWARF debug info | 5 (default), 4 (opt-in) |
+| x86-64 psABI | System V AMD64 v1.0 |
+| AArch64 psABI | AAPCS64 (ARM IHI0055) |
+| Itanium C++ ABI | Current (Clang tracks this) |
+| C++ interop standard | C++26 (Clang backend) |
+| WASI | preview1 (default), preview2 (opt-in) |
+| WebAssembly binary | MVP + explicit proposals |
+| ELF | System V gABI + platform psABI |
+| Mach-O | 64-bit Mach-O |
+| PE/COFF | Microsoft PE32+ |
+
+---
+
+*Last updated: March 2026. This document tracks the compiler implementation, not
+a published language spec. Sections will be updated as the language stabilizes.*

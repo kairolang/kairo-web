@@ -4,8 +4,6 @@ import DocsSidebar from '../components/docs/DocsSidebar.astro';
 import DocsSearch from '../components/docs/DocsSearch.astro';
 import TableOfContents from '../components/docs/TableOfContents.astro';
 import CodeBlockEnhancer from '../components/docs/CodeBlockEnhancer.astro';
-import { getCollection } from 'astro:content';
-
 interface Props {
   title: string;
   description?: string;
@@ -15,7 +13,6 @@ interface Props {
 }
 
 const { title, description, prev, next, headings = [] } = Astro.props;
-const allDocs = await getCollection('docs');
 const currentPath = Astro.url.pathname;
 
 const breadcrumbs = [
@@ -70,7 +67,7 @@ const breadcrumbs = [
           </svg>
         </button>
         <DocsSearch />
-        <DocsSidebar currentPath={currentPath} allDocs={allDocs} />
+        <DocsSidebar currentPath={currentPath} />
       </div>
     </aside>
 

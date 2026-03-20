@@ -31,7 +31,8 @@ export const GET: APIRoute = async ({ site }) => {
     content += `URL: ${url}\n`;
     content += `Title: ${doc.data.title}\n`;
     if (doc.data.description) content += `Description: ${doc.data.description}\n`;
-    if (doc.data.section) content += `Section: ${doc.data.section}\n`;
+    const parts = doc.id.replace(/\.mdx?$/, '').split('/');
+    if (parts.length > 1) content += `Section: ${parts[0]}\n`;
     content += `\n`;
     content += doc.body;
     content += `\n\n`;

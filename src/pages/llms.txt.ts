@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
+import { sectionFromId } from '../lib/docs-tree';
 
 export const GET: APIRoute = async ({ site }) => {
   const siteURL = (site ?? new URL('https://kairolang.org')).toString().replace(/\/$/, '');
@@ -13,7 +14,7 @@ export const GET: APIRoute = async ({ site }) => {
   // Group docs by section
   const sections = new Map<string, typeof sortedDocs>();
   for (const doc of sortedDocs) {
-    const section = doc.data.section ?? 'Documentation';
+    const section = sectionFromId(doc.id);
     if (!sections.has(section)) sections.set(section, []);
     sections.get(section)!.push(doc);
   }

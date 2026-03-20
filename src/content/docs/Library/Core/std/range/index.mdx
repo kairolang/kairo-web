@@ -1,0 +1,89 @@
+---
+title: std::Range<T>
+description: Represents a range of values of type T
+---
+
+# `Range<T>`
+
+Represents a range of values of type T
+
+## Constructors
+
+### [Range](./range/constructors/range-1)
+
+Creates a range from first to last with specified step
+
+```kairo
+Range(self, first: T, last: T, step: isize = 1)
+```
+
+### [Range](./range/constructors/range-2)
+
+Creates a range from 0 to last with step 1
+
+```kairo
+Range(self, last: T)
+```
+
+## Operators
+
+### [operator in](./range/operators/operator-in-1)
+
+Iterator operator for range-based loops
+
+```kairo
+fn op in (self)[iter] -> yield T
+```
+
+### [operator in](./range/operators/operator-in-2)
+
+Contains operator to check if value is in range
+
+```kairo
+fn op in (self, value: T)[contains] -> bool
+```
+
+## Methods
+
+### [begin](./range/methods/begin-1)
+
+Returns the beginning value of the range
+
+```kairo
+begin(self) -> T
+```
+
+### [end](./range/methods/end-2)
+
+Returns the ending value of the range
+
+```kairo
+end(self) -> T
+```
+
+### [step](./range/methods/step-3)
+
+Returns the step value of the range
+
+```kairo
+step(self) -> T
+```
+
+### [contains](./range/methods/contains-4)
+
+Checks if a value is within the range
+
+```kairo
+contains(self, value: const T&) -> bool
+```
+
+### [is_empty](./range/methods/is_empty-5)
+
+Checks if the range is empty
+
+```kairo
+is_empty(self) -> bool
+```
+
+
+

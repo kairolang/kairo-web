@@ -1,38 +1,25 @@
 ---
 import { getCollection, render } from 'astro:content';
 import DocsLayout from '../../layouts/DocsLayout.astro';
+import { buildDocTree, flattenPages, docHref } from '../../lib/docs-tree';
 
 export async function getStaticPaths() {
-  function idToSlug(id: string): string {
-    return id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
-  }
-
-  function docHref(id: string): string {
-    const clean = idToSlug(id);
-    if (!clean || clean === 'index') return '/docs';
-    return `/docs/${clean}`;
-  }
-
   const docs = await getCollection('docs');
-
-  const sorted = [...docs].sort((a, b) => {
-    const orderA = a.data.order ?? 99;
-    const orderB = b.data.order ?? 99;
-    return orderA - orderB;
-  });
+  const tree = buildDocTree(docs);
+  const ordered = flattenPages(tree);
 
   return docs.map(doc => {
-    const slug = idToSlug(doc.id);
-    const idx = sorted.findIndex(d => d.id === doc.id);
-    const prevDoc = idx > 0 ? sorted[idx - 1] : null;
-    const nextDoc = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    const slug = doc.id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
+    const idx = ordered.findIndex(p => p.id === doc.id);
+    const prevPage = idx > 0 ? ordered[idx - 1] : null;
+    const nextPage = idx < ordered.length - 1 ? ordered[idx + 1] : null;
 
     return {
       params: { slug: slug === 'index' ? undefined : slug },
       props: {
         doc,
-        prev: prevDoc ? { href: docHref(prevDoc.id), title: prevDoc.data.title } : null,
-        next: nextDoc ? { href: docHref(nextDoc.id), title: nextDoc.data.title } : null,
+        prev: prevPage ? { href: prevPage.href, title: prevPage.title } : null,
+        next: nextPage ? { href: nextPage.href, title: nextPage.title } : null,
       },
     };
   });

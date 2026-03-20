@@ -1,0 +1,392 @@
+---
+title: std::String::slice<Char, Traits>
+description: Represents a slice of a string with specified character type and traits, similar to std::string_view in C++
+---
+
+# `slice<Char, Traits>`
+
+Represents a slice of a string with specified character type and traits, similar to std::string_view in C++
+
+## Template Parameters
+
+- `Char`
+- `Traits`
+
+## Type Aliases
+
+- `view_t = libcxx::basic_string_view<CharT>`
+- `char_traits = Traits`
+- `char_t = CharT`
+- `slice_t = slice<CharT>`
+- `size_t = usize`
+- `slice_vec = vec<slice_t>`
+- `char_vec = vec<CharT>`
+
+## Enums
+
+### Operation
+
+Operation type for string operations
+
+#### Values
+
+- **Keep**: Keep the delimiter in the result
+- **Remove**: Remove the delimiter from the result
+
+## Private Members
+
+### len
+
+- **Type**: `usize`
+- **Description**: Length of the slice
+
+### data
+
+- **Type**: `view_t`
+- **Description**: String view data
+- **Default**: `{}`
+
+## Constructors
+
+### [`slice`](./slice/constructors/slice-1)
+
+Default constructor
+
+```kairo
+slice() noexcept
+```
+
+### [`slice`](./slice/constructors/slice-2)
+
+Copy constructor
+
+```kairo
+slice(const slice& other) noexcept
+```
+
+### [`slice`](./slice/constructors/slice-3)
+
+Move constructor
+
+```kairo
+slice(slice&& other) noexcept
+```
+
+### [`slice`](./slice/constructors/slice-4)
+
+Constructor from C-style string
+
+```kairo
+slice(const CharT* str) noexcept
+```
+
+### [`slice`](./slice/constructors/slice-5)
+
+Constructor from C-style string with size
+
+```kairo
+slice(const CharT* str, size: size_t) noexcept
+```
+
+### [`slice`](./slice/constructors/slice-6)
+
+Constructor from string view
+
+```kairo
+slice(view: view_t) noexcept
+```
+
+### [`slice`](./slice/constructors/slice-7)
+
+Constructor from character vector
+
+```kairo
+slice(vec: char_vec&) noexcept
+```
+
+### [`slice`](./slice/constructors/slice-8)
+
+Constructor from character vector (move)
+
+```kairo
+slice(vec: char_vec&&) noexcept
+```
+
+## Operators
+
+### [`operator view_t`](./slice/operators/operator-view_t-1)
+
+Conversion to string view
+
+```kairo
+op view_t(self) -> view_t
+```
+
+### [`operator==`](./slice/operators/operator-2)
+
+Equality comparison
+
+```kairo
+op ==(self, const slice& other) -> bool
+```
+
+### [`operator!=`](./slice/operators/operator-3)
+
+Inequality comparison
+
+```kairo
+op !=(self, const slice& other) -> bool
+```
+
+### [`operator<`](./slice/operators/operator-4)
+
+Less than comparison
+
+```kairo
+op <(self, const slice& other) -> bool
+```
+
+### [`operator>`](./slice/operators/operator-5)
+
+Greater than comparison
+
+```kairo
+op >(self, const slice& other) -> bool
+```
+
+### [`operator<=`](./slice/operators/operator-6)
+
+Less than or equal comparison
+
+```kairo
+op <=(self, const slice& other) -> bool
+```
+
+### [`operator>=`](./slice/operators/operator-7)
+
+Greater than or equal comparison
+
+```kairo
+op >=(self, const slice& other) -> bool
+```
+
+### [`operator in`](./slice/operators/operator-in-8)
+
+Contains operator for slice
+
+```kairo
+op in(self, needle: slice&) -> bool
+```
+
+### [`operator in`](./slice/operators/operator-in-9)
+
+Contains operator for character
+
+```kairo
+op in(self, chr: CharT&) -> bool
+```
+
+### [`operator[]`](./slice/operators/operator-10)
+
+Access character at index
+
+```kairo
+op [``](self, index: usize) -> CharT
+```
+
+## Methods
+
+### [`size`](./slice/methods/size-1)
+
+Returns the length of the slice's data, essential for bounds checking and iteration
+
+```kairo
+size(self) -> size_t
+```
+
+### [`exchange`](./slice/methods/exchange-2)
+
+Exchanges content with another slice
+
+```kairo
+exchange(self, other: slice&) -> void
+```
+
+### [`replace`](./slice/methods/replace-3)
+
+Replaces content with another slice
+
+```kairo
+replace(self, other: slice&) -> void
+```
+
+### [`replace`](./slice/methods/replace-4)
+
+Replaces content with C-style string
+
+```kairo
+replace(self, str: CharT*, size: usize) -> void
+```
+
+### [`raw`](./slice/methods/raw-5)
+
+Returns a pointer to the slice's underlying data, essential for direct access
+
+```kairo
+raw(self) -> const CharT*
+```
+
+### [`is_empty`](./slice/methods/is_empty-6)
+
+Indicates whether the slice has no data, crucial for control flow
+
+```kairo
+is_empty(self) -> bool
+```
+
+### [`subslice`](./slice/methods/subslice-7)
+
+Creates a view into a portion of the slice, vital for safe substring operations
+
+```kairo
+subslice(self, pos: usize, len: usize) -> slice
+```
+
+### [`l_strip`](./slice/methods/l_strip-8)
+
+Strips whitespace from the left
+
+```kairo
+l_strip(self, delim: char_vec& = {' ', '\t', '\n', '\r'}) -> slice
+```
+
+### [`r_strip`](./slice/methods/r_strip-9)
+
+Strips whitespace from the right
+
+```kairo
+r_strip(self, delim: char_vec& = {' ', '\t', '\n', '\r'}) -> slice
+```
+
+### [`strip`](./slice/methods/strip-10)
+
+Strips whitespace from both ends
+
+```kairo
+strip(self, delim: char_vec& = {' ', '\t', '\n', '\r'}) -> slice
+```
+
+### [`length`](./slice/methods/length-11)
+
+Returns the length of the slice
+
+```kairo
+length(self) -> usize
+```
+
+### [`starts_with`](./slice/methods/starts_with-12)
+
+Checks if slice starts with needle
+
+```kairo
+starts_with(self, needle: slice&) -> bool
+```
+
+### [`ends_with`](./slice/methods/ends_with-13)
+
+Checks if slice ends with needle
+
+```kairo
+ends_with(self, needle: slice&) -> bool
+```
+
+### [`contains`](./slice/methods/contains-14)
+
+Checks if slice contains needle
+
+```kairo
+contains(self, needle: slice&) -> bool
+```
+
+### [`contains`](./slice/methods/contains-15)
+
+Checks if slice contains character
+
+```kairo
+contains(self, chr: CharT&) -> bool
+```
+
+### [`compare`](./slice/methods/compare-16)
+
+Compares two slices lexicographically
+
+```kairo
+compare(self, other: slice&) -> isize
+```
+
+### [`split_lines`](./slice/methods/split_lines-17)
+
+Returns a vector of line views, necessary for line-based processing
+
+```kairo
+split_lines(self) -> slice_vec
+```
+
+### [`split`](./slice/methods/split-18)
+
+Returns a vector of views, necessary for delimiter-based processing
+
+```kairo
+split(self, delim: slice&, op: Operation = Operation::Remove) -> slice_vec
+```
+
+### [`lfind`](./slice/methods/lfind-19)
+
+Finds first occurrence of needle
+
+```kairo
+lfind(self, needle: slice&) -> usize?
+```
+
+### [`rfind`](./slice/methods/rfind-20)
+
+Finds last occurrence of needle
+
+```kairo
+rfind(self, needle: slice&) -> usize?
+```
+
+### [`find_first_of`](./slice/methods/find_first_of-21)
+
+Finds first occurrence of any character in needle
+
+```kairo
+find_first_of(self, needle: slice&) -> usize?
+```
+
+### [`find_last_of`](./slice/methods/find_last_of-22)
+
+Finds last occurrence of any character in needle
+
+```kairo
+find_last_of(self, needle: slice&) -> usize?
+```
+
+### [`find_first_not_of`](./slice/methods/find_first_not_of-23)
+
+Finds first character not in needle
+
+```kairo
+find_first_not_of(self, needle: slice&) -> usize?
+```
+
+### [`find_last_not_of`](./slice/methods/find_last_not_of-24)
+
+Finds last character not in needle
+
+```kairo
+find_last_not_of(self, needle: slice&) -> usize?
+```
+
+
+

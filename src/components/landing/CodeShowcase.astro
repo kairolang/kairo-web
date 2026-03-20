@@ -117,7 +117,8 @@ std::print(f"Ran {count} times.")`,
     label: 'Kairo in C++',
     filename: 'kairo_ffi.cpp',
     code: `// Call Kairo functions directly from C++ with full ABI compatibility.
-// Compile the Kairo module with \`kairo -cc\` to expose it to C++.
+// Compile the Kairo module with \`kairo -cc --kro-impl-emit kairo_ffi.cpp\`
+//     to expose it to C++.
 // Without -cc, use \`kairo --emit-bindings\` to generate C++ or C headers
 // for shipping a Kairo library to C++ consumers.
 //
@@ -217,15 +218,23 @@ fn start_server(path: string) -> Config {
 ---
 
 <section style="padding:7rem 0;background:var(--bg-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;overflow:hidden;">
-  <!-- Subtle diagonal pattern -->
   <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(45deg,rgba(189,9,32,0.015) 0,rgba(189,9,32,0.015) 1px,transparent 0,transparent 50%);background-size:30px 30px;pointer-events:none;"></div>
   <div class="container" style="position:relative;z-index:1;">
 
+    <!-- Mobile-only heading -->
+    <div class="showcase-heading-mobile">
+      <div class="section-label">Code</div>
+      <h2 class="showcase-h2">
+        See it in action. <br>
+        <span style="color:var(--text-2);font-weight:400;">Clean syntax.<br>No magic.</span>
+      </h2>
+    </div>
+
     <div class="showcase-grid">
-      <!-- LEFT: code block -->
+
+      <!-- LEFT: tabs + code -->
       <div class="showcase-right" data-reveal>
-        <!-- Tab buttons -->
-        <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:0;" id="code-tabs">
+        <div class="code-tabs-bar" id="code-tabs">
           {examples.map((ex, i) => (
             <button
               class={`tab-btn ${i === 0 ? 'active' : ''}`}
@@ -234,52 +243,47 @@ fn start_server(path: string) -> Config {
           ))}
         </div>
 
-        <!-- Tab panels -->
-        {examples.map((ex, i) => (
-          <div
-            class="code-panel"
-            data-panel={ex.id}
-            style={i !== 0 ? 'display:none;' : ''}
-          >
-            <!-- Header -->
-            <div class="showcase-header">
-              <div class="showcase-dots">
-                <span style="background:#ff5f57;"></span>
-                <span style="background:#febc2e;"></span>
-                <span style="background:#28c840;"></span>
+        {examples.map((ex, i) => {
+          const ext = ex.filename.split('.').pop() ?? 'txt';
+          const lang = ext === 'kro' ? kairoLang : ext;
+          return (
+            <div
+              class="code-panel"
+              data-panel={ex.id}
+              style={i !== 0 ? 'display:none;' : ''}
+            >
+              <div class="showcase-header">
+                <div class="showcase-dots">
+                  <span style="background:#ff5f57;"></span>
+                  <span style="background:#febc2e;"></span>
+                  <span style="background:#28c840;"></span>
+                </div>
+                <span class="showcase-filename">{ex.filename}</span>
+                <span class="showcase-badge">{ext}</span>
               </div>
-              <span class="showcase-filename">{ex.filename}</span>
-              <span class="showcase-badge">kairo</span>
+              <div class="showcase-body">
+                <Code
+                  code={ex.code}
+                  lang={lang}
+                  themes={{ dark: 'github-dark-default', light: 'github-light-default' }}
+                  defaultColor={false}
+                />
+              </div>
             </div>
-            <div class="showcase-body">
-              <Code
-                code={ex.code}
-                lang={kairoLang}
-                themes={{ dark: 'github-dark-default', light: 'github-light-default' }}
-                defaultColor={false}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <!-- RIGHT: heading + per-tab blurb -->
+      <!-- RIGHT: heading (desktop only) + blurb -->
       <div class="showcase-left" data-reveal data-reveal-delay="100">
-        <div class="section-label">Code</div>
-        <h2 style="
-          font-family:'Space Grotesk',sans-serif;
-          font-size:clamp(1.75rem,3vw,2.75rem);
-          font-weight:700;
-          letter-spacing:-0.03em;
-          line-height:1.1;
-          color:var(--text);
-          margin-bottom:2.5rem;
-        ">
-          See it in action. <br>
-          <span style="color:var(--text-2);font-weight:400;">Clean syntax.<br>No magic.</span>
-        </h2>
+        <div class="showcase-heading-desktop">
+          <div class="section-label">Code</div>
+          <h2 class="showcase-h2">
+            See it in action. <br>
+            <span style="color:var(--text-2);font-weight:400;">Clean syntax.<br>No magic.</span>
+          </h2>
+        </div>
 
-        <!-- Blurb panels - one per tab -->
         {examples.map((ex, i) => (
           <div class="blurb-panel" data-blurb={ex.id} style={i !== 0 ? 'display:none;' : ''}>
             <p class="blurb-heading">{ex.blurb.heading}</p>
@@ -294,27 +298,142 @@ fn start_server(path: string) -> Config {
           </div>
         ))}
       </div>
-    </div>
 
+    </div>
   </div>
 </section>
 
 <style>
+  .showcase-h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(1.75rem, 3vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 2.5rem;
+  }
+
   .showcase-grid {
     display: grid;
     grid-template-columns: 1.6fr 1fr;
     gap: 4rem;
     align-items: start;
   }
+
+  .showcase-left {
+    align-self: start;
+  }
+
+  .showcase-right {
+    min-width: 0;
+  }
+
+  /* Mobile */
+  .showcase-heading-mobile {
+    display: none;
+  }
+
   @media (max-width: 900px) {
+    .showcase-heading-mobile {
+      display: block;
+      margin-bottom: 2rem;
+    }
+    .showcase-heading-desktop {
+      display: none;
+    }
     .showcase-grid {
       grid-template-columns: 1fr;
       gap: 2.5rem;
     }
   }
 
-  .showcase-left {
-    align-self: start;
+  /* Tabs bar */
+  .code-tabs-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .code-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .code-tabs-bar .tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Code panel */
+  .code-panel {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-top: none;
+    border-radius: 0 0 2px 2px;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0,0,0,0.2), 0 0 16px var(--red-glow2);
+    transition: opacity 0.15s;
+  }
+  .code-panel.glitch-in {
+    animation: glitchText 0.12s steps(1) 1;
+  }
+
+  .showcase-header {
+    background: var(--bg-3);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .showcase-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .showcase-dots span {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: block;
+  }
+  .showcase-filename {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+    flex: 1;
+  }
+  .showcase-badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--red);
+    background: rgba(189,9,32,0.1);
+    border: 1px solid rgba(189,9,32,0.2);
+    padding: 2px 8px;
+    border-radius: 2px;
+  }
+
+  .showcase-body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .showcase-body :global(pre.astro-code) {
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 1.5rem !important;
+    font-size: 0.85rem !important;
+    line-height: 1.75 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    background: transparent !important;
+    min-width: 0;
+    width: max-content;
   }
 
   /* Blurb */
@@ -368,62 +487,6 @@ fn start_server(path: string) -> Config {
   }
   .blurb-panel {
     transition: opacity 0.15s;
-  }
-
-  /* Code block */
-  .code-panel {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--red);
-    border-top: none;
-    border-radius: 0 0 2px 2px;
-    overflow: hidden;
-    box-shadow: 0 0 30px rgba(0,0,0,0.2), 0 0 16px var(--red-glow2);
-    transition: opacity 0.15s;
-  }
-  .code-panel.glitch-in {
-    animation: glitchText 0.12s steps(1) 1;
-  }
-
-  .showcase-header {
-    background: var(--bg-3);
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .showcase-dots { display: flex; gap: 6px; align-items: center; }
-  .showcase-dots span { width: 12px; height: 12px; border-radius: 50%; display: block; }
-  .showcase-filename {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
-    color: var(--text-3);
-    letter-spacing: 0.05em;
-    flex: 1;
-  }
-  .showcase-badge {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--red);
-    background: rgba(189,9,32,0.1);
-    border: 1px solid rgba(189,9,32,0.2);
-    padding: 2px 8px;
-    border-radius: 2px;
-  }
-
-  .showcase-body :global(pre.astro-code) {
-    margin: 0 !important;
-    border: none !important;
-    border-radius: 0 !important;
-    padding: 1.5rem !important;
-    font-size: 0.85rem !important;
-    line-height: 1.75 !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    background: transparent !important;
   }
 </style>
 
