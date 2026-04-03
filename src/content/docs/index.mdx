@@ -1,24 +1,22 @@
 ---
 title: Welcome to Kairo
-description: Get started with Kairo, a modern systems programming language.
+description: Get started with Kairo, a systems programming language with two-way C++ interop.
 order: 1
 section: Getting Started
 ---
 
 # Welcome to Kairo
 
-Kairo is a statically typed compiled language designed for systems programming, prioritizing **control**, **performance**, and **clarity**
+Kairo is a statically typed, compiled systems language. C++ builds can `#include` `.kro` files directly. Kairo code calls C++ libraries without a binding layer. The compiler is written in C++; the goal is self-hosting.
 
-Built by the [Kairo Software Foundation](/ksf), Kairo targets the same problem space as Rust and Zig - but with a distinct philosophy: you should be able to do anything the hardware supports, while still preserving code readability and long-term maintainability.
-
-Kairo also provides **native C++ interoperability**, allowing Kairo code to integrate directly with existing C++ codebases and libraries.
+Built by the [Kairo Software Foundation](/ksf).
 
 ## Key Features
 
-- **Zero-cost abstractions** - Expressive code that compiles to optimal machine code
+- **No GC, no hidden allocations** - Allocation and deallocation are explicit. The compiler places destructors at scope exit.
 - **Memory control** - Manual or assisted, you choose
-- **C/C++ interop** - First-class FFI, bit-level ABI compatibility
-- **Modern ergonomics** - Generics, interfaces, pattern matching, lambdas
+- **C/C++ interop** - `#include` in both directions, no binding step
+- **Pattern matching, generics, interfaces, lambdas** - Available without a runtime cost
 - **Built-in tooling** - Formatter, linter, package manager, LSP in one binary
 
 ## Quick Example

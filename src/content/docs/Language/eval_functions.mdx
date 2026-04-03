@@ -1,0 +1,87 @@
+---
+title: Evaluated Functions
+description: Understand evaluated functions in Kairo, how they work, and how to use them effectively.
+---
+
+In Kairo we have a special category of functions called *evaluated functions*. These functions are executed at compile time rather than at runtime, allowing for optimizations and computations to be performed before the program is run.
+
+## Definition
+An evaluated function is defined using the `eval` keyword before the return signature (`->`) of the function. This indicates to the compiler that the function should be executed during the compilation phase.
+
+Here's an example of an evaluated function that adds two integers:
+
+```kairo
+fn add(x: i32, y: i32) eval -> i32 {
+    return x + y
+}
+```
+
+In this example, the `add` function takes two `i32` parameters and returns their sum. The `eval` keyword indicates that this function will be evaluated at compile time.
+
+Eval functions can also contain generics:
+
+```kairo
+fn <T> max(a: T, b: T) eval -> T {
+    return if a > b { a } else { b }
+}
+```
+
+# Limitations
+Evaluated functions have certain limitations compared to regular functions:
+1. **No Side Effects**: Evaluated functions cannot have side effects, such as modifying global state or performing I/O operations. They must be pure functions that always produce the same output for the same input.
+2. **Limited Standard Library Access**: Evaluated functions have restricted access to the standard library. Only a subset of functions and types are available for use within evaluated functions.
+3. **No Recursion**: Evaluated functions can be recursive, but the recursion depth is limited to prevent infinite loops during compilation.
+4. **Type Restrictions**: Evaluated functions can only use types that are also evaluable at compile time. This typically includes primitive types and certain user-defined types.
+5. **Performance Considerations**: While evaluated functions can improve performance by precomputing values, they can also increase compilation time if they are complex or called frequently.
+6. **IO Operations**: Evaluated functions cannot perform any input/output operations, as these are inherently runtime activities.
+7. **Memory Management**: Evaluated functions cannot allocate or deallocate memory dynamically. All memory usage must be predictable and manageable at compile time.
+
+## Example
+
+Here is an example of using an evaluated function to compute the factorial of a number at compile time:
+
+```kairo
+fn exponent(base: f64, exp: i32) eval -> f64 {
+    return if exp == 0 {
+        1.0
+    } else if exp % 2 == 0 {
+        exponent(base * base, exp / 2)
+    } else {
+        exponent(base * base, (exp - 1) / 2) * base
+    }
+}
+
+fn cal_len_of_raw_string(const s: *char) eval -> usize {
+    var len: usize = 0
+
+    while s[len] != '\0' {
+        ++len
+    }
+
+    return len
+}
+
+class Circle {
+    var radius: f64
+
+    fn Circle(self, radius: f64) eval { // evaluated constructor
+        self.radius = radius
+    }
+
+    fn area(self) eval -> f64 { // evaluated method
+        return 3.14159 * self.radius * self.radius
+    }
+}
+
+// Usage
+const r = 5.0
+const circle = Circle(r)
+const area = circle.area()
+
+const len = cal_len_of_raw_string("Hello, World!")
+const exp_result = exponent(2.0, 10)
+
+std::print(f"Area of circle with radius {r} is {area}")
+std::print(f"Length of raw string is {len}")
+std::print(f"2 raised to the power of 10 is {exp_result}")
+```

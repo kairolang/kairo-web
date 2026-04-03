@@ -37,49 +37,6 @@ std::print(f"Ran {count} times.")`,
     },
   },
   {
-    id: 'memory',
-    label: 'Memory Safety',
-    filename: 'memory.kro',
-    code: ` import std
- 
- struct Buffer {
-     const size:  usize
-     var   data: *u8  // safe pointer, bounds checked automatically
-                      // unless you explicitly opt out.
- 
-     fn op new (self, size: usize) {
-         self.data = std::Memory::alloc(size)
-         self.size = size  // only the constructor can set size.
-     }
- 
-     fn op delete (self) { // required since we own an allocation.
-         std::Memory::free(self.data)
-     }
- }
- 
- var buf = Buffer(1024)  // 1KB on the heap.
-                         // destructor runs automatically when buf goes out of scope.
- 
- buf.data[0] = 42  // bounds checked; panics at runtime if out of range.
-                   // we can also set up the compiler to make out-of-bounds
-                   // do a no-op or return a default value instead of panicking.
- 
- try {
-     buf.data[buf.size] = 99  // out of bounds
- } catch std::Error::OutOfBounds {
-     std::print("Caught out of bounds access!")
- }`,
-    blurb: {
-      heading: 'Control without the footguns',
-      points: [
-        { label: 'Manual allocation', body: 'You decide what goes on the heap. No GC, no hidden allocations, no surprises at runtime.' },
-        { label: 'Automatic cleanup', body: 'Kairo tracks ownership and places the destructor exactly where `buf` goes out of scope, or earlier if the function returns or panics. No leaks, no double frees, no annotations required.' },
-        { label: 'Bounds checking by default', body: 'Pointer accesses are checked at runtime under default settings. Out-of-range writes panic with a catchable error instead of silently corrupting memory.' },
-        { label: 'Opt out when you need to', body: 'Safety features can be disabled per-module or per-type. When you need raw performance or bare-metal access, you\'re not fighting the language to get it.' },
-      ],
-    },
-  },
-  {
     id: 'using c++ in kairo interop',
     label: 'C++ in Kairo',
     filename: 'ffi.kro',
@@ -151,6 +108,49 @@ int main() {
     },
   },
   {
+    id: 'memory',
+    label: 'Memory Safety',
+    filename: 'memory.kro',
+    code: ` import std
+ 
+ struct Buffer {
+     const size:  usize
+     var   data: *u8  // safe pointer, bounds checked automatically
+                      // unless you explicitly opt out.
+ 
+     fn op new (self, size: usize) {
+         self.data = std::Memory::alloc(size)
+         self.size = size  // only the constructor can set size.
+     }
+ 
+     fn op delete (self) { // required since we own an allocation.
+         std::Memory::free(self.data)
+     }
+ }
+ 
+ var buf = Buffer(1024)  // 1KB on the heap.
+                         // destructor runs automatically when buf goes out of scope.
+ 
+ buf.data[0] = 42  // bounds checked; panics at runtime if out of range.
+                   // we can also set up the compiler to make out-of-bounds
+                   // do a no-op or return a default value instead of panicking.
+ 
+ try {
+     buf.data[buf.size] = 99  // out of bounds
+ } catch std::Error::OutOfBounds {
+     std::print("Caught out of bounds access!")
+ }`,
+    blurb: {
+      heading: 'Control without the footguns',
+      points: [
+        { label: 'Manual allocation', body: 'You decide what goes on the heap. No GC, no hidden allocations, no surprises at runtime.' },
+        { label: 'Automatic cleanup', body: 'Kairo tracks ownership and places the destructor exactly where `buf` goes out of scope, or earlier if the function returns or panics. No leaks, no double frees, no annotations required.' },
+        { label: 'Bounds checking by default', body: 'Pointer accesses are checked at runtime under default settings. Out-of-range writes panic with a catchable error instead of silently corrupting memory.' },
+        { label: 'Opt out when you need to', body: 'Safety features can be disabled per-module or per-type. When you need raw performance or bare-metal access, you\'re not fighting the language to get it.' },
+      ],
+    },
+  },
+  {
     id: 'error-handling',
     label: 'Error Handling',
     filename: 'errors.kro',
@@ -174,12 +174,10 @@ fn read_file(path: string) panic -> string;
 fn parse_config(path: string) panic -> Config {
     var raw: string
 
-    try { // try catch is required if function is not marked \`panic\`
-          // and all catches must be exhaustive on reachable panics.
-          // The compiler verifies this at compile time.
-        raw = read_file(path)
-        return json_parse(raw)
-    } catch Fs::Error::NotFound {
+    raw = read_file(path)
+    return json_parse(raw)
+    
+    catch Fs::Error::NotFound {
         std::print(f"Config file not found: {path}")
         return Config { host: "localhost", port: 8080 }  // recover with a default.
     } catch Json::Error::Parse as e {

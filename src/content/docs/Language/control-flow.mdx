@@ -1,0 +1,156 @@
+---
+title: Control Flow
+description: How Kairo handles control flows
+---
+
+## Control Structures in Kairo
+
+Control flow in Kairo combines familiar constructs with expressive syntax and modern additions like pattern matching.
+
+Kairo currently supports:
+
+- `if-else`
+- `while` loops
+- `for` loops
+- `match` expressions (pattern matching similar to switch)
+- `break` and `continue`
+- `return`
+
+  - For all the keywords that require conditions, such as `if(condition)`, round
+  brackets are optional
+
+## If / Else
+
+The `if` expression allows conditional execution of code blocks.
+
+A simple `if` statement looks like this:
+
+```kairo
+if x > 0 {
+    print(x);
+}
+```
+
+`if` blocks can be stacked in order to make a decision tree, using the `else` keyword like this:
+
+```kairo
+var score = 85;
+
+if score > 90 {
+    print("Excellent");
+} else if (score > 75) {    //as noted earlier, condition brackets are optional
+    print("Good");
+} else {
+    print("Keep trying");
+}
+
+```
+
+## While
+
+The `while` expression can be used to loop through statements while a given condition(s) returns true.
+
+A simple `while` loop looks like this:
+
+```kairo
+var x = 0;
+
+while x < 3{
+    print(x);
+    x++;
+}
+```
+
+## For
+
+`for` loops essentially let you iterate over a range
+
+A simple kairo `for` loop looks like this:
+
+```kairo
+for var i:i32 = 0; i < 100; i++{
+    print(i);
+}
+```
+
+Additionally, even here, you could use traditional condition brackets, like:
+
+```kairo
+for (var i:i32 = 0; i < 100; i++){
+    print(i);
+}
+```
+
+Multiple initializations or increments can be done at once using a comma `,` (multiple conditions are achieved by using logical operators like && or ||) :
+
+```kairo
+for (var i: i32 = 0, var j: i32 = 3; i < 100; i++, j--){
+    print(i)
+}
+```
+
+If you are looping over any array, string, map, or any compatible list-like structure, kairo has a range clause:
+
+```kairo
+for letter in word{
+    print(word[letter]);
+}
+```
+
+## Match
+
+Due to `match` having a lot of extra features on it, we made a completely separate page for it. To learn more, refer to the [Match Guide](../match)
+
+## Break/continue
+
+`break` and `continue` in kairo serve the same purpose they do in other languages.
+
+`break` is used to exit a loop
+
+```kairo
+var count = 0;
+
+for letter in sentence{
+    if letter == ' ' { 
+        break;    //breaks the loop after the first word in the sentence is iterated over
+    }
+    count++;
+}
+
+print(count);   //prints the length of the first word
+```
+
+`continue` skips the current iteration and moves to the next one.
+
+```kairo
+var count = 0;
+
+for letter in sentence {
+    if letter == ' ' {
+        continue;  //skips spaces and continues with the next character
+    }
+    count++;
+}
+
+print(count);    //prints the length of the sentence excluding whitespaces
+```
+
+  `break` and `continue` can only be used inside loops. Using them outside a
+  loop will result in a compile-time error.
+
+## Return
+
+`return` is used to exit a function and pass a value back to the caller of the function
+
+```kairo
+fn square(x:i32) ->i32{
+    return x * x;
+}
+
+var result = square(5);
+print(result);
+
+```
+
+In functions that don't return a value, you can simply use `return;` to exit
+the function early.

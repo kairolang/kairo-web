@@ -1,0 +1,61 @@
+---
+title: Pointers
+description: TODO Add description
+---
+
+Pointers in kairo are similar to pointers in C and C++. They are used to store the memory address of a variable.
+
+```kairo
+fn main() {
+    var my_int: i32 = 42;
+    var my_int_ptr: *i32 = &my_int; // Get the address of my_int
+
+    std::print(f"Value of my_int: {my_int}"); // Output: 42
+    std::print(f"Address of my_int: {my_int_ptr}"); // Output: Address of my_int
+    std::print(f"Value at my_int_ptr: {*my_int_ptr}"); // Dereference pointer to get value: 42
+
+    // Modify the value using the pointer
+    (*my_int_ptr) = 100; // we need to put the deref in parentheses since otherwise the oprator precedence would try to do `*my_int_ptr = 100` as `*(my_int_ptr = 100)` (its very broken)
+    std::print(f"New value of my_int: {my_int}"); // Output: 100
+}
+```
+
+Pointers can also be null, which means they do not point to any valid memory address.
+
+```kairo
+fn main() {
+    var my_null_ptr: *i32 = &null; // Create a null pointer
+
+    if (my_null_ptr == &null) {
+        std::print("my_null_ptr is a null pointer");
+    } else {
+        std::print(f"Value at my_null_ptr: {*my_null_ptr}");
+    }
+}
+```
+
+We do have refrences in kairo but try avoiding them.
+
+```kairo
+fn main() {
+    var my_int: i32 = 42;
+    var my_int_ref: ref!(i32) = my_int; // Get a reference to my_int
+
+    std::print(f"Value of my_int: {my_int}"); // Output: 42
+    std::print(f"Value of my_int_ref: {my_int_ref}"); // Output: 42
+    my_int_ref = 100; // Modify the value using the reference
+    std::print(f"New value of my_int: {my_int}"); // Output: 100
+}
+
+/// Rvalue references are also supported
+fn main() {
+    var my_int: i32 = 42;
+    var my_int_rref: mref!(i32) = std::move(my_int); // Get an rvalue reference to my_int
+
+    std::print(f"Value of my_int_rref: {my_int_rref}"); // Output: 42
+    my_int_rref = 100; // Modify the value using the rvalue reference
+    std::print(f"New value of my_int_rref: {my_int_rref}"); // Output: 100
+}
+```
+
+Also both `ref!` and `mref!` can only be used in the context of types.

@@ -1,0 +1,64 @@
+---
+title: Primitives
+description: TODO Add description
+---
+
+Kairo has several built-in primitive types that are essential for programming. These include:
+
+| Type | Size | Description |
+|------|------|-------------|
+| `i8` | 1 byte | 8-bit signed integer |
+| `i16` | 2 bytes | 16-bit signed integer |
+| `i32` | 4 bytes | 32-bit signed integer |
+| `i64` | 8 bytes | 64-bit signed integer |
+| `u8` | 1 byte | 8-bit unsigned integer |
+| `u16` | 2 bytes | 16-bit unsigned integer |
+| `u32` | 4 bytes | 32-bit unsigned integer |
+| `u64` | 8 bytes | 64-bit unsigned integer |
+| `f32` | 4 bytes | 32-bit floating point |
+| `f64` | 8 bytes | 64-bit floating point |
+| `bool` | 1 byte | Boolean type (true or false) |
+| `char` | 2-4 bytes | Wide Character type (Unicode) |
+| `void` | 0 bytes | Represents the absence of a value |
+
+We also have a few container types built-in:
+| Type | Description |
+|------|-------------|
+| `string` | A sequence of wide characters (UTF-16 encoded) |
+| `nstring` | A C++ style string (sequence of 8-bit chars) |
+| `array::<T, N>` | A fixed-size array of type `T` with `N` elements (alias to c++ `std::array`) |
+| `vec::<T>` | A dynamic array (resizable) of type `T` (alias to c++ `std::vector`) |
+| `map::<K, V>` | A key-value store mapping keys of type `K` to values of type `V` (alias to c++ `std::unordered_map`) |
+| `set::<T>` | A collection of unique elements of type `T` (alias to c++ `std::unordered_set`) |
+| `tuple::<T1, T2, ...>` | A fixed-size collection of elements of different types |
+| `T?` | An optional type that can have null, panic or a value of type `T` |
+| `*T` | A pointer to a value of type `T` |
+| `ref!(T)` | A reference to a value of type `T` |
+| `mref!(T)` | A mutable reference to a value of type `T` |
+| `std::Legacy::char` | A C++ style char (8-bit) |
+| `std::Legacy::array::<T>` | A C-style dynamic array (alias to c++ `T[]`) |
+| `std::Memory::buffer::<T, N>` | A C-style fixed size buffer of type `T` with `N` elements (alias to c++ `T[N]`) |
+
+Here is an example of using some of these primitive types:
+
+```kairo
+fn main() {
+    var my_int: i32 = 42;
+    var my_float: f64 = 3.14;
+    var my_bool: bool = true;
+    var my_char: char = 'A';
+    var my_string: string = "Hello, Kairo!";
+    var my_narrow_string: nstring = r"Hello, C++!";
+    var my_array: array::<i32, 5> = array::<i32, 5>(1, 2, 3, 4, 5);
+    var my_vector: vec::<f64> = [(1.1 as f64), 2.2, 3.3];
+    my_vector.push_back(1.1);
+    my_vector.push_back(2.2);
+    var my_map: map::<string, i32> = {"one": 1, "two": 2, "three": 3};
+    var my_set: set::<i32> = {1, 2, 3, 4, 5};
+    var my_tuple: tuple::<i32, string, bool> = (42, "Answer", true);
+    var my_optional: i32? = 100;
+    var my_pointer: *i32 = &my_int;
+    var my_ref: ref!(i32) = my_int;
+    var my_rval_ref: mref!(i32) = std::Memory::move(my_int);
+}
+```

@@ -28,55 +28,25 @@ try {
 }
 
 const stats = [
-  { value: stars,        suffix: '+', label: 'GitHub Stars',       desc: 'and growing' },
-  { value: 55,           suffix: '+', label: 'Weekly Downloads',   desc: 'from releases' },
-  { value: contributors, suffix: '',  label: 'Contributors',       desc: 'open source' },
-  { value: forks,        suffix: '',  label: 'Forks',              desc: 'on GitHub' },
+  { value: stars,        suffix: '+', label: 'GitHub Stars' },
+  { value: 55,           suffix: '+', label: 'Weekly Downloads' },
+  { value: contributors, suffix: '',  label: 'Contributors' },
+  { value: forks,        suffix: '',  label: 'Forks' },
 ];
 ---
 
-<section style="padding:7rem 0;background:var(--bg);position:relative;overflow:hidden;">
-  <div style="
-    position:absolute;top:50%;left:50%;
-    transform:translate(-50%,-50%);
-    width:600px;height:300px;
-    background:radial-gradient(ellipse at center, var(--red-glow2) 0%, transparent 70%);
-    pointer-events:none;
-    animation:hexPulse 5s ease-in-out infinite;
-  "></div>
-
-  <!-- Scan sweep line (activated on count-up) -->
-  <div class="stats-scan-line" id="stats-scan" aria-hidden="true"></div>
-
-  <div class="container" style="position:relative;z-index:1;">
-    <div style="margin-bottom:3.5rem;" data-reveal>
-      <div class="section-label">By the Numbers</div>
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:700;letter-spacing:-0.03em;color:var(--text);">
-        Early - and accelerating.
-      </h2>
-    </div>
-
-    <div class="stats-grid" id="stats-grid" data-reveal>
+<section class="stats-section">
+  <div class="container">
+    <div class="stats-row" id="stats-grid" data-reveal>
       {stats.map((stat, i) => (
-        <div class="stat-cell" style={`--i:${i}`}>
-          <div class="stat-bar"></div>
-          <!-- Scan sweep on reveal -->
-          <div class="stat-scan-v"></div>
-          <div style="position:relative;display:inline-block;">
-            <div class="stat-number" data-target={stat.value} data-suffix={stat.suffix}>
-              0{stat.suffix}
-            </div>
-            <!-- Pulse ring -->
-            <span class="pulse-ring stat-pulse"></span>
+        <div class="stats-item">
+          <div class="stats-number" data-target={stat.value} data-suffix={stat.suffix}>
+            0{stat.suffix}
           </div>
-          <div class="stat-label">{stat.label}</div>
-          <div class="stat-desc">{stat.desc}</div>
-          <!-- HUD corner -->
-          <span class="stat-index">{String(i + 1).padStart(2, '0')}</span>
+          <div class="stats-label">{stat.label}</div>
         </div>
       ))}
     </div>
-
     <p class="stats-footer" data-reveal>
       Alpha stage · Compiler written in C++ · Self-hosting in progress
     </p>
@@ -84,92 +54,39 @@ const stats = [
 </section>
 
 <style>
-  .stats-grid {
+  .stats-section {
+    padding: 5rem 0;
+    background: var(--bg-2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stats-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    overflow: hidden;
+    gap: 2rem;
   }
 
-  .stat-cell {
-    background: var(--bg-2);
-    padding: 2.5rem 2rem;
+  .stats-item {
     text-align: center;
-    position: relative;
-    overflow: hidden;
-    transition: background 0.3s;
-  }
-  .stat-cell:hover { background: var(--bg-3); }
-
-  /* Hover top bar */
-  .stat-bar {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(to right, transparent, var(--red), transparent);
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-  .stat-cell:hover .stat-bar { opacity: 1; }
-
-  /* Vertical scan sweep */
-  .stat-scan-v {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 40%;
-    background: linear-gradient(to bottom, rgba(189,9,32,0.06), transparent);
-    transform: translateY(-100%);
-    pointer-events: none;
-    transition: none;
-  }
-  .stat-cell.scanning .stat-scan-v {
-    animation: scanSweep 1s ease-out forwards;
   }
 
-  .stat-label {
+  .stats-number {
     font-family: 'Space Grotesk', sans-serif;
-    font-weight: 600;
-    font-size: 0.875rem;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
     color: var(--text);
-    letter-spacing: 0.01em;
-    margin-bottom: 0.25rem;
-    margin-top: 0.5rem;
+    line-height: 1;
+    margin-bottom: 0.5rem;
   }
-  .stat-desc {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.75rem;
-    color: var(--text-3);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  .stat-index {
-    position: absolute;
-    top: 0.75rem; right: 0.75rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.55rem;
-    color: var(--text-3);
-    letter-spacing: 0.1em;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  .stat-cell:hover .stat-index { opacity: 1; color: var(--red); }
 
-  /* Scan line across whole section */
-  .stats-scan-line {
-    position: absolute;
-    left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(189,9,32,0.6), transparent);
-    top: 0;
-    pointer-events: none;
-    opacity: 0;
-    z-index: 2;
-  }
-  .stats-scan-line.run {
-    animation: scanSweep 1.5s ease-out forwards;
+  .stats-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    color: var(--text-3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .stats-footer {
@@ -179,20 +96,19 @@ const stats = [
     color: var(--text-3);
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    margin-top: 1.5rem;
+    margin-top: 3rem;
   }
 
-  @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 2.5rem; }
+  }
 </style>
 
 <script>
   function initStats() {
     const grid = document.getElementById('stats-grid');
-    const scanLine = document.getElementById('stats-scan');
     if (!grid) return;
-    const numbers = grid.querySelectorAll('.stat-number');
-    const cells = grid.querySelectorAll('.stat-cell');
+    const numbers = grid.querySelectorAll('.stats-number');
     let animated = false;
 
     function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
@@ -210,42 +126,16 @@ const stats = [
       requestAnimationFrame(step);
     }
 
-    function triggerPulseRing(cell: Element) {
-      const ring = cell.querySelector('.stat-pulse') as HTMLElement | null;
-      if (!ring) return;
-      ring.classList.remove('active');
-      void ring.offsetWidth; // reflow
-      ring.classList.add('active');
-      ring.addEventListener('animationend', () => ring.classList.remove('active'), { once: true });
-    }
-
-    function triggerScan(cell: Element) {
-      cell.classList.remove('scanning');
-      void (cell as HTMLElement).offsetWidth;
-      cell.classList.add('scanning');
-    }
-
     new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && !animated) {
         animated = true;
-        // Horizontal scan sweep first
-        if (scanLine) {
-          scanLine.classList.add('run');
-          scanLine.addEventListener('animationend', () => scanLine.classList.remove('run'), { once: true });
-        }
-        cells.forEach((cell, i) => {
-          setTimeout(() => triggerScan(cell), i * 100 + 200);
-        });
         numbers.forEach((el, i) => {
-          setTimeout(() => {
-            animateCount(el);
-            const cell = el.closest('.stat-cell');
-            if (cell) triggerPulseRing(cell);
-          }, i * 150 + 400);
+          setTimeout(() => animateCount(el), i * 120);
         });
       }
     }, { threshold: 0.3 }).observe(grid);
   }
+
   initStats();
   document.addEventListener('astro:page-load', initStats);
 </script>

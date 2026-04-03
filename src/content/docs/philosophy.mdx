@@ -39,13 +39,9 @@ Kairo is governed by the [Kairo Software Foundation](/ksf), a community-driven n
 
 No single company controls Kairo. No single individual can unilaterally change the language.
 
-## What Kairo Is Not
+## The interop hypothesis
 
-**Kairo is not Rust.** Rust's borrow checker is an excellent tool for a specific set of problems. Kairo's approach is more permissive - you can write unsafe code freely, but the language provides tools to make safe patterns easy and the unsafe ones explicit.
-
-**Kairo is not Zig.** Zig prioritizes simplicity of the language spec above all else. Kairo accepts more complexity in exchange for more expressiveness - generics, interfaces, and lambdas are first-class.
-
-**Kairo is not a research language.** The goal is not to prove a theorem or explore a novel type theory. The goal is to be the best tool for writing fast, reliable systems software.
+Most languages treat C++ interop as a compatibility feature. Kairo treats it as the core design constraint. Every decision — the token-level compilation model, the BCIR safety layer, the build system — follows from the question: what would make C++ and Kairo genuinely indistinguishable at the boundary?
 
 ## Who Kairo Is For
 

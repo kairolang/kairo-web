@@ -1,0 +1,165 @@
+---
+title: Basic Syntax
+description: TODO Add description
+---
+
+if statements:
+```kairo
+fn main() {
+    var x: i32 = 10;
+
+    if x > 5 {
+        std::print("x is greater than 5");
+    } else if x == 5 {
+        std::print("x is equal to 5");
+    } else {
+        std::print("x is less than 5");
+    }
+}
+```
+
+for loops (range based):
+```kairo
+fn main() {
+    for i in 0..10 {
+        std::print(f"i: {i}");
+    }
+
+    // with type
+    for i: i32 in 0..10 {
+        std::print(f"i: {i}");
+    }
+
+    var arr = [1, 2, 3, 4, 5];
+    for item in arr {
+        std::print(f"item: {item}");
+    }
+
+    for item: i32 in arr {
+        std::print(f"item: {item}");
+    }
+}
+```
+
+for loops (traditional):
+```kairo
+fn main() {
+    for (var i: i32 = 0; i < 10; ++i) {
+        std::print(f"i: {i}");
+    }
+}
+```
+
+while loops:
+```kairo
+fn main() {
+    var i: i32 = 0;
+    while (i < 10) {
+        std::print(f"i: {i}");
+        ++i;
+    }
+}
+```
+
+switch statements:
+```kairo
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+fn main() {
+    var c: Color = Color::Green;
+
+    // with fallthrough
+    switch (c) {
+        case Color::Red:
+            std::print("Color is Red");
+        case Color::Green: /// this may need : { ... } i forgot how i implemented it
+            std::print("Color is Green");
+            break;
+        case Color::Blue:
+            std::print("Color is Blue");
+            break;
+        default:
+            std::print("Unknown Color");
+    }
+
+    // implicit break version
+    switch (c) {
+        case Color::Red {
+            std::print("Color is Red");
+        }
+        case Color::Green {
+            std::print("Color is Green");
+        }
+        case Color::Blue {
+            std::print("Color is Blue");
+        }
+        default {
+            std::print("Unknown Color");
+        }
+    }
+}
+```
+
+function definitions and calls:
+```kairo
+fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+fn main() {
+    var result: i32 = add(5, 10);
+    std::print(f"Result: {result}");
+}
+```
+
+variable declarations and types:
+```kairo
+fn main() {
+    var x: i32 = 10;          // integer
+    var y: f64 = 20.5;       // floating-point
+    var name: string = "Kairo"; // string
+    var is_valid: bool = true; // boolean
+
+    type unsigned_i32 = u32; // type alias
+    var uid: unsigned_i32 = 100;
+
+    std::print(f"x: {x}, y: {y}, name: {name}, is_valid: {is_valid}");
+}
+```
+
+generics:
+```kairo
+fn <T> swap(a: T, b: T) -> (T, T) {
+    return (b, a);
+}
+
+fn main() {
+    var res = swap(10, 20);
+    var a = libcxx::get::<0>(res);
+    var b = libcxx::get::<1>(res);
+    std::print(f"a: {a}, b: {b}");
+
+    var res_str = swap("Hello", "World");
+    var str1 = libcxx::get::<0>(res_str);
+    var str2 = libcxx::get::<1>(res_str);
+    std::print(f"str1: {str1}, str2: {str2}");
+}
+
+interface PrintableInterface {
+    fn op as (self) -> string;
+}
+
+// kairo also supports impl and clauses
+fn <T impl PrintableInterface> print_value(value: T) {
+    std::print(f"Value: {value}");
+}
+
+/// or you can do
+fn <T> print_value(value: T) requires T impl PrintableInterface {
+    std::print(f"Value: {value}");
+}
+```

@@ -1,188 +1,177 @@
 ---
-const features = [
-  {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`,
-    title: 'Zero-cost Abstractions',
-    desc: "Write clean, expressive code that compiles to almost the same assembly as hand-optimized C. But with safety RAII, and borrow checking when you want it. No hidden costs, no surprises.",
-  },
-  {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/><path d="M8 6h8M8 10h4"/></svg>`,
-    title: 'Memory Control',
-    desc: "Manual memory management with optional borrow checking. Raw pointers when you need them. Smart pointers when you don't. Fine-grained control over allocation, deallocation, and lifetimes. No GC, no hidden costs, just you and the metal.",
-  },
-  {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
-    title: 'C/C++ Interop',
-    desc: 'First-class FFI. Call C++ and C code directly. Bit-level ABI compatibility. No C++ to Kairo wrappers, no Kairo to C++ wrappers (if using kairo -\c\c), no overhead, no ceremony. Seamlessly integrate with existing codebases and libraries.',
-  },
-  {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>`,
-    title: 'Blazing Performance',
-    desc: 'Predictable performance. No background GC. No hidden allocations. You control every nanosecond of execution. Write high-level code that compiles down to tight, efficient machine code. Perfect for performance-critical applications. In most cases matching or outperforming C++.',
-  },
-  {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
-    title: 'Ergonomics Without Compromise',
-    desc: 'Modern syntax and powerful abstractions without sacrificing control or performance. Pattern matching, algebraic data types, interfaces, generics, and more. Theres no need to choose between expressiveness and performance.',
-  },
-  {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
-    title: 'Built-in Tooling',
-    desc: 'A powerful standard library and built-in tools for testing, benchmarking, formatting, linting. The toolchain includes a formatter, package manager, lsp server, compiler, and a linker. No need to cobble together a collection of third-party tools to get a complete development experience.',
-  },
-];
 ---
-<section style="padding:7rem 0;background:var(--bg);position:relative;overflow:hidden;">
+<section class="capabilities-section" style="border-top:1px solid var(--border);">
   <!-- Diagonal red accent -->
   <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:0.4;pointer-events:none;animation:beamMove 6s linear infinite;"></div>
-  <!-- Animated diagonal striping (neo-grid) -->
+  <!-- Animated diagonal striping -->
   <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(135deg,rgba(189,9,32,0.02) 0,rgba(189,9,32,0.02) 1px,transparent 0,transparent 50%);background-size:24px 24px;pointer-events:none;"></div>
 
   <div class="container">
-    <div style="margin-bottom:3.5rem;" data-reveal>
-      <div class="section-label">Features</div>
+    <div style="margin-bottom:4rem;" data-reveal>
+      <div class="section-label">How it works</div>
       <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:var(--text);max-width:500px;">
-        Less boilerplate.<br>
-        <span style="color:var(--text-2);font-weight:400;">More building.</span>
+        The compiler,<br>
+        <span style="color:var(--text-2);font-weight:400;">in practice.</span>
       </h2>
     </div>
 
-    <div class="features-grid">
-      {features.map((f, i) => (
-        <div
-          class="feature-card hud-card"
-          data-reveal
-          data-reveal-delay={i * 80}
-          style={`--i:${i}`}
-        >
-          <!-- Beams that sweep on hover -->
-          <div class="card-beam"></div>
-          <div class="card-vbeam"></div>
-          <div class="card-bottom-line"></div>
+    <div class="capabilities-list">
 
-          <div class="feature-icon">
-            <Fragment set:html={f.icon} />
-          </div>
-          <h3 class="feature-title">{f.title}</h3>
-          <p class="feature-desc">{f.desc}</p>
+      <!-- Block 1 -->
+      <div class="cap-block" data-reveal>
+        <div class="cap-number">01</div>
+        <div class="cap-content">
+          <h3 class="cap-title">Include a .kro file from C++</h3>
+          <p class="cap-desc">Kairo compiles to Clang tokens, not object files. Your C++ build includes Kairo files the same way it includes headers — no FFI boundary, no ABI negotiation, templates and inlining work as normal.</p>
+          <pre class="cap-code"><code class="cap-code-inner">// main.cpp
+#include "renderer.kro"
 
-          <!-- HUD index -->
-          <span class="feature-index">0{i + 1}</span>
+int main() &#123;
+    auto scene = renderer::Scene::new();
+    scene.add_mesh(renderer::Mesh::load("model.obj"));
+    scene.render();  // Kairo function, called directly
+&#125;</code></pre>
         </div>
-      ))}
+      </div>
+
+      <div class="cap-divider"></div>
+
+      <!-- Block 2 -->
+      <div class="cap-block" data-reveal>
+        <div class="cap-number">02</div>
+        <div class="cap-content">
+          <h3 class="cap-title">Use any C++ library directly</h3>
+          <p class="cap-desc"><code class="cap-inline">ffi "c++"</code> import gives you the full C++ symbol table — classes, templates, operator overloads, everything. No bindings to write, no generated glue code, no runtime overhead.</p>
+          <pre class="cap-code"><code class="cap-code-inner">ffi "c++" import "llvm/IR/Module.h"
+ffi "c++" import "llvm/IR/IRBuilder.h"
+
+var ctx     = llvm::LLVMContext()
+var mod     = llvm::Module("my_module", ctx)
+var builder = llvm::IRBuilder(ctx)
+
+// Full C++ API, no wrappers
+var fn_type = llvm::FunctionType::get(builder.getInt32Ty(), false)
+var fn      = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, "main", mod)</code></pre>
+        </div>
+      </div>
+
+      <div class="cap-divider"></div>
+
+      <!-- Block 3 -->
+      <div class="cap-block" data-reveal>
+        <div class="cap-number">03</div>
+        <div class="cap-content">
+          <h3 class="cap-title">Safety without rewriting</h3>
+          <p class="cap-desc">The BCIR borrow checker analyzes ownership across your Kairo and C++ code together. Invalid borrows lower to smart pointers automatically — the code still compiles, you get a report of what was fixed.</p>
+          <pre class="cap-code"><code class="cap-code-inner">fn process(data: *u8, len: usize) &#123;
+    var ptr = data
+    std::Memory::free(data)
+    ptr[0] = 1  // note[BCIR]: use after free
+                // lowered to UniquePtr&lt;u8&gt; automatically
+                // recompile with --bcir-report for full ownership graph
+&#125;</code></pre>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
 
 <style>
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .feature-card {
-    background: var(--bg-2);
-    padding: 2rem;
+  .capabilities-section {
+    padding: 7rem 0;
+    background: var(--bg);
     position: relative;
     overflow: hidden;
-    transition: background 0.3s;
-    border-left: none;
-    border-radius: 0;
-  }
-  .feature-card:hover { background: var(--bg-3); }
-
-  /* Beam sweep on hover */
-  .card-beam {
-    position: absolute;
-    top: 0; left: -100%;
-    width: 60%; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--red), transparent);
-    opacity: 0;
-    transition: opacity 0.2s;
-    pointer-events: none;
-  }
-  .feature-card:hover .card-beam {
-    opacity: 1;
-    animation: beamMove 1.5s linear;
   }
 
-  /* Vertical scan beam (right side) */
-  .card-vbeam {
-    position: absolute;
-    right: 0; top: -100%;
-    width: 1px; height: 60%;
-    background: linear-gradient(to bottom, transparent, var(--red), transparent);
-    opacity: 0;
-    pointer-events: none;
-  }
-  .feature-card:hover .card-vbeam {
-    opacity: 1;
-    animation: scanSweep 1.2s ease-out;
-  }
-
-  /* Bottom accent line (always visible, pulses on hover) */
-  .card-bottom-line {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(189,9,32,0.3), transparent);
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-  .feature-card:hover .card-bottom-line { opacity: 1; }
-
-  .feature-icon {
-    width: 44px; height: 44px;
-    background: rgba(189,9,32,0.08);
-    border: 1px solid rgba(189,9,32,0.15);
-    border-radius: 2px;
+  .capabilities-list {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--red);
-    margin-bottom: 1.25rem;
-    transition: all 0.3s;
-  }
-  .feature-card:hover .feature-icon {
-    background: rgba(189,9,32,0.15);
-    border-color: rgba(189,9,32,0.4);
-    box-shadow: 0 0 16px var(--red-glow), inset 0 0 8px rgba(189,9,32,0.05);
-    transform: scale(1.05);
+    flex-direction: column;
+    gap: 0;
   }
 
-  .feature-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 600;
-    font-size: 1rem;
-    letter-spacing: -0.01em;
-    color: var(--text);
-    margin-bottom: 0.6rem;
-  }
-  .feature-desc {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.875rem;
-    color: var(--text-2);
-    line-height: 1.65;
+  .cap-block {
+    display: grid;
+    grid-template-columns: 3rem 1fr;
+    gap: 2.5rem;
+    padding: 3rem 0;
+    align-items: start;
   }
 
-  /* HUD index badge */
-  .feature-index {
-    position: absolute;
-    top: 1rem; right: 1rem;
+  @media (max-width: 640px) {
+    .cap-block {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 2rem 0;
+    }
+  }
+
+  .cap-number {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.6rem;
-    color: var(--text-3);
-    letter-spacing: 0.1em;
-    opacity: 0;
-    transition: opacity 0.3s;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    color: var(--red);
+    padding-top: 0.2rem;
+    user-select: none;
   }
-  .feature-card:hover .feature-index { opacity: 1; color: var(--red); }
 
-  @media (max-width: 900px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
+  .cap-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .cap-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin: 0;
+  }
+
+  .cap-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text-2);
+    line-height: 1.7;
+    max-width: 660px;
+    margin: 0;
+  }
+
+  .cap-inline {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    color: var(--text);
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  .cap-code {
+    margin: 0;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-left: 2px solid rgba(189,9,32,0.35);
+    border-radius: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cap-code-inner {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.75;
+    color: var(--text-2);
+    padding: 1.1rem 1.4rem;
+    white-space: pre;
+  }
+
+  .cap-divider {
+    height: 1px;
+    background: var(--border);
+  }
 </style>

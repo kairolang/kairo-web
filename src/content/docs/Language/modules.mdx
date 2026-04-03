@@ -1,0 +1,33 @@
+---
+title: Modules
+description: Mudles in kairo are like namespaces in c++
+---
+
+Very simple to define and you can nest or contantenate them as needed.
+
+```kairo
+module foo {
+    fn bar() {
+        std::print("Hello from foo::bar");
+    }
+}
+
+module bar::baz {
+    fn qux() {
+        std::print("Hello from bar::baz::qux");
+    }
+}
+
+/// you can also extend modules AS long as they are in the same file
+module foo {
+    fn baz() {
+        std::print("Hello from foo::baz");
+    }
+}
+
+fn main() {
+    foo::bar();
+    bar::baz::qux();
+    foo::baz();
+}
+```

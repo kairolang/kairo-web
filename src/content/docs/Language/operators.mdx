@@ -1,0 +1,62 @@
+---
+title: Operators
+description: TODO Add description
+---
+
+Operators supported in kairo are the same as c++ right now with a few new ones: `as` and `in`.
+
+```kairo
+// a class overloading +, as, and in (x2)
+
+class Foo {
+    var value: i32;
+
+    fn Foo(self, value: i32) {
+        self.value = value;
+    }
+
+    // overload +
+    fn op + (self, other: Foo) -> Foo {
+        return Foo(self.value + other.value);
+    }
+
+    // overload as
+    fn op as (self) -> i32 {
+        return self.value;
+    }
+
+    // overload in (the iterator version)
+    fn op in (self) -> yield i32 {
+        for (var i: i32 = 0; i < self.value; i = i + 1) {
+            yield i;
+        }
+    }
+
+    // overload in (the containment version)
+    fn op in (self, item: i32) -> bool {
+        return item >= 0 && item < self.value;
+    }
+}
+
+fn main() {
+    var a: Foo = Foo(5);
+    var b: Foo = Foo(10);
+
+    var c: Foo = a + b; // uses overloaded +
+
+    var int_value: i32 = c as i32; // uses overloaded as
+    std::print(f"int_value: {int_value}"); // prints 15
+
+    // uses overloaded in (iterator version)
+    for i in c { // range based loops can also have a type like: for i: i32 in c {
+        std::print(f"i: {i}"); // prints 0 to 14
+    }
+
+    // uses overloaded in (containment version)
+    if (7 in c) {
+        std::print("7 is in c"); // prints this
+    } else {
+        std::print("7 is not in c");
+    }
+}
+```

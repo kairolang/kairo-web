@@ -1,0 +1,299 @@
+---
+title: Variadic & Key-Value Functions
+description: Learn about variadic functions in Kairo, how to define and use them effectively.
+---
+
+Variadic functions are functions that can take a variable number of arguments. In Kairo, you can define variadic functions using the `...` syntax in the function parameters. Kairo also supports key-value pair arguments, while keeping it type-safe.
+
+## Variadic Functions
+To define a variadic function, you use the `...` syntax after the last parameter type. You can also have more then one variadic parameter, but they must be the last parameters in the function signature.
+
+```kairo
+fn print_values(values: i32...) {
+    for value in values {
+        std::print(f"Value: {value}")
+    }
+}
+```
+
+The above function `print_values` can take any number of `i32` arguments. if any other type is passed, and that type does not implement an `fn op as (self) -> i32`, a compile time error will be thrown.
+
+You can call the function like this:
+
+```kairo
+print_values(1, 2, 3, 4, 5)
+```
+
+You can also have multiple variadic parameters, but they must be the last parameters in the function signature:
+
+```kairo
+fn log_message(level: string, messages: string..., codes: i32...) {
+    std::print(f"[{level}]")
+    for message in messages {
+        std::print(f" {message}")
+    }
+    for code in codes {
+        std::print(f" (code: {code})")
+    }
+    std::print("\n")
+}
+```
+
+You can call the function like this:
+
+```kairo
+log_message("INFO", "Starting process", "Process ID:", 1234, 5678)
+```
+
+Internally a variadic parameter is treated as an array of the specified type. But if there is no type set, it will be treated as an tuple of any type. and a compiler would generate a new function for each unique type signature. Heres an example:
+
+```kairo
+fn sum_all(numbers: ...) -> i32 {
+    var total: i32 = 0
+    for number in numbers {
+        total += number as i32
+    }
+    return total
+}
+```
+
+You can call the function like this:
+
+```kairo
+var result1 = sum_all(1, 2, 3, 4, 5) // result1 will be 15
+var result2 = sum_all("1", "2", "3") // compile time error, as string cannot be cast to i32
+```
+
+For the above example, the compiler would generate a new function for each unique type signature passed to `sum_all`. The compiler generated fucntions would look something like this:
+
+```kairo
+fn sum_all_i32(numbers: [5; i32]) -> i32 {
+    var total: i32 = 0
+    for number in numbers {
+        total += number
+    }
+    return total
+}
+
+fn sum_all_string(numbers: [3; string]) -> i32 {
+    var total: i32 = 0
+    for number in numbers {
+        total += number as i32 // compile time error, as string cannot be cast to i32
+    }
+    return total
+}
+```
+
+Then the compiler would run a semantic check to ensure that the types passed to the function can be cast to the type specified in the function signature. If they cannot be cast, a compile time error will be thrown. pointing to the call site and the function definition. You can avoid this by evaluating the types either in the function body, or in the function call site. For the above exmaple we can change it to this:
+
+```kairo
+///
+/// \brief Sums all numbers in a variadic list
+///        If a string is passes it would sum the length of each string
+///
+/// \param numbers A variadic list of numbers or strings
+///
+fn sum_all(numbers: ...) -> i32 {
+    var total: i32 = 0
+    
+    for number in numbers {
+        // the type is evaluated at compile time
+        eval if typeof!(numbers) == [; i32] {
+            total += number
+        } else if typeof!(numbers) == [; string] {
+            total += number.length()
+        } else {
+            panic std::Error::InvalidArgument("Unsupported type passed to sum_all")
+        }
+    }
+
+    return total
+}
+
+var result1 = sum_all(1, 2, 3, 4, 5) // result1 will be 15
+var result2 = sum_all("1", "22", "333") // result2 will be 6
+
+/// the code for the above function would be generated like this:
+fn sum_all_i32(numbers: [5; i32]) -> i32 {
+    var total: i32 = 0
+    for number in numbers {
+        total += number
+    }
+    return total
+}
+
+fn sum_all_string(numbers: [3; string]) -> i32 {
+    var total: i32 = 0
+    for number in numbers {
+        total += number.length()
+    }
+    return total
+}
+```
+
+You can also mix typed variadic parameters with untyped variadic parameters. The typed variadic parameters must come before the untyped variadic parameters:
+
+```kairo
+fn mixed_variadic(numbers: i32..., others: ...) {
+    var total: i32 = 0
+    for number in numbers {
+        total += number
+    }
+ 
+    std::print(f"Total of numbers: {total}\n")
+    std::print("Other values:\n")
+ 
+    for other in others {
+        std::print(f" - {other}\n")
+    }
+}
+
+mixed_variadic(1, 2, 3, "hello", 4.5, true)
+
+/// compiler generated functions would look something like this:
+fn mixed_variadic_i32_string_f64_bool(numbers: [3; i32], others: (string, f64, bool)) {
+    var total: i32 = 0
+    for number in numbers {
+        total += number
+    }
+
+    std::print(f"Total of numbers: {total}\n")
+    std::print("Other values:\n")
+
+    for other in others {
+        std::print(f" - {other}\n")
+    }
+}
+```
+
+This would output:
+
+```
+Total of numbers: 6
+Other values:
+ - hello
+ - 4.5
+ - true
+```
+
+Heres a full example of a variadic function in a real world scenario:
+
+```kairo
+fn format_message(level: string, messages: string..., codes: i32...) -> string {
+    var formatted: string = f"[{level}]"
+    
+    for message in messages {
+        formatted += f" {message}"
+    }
+    
+    for code in codes {
+        formatted += f" (code: {code})"
+    }
+    
+    return formatted
+}
+
+var msg1 = format_message("INFO", "Starting process", "Process ID:", 1234, 5678)
+var msg2 = format_message("ERROR")
+
+std::print(msg1) // prints "[INFO] Starting process Process ID: (code: 1234) (code: 5678)"
+std::print(msg2) // prints "[ERROR]"
+```
+
+## Key-Value Pair Functions
+
+Kairo also supports key-value pair arguments in functions. This allows you to pass named arguments to a function, making it easier to understand what each argument represents. Key-value pair arguments are defined using the `name: ...struct` syntax in the function parameters.
+
+Unlike pythons Kwargs, Kairo's key-value pair arguments are type-safe. You must define a struct that represents the key-value pairs you want to pass to the function. Here's an example:
+
+```kairo
+struct LogOptions {
+    var timestamp: bool = false
+    var user_id: i32? = null
+    var verbose: bool = false
+}
+```
+
+You can then define a function that takes a key-value pair argument like this:
+
+```kairo
+fn log_event(event: string, options: ...LogOptions) {
+    var log_entry: string = ""
+
+    if options.timestamp {
+        log_entry += f"[{std::time.now()}] "
+    }
+
+    log_entry += event
+
+    if options.user_id != null {
+        log_entry += f" (User ID: {options.user_id})"
+    }
+
+    if options.verbose {
+        log_entry += " [VERBOSE]"
+    }
+
+    std::print(log_entry + "\n")
+}
+```
+
+You can call the function like this:
+
+```kairo
+var user_id = 42
+log_event("User logged in", timestamp: true, user_id) // prints "[2024-06-01 12:00:00] User logged in (User ID: 42)"
+log_event("System started", verbose: true) // prints "System started [VERBOSE]"
+log_event("Error occurred") // prints "Error occurred"
+```
+
+In the above example, the `log_event` function takes an event string and a variable number of `LogOptions` key-value pairs. You can specify any combination of the options when calling the function. If an option is not provided, it will use the default value defined in the struct.
+
+If lets say you have a struct that has no default values, then you must provide `key: value` for each field when calling the function:
+
+```kairo
+struct Config {
+    var host: string
+    var port: i32
+    var use_ssl: bool
+}
+
+fn connect(config: ...Config) {
+    var protocol = if config.use_ssl { "https" } else { "http" }
+    std::print(f"Connecting to {protocol}://{config.host}:{config.port}\n")
+}
+
+connect(host: "example.com", port: 443, use_ssl: true) // prints "Connecting to https://example.com:443"
+connect(host: "example.com") // compile time error, missing 'port' and 'use_ssl'
+```
+
+You can also forward key-value pair arguments to other functions that accept the same struct type Lets take the above `Config` struct and `connect` function and pass a predefined config to it:
+
+```kairo
+var default_config = Config{
+    host: "localhost",
+    port: 80,
+    use_ssl: false
+} // we must use `{}` to initialize the struct since it has constructor (we are manually populating all fields)
+
+connect(default_config...) // prints "Connecting to http://localhost:80"
+```
+
+to do the same in python you would do something like this:
+
+```python
+def connect_with_config(**config): # approach 2
+    protocol = "https" if config.get("use_ssl") else "http"
+    print(f"Connecting to {protocol}://{config.get('host')}:{config.get('port')}")
+
+default_config = {
+    "host": "localhost",
+    "port": 80,
+    "use_ssl": False
+}
+
+connect_with_config(**default_config) # prints "Connecting to http://localhost:80"
+
+# or
+connect_with_config(host="example.com", port=443, use_ssl=True) # prints "Connecting to https://example.com:443"
+```

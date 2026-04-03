@@ -44,52 +44,27 @@ const platforms = [
 
       <!-- Left: Text -->
       <div data-reveal>
-        <div class="section-label">Install</div>
-        <h2 style="
-          font-family:'Space Grotesk',sans-serif;
-          font-size:clamp(1.75rem,4vw,2.75rem);
-          font-weight:700;
-          letter-spacing:-0.03em;
-          line-height:1.1;
-          color:var(--text);
-          margin-bottom:1.25rem;
-        ">
-          Get Kairo in<br>
-          <span style="color:var(--red);">seconds.</span>
-        </h2>
-        <p style="
-          font-family:'Inter',sans-serif;
-          font-size:1rem;
-          color:var(--text-2);
-          line-height:1.7;
-          margin-bottom:2rem;
-          max-width:380px;
-        ">
-          One command gets you the compiler, formatter, LSP, and package manager.
-          No separate installs, no configuration.
-        </p>
-
-        <div style="
-          background:rgba(189,9,32,0.06);
-          border:1px solid rgba(189,9,32,0.15);
-          border-left:3px solid var(--red);
-          padding:1rem 1.25rem;
-          border-radius:2px;
-          margin-bottom:1.5rem;
-        ">
-          <p style="font-family:'Space Grotesk',sans-serif;font-size:0.8rem;font-weight:600;color:var(--red);margin-bottom:0.4rem;letter-spacing:0.05em;text-transform:uppercase;">Alpha Notice</p>
-          <p style="font-family:'Inter',sans-serif;font-size:0.85rem;color:var(--text-2);line-height:1.6;margin:0;">
-            The compiler is currently in alpha. Written in C++, being
-            rewritten in Kairo itself. APIs may change.
-          </p>
-        </div>
-
-        <a href="/docs/install" class="btn-primary" style="text-decoration:none;">
-          Full Install Guide
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        </a>
+        <div class="install-header" data-reveal>
+      <div class="section-label">Install</div>
+      <h2 class="install-title">
+        Get Kairo in<br>
+        <span style="color:var(--red);">seconds.</span>
+      </h2>
+      <p class="install-sub">
+        One command gets you the compiler, formatter, LSP, and package manager.
+        No separate installs, no configuration.
+      </p>
+      <div class="install-alpha">
+        <span class="install-alpha-tag">Alpha</span>
+        <span class="install-alpha-text">Written in C++, being rewritten in Kairo. APIs may change.</span>
+      </div>
+      <a href="/docs/install" class="btn-primary install-cta">
+        Full Install Guide
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
       </div>
 
       <!-- Right: Terminal -->
@@ -276,6 +251,140 @@ const platforms = [
     bottom: 15%;
     right: 8%;
     animation: dataStream 9s linear 3s infinite;
+  }
+
+  .install-section {
+    padding: 5.5rem 0;
+    background: var(--bg-2);
+    border-top: 1px solid var(--border);
+  }
+
+  .install-header {
+    margin-bottom: 3rem;
+  }
+
+  .install-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 1rem;
+  }
+
+  .install-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    color: var(--text-2);
+    line-height: 1.7;
+    max-width: 480px;
+    margin-bottom: 1.5rem;
+  }
+
+  .install-alpha {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .install-alpha-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--red);
+    background: rgba(189,9,32,0.08);
+    border: 1px solid rgba(189,9,32,0.2);
+    padding: 2px 7px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .install-alpha-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    color: var(--text-3);
+    line-height: 1.5;
+  }
+
+  .install-cta {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* 3-column code grid */
+  .install-cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .install-col-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 0.6rem;
+  }
+
+  .install-block {
+    position: relative;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 2px solid rgba(189,9,32,0.4);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .install-pre {
+    margin: 0;
+    padding: 1rem 1.1rem;
+    padding-right: 4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.75;
+    color: var(--text-2);
+    white-space: pre;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .install-prompt {
+    color: var(--red);
+    user-select: none;
+  }
+
+  .install-copy {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    padding: 3px 6px;
+    border-radius: 2px;
+    transition: color 0.2s;
+  }
+
+  .install-copy:hover { color: var(--red); }
+
+  @media (max-width: 900px) {
+    .install-cols { grid-template-columns: 1fr; gap: 1rem; }
   }
 </style>
 

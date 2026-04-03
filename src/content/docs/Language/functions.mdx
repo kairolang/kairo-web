@@ -1,0 +1,425 @@
+---
+title: Functions
+description: Explore the various types of functions in Kairo, including inline, evaluated, variadic, and special functions, along with their definitions and usage.
+---
+
+Functions are fundamental building blocks in Kairo, enabling code reuse, modularity, and organization. Kairo supports various types of functions, each serving different purposes and use cases. The following function takes four `f64` parameters and returns the distance (`f64`) between the two points in a 2D space:
+
+```cpp
+template<typename F, typename Tuple = tuple<T...>, int... I>
+decltype(auto) apply_(F&& f, Tuple&& args, index_sequence<I...>) {
+    return std::forward<F>(f)(std::get<I>(std::forward<Tuple>(args))...);
+}
+
+template<typename F, typename Tuple = tuple<T...>,
+    typename Indices = make_index_sequence<tuple_size<Tuple>::value >>
+   decltype( auto)
+    apply(F&& f, Tuple&& args) {
+    return apply_(std::forward<F>(f), std::forward<Tuple>(args), Indices());
+}
+```
+
+```kairo {frame="terminal"}
+import std::math
+
+fn distance(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
+    var dx = x2 - x1
+    var dy = y2 - y1
+
+    return math::sqrt((dx ** 2) + (dy ** 2))
+}
+```
+
+Functions can be invoked by their name followed by parentheses containing any required arguments, they can generally be called from anywhere in the code¹ after their declaration². For example:
+
+```kairo
+var points = [(1.0, 2.0), (4.0, 6.0)]
+var dist = distance(points[0][0], points[0][1], points[1][0], points[1][1])
+print(f"distance between {points} is {dist}")
+```
+
+¹ Functions can be called from anywhere in the code as long as its in the same module or imported properly.
+
+² Functions declared in the same module and file can be called before their declaration. But if a function is declared in another module or file, it must be imported before it can be called.
+
+### Grammar
+```
+function_declaration ::= [ attributes ] [ linkage ] [ visibility ] [ 'override' | 'final' ] 'fn' function_name '(' [ parameter_list ] ')' [ qualifiers ] [ specifiers ] [ '->' return_type ] [ function_body | '=' (special | expression) ]
+function_name ::= identifier | scope | operator
+parameter_list ::= parameter ( ',' parameter )*
+parameter ::= [ 'const' ] identifier ':' [ type '...' ]
+return_type ::= type | '!'
+function_body ::= '{' statement* '}'
+qualifiers ::= qualifier ( ' ' qualifier )*
+qualifier ::= 'async' | 'unsafe' | 'eval' | 'inline'
+specifiers ::= specifier ( ' ' specifier )*
+specifier ::= 'static' | 'override' | 'final' | 'const'
+special ::= 'default' | 'delete'
+linkage ::= 'ffi' string_literal
+attributes ::= attribute ( ' ' attribute )*
+attribute ::= '@' identifier [ '(' [ attribute_args ] ')' ]
+attribute_args ::= attribute_arg ( ',' attribute_arg )*
+attribute_arg ::= string_literal | number_literal | boolean_literal | identifier
+```
+
+### Code standards:
+
+- Function names should be written in `snake_case`, which means all letters are lowercase and words are separated by underscores (`_`).
+- Function names should be descriptive and convey the purpose of the function clearly.
+- Use verbs for function names to indicate actions (e.g., `calculate_area`, `fetch_data`).
+- Avoid using abbreviations or acronyms unless they are widely recognized.
+- There is no strict limit on the length of a function body but it is recommended to keep functions concise and focused on a single task. If a function becomes too long or complex, consider breaking it down into smaller helper functions. (Kairo would emit an readability warning if a function exceeds 100 lines of code).
+- Use consistent indentation (4 spaces per indentation level or a tab character) and maintain consistent formatting throughout the codebase.
+
+### Documentation Style:
+Functions should be documented using a structured comment format that includes special tags, refer to the table below for a list of commonly used tags:
+| Tag | Description |
+|-----|-------------|
+`\brief`      | A brief description of what the function does.
+`\detail`     | A more detailed explanation of the function's behavior, parameters, and return values.
+`\param`      | A description of each parameter, including its name and purpose.
+`\return`     | A description of the return value, including its type and meaning.
+`\panics`     | A description of any conditions under which the function may panic or throw an error.
+`\example`    | An example of how to use the function, including sample input and expected output.
+`\see`        | References to related functions or documentation for further reading.
+`\note`       | Additional notes or important information about the function.
+`\warning`    | Any warnings or cautions related to the function's usage.
+`\todo`       | Any TODO items or future improvements related to the function.
+`\deprecated` | Information about deprecated functions, including alternatives if applicable.
+`\since`      | The version of Kairo in which the function was introduced or modified.
+`\verbatim`   | A block of code that should be displayed verbatim, without any formatting or interpretation.
+`\author`     | The name of the person or organization that created the function.
+`\authors`    | A list of contributors to the function.
+`\version`    | The version of the function.
+`\date`       | The date the function was created or last modified.
+`\anchor`     | An anchor point for cross-referencing within the documentation.
+`\cite`       | A citation or reference to an external source.
+`\code`       | A block of code that should be formatted as code.
+`\endcode`    | Marks the end of a code block started with `\code`.
+
+Here is an example of a well-documented function using some the above tags:
+```kairo
+///
+/// \brief Calculates the distance between two points in a 2D space.
+///
+/// \detail This function takes the coordinates of two points (x1, y1) and
+///         (x2, y2) and computes the Euclidean distance between them using the
+///         Pythagorean theorem. It returns the distance as a floating-point number.
+///
+/// \param x1 The x-coordinate of the first point.
+/// \param y1 The y-coordinate of the first point.
+/// \param x2 The x-coordinate of the second point.
+/// \param y2 The y-coordinate of the second point.
+///
+/// \return The distance between the two points as a floating-point number.
+///
+fn distance(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
+    var dx = x2 - x1
+    var dy = y2 - y1
+
+    return math::sqrt((dx ** 2) + (dy ** 2))
+}
+```
+
+Not all tags must be used at once you can choose the ones that are relevant to your function.
+
+### Parts of a Function
+A function in Kairo typically consists of the following parts:
+- **Signature**: This includes the function name, parameters, and return type. It defines how the function can be called and what it returns. A function can also not have any parameters or return type. This is an example of a minimal function signature:
+  ```kairo
+  fn function_name(a: i32, b: i32) -> i32 {
+        // function body
+  }
+  ```
+ 
+  This is an example of a function with no parameters and no return type:
+  
+  ```kairo
+    fn function_name() {
+            // function body
+    }
+  ```
+
+- **Parameters**: These are the inputs to the function, defined within the parentheses `()` in the function signature. Each parameter has a name and a type.
+
+- **Return Type**: This specifies the type of value that the function will return defined after the `->` symbol in the function signature. If a function does not return any value, the return type can be omitted.
+
+- **Body**: This is the block of code enclosed in curly braces `{}` that contains the implementation of the function. It defines what the function does when it is called.
+
+##### Optional Parts:
+1. **Visibility Modifiers**: This specifies the visibility of the function, determining where it can be accessed from. The visibility modifier is placed before the `fn` keyword in the function signature. The available visibility modifiers in Kairo are:
+
+    | Keyword | Description |
+    |---------|-------------|
+    `pub`  | This indicates the function is public and can be accessed from other modules; by default the compiler does make all functions public. However if the function is never used outside its module the compiler would raise a warning to make the function private. Furthermore the compiler would emit an error if a function is declared as public but is not in a public module.
+    `priv` | This indicates the function is private and can only be accessed within the same module. Private functions are defined using the `priv` keyword before the `fn` keyword.
+    `prot` | This indicates the function is protected and can be accessed within the same module and its submodules. Protected functions are defined using the `prot` keyword before the `fn` keyword.
+    `@internal` | This is a function attribute that indicates the function is internal and can only be accessed within the same package. Internal functions are defined using the `@internal` attribute before the `fn` keyword or any modifiers.
+
+    Heres an example of a module that contains functions with different visibility modifiers:
+
+    ```kairo
+    module geometry {
+        pub fn public_function() {
+            // This function can be accessed from other modules
+        }
+
+        priv fn private_function() {
+            // This function can only be accessed within the same module
+        }
+
+        prot fn protected_function() {
+            // This function can be accessed within the same module and its submodules
+        }
+
+        @internal
+        fn internal_function() {
+            // This function can only be accessed within the same package
+        }
+    }
+    ```
+
+    Also see [Modules & Visibility](../modules/visibility.mdx) for more details on how module visibility interacts with function visibility.
+
+2. **Member Functions only also have certain parts**: A member function is defined as a function that is associated with a struct or class. Member functions must have an excplicit `self` parameter as the first parameter in the function signature. The `self` parameter represents the instance of the struct or class that the member function is being called on. The `self` parameter can be passed by value, by reference, or by mutable reference. Here are some examples of member functions with different `self` parameters:
+
+    ```kairo
+    class Point {
+        var x: f64
+        var y: f64
+
+        fn Point(self, x: f64, y: f64) {
+            self.x = x
+            self.y = y
+        }
+    }
+    ```
+
+    `self` is a passed as a pointer to the instance of the class and is implicitly dereferenced when accessing members of the class. You can also use `unsafe *self` to pass `self` by its raw pointer.
+
+    ```kairo
+    class Point {
+        var x: f64
+        var y: f64
+
+        fn Point(unsafe *self, x: f64, y: f64) {
+            self->x = x   // dereference using the arrow operator
+            (*self).y = y // both ways are valid ways to dereference a pointer
+        }
+    }
+    ```
+
+  - `default` or `delete` - This indicates that the function is a default function, which means that the compiler will generate a default implementation for the function if it is not explicitly defined. Default functions are defined using the `default` keyword before the `fn` keyword. See [Default & Deleted Functions](special_functions.mdx) for more details.
+
+  - `override` - This indicates that the function is an override function, which means that it overrides an other function from the base class (interfaces do not need override keyword). Heres an example:
+
+    ```kairo
+    class Base {
+        fn greet() {
+            std::print("Hello from Base")
+        }
+    }
+
+    class Derived derives Base {
+        override fn greet() {
+            std::print("Hello from Derived")
+        }
+    }
+    ```
+
+  - `final` - This indicates that the function is a final function, which means that it cannot be overridden by derived classes. Final functions are defined using the `final` keyword before the `fn` keyword. Heres an example:
+
+    ```kairo
+    class Base {
+        final fn greet() {
+            std::print("Hello from Base")
+        }
+    }
+
+    class Derived derives Base {
+        // This would raise a compile-time error because greet is final in Base
+        override fn greet() {
+            std::print("Hello from Derived")
+        }
+    }
+    ```
+
+  - `const` - Kairo like C++ does support const overloading but this can be turned off using the flag `-fno-const-overloading`. Const indicates that the function is a const function, which means that it does not modify the state of the object. Const functions are defined using the `const` keyword before the return (`->`). Heres an example:
+
+    ```kairo
+    class Point {
+        var x: f64
+        var y: f64
+
+        fn Point(x: f64, y: f64) {
+            self.x = x
+            self.y = y
+        }
+
+        fn get_x(self) const -> f64 {
+            return self.x
+        }
+
+        fn get_y(self) const -> f64 {
+            return self.y
+        }
+    }
+    ```
+
+    Const overloaded functions are functions that can only be used in a const context, its called const coloring, meaning that if an object is const, only const functions can be called on it. Heres an example:
+
+    ```kairo
+    class Point {
+        var x: f64
+        var y: f64
+
+        fn Point(x: f64, y: f64) {
+            self.x = x
+            self.y = y
+        }
+
+        fn get_x(self) const -> f64 {
+            return self.x
+        }
+
+        fn get_y(self) const -> f64 {
+            return self.y
+        }
+
+        fn get_x(self) -> *f64 {
+            return &self.x
+        }
+
+        fn get_y(self) -> *f64 {
+            return &self.y
+        }
+    }
+
+    var point = Point(1.0, 2.0)
+    const var const_point = Point(3.0, 4.0)
+
+    point.get_x() = 5.0 // calls non-const get_x and modifies x within `point`
+    const_point.get_x() // calls const get_x and returns the value of x within `const_point`
+    ```
+
+    Another place where const only functions can be called is within another const function.
+
+- **Function Qualifiers**: These are keywords that modify the behavior of the function. They are placed before the return (`->`) in the function signature. Some common function qualifiers in Kairo include:
+  
+  - `eval` - This indicates that the function is an evaluated function, which means it can be   executed at compile time. See [Evaluated Functions](eval_functions.mdx) for more details. Example Signature:
+    ```kairo
+    fn factorial(n: i32) eval -> i32
+    ```
+
+        Evaluated functions have some limitations compared to regular functions. They cannot perform certain operations that are not allowed at compile time, such as:
+        - Performing I/O operations (e.g., reading from or writing to files, network communication).
+        - Using mutable static variables.
+        - Allocating memory on the heap (e.g., using `new` or `malloc`).
+        - Using certain language features that are not supported in evaluated context (e.g., exceptions, threads).
+        - Calling non-evaluated functions.
+        - Can not be used with `inline`, `async`, `unsafe` or `noreturn` qualifiers.
+  
+  - `unsafe` - This indicates that the function is an unsafe function, which means that it can perform operations that are not checked by the compiler for safety. See [Unsafe Functions](../advanced/unsafe.mdx) for more details. Example Signature:
+    ```kairo
+    fn unsafe_function(ptr: *i32) unsafe -> i32
+    ```
+  
+  - `inline` - This indicates that the function is an inline function, which means that the compiler may choose to insert the function's code directly at the call site instead of generating a separate function call. See [Inline Functions](inline_functions.mdx) for more details. Example Signature:
+    ```kairo
+    fn add(a: i32, b: i32) inline -> i32
+    ```
+
+        Inlining is a suggestion to the compiler, and the compiler may choose to ignore it based on its optimization heuristics. The compiler may decide not to inline a function if it is too large, if it contains loops or recursion, or if it is called from multiple places in the code.
+
+  - `async` - This indicates that the function is an asynchronous function, which means that it can be executed asynchronously using the `await` keyword. See [Asynchronous Functions](../concurrency/async.mdx) for more details. Example Signature:
+    ```kairo
+    fn fetch_data(url: string) async -> string
+    ```
+
+- **Linkage Specifiers**: These are keywords that specify the linkage of the function. Like Qualifiers they are placed before the return (`->`) in the function signature. Some common linkage specifiers in Kairo include:
+  
+  - `static` - This indicates that the function has static linkage, which means that it is only visible within the translation unit where it is defined. A translation unit is a single source file and all its included imports. Example Signature:
+    ```kairo
+    fn static_function(a: i32, b: i32) static -> i32
+    ```
+
+  - `ffi <language>` - This indicates that the function is an FFI (Foreign Function Interface) function, which means that it can be called from other programming languages. The `language` parameter specifies the programming language that the function is written in. FFI functions are defined using the `ffi` keyword followed by the language name before the `fn` keyword. See [FFI Functions](../advanced/ffi.mdx) for more details. Example Signature:
+    ```kairo
+    ffi "C++" fn c_function(a: i32, b: i32) -> i32
+    ```
+
+- **Return Type Modifiers**: These are keywords that modify the return type of the function. They are placed after the `->` in the function signature. Some common return type modifiers in Kairo include:
+  
+  - `!` - This indicates that the function does not return a value and will never return normally. Such functions are typically used for functions that always panic or terminate the program. Example Signature:
+    ```kairo
+    fn fatal_error(message: string) -> !
+    ```
+
+- **Attributes**: These are special annotations that provide additional information about the function. They are placed before the `fn` keyword in the function signature and are prefixed with the `@` symbol. Some common attributes in Kairo include:
+  
+  - `@volatile` - This indicates that the function is volatile, Which means the function can be changed by external factors and should not be optimized by the compiler (i.e. has side effects). Example Signature:
+    ```kairo
+    @volatile
+    fn volatile_function(a: i32, b: i32) -> i32
+    ```
+
+  - `@deprecated` - This indicates that the function is deprecated, which means that it is no longer recommended for use and may be removed in future versions. You can also pass an optional string message to provide more information about the deprecation. Example Signature:
+    ```kairo
+    @deprecated("Use new_function instead")
+    fn old_function(a: i32, b: i32) -> i32
+
+    @deprecated
+    fn very_old_function(a: i32, b: i32) -> i32
+    ```
+
+  - `@must_use` - This indicates that the return value of the function must be used, which means that the compiler will raise a warning if the return value is ignored. Example Signature:
+    ```kairo
+    @must_use
+    fn compute_value(a: i32, b: i32) -> i32
+    ```
+
+  - `@force_inline` - This indicates that the function should always be inlined, which means that the compiler will insert the function's code directly at the call site instead of generating a separate function call. See [Inline Functions](inline_functions.mdx) for more details. Example Signature:
+    ```kairo
+    @force_inline
+    fn multiply(a: i32, b: i32) -> i32
+    ```
+
+  - `@experimental` - This indicates that the function is experimental, which means that it is still under development and may change in future versions. It can take a few optional parameters like `reason` and `since` to provide more context about the experimental status. Example Signature:
+    ```kairo
+    @experimental
+    fn experimental_function(a: i32, b: i32) -> i32
+
+    @experimental("This function is still under development", "1.0.0")
+    fn experimental_function(a: i32, b: i32) -> i32
+    ```
+
+### Passing functions as values
+Functions in Kairo are first-class citizens, which means they can be passed as arguments to other functions, returned from functions, and assigned to variables. This allows for higher-order functions and functional programming techniques.  Here is an example of passing a function as an argument to another function:
+
+```kairo
+fn apply_function(f: fn(i32) -> i32, x: i32) -> i32 {
+    return f(x)
+}
+
+fn square(x: i32) -> i32 {
+    return x * x
+}
+
+var result = apply_function(square, 5) // result will be 25
+```
+
+The syntax for a function type is:
+```
+function_type ::= 'fn' '(' [ parameter_list ] ')' [ qualifiers ] [ '->' return_type ]
+parameter_list ::= parameter ( ',' parameter )*
+parameter ::= [ 'const' ] type
+return_type ::= type | '!'
+qualifiers ::= qualifier ( ' ' qualifier )*
+qualifier ::= 'async' | 'unsafe'
+```
+
+### See Also
+| | | |
+|---|---|---|
+[Evaluated Functions](eval_functions.mdx) | [Inline Functions](inline_functions.mdx) | [Variadic & Key-Value Functions](variadic_functions.mdx) | [Default & Deleted Functions](special_functions.mdx) | [Asynchronous Functions](../concurrency/async.mdx)
+[Unsafe Functions](../advanced/unsafe.mdx) | [FFI Functions](../advanced/ffi.mdx) | [Modules & Visibility](../modules/visibility.mdx)
