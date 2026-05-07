@@ -1,0 +1,20 @@
+---
+order: 17
+title: AMT
+description: put something here later
+---
+
+`fn op delete (self)` defines custom destruction. If not defined, compiler generates `fn op delete (self) = default`. If any member has a deleted destructor, the whole object requires `unsafe` to use.
+
+Allocator system:
+
+```kairo
+class MyAllocator impl std::Allocator {
+    fn allocate(self, size: usize) -> *u8
+    fn deallocate(self, ptr: *u8, size: usize)
+}
+
+@set_allocator(MyAllocator)
+```
+
+`std::create<T>` uses the active allocator. Everything in std that allocates goes through it. `delete x[0]` calls `T`'s `op delete` first, then the allocator's deallocation. Considering future granularity: `@set_allocator_for(T, MyAllocator)`, `@set_collection_allocator(MyAllocator)`, etc. undecided.

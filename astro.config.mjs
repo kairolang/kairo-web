@@ -2,6 +2,7 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
+import remarkCallouts from './remark-callouts.mjs';
 
 // Fetch Kairo TextMate grammar at build time
 let kairoLang = null;
@@ -28,6 +29,7 @@ export default defineConfig({
     },
   },
   markdown: {
+    remarkPlugins: [remarkCallouts],
     shikiConfig: {
       themes: {
         dark: 'github-dark',

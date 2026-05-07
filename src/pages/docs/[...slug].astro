@@ -15,12 +15,12 @@ export async function getStaticPaths() {
     const nextPage = idx < ordered.length - 1 ? ordered[idx + 1] : null;
 
     return {
-      params: { slug: slug === 'index' ? undefined : slug },
-      props: {
+    params: { slug: slug === 'index' ? undefined : slug },
+    props: {
         doc,
-        prev: prevPage ? { href: prevPage.href, title: prevPage.title } : null,
-        next: nextPage ? { href: nextPage.href, title: nextPage.title } : null,
-      },
+        prev: doc.data.prev ?? (prevPage ? { href: prevPage.href, title: prevPage.title } : null),
+        next: doc.data.next ?? (nextPage ? { href: nextPage.href, title: nextPage.title } : null),
+    },
     };
   });
 }

@@ -1,0 +1,18 @@
+---
+order: 25
+title: Concurrency
+description: put something here later
+---
+
+```kairo
+await async_fn()       // syntax sugar for a state machine
+spawn some_async_fn()  // syntax sugar for detaching a thread
+yield some_value       // syntax sugar for a coroutine, function must have yield on return type
+
+fn get_tokens() -> yield string {
+    yield "token1"
+    yield "token2"
+}
+```
+
+`op await` is overloadable: `fn op await (self) -> T` for custom async types.

@@ -90,7 +90,7 @@ function sortSection(section: TreeSection): void {
   }
 }
 
-/** All pages in sidebar display order — used for prev/next navigation. */
+/** All pages in sidebar display order used for prev/next navigation. */
 export function flattenPages(section: TreeSection): TreePage[] {
   const pages: TreePage[] = [];
 
@@ -109,7 +109,7 @@ export function flattenPages(section: TreeSection): TreePage[] {
   return pages;
 }
 
-/** Top-level section name for a doc id — used in search. */
+/** Top-level section name for a doc id used in search. */
 export function sectionFromId(id: string): string {
   const parts = id.replace(/\.mdx?$/, '').split('/');
   if (parts.length <= 1) return 'Docs';

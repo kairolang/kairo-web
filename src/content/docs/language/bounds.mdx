@@ -1,0 +1,156 @@
+---
+order: 14
+title: Where Clauses
+description: put something here later
+---
+
+# `Where` Clauses (Constraints)
+
+Kairo has an intersting feature called `Where` clauses, which can be used to constrain expressions and declarations. They are written using the `where` keyword, and can be used to specify that a certain expression must satisfy a certain condition.
+
+| Guarantee | Check |
+|-|-|
+| Compile Time | Maybe |
+| Runtime | Maybe |
+| Memory Safe | Yes |
+| Thread Safe | Yes |
+| Undefined Behavior | No |
+| Unsafe Context | No |
+
+# Behavior
+
+if a bound is not satisfied, the program will not compile if that bound is evaluatable at compile time. otherwise, the program will call a where handler at runtime which can be either defined by the user or a default one provided by the language. the where handler can be used to log the error, panic, or even recover from the error.
+
+```kairo
+fn divide(a: i32, b: i32) -> i32
+  where b != 0 {
+    return a / b
+}
+```
+
+this where can be compile time if the args are evaluatable. if not the compiler desugars the where clause into an if statement at the beginning of the function and calls the where handler if the condition is not satisfied.
+
+```kairo
+fn divide(a: i32, b: i32) -> i32 {
+    __where_constraint!(b == 0)
+    return a / b
+}
+```
+
+the `__where_constraint!` macro is used to check the condition at runtime and call the where handler if the condition is not satisfied. the user can define their own where handler using the `@core::where_handler` attribute. if the user does not define a where handler, a default one will be used which panics with a message indicating the failed condition.
+
+```kairo
+@core::where_handler
+fn my_where_handler(condition: fn () -> bool, callsite: std::Frame) {
+    // do anything
+}
+```
+
+NOTES: 3 overloads available for the where handler:
+
+```kairo
+@core::where_handler
+fn my_where_handler(condition: fn () -> bool, callsite: std::Frame);
+
+@core::where_handler
+fn my_where_handler(condition: bool, callsite: std::Frame);
+
+@core::where_handler
+fn my_where_handler(callsite: std::Frame);
+```
+
+# Syntax
+
+```
+"fn" ... <name> "(" <args?> ")" ("->" <return type>)? "where" <expression> <body?>
+```
+
+
+# Runtime Where Constraints
+
+bound handlers can NOT panic or call crash within the program.
+if a where clause crashes the program take:
+```kairo
+// file: main.kro
+// runtime_zero = 0, set somewhere in the program.
+
+fn divide(a: i32, b: i32) -> i32
+  where b / runtime_zero == 1 {
+    return a / b
+}
+
+divide(10, 2)
+std::println("Program is still running")
+```
+
+in this case, the where clause will cause a division by zero at runtime, which will crash the program. the fn my_where_handler(callsite: std::Frame); will be called after unwinding from the crash, and can be used to log the error or perform any other necessary actions, the print statement will still be executed.
+
+running:
+```ps
+> kairo main.kro
+> ./main
+error [U001E]: where check panicked while evaluating `b / runtime_zero == 1`
+   --> main.kro:3:10
+  3 |   where b / runtime_zero == 1 {
+    |         ^^^^^^^^^^^^^^^^
+    note: the where handler `my_where_handler` was called with the callsite of the failed where check, and the condition that caused the failure.
+
+Program is still running
+```
+
+# Match where clauses
+
+where clauses can also be used in match arms to constrain the patterns. this allows for more complex pattern matching and can be used to ensure that certain conditions are met before executing the arm.
+
+NOTE: match syntax is not yet finalized, so the syntax for match WILL change
+
+```kairo
+match x {
+    case 1 where y > 0 => {
+        // this arm will only be executed if x is 1 and y is greater than 0
+    }
+    case var z = x where z < 10 => {
+        // this arm will only be executed if x is less than 10, and z will be assigned the value of x
+    }
+}
+```
+
+# Compile Time Where Constraints
+
+Compile time where constraints are evaluated at compile time, and if they are not satisfied, the program will not compile.
+theres also a wider range of conditions that can be checked at compile time, such as type constraints, interface bounds, and more complex expressions that can be evaluated at compile time.
+
+# Function constraints
+```kairo
+fn <T> foo(x: T) -> T
+  where sizeof(T) > 4 {
+    return x + x - x
+}
+
+
+# Generic constraints
+struct <T> MyStruct
+  where sizeof(T) > 4 { // evaluated at construction time when the type is monomorphized
+    value: T
+}
+```
+
+# Interface constraints
+Interfaces are interesting because they can be used to specify that a type must implement a certain interface in order to be used in a certain context. this is done using where clauses on the interface itself.
+
+```kairo
+interface Addable {
+    fn add(self, value: i32) -> Addable where value > 0
+}
+
+struct MyFoo {
+    value: i32
+}
+
+extend MyFoo impl Addable {
+    fn add(self, value: i32) -> MyFoo {
+        // the check will ensure that value is greater than 0.
+        return MyFoo(self.value + value)
+    }
+}
+```

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import './callouts.css';
 
 @theme {
   --color-red: #bd0920;

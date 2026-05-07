@@ -1,0 +1,101 @@
+/* ── Callouts ──
+   Styled blockquote alerts (GitHub-style syntax via remark-callouts).
+   Drop this into your global styles or import in your layout.
+   Uses the existing Kairo docs CSS variables (--border, --bg-2, --text, --text-2, --text-3, --red).
+*/
+
+.callout {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg-2);
+  padding: 0;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.callout-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.6rem 1rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--border);
+}
+
+.callout-indicator svg {
+  flex-shrink: 0;
+}
+
+.callout-content {
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.callout-content p {
+  margin: 0;
+}
+
+.callout-content p + p {
+  margin-top: 0.5rem;
+}
+
+.callout-content code {
+  font-size: 0.82rem;
+}
+
+.callout-content a {
+  color: var(--red);
+  text-decoration: none;
+}
+
+.callout-content a:hover {
+  text-decoration: underline;
+}
+
+/* ── Type colors ── */
+
+/* Note neutral / muted blue */
+.callout-note {
+  border-left-color: #4a9eff;
+}
+.callout-note .callout-indicator {
+  color: #4a9eff;
+}
+
+/* Tip green */
+.callout-tip {
+  border-left-color: #3fb950;
+}
+.callout-tip .callout-indicator {
+  color: #3fb950;
+}
+
+/* Important purple */
+.callout-important {
+  border-left-color: #a371f7;
+}
+.callout-important .callout-indicator {
+  color: #a371f7;
+}
+
+/* Warning yellow/amber */
+.callout-warning {
+  border-left-color: #d29922;
+}
+.callout-warning .callout-indicator {
+  color: #d29922;
+}
+
+/* Caution red (uses the Kairo accent) */
+.callout-caution {
+  border-left-color: var(--red);
+}
+.callout-caution .callout-indicator {
+  color: var(--red);
+}

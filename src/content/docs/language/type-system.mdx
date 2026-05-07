@@ -1,0 +1,25 @@
+---
+order: 12
+title: Type System
+description: put something here later
+---
+
+```kairo
+class TypeInfo {
+    priv var name: string
+    priv var size: usize
+    priv var align: usize
+    priv var kind: TypeKind
+
+    enum TypeKind {
+        Primitive, Struct, Enum, Trait, Class, Function
+    }
+
+    fn get_name(self) -> string        // mangled name (Itanium ABI on unix, MSVC ABI on windows)
+    fn get_size(self) -> usize
+    fn get_align(self) -> usize
+    fn get_pretty_name(self) -> string // human-readable, includes generics (e.g. "Vec<i32>")
+    fn get_abi_format(self) -> string  // ABI format string for interop
+    fn get_kind(self) -> TypeKind
+}
+```
