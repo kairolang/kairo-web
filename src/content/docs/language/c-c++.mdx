@@ -244,6 +244,9 @@ fn main() {
         add_one(unsafe &x)  // strips bounds checking; caller owns the memory contract
     }
 
+    // for calling c++ with pointers and back, you must use unsafe blocks,
+    // short hand syntax is not allowed `unsafe add_one(unsafe &x)` is a compile error
+
     std::println(f"x = {x}")  // x = 42
 }
 ```

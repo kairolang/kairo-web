@@ -1,25 +1,31 @@
 ---
 order: 14
 title: Where Clauses
-description: put something here later
+description: Where clause syntax, compile-time and runtime constraint evaluation, where-based overload dispatch, where handlers, and constraint semantics in Kairo.
 ---
 
-# `Where` Clauses (Constraints)
+# Where Clauses
 
-Kairo has an intersting feature called `Where` clauses, which can be used to constrain expressions and declarations. They are written using the `where` keyword, and can be used to specify that a certain expression must satisfy a certain condition.
+Where clauses attach constraints to declarations. A `where` clause specifies a condition that must hold
+for the declaration to be valid. If the condition can be evaluated at compile time, a violation is a
+compile error. If it can only be evaluated at runtime, the compiler generates dispatch code that selects
+among overloads based on which constraints are satisfied.
 
-| Guarantee | Check |
-|-|-|
-| Compile Time | Maybe |
-| Runtime | Maybe |
-| Memory Safe | Yes |
-| Thread Safe | Yes |
-| Undefined Behavior | No |
-| Unsafe Context | No |
+| Property | Guarantee |
+|---|---|
+| Compile-time check | When the expression is compile-time evaluable |
+| Runtime check | When the expression depends on runtime values |
+| Memory safe | Yes |
+| Thread safe | Yes |
+| Undefined behavior | No |
+| Requires unsafe | No |
 
-# Behavior
+---
 
-if a bound is not satisfied, the program will not compile if that bound is evaluatable at compile time. otherwise, the program will call a where handler at runtime which can be either defined by the user or a default one provided by the language. the where handler can be used to log the error, panic, or even recover from the error.
+## Basic Syntax
+
+A `where` clause appears after the parameter list (and return type, if present) and before the function
+body. It takes a single boolean expression:
 
 ```kairo
 fn divide(a: i32, b: i32) -> i32
@@ -28,129 +34,312 @@ fn divide(a: i32, b: i32) -> i32
 }
 ```
 
-this where can be compile time if the args are evaluatable. if not the compiler desugars the where clause into an if statement at the beginning of the function and calls the where handler if the condition is not satisfied.
+Multiple conditions are combined with boolean operators in a single expression:
 
 ```kairo
-fn divide(a: i32, b: i32) -> i32 {
-    __where_constraint!(b == 0)
-    return a / b
+fn safe_index(arr: [i32], i: i32) -> i32
+  where i >= 0 && i < arr.len() {
+    return arr[i]
 }
 ```
 
-the `__where_constraint!` macro is used to check the condition at runtime and call the where handler if the condition is not satisfied. the user can define their own where handler using the `@core::where_handler` attribute. if the user does not define a where handler, a default one will be used which panics with a message indicating the failed condition.
+---
+
+## Compile-Time Constraints
+
+When the `where` expression can be evaluated at compile time, the compiler checks it statically. A
+violation is a hard compile error:
 
 ```kairo
-@core::where_handler
-fn my_where_handler(condition: fn () -> bool, callsite: std::Frame) {
-    // do anything
+fn <T> fixed_buffer(size: i32) -> [T; size]
+  where sizeof(T) <= 64 && size > 0 {
+    // ...
+}
+
+fixed_buffer<u8>(100)     // ok: sizeof(u8) == 1, 100 > 0
+fixed_buffer<u8>(-1)      // compile error: -1 > 0 is false
+```
+
+Compile-time constraints are useful for restricting generic instantiations, enforcing size limits, and
+catching invalid configurations before codegen.
+
+### Available compile-time expressions
+
+Any expression that the compiler can evaluate statically is valid, including:
+
+- `sizeof(T)` size of a type in bytes
+- `alignof(T)` alignment of a type in bytes
+- Literal comparisons and arithmetic
+- `eval` variables and functions (see [Eval](/docs/language/eval))
+- Type trait checks (`T impl SomeInterface`, `T derives SomeClass`)
+
+---
+
+## Type Constraints in Where Clauses
+
+`impl` and `derives` bounds can appear in `where` clauses as an alternative to inline bounds on type
+parameters. The compiler desugars them into the equivalent generic bound:
+
+```kairo
+// These are equivalent:
+fn <T impl Serializable> save(data: T) { ... }
+fn <T> save(data: T) where T impl Serializable { ... }
+
+// Useful when the constraint is complex or involves multiple parameters:
+fn <T, U> convert(input: T) -> U
+  where T impl Serializable && U impl Deserializable {
+    var bytes = input.serialize()
+    return U::from_bytes(bytes)
 }
 ```
 
-NOTES: 3 overloads available for the where handler:
+The `where` form is preferred when constraints are long or involve relationships between multiple type
+parameters, keeping the generic parameter list clean.
+
+---
+
+## Runtime Constraints and Overload Dispatch
+
+When a `where` expression depends on runtime values, the compiler cannot check it statically. Instead,
+it generates dispatch code that selects among candidate overloads at runtime. The caller must provide
+a fallback overload without a `where` clause (or with a different `where` clause) that covers the
+failing case:
 
 ```kairo
-@core::where_handler
-fn my_where_handler(condition: fn () -> bool, callsite: std::Frame);
-
-@core::where_handler
-fn my_where_handler(condition: bool, callsite: std::Frame);
-
-@core::where_handler
-fn my_where_handler(callsite: std::Frame);
-```
-
-# Syntax
-
-```
-"fn" ... <name> "(" <args?> ")" ("->" <return type>)? "where" <expression> <body?>
-```
-
-
-# Runtime Where Constraints
-
-bound handlers can NOT panic or call crash within the program.
-if a where clause crashes the program take:
-```kairo
-// file: main.kro
-// runtime_zero = 0, set somewhere in the program.
-
 fn divide(a: i32, b: i32) -> i32
-  where b / runtime_zero == 1 {
+  where b != 0 {
     return a / b
 }
 
-divide(10, 2)
-std::println("Program is still running")
+fn divide(a: i32, b: i32) -> i32 {
+    return 0   // fallback when b == 0
+}
 ```
 
-in this case, the where clause will cause a division by zero at runtime, which will crash the program. the fn my_where_handler(callsite: std::Frame); will be called after unwinding from the crash, and can be used to log the error or perform any other necessary actions, the print statement will still be executed.
-
-running:
-```ps
-> kairo main.kro
-> ./main
-error [U001E]: where check panicked while evaluating `b / runtime_zero == 1`
-   --> main.kro:3:10
-  3 |   where b / runtime_zero == 1 {
-    |         ^^^^^^^^^^^^^^^^
-    note: the where handler `my_where_handler` was called with the callsite of the failed where check, and the condition that caused the failure.
-
-Program is still running
-```
-
-# Match where clauses
-
-where clauses can also be used in match arms to constrain the patterns. this allows for more complex pattern matching and can be used to ensure that certain conditions are met before executing the arm.
-
-NOTE: match syntax is not yet finalized, so the syntax for match WILL change
+The compiler folds these into a single function with branch dispatch:
 
 ```kairo
-match x {
-    case 1 where y > 0 => {
-        // this arm will only be executed if x is 1 and y is greater than 0
-    }
-    case var z = x where z < 10 => {
-        // this arm will only be executed if x is less than 10, and z will be assigned the value of x
+// Conceptual codegen:
+fn divide(a: i32, b: i32) -> i32 {
+    if b != 0 {
+        return a / b
+    } else {
+        return 0
     }
 }
 ```
 
-# Compile Time Where Constraints
+If no unconstrained fallback exists and the constraint is runtime-evaluated, the compiler emits an
+error every runtime code path must have a candidate.
 
-Compile time where constraints are evaluated at compile time, and if they are not satisfied, the program will not compile.
-theres also a wider range of conditions that can be checked at compile time, such as type constraints, interface bounds, and more complex expressions that can be evaluated at compile time.
+### Declaration order determines priority
 
-# Function constraints
+When multiple `where`-constrained overloads exist for the same function, they are checked in
+declaration order. The first satisfied constraint wins. The unconstrained overload is always the
+final fallback:
+
 ```kairo
-fn <T> foo(x: T) -> T
-  where sizeof(T) > 4 {
-    return x + x - x
-}
+fn classify(x: i32) -> string where x > 100 { return "high" }
+fn classify(x: i32) -> string where x > 0   { return "positive" }
+fn classify(x: i32) -> string               { return "non-positive" }
+```
 
+Codegen:
 
-# Generic constraints
-struct <T> MyStruct
-  where sizeof(T) > 4 { // evaluated at construction time when the type is monomorphized
-    value: T
+```kairo
+// Conceptual:
+fn classify(x: i32) -> string {
+    if x > 100      { return "high" }
+    else if x > 0   { return "positive" }
+    else            { return "non-positive" }
 }
 ```
 
-# Interface constraints
-Interfaces are interesting because they can be used to specify that a type must implement a certain interface in order to be used in a certain context. this is done using where clauses on the interface itself.
+The user controls priority by controlling declaration order. The compiler does not attempt to
+determine which constraint is "more specific" it chains them sequentially.
+
+> [!CAUTION]
+> Runtime `where` dispatch introduces branching at the call site. This can create timing
+> side-channels if the constrained function processes sensitive data and the branch structure
+> leaks information through execution time differences.
+
+---
+
+## Where Clauses on Types
+
+Where clauses can appear on class, struct, and enum declarations. The constraint is checked when the
+type is instantiated (for generics, at monomorphization time):
 
 ```kairo
-interface Addable {
-    fn add(self, value: i32) -> Addable where value > 0
+class <T> SmallBuffer
+  where sizeof(T) <= 128 {
+    var data: [T; 16]
 }
 
-struct MyFoo {
-    value: i32
+SmallBuffer<i32>()    // ok: sizeof(i32) == 4
+SmallBuffer<[u8; 256]>()  // compile error: sizeof([u8; 256]) == 256 > 128
+
+struct <T> Aligned16
+  where alignof(T) >= 16 {
+    var value: T
 }
 
-extend MyFoo impl Addable {
-    fn add(self, value: i32) -> MyFoo {
-        // the check will ensure that value is greater than 0.
-        return MyFoo(self.value + value)
+enum <T> Compact
+  where sizeof(T) <= 8 {
+    Some { value: T },
+    None,
+}
+```
+
+Where clauses are not permitted on interfaces. Interface requirements are expressed through method
+signatures and generic bounds on type parameters.
+
+---
+
+## Where Clauses on Interface Methods
+
+Interface method signatures can include `where` clauses. The conforming type inherits the constraint:
+
+```kairo
+interface Accumulator {
+    fn add(self, value: i32) -> Self where value > 0
+}
+
+class Counter impl Accumulator {
+    var total: i32
+
+    fn Counter(self) { self.total = 0 }
+
+    fn add(self, value: i32) -> Self where value > 0 {
+        self.total += value
+        return self
+    }
+
+    fn add(self, value: i32) -> Self {
+        // fallback for value <= 0
+        return self
     }
 }
+```
+
+---
+
+## Where Clauses in Match
+
+The `where` keyword also appears in `match` arms as a guard condition. Match guards are always
+evaluated at runtime and do not participate in the overload dispatch system they are simple
+boolean filters on a matched pattern:
+
+```kairo
+match result {
+    case .Found(var key, var value) where value > 0 {
+        process(key, value)
+    }
+    case .Found(var key, var value) {
+        skip(key)
+    }
+    default { }
+}
+```
+
+A match guard that fails causes the arm to be skipped and evaluation continues to the next arm.
+See [Control Flow](/docs/language/control-flow#match) for the full `match` syntax.
+
+---
+
+## Interaction with Other Features
+
+### Compile-time where and `eval`
+
+A `where` clause on an `eval` function is always evaluated at compile time. If the constraint cannot
+be statically checked, the compiler emits an error:
+
+```kairo
+eval fn compute_table_size(element_size: i32) -> i32
+  where element_size > 0 {
+    return 1024 / element_size
+}
+```
+
+See [Eval](/docs/language/eval) for compile-time evaluation rules.
+
+### Where and `panic`
+
+A `where` clause and `panic` serve different purposes. `where` constrains inputs before the function
+body executes. `panic` signals errors from within the function body. They can coexist:
+
+```kairo
+fn parse_port(input: string) panic -> i32
+  where input.len() > 0 {
+    var port = std::parse<i32>(input)
+    if port < 0 || port > 65535 {
+        panic std::Error::Runtime("port out of range")
+    }
+    return port
+}
+```
+
+The `where` clause filters invalid inputs. The `panic` handles valid inputs that produce errors
+during processing. See [Panic](/docs/language/panic) for the panic model.
+
+### Where and `unsafe`
+
+`where` clauses and `unsafe` overloads are orthogonal. Safe overloads dispatch among themselves based on `where` constraints. Unsafe overloads are a separate namespace selected explicitly by the caller with the `unsafe` keyword -- they do not participate in `where`-based dispatch:
+
+```kairo
+// Safe version with a where constraint + its fallback
+fn access(ptr: *i32, offset: i32) -> i32
+  where offset >= 0 {
+    return *(ptr + offset)
+}
+
+fn access(ptr: *i32, offset: i32) -> i32 { // if this doesn't exist, the compiler will error because no default candidate is available
+    return 0   // safe fallback
+}
+
+// Unsafe version completely separate, caller explicitly selects it
+fn access(ptr: *i32, offset: i32) unsafe -> i32 {
+    return *(ptr + offset)   // no bounds check at all
+}
+```
+
+See [Unsafe](/docs/language/unsafe) for the unsafe overload model.
+
+---
+
+## Summary
+
+```kairo
+// Compile-time constraint on a generic
+fn <T> stack_alloc() -> T
+  where sizeof(T) <= 4096 {
+    // ...
+}
+
+// Runtime constraint with fallback dispatch
+fn sqrt(x: f64) -> f64
+  where x >= 0.0 {
+    return std::math::sqrt(x)
+}
+
+fn sqrt(x: f64) -> f64 {
+    return 0.0   // fallback for negative input
+}
+
+// Type constraint in where clause
+fn <T, U> transform(input: T) -> U
+  where T impl Readable && U impl Writable {
+    // ...
+}
+
+// Where clause on a class
+class <T> InlineBuffer
+  where sizeof(T) <= 64 {
+    var data: [T; 8]
+}
+
+// Multiple constrained overloads (declaration order = priority)
+fn categorize(temp: f64) -> string where temp > 100.0 { return "boiling" }
+fn categorize(temp: f64) -> string where temp > 0.0   { return "liquid" }
+fn categorize(temp: f64) -> string                     { return "frozen" }
 ```

@@ -369,8 +369,9 @@ Not all modifiers can be combined:
 | `const` + `unsafe` | | `unsafe:` implies a separate overload with different invariants |
 | `const` + `eval` | | `eval:` implies compile-time evaluation `const self` is meaningless |
 | `const` + `async` | ok: | |
-| `unsafe` + any other | | `unsafe:` stands alone as an overload qualifier |
-| `eval` + any other | | `eval:` stands alone compile-time context has no runtime modifiers |
+| `unsafe` + any other | ok: | `unsafe:` creates a separate overload the other modifiers apply to both versions as appropriate |
+| `eval` + `unsafe` | ok: | `eval` and `unsafe` are orthogonal modifiers |
+| `eval` + any other (except `unsafe`) | | `eval` implies compile-time evaluation incompatible with runtime modifiers |
 | `async` + `const` | ok: | |
 | `async` + `volatile` | ok: | |
 
