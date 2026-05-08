@@ -284,7 +284,7 @@ during processing. See [Panic](/docs/language/panic) for the panic model.
 
 ### Where and `unsafe`
 
-`where` clauses and `unsafe` overloads are orthogonal. Safe overloads dispatch among themselves based on `where` constraints. Unsafe overloads are a separate namespace selected explicitly by the caller with the `unsafe` keyword -- they do not participate in `where`-based dispatch:
+`where` clauses and `unsafe` overloads are orthogonal. Safe overloads dispatch among themselves based on `where` constraints. Unsafe overloads are a separate namespace selected explicitly by the caller with the `unsafe` keyword they do not participate in `where`-based dispatch:
 
 ```kairo
 // Safe version with a where constraint + its fallback

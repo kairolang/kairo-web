@@ -18,7 +18,7 @@ generics, interfaces, closures, enums, structs, classes, pattern matching via `s
 ## Types and Data Model
 
 ```kairo
-// -- HTTP method enum --
+// HTTP method enum 
 
 enum Method {
     GET,
@@ -30,11 +30,11 @@ enum Method {
     OPTIONS,
 }
 
-// -- Headers as a type alias over a map --
+// Headers as a type alias over a map 
 
 type Headers = {string: string}
 
-// -- Request --
+// Request 
 
 struct Request {
     var method: Method
@@ -44,7 +44,7 @@ struct Request {
     var query: {string: string}
 }
 
-// -- Status codes --
+// Status codes 
 
 enum Status {
     OK          = 200,
@@ -54,7 +54,7 @@ enum Status {
     Internal    = 500,
 }
 
-// -- Response --
+// Response 
 
 struct Response {
     var status: Status
@@ -62,7 +62,7 @@ struct Response {
     var body: string
 }
 
-// -- Convenience constructors via extends --
+// Convenience constructors via extends 
 
 extends Response {
     static fn ok(body: string) -> Response {
@@ -103,7 +103,7 @@ extends Response {
     }
 }
 
-// -- Operator overloading: compare status codes --
+// Operator overloading: compare status codes 
 
 extends Status {
     fn op ==(self, other: Status) -> bool {
@@ -127,13 +127,13 @@ extends Status {
 ## Middleware Interface
 
 ```kairo
-// -- Middleware as a structural interface --
+// Middleware as a structural interface 
 
 interface Middleware {
     fn handle(self, req: *const Request, next: fn(*const Request) -> Response) -> Response
 }
 
-// -- Logger middleware --
+// Logger middleware 
 
 class Logger {
     fn handle(self, req: *const Request, next: fn(*const Request) -> Response) -> Response {
@@ -146,7 +146,7 @@ class Logger {
     }
 }
 
-// -- CORS middleware --
+// CORS middleware 
 
 class CorsMiddleware {
     priv var allowed_origins: {string}
@@ -178,11 +178,11 @@ class CorsMiddleware {
 ## Router
 
 ```kairo
-// -- Route handler type --
+// Route handler type 
 
 type Handler = fn(*const Request) -> Response
 
-// -- Route entry --
+// Route entry 
 
 struct Route {
     var method: Method
@@ -190,7 +190,7 @@ struct Route {
     var handler: Handler
 }
 
-// -- Router with dynamic registration --
+// Router with dynamic registration 
 
 class Router {
     priv var routes: [Route]
@@ -263,7 +263,7 @@ class Router {
 ## Request Parsing
 
 ```kairo
-// -- Parse raw HTTP request bytes into a Request struct --
+// Parse raw HTTP request bytes into a Request struct 
 
 fn parse_request(raw: string) panic -> Request {
     var lines = raw.split("\r\n")
@@ -492,7 +492,7 @@ fn serialize_response(resp: Response) -> string {
 ## Putting It Together
 
 ```kairo
-// -- Application entry point --
+// Application entry point 
 
 fn main() panic {
     var server = Server(port: 8080)

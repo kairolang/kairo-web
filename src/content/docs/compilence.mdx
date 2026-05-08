@@ -51,7 +51,7 @@ What this means concretely:
 
 - Reproducibility of floating-point results across different optimization levels,
   different target architectures, or different LLVM versions. If you need
-  bitwise-reproducible results, use `--fp-contract=off --fp-model=strict` and
+  bitwise-reproducible results, use `-fp-contract=off -fp-model=strict` and
   target a specific CPU with `--mcpu`.
 - Strict exception observability by default. FP exceptions (divide-by-zero,
   overflow, underflow, inexact, invalid) are not observable through `fenv.h`

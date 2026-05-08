@@ -321,13 +321,13 @@ inserts a null check on dereference:
 
 ```kairo
 var ptr: *i32 = &null
-*ptr = 10   // runtime null check -- crashes in debug, UB in release if null
+*ptr = 10   // runtime null check crashes in debug, UB in release if null
 
 var safe_ptr: *i32 = &some_value
 *safe_ptr = 10   // compiler can prove non-null, no check emitted
 ```
 
-Pointers do not use the `Nullable<T>` system -- they have no `?`, `?.`, `??`, or `unwrap!()` support.
+Pointers do not use the `Nullable<T>` system they have no `?`, `?.`, `??`, or `unwrap!()` support.
 Null checks on pointers use explicit comparison:
 
 ```kairo
