@@ -23,3 +23,8 @@ class TypeInfo {
     fn get_kind(self) -> TypeKind
 }
 ```
+
+- `TypeInfo` class `name`, `size`, `align`, `kind` fields
+- `TypeKind` enum `Primitive`, `Struct`, `Enum`, `Trait`, `Class`, `Function`
+- Methods: `get_name()`, `get_size()`, `get_align()`, `get_pretty_name()`, `get_abi_format()`, `get_kind()`
+- Dual `typeof` behavior (type position vs expression position) canonical explanation

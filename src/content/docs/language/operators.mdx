@@ -21,7 +21,7 @@ for user-defined types.
 | `*` | Multiplication | `a * b` |
 | `/` | Division | `a / b` |
 | `%` | Modulo (remainder) | `a % b` |
-| `^^` | Exponentiation | `2 ^^ 8` → 256 |
+| `^^` | Exponentiation | `2 ^^ 8` -> 256 |
 
 Integer division truncates toward zero, matching C++.
 
@@ -149,8 +149,8 @@ All compound assignment operators desugar to `x = x op y`.
 
 | Operator | Description | Example |
 |---|---|---|
-| `..` | Exclusive range (end excluded) | `0..10` → 0 through 9 |
-| `..=` | Inclusive range (end included) | `0..=10` → 0 through 10 |
+| `..` | Exclusive range (end excluded) | `0..10` -> 0 through 9 |
+| `..=` | Inclusive range (end included) | `0..=10` -> 0 through 10 |
 
 Range operators produce a `Range` object that implements iteration. Any type that satisfies the `Steppable`
 interface can be used with range operators:

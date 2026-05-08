@@ -16,3 +16,10 @@ fn get_tokens() -> yield string {
 ```
 
 `op await` is overloadable: `fn op await (self) -> T` for custom async types.
+
+- `await async_fn()` syntax sugar for state machine
+- `spawn some_async_fn()` syntax sugar for detaching a thread
+- `yield some_value` coroutine syntax, function must have `-> yield T` return type
+- `fn op await (self) -> T` overloadable for custom async types
+- `atomic T` thread-safe wrapper type
+- `thread T` thread-local storage type

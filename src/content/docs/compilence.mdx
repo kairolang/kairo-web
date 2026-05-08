@@ -137,10 +137,10 @@ Indexing a `string` by integer (`s[i]`) returns the scalar value at position
 `i`, not a grapheme cluster. For most text this is the same thing, but for
 combining sequences and emoji with modifiers it is not:
 
-- `"café"` where `é` is U+00E9: `s[3]` → `é`. Four scalar values, four
+- `"café"` where `é` is U+00E9: `s[3]` -> `é`. Four scalar values, four
   elements.
-- `"café"` where `é` is U+0065 U+0301 (e + combining acute): `s[3]` → `e`,
-  `s[4]` → combining acute. Five scalar values, five elements.
+- `"café"` where `é` is U+0065 U+0301 (e + combining acute): `s[3]` -> `e`,
+  `s[4]` -> combining acute. Five scalar values, five elements.
 - `"👨‍👩‍👧"` (family emoji, ZWJ sequence): multiple scalar values, multiple
   elements. `len()` returns the scalar value count, not the visual glyph count.
 

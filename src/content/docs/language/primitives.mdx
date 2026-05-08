@@ -183,8 +183,7 @@ var greeting = "Hello, Kairo! 📣"   // 18 UTF-8 bytes fits in SSO
 var name = "Dhruvan"                 // 7 bytes SSO
 ```
 
-Because UTF-8 is a variable-width encoding, indexing by codepoint (`s[i]`) requires a linear scan and is O(n).
-Use `.bytes` for O(1) byte-level access when performance matters:
+Because UTF-8 is a variable-width encoding, indexing by codepoint (`s[i]`) is O(1) amortized (since it looks up the nearest codepoint boundary and decodes from there), while indexing by byte (`s.bytes[i]`) is O(1) always, but returns raw bytes, not characters.
 
 ```kairo
 var s = "Hello 📣"

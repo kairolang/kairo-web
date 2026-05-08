@@ -13,8 +13,9 @@ description: Variable declarations, constants, static, type inference, shadowing
 | `static` | Yes | Static | Optional | Required |
 | `eval` | No | Compile-time | Required | Optional (inferred) |
 
-Variables in Kairo are mutable by default. Declare a variable with `var` followed by a name, an optional type
-annotation, and an initializer.
+> Variables in Kairo are mutable by default. `const` bindings at local scope require an initializer, but
+> class-level `const` members can be left uninitialized at declaration and assigned exactly once in the
+> constructor body. See [Classes](/docs/language/classes#const-members-in-constructors) for details.
 
 ```kairo
 var x = 42
@@ -53,6 +54,31 @@ var d = "hello"     // inferred as string
 
 See [Primitives](/docs/language/primitives) for default type rules integer literals default to `i32`, float
 literals default to `f64`.
+
+---
+
+## Declaration Shorthands
+
+When the type is fully determined by the initializer, the `*` or `unsafe *` qualifier can be placed on the
+variable name instead of writing out the full type annotation:
+
+```kairo
+var *ptr = std::create<i32>(10)
+// equivalent to: var ptr: *i32 = std::create<i32>(10)
+
+var unsafe *raw = unsafe std::alloc<i32>(sizeof i32 * 1)
+// equivalent to: var raw: unsafe *i32 = unsafe std::alloc<i32>(sizeof i32 * 1)
+```
+
+The nullable shorthand `?` works the same way:
+
+```kairo
+var name? = get_name()
+// equivalent to: var name: string? = get_name()
+```
+
+These are purely syntactic sugar the compiler infers the full type from the right-hand side. The long
+form is always valid and preferred when clarity matters.
 
 ---
 
@@ -200,6 +226,122 @@ The compiler will error if you attempt to use `_` as a value.
 
 ---
 
+## Nullable Types
+
+`T?` is sugar for `Nullable<T>` a compiler-intrinsic tagged union that holds either a value of type `T`
+or null. It applies to any type, not just pointers.
+
+```kairo
+var name: string? = get_name()   // may be null
+var count: i32? = null           // explicitly null
+```
+
+### Shorthand declaration
+
+The `?` suffix on the variable name infers the nullable type from the initializer:
+
+```kairo
+var name? = get_name()           // inferred as string?
+// var x? = null                 // compile error: no underlying type to infer
+```
+
+### Null checking
+
+The `?` suffix on a variable name in a condition checks for non-null:
+
+```kairo
+var result? = find_user("alice")
+
+if result? {
+    // result is non-null here
+    std::println(result.name)
+}
+```
+
+Accessing members on an unchecked nullable is a compile error:
+
+```kairo
+var user? = find_user("alice")
+user.name   // compile error: user has not been null-checked
+```
+
+### Safe access (`?.`)
+
+The `?.` operator calls a method or accesses a member only if the value is non-null. If null, it
+default-constructs the type and calls the method on that instead:
+
+```kairo
+var config? = load_config()
+config?.timeout   // if null, uses Config().timeout
+```
+
+If the type is not trivially default-constructible (deleted default constructor, contains atomic types),
+`?.` is a compile error.
+
+### Null coalescing (`??`)
+
+`??` provides a fallback value when the left side is null. Both sides must be the same underlying type:
+
+```kairo
+var value = get_f32() ?? 0.212   // value is f32, not f32?
+var name = get_name() ?? "anonymous"
+```
+
+### Force unwrap
+
+`unwrap!()` extracts the value or panics if null:
+
+```kairo
+var x = unwrap!(maybe_value)   // panics if null
+```
+
+`unwrap!()` desugars to a null check followed by a `panic` on the null path. The caller must be inside
+a `try` block or in a function with the `panic` specifier. See [Panic](/docs/language/panic) for the
+panic model.
+
+### `const` interaction
+
+`const` on a nullable binding works the same as on any other type the binding cannot be reassigned
+after initialization:
+
+```kairo
+const x: i32? = 42
+x = null   // compile error: x is const
+x = 100    // compile error: x is const
+
+var y: i32? = null
+y = 42     // ok: var is mutable
+y = null   // ok: can go back to null
+```
+
+### Pointers and nullability
+
+Pointers are nullable by default. `*T` can hold `&null` (equivalent to `nullptr` in C++), and the compiler
+inserts a null check on dereference:
+
+```kairo
+var ptr: *i32 = &null
+*ptr = 10   // runtime null check -- crashes in debug, UB in release if null
+
+var safe_ptr: *i32 = &some_value
+*safe_ptr = 10   // compiler can prove non-null, no check emitted
+```
+
+Pointers do not use the `Nullable<T>` system -- they have no `?`, `?.`, `??`, or `unwrap!()` support.
+Null checks on pointers use explicit comparison:
+
+```kairo
+var ptr: *i32 = get_pointer()
+if ptr != &null {
+    std::println(*ptr)
+}
+```
+
+See [Pointers](/docs/language/pointers) for the full pointer model and how
+[AMT](/docs/language/amt) tracks pointer provenance.
+
+---
+
 ## The `const` Binding Rule
 
 `const` in Kairo follows a strict **left-to-right binding rule**: one `const` applies to the thing immediately
@@ -257,7 +399,7 @@ class Config {
         self.port = port
     }
 
-    fn address(self) const -> string {
+    fn address(const self) -> string {
         return f"{self.host}:{self.port}"
     }
 
@@ -268,9 +410,13 @@ class Config {
 
 var config = Config("localhost", 8080)
 
-const ref: *const Config = &config
-ref.address()       // ok: address() is a const method
-ref.set_port(9090)  // compile error: set_port() mutates, ref points to const Config
+const ptr: *const Config = &config
+ptr->address()       // ok: address() is a const method
+ptr->set_port(9090)  // compile error: set_port() mutates, ptr points to const Config
+
+// in most cases tho you would only want this:
+var ptr: *const Config = &config
+// cause you would have a const type but still be able to reassign the pointer if needed.
 ```
 
 ### On types

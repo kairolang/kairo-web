@@ -18,3 +18,10 @@ class MyAllocator impl std::Allocator {
 ```
 
 `std::create<T>` uses the active allocator. Everything in std that allocates goes through it. `delete x[0]` calls `T`'s `op delete` first, then the allocator's deallocation. Considering future granularity: `@set_allocator_for(T, MyAllocator)`, `@set_collection_allocator(MyAllocator)`, etc. undecided.
+
+- `fn op delete (self)` custom destruction, `= default`, `= delete` behavior
+- `std::Allocator` interface with `allocate`/`deallocate`
+- `@set_allocator(MyAllocator)` global allocator override
+- `delete x[0]` explicit deletion calling `T`'s `op delete` then allocator's dealloc
+- `std::create<T>` uses the active allocator
+- Future granularity: `@set_allocator_for(T, ...)`, `@set_collection_allocator(...)` undecided
