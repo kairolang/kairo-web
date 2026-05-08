@@ -1,0 +1,577 @@
+---
+title: "HTTP Server"
+description: A practical example demonstrating Kairo's core features through a simple HTTP server implementation.
+---
+
+# HTTP Server
+
+This example builds a minimal HTTP server from scratch, exercising most of Kairo's language features:
+generics, interfaces, closures, enums, structs, classes, pattern matching via `switch`, error handling with
+`panic`/`try`/`catch`, pointer safety, `const` semantics, operator overloading, inline C++, and C++ interop.
+
+> [!NOTE]
+> This is a teaching example — not production code. A real HTTP server would use Kairo's stdlib networking
+> primitives. The goal here is to show how the language features compose.
+
+---
+
+## Types and Data Model
+
+```kairo
+// -- HTTP method enum --
+
+enum Method {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+    HEAD,
+    OPTIONS,
+}
+
+// -- Headers as a type alias over a map --
+
+type Headers = {string: string}
+
+// -- Request --
+
+struct Request {
+    var method: Method
+    var path: string
+    var headers: Headers
+    var body: string
+    var query: {string: string}
+}
+
+// -- Status codes --
+
+enum Status {
+    OK          = 200,
+    Created     = 201,
+    BadRequest  = 400,
+    NotFound    = 404,
+    Internal    = 500,
+}
+
+// -- Response --
+
+struct Response {
+    var status: Status
+    var headers: Headers
+    var body: string
+}
+
+// -- Convenience constructors via extends --
+
+extends Response {
+    static fn ok(body: string) -> Response {
+        return Response {
+            status: .OK,
+            headers: {"Content-Type": "text/plain"},
+            body: body,
+        }
+    }
+
+    static fn json(body: string) -> Response {
+        return Response {
+            status: .OK,
+            headers: {"Content-Type": "application/json"},
+            body: body,
+        }
+    }
+
+    static fn not_found() -> Response {
+        return Response {
+            status: .NotFound,
+            headers: {"Content-Type": "text/plain"},
+            body: "404 Not Found",
+        }
+    }
+
+    static fn error(msg: string) -> Response {
+        return Response {
+            status: .Internal,
+            headers: {"Content-Type": "text/plain"},
+            body: f"Internal Server Error: {msg}",
+        }
+    }
+
+    fn with_header(self, key: string, value: string) -> Response {
+        self.headers[key] = value
+        return self
+    }
+}
+
+// -- Operator overloading: compare status codes --
+
+extends Status {
+    fn op ==(self, other: Status) -> bool {
+        return self as i32 == other as i32
+    }
+
+    fn op as(self) -> string {
+        switch self {
+            case .OK        { return "200 OK" }
+            case .Created   { return "201 Created" }
+            case .BadRequest { return "400 Bad Request" }
+            case .NotFound  { return "404 Not Found" }
+            case .Internal  { return "500 Internal Server Error" }
+        }
+    }
+}
+```
+
+---
+
+## Middleware Interface
+
+```kairo
+// -- Middleware as a structural interface --
+
+interface Middleware {
+    fn handle(self, req: *const Request, next: fn(*const Request) -> Response) -> Response
+}
+
+// -- Logger middleware --
+
+class Logger {
+    fn handle(self, req: *const Request, next: fn(*const Request) -> Response) -> Response {
+        var start = std::time::now()
+        var resp = next(req)
+        var elapsed = std::time::now() - start
+
+        std::println(f"[{req->method as string}] {req->path} → {resp.status as string} ({elapsed}ms)")
+        return resp
+    }
+}
+
+// -- CORS middleware --
+
+class CorsMiddleware {
+    priv var allowed_origins: {string}
+
+    fn CorsMiddleware(self, ...origins: string) {
+        self.allowed_origins = {}
+        for origin in origins {
+            self.allowed_origins.insert(origin)
+        }
+    }
+
+    fn handle(self, req: *const Request, next: fn(*const Request) -> Response) -> Response {
+        var resp = next(req)
+        var origin = req->headers["Origin"]
+
+        if origin in self.allowed_origins {
+            resp = resp
+                .with_header("Access-Control-Allow-Origin", origin)
+                .with_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+        }
+
+        return resp
+    }
+}
+```
+
+---
+
+## Router
+
+```kairo
+// -- Route handler type --
+
+type Handler = fn(*const Request) -> Response
+
+// -- Route entry --
+
+struct Route {
+    var method: Method
+    var path: string
+    var handler: Handler
+}
+
+// -- Router with dynamic registration --
+
+class Router {
+    priv var routes: [Route]
+    priv var middlewares: [fn(*const Request, fn(*const Request) -> Response) -> Response]
+
+    fn Router(self) {
+        self.routes = []
+        self.middlewares = []
+    }
+
+    fn add(self, method: Method, path: string, handler: Handler) {
+        self.routes.push(Route { method: method, path: path, handler: handler })
+    }
+
+    fn get(self, path: string, handler: Handler) {
+        self.add(.GET, path, handler)
+    }
+
+    fn post(self, path: string, handler: Handler) {
+        self.add(.POST, path, handler)
+    }
+
+    fn use(self, mw: fn(*const Request, fn(*const Request) -> Response) -> Response) {
+        self.middlewares.push(mw)
+    }
+
+    fn use_middleware<M impl Middleware>(self, mw: M) {
+        self.use(fn (req: *const Request, next: fn(*const Request) -> Response)|&mw| -> Response {
+            return mw.handle(req, next)
+        })
+    }
+
+    fn resolve(const self, method: Method, path: string) -> Handler? {
+        for route in self.routes {
+            if route.method == method && route.path == path {
+                return route.handler
+            }
+        }
+        return null
+    }
+
+    fn dispatch(const self, req: *const Request) -> Response {
+        var handler = self.resolve(req->method, req->path)
+
+        if handler == null {
+            return Response::not_found()
+        }
+
+        // Build the middleware chain from inside out
+        var chain: fn(*const Request) -> Response = handler
+
+        // Walk middlewares in reverse so the first registered runs first
+        var i = self.middlewares.len() - 1
+        while i >= 0 {
+            const mw = self.middlewares[i]
+            const inner = chain
+            chain = fn (r: *const Request)|&mw, &inner| -> Response {
+                return mw(r, inner)
+            }
+            i--
+        }
+
+        return chain(req)
+    }
+}
+```
+
+---
+
+## Request Parsing
+
+```kairo
+// -- Parse raw HTTP request bytes into a Request struct --
+
+fn parse_request(raw: string) panic -> Request {
+    var lines = raw.split("\r\n")
+
+    if lines.len() == 0 {
+        panic std::Error::Runtime("empty request")
+    }
+
+    // Parse request line: "GET /path?key=val HTTP/1.1"
+    var parts = lines[0].split(" ")
+
+    if parts.len() < 3 {
+        panic std::Error::Runtime("malformed request line")
+    }
+
+    var method = parse_method(parts[0])
+    var (path, query) = parse_path(parts[1])
+
+    // Parse headers
+    var headers: Headers = {}
+    var body_start = 0
+
+    for i in 1..lines.len() {
+        if lines[i] == "" {
+            body_start = i + 1
+            break
+        }
+
+        var (key, value) = split_header(lines[i])
+        headers[key] = value
+    }
+
+    // Everything after the blank line is the body
+    var body = if body_start > 0 && body_start < lines.len() {
+        lines[body_start..].join("\r\n")
+    } else {
+        ""
+    }
+
+    return Request {
+        method: method,
+        path: path,
+        headers: headers,
+        body: body,
+        query: query,
+    }
+}
+
+fn parse_method(raw: string) panic -> Method {
+    switch raw {
+        case "GET"     { return .GET }
+        case "POST"    { return .POST }
+        case "PUT"     { return .PUT }
+        case "DELETE"  { return .DELETE }
+        case "PATCH"   { return .PATCH }
+        case "HEAD"    { return .HEAD }
+        case "OPTIONS" { return .OPTIONS }
+        default {
+            panic std::Error::Runtime(f"unknown HTTP method: {raw}")
+        }
+    }
+}
+
+fn parse_path(raw: string) -> (string, {string: string}) {
+    var query: {string: string} = {}
+    var idx = raw.find("?")
+
+    if idx == -1 {
+        return (raw, query)
+    }
+
+    var path = raw[0..idx]
+    var qs = raw[idx + 1..].split("&")
+
+    for pair in qs {
+        var eq = pair.find("=")
+        if eq != -1 {
+            query[pair[0..eq]] = pair[eq + 1..]
+        }
+    }
+
+    return (path, query)
+}
+
+fn split_header(line: string) panic -> (string, string) {
+    var idx = line.find(": ")
+    if idx == -1 {
+        panic std::Error::Runtime(f"malformed header: {line}")
+    }
+    return (line[0..idx], line[idx + 2..])
+}
+```
+
+---
+
+## Server with C++ Socket Interop
+
+```kairo
+ffi "c++" import "sys/socket.h";
+ffi "c++" import "netinet/in.h";
+ffi "c++" import "unistd.h";
+
+eval DEFAULT_PORT = 8080
+eval BUFFER_SIZE  = 4096
+eval BACKLOG      = 128
+
+class Server {
+    priv var router: Router
+    priv var port: i32
+    priv var fd: i32
+
+    fn Server(self, port: i32 = DEFAULT_PORT) {
+        self.router = Router()
+        self.port = port
+        self.fd = -1
+    }
+
+    fn routes(self) -> *Router {
+        return &self.router
+    }
+
+    fn start(self) panic {
+        self.fd = self.bind_socket()
+
+        finally {
+            if self.fd >= 0 {
+                unsafe { close(self.fd) }
+            }
+        }
+
+        std::println(f"Listening on :{self.port}")
+
+        loop {
+            var client_fd = unsafe { accept(self.fd, null, null) }
+
+            if client_fd < 0 {
+                std::println("accept() failed, skipping")
+                continue
+            }
+
+            self.handle_connection(client_fd)
+        }
+    }
+
+    priv fn bind_socket(self) panic -> i32 {
+        var fd = unsafe { socket(AF_INET, SOCK_STREAM, 0) }
+
+        if fd < 0 {
+            panic std::Error::Runtime("socket() failed")
+        }
+
+        // Set SO_REUSEADDR
+        var opt: i32 = 1
+        unsafe {
+            setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, unsafe &opt, sizeof i32)
+        }
+
+        // Bind
+        unsafe {
+            var a: sockaddr_in
+            inline "c++" {
+                a.sin_family = AF_INET;
+                a.sin_addr.s_addr = INADDR_ANY;
+                a.sin_port = htons(static_cast<uint16_t>(self.port));
+            }
+
+            var addr = a
+        }
+
+        if bind(fd, unsafe &addr as unsafe *sockaddr, sizeof sockaddr_in) < 0 {
+            unsafe { close(fd) }
+            panic std::Error::Runtime(f"bind() failed on port {self.port}")
+        }
+
+        if listen(fd, BACKLOG) < 0 {
+            unsafe { close(fd) }
+            panic std::Error::Runtime("listen() failed")
+        }
+
+        return fd
+    }
+
+    priv fn handle_connection(const self, client_fd: i32) {
+        finally {
+            unsafe { close(client_fd) }
+        }
+
+        var buf: [byte; BUFFER_SIZE]
+        var n = unsafe { read(client_fd, unsafe &buf, BUFFER_SIZE) }
+
+        if n <= 0 {
+            return
+        }
+
+        var raw = string::from_bytes(buf[0..n])
+
+        var response = try {
+            var req = parse_request(raw)
+            self.router.dispatch(&req)
+        } catch e {
+            Response::error(e as string)
+        }
+
+        var wire = serialize_response(response)
+        unsafe { write(client_fd, unsafe &wire.bytes[0], wire.len()) }
+    }
+}
+
+fn serialize_response(resp: Response) -> string {
+    var out = f"HTTP/1.1 {resp.status as string}\r\n"
+
+    for (key, value) in resp.headers {
+        out += f"{key}: {value}\r\n"
+    }
+
+    out += f"Content-Length: {resp.body.len()}\r\n"
+    out += "\r\n"
+    out += resp.body
+
+    return out
+}
+```
+
+---
+
+## Putting It Together
+
+```kairo
+// -- Application entry point --
+
+fn main() panic {
+    var server = Server(port: 8080)
+    var r = server.routes()
+
+    // Register middleware
+    r->use_middleware(Logger())
+    r->use_middleware(CorsMiddleware("http://localhost:3000", "https://kairolang.org"))
+
+    // Register routes
+    r->get("/", fn (req: *const Request) -> Response {
+        return Response::ok("Welcome to Kairo!")
+    })
+
+    r->get("/health", fn (req: *const Request) -> Response {
+        return Response::json("{\"status\": \"ok\"}")
+    })
+
+    r->post("/echo", fn (req: *const Request) -> Response {
+        return Response::ok(req->body)
+            .with_header("X-Echo", "true")
+    })
+
+    r->get("/greet", fn (req: *const Request) -> Response {
+        var name = req->query["name"]
+        if name == null {
+            return Response { status: .BadRequest, headers: {}, body: "missing ?name=" }
+        }
+        return Response::ok(f"Hello, {name}!")
+    })
+
+    // Start serving
+    server.start()
+}
+```
+
+```sh
+# terminal 1
+> kairo server.kro
+> ./server
+Listening on :8080
+
+# terminal 2
+> curl http://localhost:8080/
+> curl http://localhost:8080/greet?name=Admin
+> curl -X POST -d "ping" http://localhost:8080/echo
+> curl http://localhost:8080/missing
+
+# terminal 1 output
+Welcome to Kairo!
+Hello, Admin!
+ping
+404 Not Found
+```
+
+---
+
+## Features Used
+
+| Feature | Where |
+|---|---|
+| Enums with values | `Method`, `Status` |
+| Structs | `Request`, `Response`, `Route` |
+| Classes with constructors | `Server`, `Router`, `Logger`, `CorsMiddleware` |
+| Interfaces (structural) | `Middleware` — `Logger` and `CorsMiddleware` satisfy it without `impl` |
+| Generics | `use_middleware<M impl Middleware>` |
+| Closures with captures | Route handlers, middleware chain construction |
+| `const` pointers | `*const Request` — handlers can read but not mutate the request |
+| Operator overloading | `op ==` and `op as` on `Status` |
+| `extends` | Static constructors and methods added to `Response` and `Status` |
+| `try`/`catch`/`panic` | Request parsing, socket operations |
+| `finally` (scope exit) | Socket and file descriptor cleanup |
+| `switch` (exhaustive) | Method parsing, status code stringification |
+| `eval` constants | `DEFAULT_PORT`, `BUFFER_SIZE`, `BACKLOG` |
+| `unsafe` blocks | POSIX socket syscalls |
+| `inline "c++"` | `sockaddr_in` struct initialization |
+| `ffi "c++"` imports | System headers for socket API |
+| Variadic functions | `CorsMiddleware` constructor |
+| Named arguments | `Server(port: 8080)` |
+| Maps, sets, vectors | Headers, query params, routes, allowed origins |
+| String formatting | `f"..."` throughout |
+| Ranges and slicing | `buf[0..n]`, `raw[idx + 1..]` |
