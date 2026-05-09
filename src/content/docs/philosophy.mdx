@@ -1,65 +1,175 @@
 ---
+order: 0
 title: Philosophy
-description: The design principles behind Kairo.
-order: 3
-section: Getting Started
+description: The design principles behind Kairo and the problems it solves.
 ---
 
 # Philosophy
 
-Kairo is built on a set of core principles that guide every language decision. Understanding these principles will help you understand why Kairo makes the choices it does.
+Kairo is a systems programming language built around a simple idea: give developers full control
+without forcing them to fight the language.
 
-## Core Principles
+---
 
-### 1. Control Without Complexity
+## The Problem
 
-You should be able to do anything the hardware supports - without the language getting in your way. But "power" doesn't mean "pain." Kairo gives you control over memory, performance, and abstractions without drowning you in ceremony.
+Systems programming is stuck between two failure modes.
 
-This means raw pointers are available when you need them. Inline assembly is supported. You can reach through every abstraction layer. But you don't *have* to.
+One class of languages gives you unlimited freedom and zero guardrails. You manage memory, track
+lifetimes, audit every pointer, and hope your discipline holds across a million-line codebase
+maintained by a rotating team for a decade. When it doesn't, you get CVEs.
 
-### 2. Ergonomics ≠ Abstraction
+Another class of languages solves this by restricting what you're allowed to express. Safety comes
+from rejection the compiler says no until you restructure your program to fit its model. This
+works, but it trades implementation freedom for cognitive overhead. Simple patterns become puzzles.
+Prototyping feels like negotiating with a bureaucracy.
 
-A language can be ergonomic without hiding what's happening. Kairo's syntax is clean and expressive, but it never obscures what the machine is doing. When you write Kairo, you should be able to predict - roughly - what code the compiler will emit.
+Kairo rejects both failure modes. The language should help you write correct code without dictating
+how you structure it.
 
-### 3. Interop First
+---
 
-The systems programming world runs on C and C++. Billions of lines of existing code can't be thrown away. Kairo treats interoperability as a first-class feature, not an afterthought.
+## Design Principles
 
-Calling C functions requires no wrappers. Calling C++ requires minimal glue. The ABI is predictable and controllable.
+Four ideas drive every decision in the language.
 
-### 4. Performance is Non-Negotiable
+### Control should exist
 
-Zero-cost abstractions. No hidden allocations. No background GC. Predictable performance everywhere.
+Kairo is a systems language. You can manage memory directly, control struct layout and alignment,
+work with raw pointers, manipulate ABI boundaries, interoperate with C and C++ at zero cost, and
+write allocators, runtimes, compilers, or kernels. Nothing is hidden.
 
-If a feature can't be implemented with zero runtime overhead, it either doesn't get added or it's made explicit (e.g., you must opt into a garbage-collected heap, not inherit one).
+But unlike traditional systems languages, Kairo does not assume you want to solve every problem
+manually. The compiler provides:
 
-### 5. Community Driven
+- Ownership tracking and automatic smart pointer promotion
+- Null safety with compile-time null checks on safe pointers
+- Panic propagation analysis with exhaustive catch verification
+- Structural interface validation without explicit registration
+- Full-program lifetime analysis with no annotations required
 
-Kairo is governed by the [Kairo Software Foundation](/ksf), a community-driven nonprofit. The language evolves through open proposals (KIPs - Kairo Improvement Proposals) and community consensus.
+All of which you can override or opt out of when you need to. You are guided, not trapped.
 
-No single company controls Kairo. No single individual can unilaterally change the language.
+### Safety should assist, not dominate
 
-## The interop hypothesis
+Safety in Kairo works through visibility, not restriction.
 
-Most languages treat C++ interop as a compatibility feature. Kairo treats it as the core design constraint. Every decision the token-level compilation model, the BCIR safety layer, the build system follows from the question: what would make C++ and Kairo genuinely indistinguishable at the boundary?
+The compiler explains mistakes clearly, preserves programmer intent, and keeps experimentation
+fluid. During development, it helps you move fast. When you ship, it gets stricter. This creates a
+workflow closer to real engineering: prototype freely, refine intentionally, harden for production.
+
+The escape hatches are explicit. `unsafe` blocks suspend AMT tracking. `unsafe *T` pointers bypass
+null checks and bounds analysis. `unsafe` function overloads relax semantic invariants. Every
+dangerous operation is visible in the source easy to find during review, easy to audit, easy to
+grep.
+
+### Code should explain itself
+
+A developer should not need IDE magic, hidden compiler behavior, or dense metaprogramming to
+understand what code does.
+
+- `self` is always visible in method signatures
+- Inheritance uses the `derives` keyword no implicit resolution
+- Pointer types are visually distinct (`*T` vs `unsafe *T` vs `*const T`)
+- All conversions use a single `as` keyword
+- Interfaces are structural satisfy the methods, satisfy the interface
+- Operator overloads are declared with `fn op` syntax that mirrors the operator
+
+```kairo
+class Sensor {
+    var reading: f64
+    mutable var access_count: i32
+
+    fn value(const self) -> f64 {
+        self.access_count += 1
+        return self.reading
+    }
+
+    fn calibrate(self, offset: f64) {
+        self.reading += offset
+    }
+}
+```
+
+Open this in a text editor with no tooling and you can still read the program. You know which
+methods mutate, which fields are mutable through `const`, and what the visibility boundaries are.
+Kairo treats readability as a systems programming requirement, not a beginner convenience.
+
+### Adoption should be incremental
+
+Large codebases are built over decades. Entire ecosystems exist in C and C++. Most teams cannot
+afford full rewrites.
+
+Kairo integrates into existing systems one module at a time. Import C headers directly with
+`ffi "c"`. Import C++ headers with `ffi "c++"`. Kairo emits ABI-compatible object code
+Itanium on Unix, MSVC on Windows so Kairo `.o` files link with GCC, Clang, or MSVC output
+without shims. Object layout, vtable structure, name mangling, and calling conventions all follow
+platform standards.
+
+```kairo
+ffi "c++" import "engine.hh" as engine
+
+fn main() {
+    var ctx = engine::create_context()
+    engine::run(ctx)
+}
+```
+
+A team can migrate one file at a time, validate performance incrementally, and maintain the
+existing build system throughout. Kairo coexists with infrastructure it does not demand
+replacement of it.
+
+---
+
+## Zero-Cost Abstractions
+
+High-level features compile to predictable low-level code:
+
+- Interfaces are structural and carry no vtable or runtime dispatch cost. A type satisfies an
+  interface if it has the right methods no registration, no indirection.
+- Generics are monomorphized at compile time. No boxing, no type erasure, no runtime cost.
+- Panic handling compiles to tagged return values and branches. No unwinding tables, no runtime
+  exception handler, no stack unwinding.
+- AMT (Automatic Memory Tracking) runs at compile time. No garbage collector, no reference
+  counting overhead unless the analysis determines shared ownership is required.
+- Virtual dispatch exists only when you write `virtual`. Non-polymorphic classes have no vtable
+  pointer.
+
+You pay for what you use. Nothing else.
+
+---
+
+## Familiar, But Cleaner
+
+Kairo is intentionally familiar to experienced systems programmers. Most concepts map naturally
+from C++, with complexity stripped where it adds no value:
+
+| C++ complexity | Kairo simplification |
+|---|---|
+| `static_cast` / `dynamic_cast` / `reinterpret_cast` / `const_cast` | Single `as` keyword |
+| Implicit `this` | Explicit `self` parameter |
+| `public:` / `private:` / `protected:` sections | Per-declaration `pub` / `priv` / `prot` |
+| `const int*` vs `int* const` ambiguity | Left-to-right `const` binding rule |
+| Header/source split | Single `.kro` files |
+| `friend` declarations | Module-level visibility (`priv`, `prot`) |
+| `#define` preprocessor | Scoped token macros and AST attributes |
+| Implicit special member generation/suppression | Always generates unless explicitly deleted |
+| Exception unwinding tables | Zero-cost panic returns |
+
+The goal is not novelty. The goal is removing friction that decades of C++ evolution accumulated
+without losing any of the power that makes C++ valuable.
+
+---
 
 ## Who Kairo Is For
 
-- **Systems programmers** who want C++ power with modern ergonomics
-- **Game developers** who need predictable frame times without GC pauses
-- **Embedded developers** who need bare-metal control
-- **Students** learning memory management and systems concepts
-- **Performance enthusiasts** who can't accept garbage collection pauses
-- **Open source contributors** building the next generation of systems software
+Kairo is built for projects that grow:
 
-## Design Trade-offs
+- Compilers and language toolchains
+- Game engines and real-time systems
+- Distributed systems and infrastructure
+- Operating systems and embedded firmware
+- Long-lived enterprise codebases
 
-Every language makes trade-offs. Here are Kairo's:
-
-| We chose... | Instead of... |
-|-------------|---------------|
-| More expressive generics | Simpler type system |
-| Optional borrow checking | Mandatory borrow checking |
-| First-class C++ interop | Clean slate FFI |
-| Familiar syntax | Novel syntax |
-| Incremental safety | All-or-nothing safety |
+It is designed for engineers who want the performance and control of systems programming without
+the maintenance cost that traditionally comes with it.

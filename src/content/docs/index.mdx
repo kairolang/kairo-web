@@ -1,39 +1,140 @@
 ---
 title: Welcome to Kairo
-description: Get started with Kairo, a systems programming language with two-way C++ interop.
-order: 1
+description: A systems programming language with bidirectional C++ interop, zero-cost abstractions, and automatic memory tracking.
+order: 0
 section: Getting Started
 ---
+ 
+# Kairo
 
-# Welcome to Kairo
-
-Kairo is a statically typed, compiled systems language. C++ builds can `#include` `.kro` files directly. Kairo code calls C++ libraries without a binding layer. The compiler is written in C++; the goal is self-hosting.
-
-Built by the [Kairo Software Foundation](/ksf).
-
-## Key Features
-
-- **No GC, no hidden allocations** - Allocation and deallocation are explicit. The compiler places destructors at scope exit.
-- **Memory control** - Manual or assisted, you choose
-- **C/C++ interop** - `#include` in both directions, no binding step
-- **Pattern matching, generics, interfaces, lambdas** - Available without a runtime cost
-- **Built-in tooling** - Formatter, linter, package manager, LSP in one binary
-
-## Quick Example
+Kairo is a statically typed, compiled systems language with native bidirectional C++ interoperability.
+C++ projects can `#include` Kairo files directly. Kairo code calls C++ libraries without a binding
+layer. The compiler emits ABI-compatible object code that links with GCC, Clang, or MSVC output.
 
 ```kairo
+import std
+ 
+ffi "c++" import "engine.hh" as engine
+ 
 fn main() {
-    let name = "Kairo";
-    print(f"Hello from {name}!");
+    var ctx = engine::create_context()
+ 
+    try {
+        engine::run(ctx)
+    } catch e: std::Error::Runtime {
+        std::println(f"engine failed: {e}")
+    }
 }
 ```
 
+---
+
+## Why Kairo
+
+**Full control, less friction.** Kairo gives you manual memory management, raw pointer access,
+struct layout control, and zero-cost abstractions with a compiler that tracks lifetimes, promotes
+smart pointers, and catches null dereferences at compile time. You opt into safety by default and
+opt out explicitly when you need to.
+
+**C++ interop that works both ways.** `ffi "c++"` imports C++ headers and makes every declaration
+available as a native Kairo symbol. The `kcc` driver lets C++ code `#include "file.kro"` with no
+code generation step. Templates, concepts, classes, and smart pointers cross the boundary cleanly.
+
+**Zero-cost abstractions.** Interfaces are structural and carry no vtable. Generics are
+monomorphized. Panic handling compiles to tagged returns and branches no unwinding tables, no
+runtime. Virtual dispatch exists only when you write `virtual`.
+
+---
+
+## At a Glance
+
+```kairo
+import std
+
+struct Point {
+    var x: f64
+    var y: f64
+}
+
+extend Point {
+    fn length(self) const -> f64 {
+        return std::sqrt(self.x * self.x + self.y * self.y)
+    }
+
+    fn op +(self, other: Point) -> Point {
+        return Point { x: self.x + other.x, y: self.y + other.y }
+    }
+}
+
+enum <T> ParseResult {
+    Ok    { value: T },
+    Error { message: string },
+}
+
+fn try_parse_point(input: string) -> ParseResult<Point> {
+    var parts = input.split(",")
+
+    if parts.len() != 2 {
+        return ParseResult::Error { message: f"expected 'x,y', got '{input}'" }
+    }
+
+    var x = std::parse<f64>(parts[0].trim())
+    var y = std::parse<f64>(parts[1].trim())
+
+    return ParseResult::Ok { value: Point { x: x, y: y } }
+}
+
+fn load_config(path: string) panic -> Point {
+    var content = std::read_file(path)
+
+    if content.len() == 0 {
+        panic std::Error::IO("config file is empty")
+    }
+
+    return try_parse_point(content).value
+}
+
+var a = Point { x: 3.0, y: 4.0 }
+var b = Point { x: 1.0, y: 2.0 }
+
+std::println(f"sum length: {(a + b).length()}")
+
+match try_parse_point("1.5, 2.5") {
+    case .Ok(var value) {
+        std::println(f"parsed: ({value.x}, {value.y})")
+    }
+    case .Error(var message) {
+        std::println(f"failed: {message}")
+    }
+}
+
+var origin = try {
+    load_config("origin.conf")
+} catch {
+    Point { x: 0.0, y: 0.0 }
+}
+
+std::println(f"origin: ({origin.x}, {origin.y})")
+```
+
+---
+
 ## Status
 
-The Kairo compiler is currently in **stage 0**, which is written in C++ and is being rewritten in Kairo itself (self-hosting). APIs and syntax may change before the 1.0 release.
+Kairo is in active development. The compiler is currently in **Stage 0** a C++ implementation
+that transpiles Kairo to C++. Stage 1 (self-hosted compiler written in Kairo) is underway.
+
+Language syntax and standard library APIs may change before 1.0. The documentation on this site
+reflects the current language design.
+
+Built by the [Kairo Software Foundation](/ksf).
+
+---
 
 ## Next Steps
 
-- [Install Kairo](/docs/install) - Get the compiler on your machine
-- [Language Philosophy](/docs/philosophy) - Understand the design decisions
-- [Basic Syntax](/docs/basic) - Start writing Kairo code
+- [Philosophy](/docs/philosophy) understand the design principles
+- [Primitives](/docs/language/primitives) start with the type system
+- [Classes](/docs/language/classes) objects, inheritance, virtual dispatch
+- [C/C++ Interop](/docs/language/c-c++) calling C++ from Kairo and back
+- [Example: HTTP Server](/docs/examples/http-server) a complete project walkthrough
