@@ -1,0 +1,87 @@
+# Kairo
+
+> Kairo is a statically typed, compiled systems language with native bidirectional C++ interoperability and zero-cost abstractions. It compiles to native object code via Clang, enabling seamless `#include` of Kairo files in C++ projects and direct `ffi "c++"` imports in Kairo without binding generators.
+
+Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable and tracked by the compile-time AMT analysis, from raw pointers (`unsafe *T`), which bypass safety checks entirely. The `const` keyword follows a strict left-to-right binding rule, eliminating C-style ambiguity. Error handling uses `panic` as a function specifier that returns tagged values rather than unwinding the stack, with `match` providing exhaustive multi-way dispatch that replaces traditional `switch` statements. Interop is fully bidirectional with zero bindings: C++ headers are parsed directly by Clang, and Kairo code is exposed to C++ via the `kcc` driver, preserving templates, concepts, and smart pointer semantics across the boundary.
+
+## Docs
+
+- [Welcome to Kairo](https://www.kairolang.org/docs/): Overview of Kairo's core features, including bidirectional C++ interop, zero-cost abstractions, and automatic memory tracking.
+- [Philosophy](https://www.kairolang.org/docs/philosophy/): The design principles behind Kairo, focusing on mechanical keyword consistency, C++-first interop, and pragmatic memory safety.
+- [Compiler Compliance](https://www.kairolang.org/docs/compilence/): Standards and specifications Kairo targets, including IEEE 754-2019, Unicode 15.1, platform psABIs, and DWARF 5 debug info.
+- [Installation](https://www.kairolang.org/docs/install/): How to install the Kairo compiler, toolchain, LSP, and package manager.
+
+## Language Reference
+
+- [Primitives](https://www.kairolang.org/docs/language/primitives/): Built-in data types including integers, floats, booleans, characters, strings, pointers, collections, and their hardware-mapped semantics.
+- [Variables & Bindings](https://www.kairolang.org/docs/language/variables/): Variable declarations, constants, static, type inference, shadowing, destructuring, and the strict left-to-right `const` binding rule.
+- [Operators](https://www.kairolang.org/docs/language/operators/): Arithmetic, comparison, logical, bitwise, assignment, range, null-safe access, operator overloading, and C-style precedence rules.
+- [Control Flow](https://www.kairolang.org/docs/language/control-flow/): Conditionals, exhaustive `match` dispatch, loops, labeled breaks, `try`/`catch`/`finally`, panic, assert, jumps, and compile-time branching.
+- [Functions](https://www.kairolang.org/docs/language/functions/): Function declarations, parameters, return types, overloading, modifiers, generics, variadic functions, and calling conventions.
+- [Closures](https://www.kairolang.org/docs/language/closures/): Anonymous functions, capture modes (`|&|`, mixed), lambda syntax, and how closures interact with AMT lifetime tracking.
+- [Classes](https://www.kairolang.org/docs/language/classes/): Class declarations, constructors, destructors, inheritance, virtual dispatch, abstract classes, generics, visibility, and the rule of five.
+- [Structures](https://www.kairolang.org/docs/language/structures/): Struct declarations, aggregate initialization, field visibility, generics, `extend` blocks, layout control, and trivial copy semantics.
+- [Enums](https://www.kairolang.org/docs/language/enums/): Enum declarations, discriminants, underlying types, ADT variants with named struct-style payloads, generics, and `match` destructuring.
+- [Unions](https://www.kairolang.org/docs/language/unions/): Untagged union declarations, memory overlay semantics, trivial-type restrictions, generics, and platform ABI layout rules.
+- [Interfaces](https://www.kairolang.org/docs/language/interfaces/): Interface declarations, structural conformance, generic interfaces, interface inheritance, operator requirements, and zero-cost contract semantics.
+- [Type System](https://www.kairolang.org/docs/language/type-system/): Type aliases, type inference, implicit conversions, subtyping, `TypeInfo`, `typeof`, nullable nesting, void, never types, and type identity.
+- [Casting](https://www.kairolang.org/docs/language/casting/): Explicit type conversions with `as`, numeric truncation, pointer casts, downcasting, nullable collapsing, user-defined conversions, and cast safety rules.
+- [Where Clauses](https://www.kairolang.org/docs/language/bounds/): Where clause syntax, compile-time and runtime constraint evaluation, where-based overload dispatch, and constraint semantics.
+- [Pointers & Raw Pointers](https://www.kairolang.org/docs/language/pointers/): Safe pointers (`*T`), unsafe raw pointers (`unsafe *T`), null semantics, pointer arithmetic, smart pointer promotion, void pointers, and pointer safety rules.
+- [Ownership](https://www.kairolang.org/docs/language/ownership/): Ownership model, move semantics, borrowing rules, copy vs move, and how ownership interacts with AMT analysis.
+- [AMT](https://www.kairolang.org/docs/language/amt/): Automatic Memory Tracking full-program lifetime analysis, smart pointer promotion, allocator integration, and compile-time safety guarantees.
+- [Unsafe](https://www.kairolang.org/docs/language/unsafe/): Unsafe blocks, unsafe pointers, unsafe function overloads, AMT suspension, `forget!()`, and the safety boundary model.
+- [Panic](https://www.kairolang.org/docs/language/panic/): The `panic` specifier, `Panickable` return type, `try`/`catch` exhaustiveness, panic propagation, error types, and zero-cost codegen.
+- [Compile-Time Eval](https://www.kairolang.org/docs/language/eval/): Eval variables, eval functions, eval if/for, compile-time evaluation rules, restrictions, and interaction with generics.
+- [Modules](https://www.kairolang.org/docs/language/modules/): Module system, imports, file-to-module mapping, directories as libraries, namespaces, visibility, module extending, and C++ header imports.
+- [Extends](https://www.kairolang.org/docs/language/extends/): Extend blocks for adding methods, operators, static functions, and interface conformance to structs, enums, and classes.
+- [Attributes](https://www.kairolang.org/docs/language/attributes/): AST-level code transformations, attribute definitions, arguments, expansion order, overloading, built-in attributes, and the `std::AST` API.
+- [Macros](https://www.kairolang.org/docs/language/macros/): Token-level macros, macro definitions, built-in macros, variadic helpers, source location, diagnostics, code generation, and macro hygiene.
+- [Concurrency](https://www.kairolang.org/docs/language/concurrency/): Async/await, spawn, yield, coroutines, atomic types, thread-local storage, and synchronization primitives.
+- [C & C++ Interoperability](https://www.kairolang.org/docs/language/c-c/): Native bidirectional interop, FFI declarations, the `kcc` driver, inline C++, pointer safety, templates, concepts, exceptions, and ABI details.
+
+## Standard Library
+
+- [std::Questionable\<T\>](https://www.kairolang.org/docs/library/core/std/questionable/): Optional/nullable wrapper type with `?` operator, null coalescing, and pattern matching support.
+- [std::Range\<T\>](https://www.kairolang.org/docs/library/core/std/range/): Range type for `..` and `..=` operators, iteration, bounds checking, and slice indexing.
+- [std::Function](https://www.kairolang.org/docs/library/core/std/function/): Type-erased callable wrapper for function pointers, closures, and bound methods.
+- [std::Generator](https://www.kairolang.org/docs/library/core/std/generator/): Generator/coroutine type for lazy yield-based iteration.
+- [std::TypeErasure](https://www.kairolang.org/docs/library/core/std/typeerasure/): Runtime type erasure with clone, destroy, and type_info introspection.
+- [std::String](https://www.kairolang.org/docs/library/core/std-string/basic/): String type with slicing, search, replace, split, strip, and comparison operations.
+- [std::Memory](https://www.kairolang.org/docs/library/core/std-memory/copy/): Manual memory management — alloc, free, copy, move, compare, stack/heap introspection.
+- [std::Panic](https://www.kairolang.org/docs/library/core/std-panic/frame/): Panic frame and context introspection for error handling and crash diagnostics.
+- [std::Error](https://www.kairolang.org/docs/library/core/std-error/baseerror/): Base error types — RuntimeError, NullValueError, TypeMismatchError, StateMismatchError.
+- [std::Meta](https://www.kairolang.org/docs/library/core/std-meta/declval/): Compile-time type introspection — const/volatile/reference removal, lvalue/rvalue reference addition, enable_if.
+- [std::abi](https://www.kairolang.org/docs/library/core/std-abi/demangle/): Symbol name mangling and demangling utilities.
+- [std Functions](https://www.kairolang.org/docs/library/core/std/functions/as_cast/): Free functions — as_cast, as_const, as_unsafe, to_string, crash, range, stringf.
+- [libcxx Namespace](https://www.kairolang.org/docs/library/core/libcxx/): C++ standard library interop layer.
+
+## Toolchain
+
+- [kals](https://www.kairolang.org/docs/toolchain/kals/): Kairo Language Server for IDE integration.
+- [kbld](https://www.kairolang.org/docs/toolchain/kbld/): Programmatic build system using `build.kro` scripts with JSON IPC.
+- [kfmt](https://www.kairolang.org/docs/toolchain/kfmt/): Code formatter.
+- [kld](https://www.kairolang.org/docs/toolchain/kld/): Linker driver defaulting to LLD for ELF, Mach-O, PE/COFF, and WASM targets.
+- [kpkg](https://www.kairolang.org/docs/toolchain/kpkg/): Package manager.
+
+## Examples
+
+- [HTTP Server](https://www.kairolang.org/docs/examples/http-server/): Complete project walkthrough demonstrating Kairo's standard library, concurrency primitives, and C++ interop.
+
+## Blog
+
+- [How AI is Used in Kairo](https://www.kairolang.org/blog/how-ai-is-used-in-kairo/): How Kairo uses AI tooling in compiler development and documentation.
+- [Kairo Pointer Model](https://www.kairolang.org/blog/kairo-pointer-model/): Deep dive into safe `*T` vs raw `unsafe *T` pointer semantics.
+- [Match Replacing Switch](https://www.kairolang.org/blog/match-replacing-switch/): Why Kairo uses exhaustive `match` instead of `switch`.
+- [New Operator Syntax](https://www.kairolang.org/blog/new-operator-syntax/): Design of the `op` keyword for operator overloading.
+- [Why Native Interop Instead of Bindings](https://www.kairolang.org/blog/why-native-interop-instead-of-bindings/): The rationale for zero-binding bidirectional C++ interop.
+
+## Optional
+
+- [std::String::slice](https://www.kairolang.org/docs/library/core/std-string/slice/): String slice type with all search, comparison, and transformation methods.
+- [std::null_t](https://www.kairolang.org/docs/library/core/std/null_t/): The null type.
+- [std::Legacy::new](https://www.kairolang.org/docs/library/core/std-legacy/new/): Legacy heap allocation function.
+- [reference (move)](https://www.kairolang.org/docs/library/core/functions/move_refrence/): Move reference utility.
+- [reference](https://www.kairolang.org/docs/library/core/functions/refrence/): Reference utility.
+- [KSF](https://www.kairolang.org/ksf/): Kairo Software Foundation.
+- [GitHub](https://github.com/kairolang/kairo): Source code repository.

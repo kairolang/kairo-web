@@ -41,8 +41,8 @@ User-agent: Diffbot
 Allow: /
 
 # Sitemaps
-Sitemap: https://kairolang.org/sitemap-index.xml
-Sitemap: https://kairolang.org/sitemap.xml
+Sitemap: https://www.kairolang.org/sitemap-index.xml
+Sitemap: https://www.kairolang.org/sitemap.xml
 
 # AI agent index (llmstxt.org)
-# llms.txt: https://kairolang.org/llms.txt
+llms.txt: https://www.kairolang.org/llms.txt
