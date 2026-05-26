@@ -49,7 +49,7 @@ Import a C or C++ header with the `ffi` directive. The compiler parses the heade
 makes them available as native Kairo symbols no wrapper code required.
 
 ```kairo
-// main.kro
+// main.k
 ffi "c++" import "my_code.hh";
 
 fn main() {
@@ -82,7 +82,7 @@ void my_function(int x) {
 Build and run:
 
 ```sh
-kairo main.kro
+kairo main.k
 ./main
 ```
 
@@ -100,10 +100,10 @@ Hello from C++! x = 42
 ## Exposing Kairo to C++
 
 Going the other direction requires the **`kcc`** driver, a libclang-based compiler wrapper that makes
-`#include "file.kro"` work transparently in C++ translation units.
+`#include "file.k"` work transparently in C++ translation units.
 
 ```kairo
-// my_code.kro
+// my_code.k
 fn my_kairo_function(x: i32) {
     std::println(f"Hello from Kairo! x = {x}")
 }
@@ -123,7 +123,7 @@ class MyKairoClass {
 
 ```cpp
 // main.cpp
-#include "my_code.kro"
+#include "my_code.k"
 #include <iostream>
 
 int main() {
@@ -147,11 +147,11 @@ Hello from Kairo! x = 42
 ### How `kcc` works
 
 `kcc` is a Clang driver with a single addition: a preprocessor hook that intercepts `#include` directives. When
-the included file has a `.kro` extension, `kcc`:
+the included file has a `.k` extension, `kcc`:
 
 1. Invokes the Kairo compiler **in-process as a library** to produce a C++-compatible header containing forward
    declarations and wrapper signatures.
-2. Compiles the `.kro` file into an object file.
+2. Compiles the `.k` file into an object file.
 3. Links the Kairo object into the final binary at the end of the pipeline.
 
 Auto-linking can be disabled with **`-fno-kairo-link`** if you need manual control over the link step.
@@ -162,7 +162,7 @@ If you prefer a standard C++ build process, compile the Kairo source to a static
 then link normally:
 
 ```sh
-kairo my_code.kro -c -o my_code -xc++ -header my_code.hh
+kairo my_code.k -c -o my_code -xc++ -header my_code.hh
 g++ main.cpp my_code.o -o main
 ```
 
@@ -295,7 +295,7 @@ concept Addable = requires(T a, T b) {
 ```
 
 ```kairo
-// MyInt.kro
+// MyInt.k
 ffi "c++" import "my_code.hh";
 
 class <T> MyInt {
@@ -319,7 +319,7 @@ fn <T impl Addable> add(a: T, b: T) -> T {
 // main.cpp
 #include <iostream>
 #include "my_code.hh"
-#include "MyInt.kro"
+#include "MyInt.k"
 
 int main() {
     MyInt<int> a(5), b(10);

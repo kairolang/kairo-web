@@ -6,36 +6,36 @@ description: Module system, imports, file-to-module mapping, directories as libr
 
 # Modules
 
-Kairo's module system maps source files and directories to namespaces. Each `.kro` file is a module.
-A directory containing a `.kro` file with the same name as the directory is a library its entry
+Kairo's module system maps source files and directories to namespaces. Each `.k` file is a module.
+A directory containing a `.k` file with the same name as the directory is a library its entry
 file re-exports contents from sibling files in the directory.
 
 ---
 
 ## File-to-Module Mapping
 
-Each `.kro` file is a module named after the file (without the extension). A directory with an
+Each `.k` file is a module named after the file (without the extension). A directory with an
 entry file forms a library:
 
 ```
 project/
-  main.kro
+  main.k
   math/
-    math.kro        <- library entry for "math"
-    vector.kro
-    matrix.kro
+    math.k        <- library entry for "math"
+    vector.k
+    matrix.k
     internal/
-      helpers.kro
+      helpers.k
 ```
 
 ```kairo
-// main.kro
-import math              // imports the math library (math/math.kro)
-import math::vector      // imports math/vector.kro specifically
-import math::matrix      // imports math/matrix.kro specifically
+// main.k
+import math              // imports the math library (math/math.k)
+import math::vector      // imports math/vector.k specifically
+import math::matrix      // imports math/matrix.k specifically
 ```
 
-The library entry file (`math/math.kro`) controls what the library exports. Files in the directory
+The library entry file (`math/math.k`) controls what the library exports. Files in the directory
 are accessible via `libraryname::filename`.
 
 ---
@@ -79,7 +79,7 @@ Imports can have visibility modifiers. A `priv import` brings names into the cur
 not re-export them to files that import the current module:
 
 ```kairo
-// network.kro
+// network.k
 pub import std::collections     // re-exported to anyone importing network
 priv import std::internal       // only available in this file
 prot import std::platform       // available to files in the same directory/library
@@ -172,7 +172,7 @@ A module can be extended across multiple files. The second file imports the modu
 to add more declarations:
 
 ```kairo
-// encoding.kro
+// encoding.k
 pub module codec {
     pub fn encode_base64(data: [byte]) -> string { ... }
     pub fn decode_base64(input: string) -> [byte] { ... }
@@ -180,7 +180,7 @@ pub module codec {
 ```
 
 ```kairo
-// compression.kro
+// compression.k
 import encoding::codec
 
 pub module codec {
@@ -191,11 +191,11 @@ pub module codec {
 ```
 
 ```kairo
-// main.kro
+// main.k
 import compression
 
-compression::codec::encode_base64(data)   // defined in encoding.kro
-compression::codec::compress(data)         // defined in compression.kro
+compression::codec::encode_base64(data)   // defined in encoding.k
+compression::codec::compress(data)         // defined in compression.k
 ```
 
 Reopening a module with a different visibility than the original is a compile error.
@@ -293,10 +293,10 @@ Circular imports are a compile error. If module A imports module B and module B 
 the compiler rejects the cycle:
 
 ```kairo
-// a.kro
-import b        // compile error if b.kro imports a
+// a.k
+import b        // compile error if b.k imports a
 
-// b.kro
+// b.k
 import a        // circular dependency
 ```
 
@@ -307,25 +307,25 @@ B import.
 
 ## Library Entry Files
 
-A directory with a `.kro` file matching the directory name acts as a library. The entry file
+A directory with a `.k` file matching the directory name acts as a library. The entry file
 controls exports:
 
 ```kairo
-// network/network.kro (library entry)
-import tcp       // network/tcp.kro
-import udp       // network/udp.kro
-priv import dns  // network/dns.kro not re-exported
+// network/network.k (library entry)
+import tcp       // network/tcp.k
+import udp       // network/udp.k
+priv import dns  // network/dns.k not re-exported
 
 // Anything defined or publicly imported here is accessible via "import network"
 pub fn connect(host: string, port: i32) -> Connection { ... }
 ```
 
 ```kairo
-// main.kro
+// main.k
 import network
 
-network::connect("localhost", 8080)   // from network.kro
-network::tcp::listen(8080)            // from network/tcp.kro
+network::connect("localhost", 8080)   // from network.k
+network::tcp::listen(8080)            // from network/tcp.k
 // network::dns::resolve("...")       // compile error: dns is priv imported
 ```
 

@@ -230,7 +230,7 @@ extend <T> Pair<T> {
 A plain `extend` block must be in the same file as the type definition:
 
 ```kairo
-// point.kro
+// point.k
 struct Point { var x: f64; var y: f64 }
 
 extend Point {
@@ -239,7 +239,7 @@ extend Point {
 ```
 
 ```kairo
-// other.kro
+// other.k
 import point::Point
 
 // extend Point { ... }   // compile error: Point is defined in a different file
@@ -249,14 +249,14 @@ For `extend ... impl` blocks (interface conformance), the rule is looser: either
 interface must be defined in the same file as the `extend` block:
 
 ```kairo
-// drawable.kro
+// drawable.k
 import point::Point
 
 interface Drawable {
     fn draw(self) const -> string
 }
 
-// This is legal even though Point is defined in point.kro,
+// This is legal even though Point is defined in point.k,
 // because Drawable is defined here:
 extend Point impl Drawable {
     fn draw(self) const -> string {

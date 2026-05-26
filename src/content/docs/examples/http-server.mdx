@@ -16,23 +16,23 @@ all with type-safe error handling and automatic memory management via AMT.
 
 ```
 http-server/
-  http-server.kro      <- library entry
-  request.kro
-  response.kro
-  router.kro
-  server.kro
-  main.kro
+  http-server.k      <- library entry
+  request.k
+  response.k
+  router.k
+  server.k
+  main.k
 ```
 
 ---
 
 ## Request Parsing
 
-`request.kro` defines the HTTP request model and a parser that converts raw bytes into a typed
+`request.k` defines the HTTP request model and a parser that converts raw bytes into a typed
 request object.
 
 ```kairo
-// request.kro
+// request.k
 import std
 
 pub enum Method {
@@ -163,10 +163,10 @@ Key patterns:
 
 ## Response Building
 
-`response.kro` defines the response model with a builder-style API.
+`response.k` defines the response model with a builder-style API.
 
 ```kairo
-// response.kro
+// response.k
 import std
 
 pub enum StatusCode derives u16 {
@@ -269,10 +269,10 @@ Key patterns:
 
 ## Router
 
-`router.kro` maps method + path combinations to handler functions.
+`router.k` maps method + path combinations to handler functions.
 
 ```kairo
-// router.kro
+// router.k
 import std
 import request::{Request, Method}
 import response::Response
@@ -343,11 +343,11 @@ Key patterns:
 
 ## Server
 
-`server.kro` ties everything together with a TCP accept loop. It uses C++ interop for socket
+`server.k` ties everything together with a TCP accept loop. It uses C++ interop for socket
 operations.
 
 ```kairo
-// server.kro
+// server.k
 import std
 import request::{parse_request, Request, ParseError}
 import response::Response
@@ -439,10 +439,10 @@ Key patterns:
 
 ## Putting It Together
 
-`main.kro` wires up routes and starts the server.
+`main.k` wires up routes and starts the server.
 
 ```kairo
-// main.kro
+// main.k
 import std
 import server::Server
 import request::{Request, Method}
@@ -501,7 +501,7 @@ Key patterns:
 ## Building and Running
 
 ```sh
-kairo main.kro -o server
+kairo main.k -o server
 ./server
 ```
 
