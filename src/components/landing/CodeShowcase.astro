@@ -13,7 +13,7 @@ const examples = [
   {
     id: 'syntax',
     label: 'Printing to the console',
-    filename: 'hello.kro',
+    filename: 'hello.k',
     code: `import std  // import only what you need, nothing more
 
 // No main() required top-level code runs immediately
@@ -39,7 +39,7 @@ std::print(f"Ran {count} times.")`,
   {
     id: 'using c++ in kairo interop',
     label: 'C++ in Kairo',
-    filename: 'ffi.kro',
+    filename: 'ffi.k',
     code: ` // Call C++ code directly from Kairo with perfect ABI compatibility.
  // my_cpp_lib.hpp contains:
  // namespace my_cpp_lib {
@@ -79,14 +79,14 @@ std::print(f"Ran {count} times.")`,
 // Without -cc, use \`kairo --emit-bindings\` to generate C++ or C headers
 // for shipping a Kairo library to C++ consumers.
 //
-// kairo_ffi.kro:
+// kairo_ffi.k:
 //   import std
 //   fn add(a: i32, b: i32) -> i32 { return a + b }
 //   fn greet(name: string) -> string { return f"Hello, {name}!" }
 //
 // Kairo wraps the module under its filename as the exposed C++ namespace.
 
-#include "kairo_ffi.kro"  // include the Kairo module directly.
+#include "kairo_ffi.k"  // include the Kairo module directly.
 #include <iostream>
 
 int main() {
@@ -110,7 +110,7 @@ int main() {
   {
     id: 'memory',
     label: 'Memory Safety',
-    filename: 'memory.kro',
+    filename: 'memory.k',
     code: ` import std
  
  struct Buffer {
@@ -153,7 +153,7 @@ int main() {
   {
     id: 'error-handling',
     label: 'Error Handling',
-    filename: 'errors.kro',
+    filename: 'errors.k',
     code: `import std
 import json // imagine this is a complex JSON library
 

@@ -1,4 +1,4 @@
-# All crawlers — allow everything
+# All crawlers allow everything
 User-agent: *
 Allow: /
 
@@ -6,7 +6,7 @@ Allow: /
 User-agent: Googlebot
 Allow: /
 
-# AI / LLM crawlers — explicitly allowed
+# AI / LLM crawlers explicitly allowed
 User-agent: GPTBot
 Allow: /
 

@@ -21,10 +21,10 @@
       <div class="cap-block" data-reveal>
         <div class="cap-number">01</div>
         <div class="cap-content">
-          <h3 class="cap-title">Include a .kro file from C++</h3>
+          <h3 class="cap-title">Include a .k file from C++</h3>
           <p class="cap-desc">Kairo compiles to Clang tokens, not object files. Your C++ build includes Kairo files the same way it includes headers — no FFI boundary, no ABI negotiation, templates and inlining work as normal.</p>
           <pre class="cap-code"><code class="cap-code-inner">// main.cpp
-#include "renderer.kro"
+#include "renderer.k"
 
 int main() &#123;
     auto scene = renderer::Scene::new();
