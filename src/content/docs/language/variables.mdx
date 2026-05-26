@@ -316,24 +316,37 @@ y = null   // ok: can go back to null
 
 ### Pointers and nullability
 
-Pointers are nullable by default. `*T` can hold `&null` (equivalent to `nullptr` in C++), and the compiler
-inserts a null check on dereference:
+`*T` is non-null by construction, it cannot hold `&null`. No null checks are needed on dereference
+because the pointer is always valid:
 
 ```kairo
-var ptr: *i32 = &null
-*ptr = 10   // runtime null check crashes in debug, UB in release if null
+var x = 42
+var ptr: *i32 = &x
+*ptr = 10              // guaranteed valid, no check
 
-var safe_ptr: *i32 = &some_value
-*safe_ptr = 10   // compiler can prove non-null, no check emitted
+var bad: *i32 = &null  // compile error: *T is non-null
 ```
 
-Pointers do not use the `Nullable<T>` system they have no `?`, `?.`, `??`, or `unwrap!()` support.
-Null checks on pointers use explicit comparison:
+To represent a pointer that might not exist, use `*T?`. This wraps the pointer in the standard
+`Nullable<T>` system with full support for `?`, `?.`, `??`, and `unwrap!()`:
 
 ```kairo
-var ptr: *i32 = get_pointer()
-if ptr != &null {
-    std::println(*ptr)
+var ptr: *i32? = find_pointer()
+
+if ptr? {
+    std::println(*ptr)          // compiler knows ptr is non-null here
+}
+
+var val = ptr ?? &fallback      // use fallback if null
+var forced = unwrap!(ptr)       // panics if null
+```
+
+For raw nullable pointers with no compiler tracking, use `unsafe *T` with manual null comparison:
+
+```kairo
+var raw: unsafe *i32 = &null
+if raw != &null {
+    std::println(*raw)
 }
 ```
 

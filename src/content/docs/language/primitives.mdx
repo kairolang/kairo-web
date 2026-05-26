@@ -227,13 +227,11 @@ var opaque: unsafe *void = get_handle()  // raw, untyped pointer
 | `*T` | 8 bytes | Safe pointer non-null, compiler-tracked |
 | `unsafe *T` | 8 bytes | Raw pointer nullable, no safety checks |
 
-`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the
-compiler can track its provenance via [AMT](/docs/language/amt). Dereferencing a `*T` emits a null check.
+`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [AMT](/docs/language/amt). See [Pointers](/docs/language/pointers) for full details.
 
 `unsafe *T` is a raw C-style pointer with no compiler tracking. It can be null, and dereferencing a null
-`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-c++), custom
-allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers) and
-[Unsafe](/docs/language/unsafe) for full details.
+
+`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-c++), custom allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers) and [Unsafe](/docs/language/unsafe) for full details.
 
 ```kairo
 var x = 42

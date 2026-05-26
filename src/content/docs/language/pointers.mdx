@@ -24,34 +24,34 @@ var p: *i32 = &x     // p points to x
 std::println(*p)      // 100
 ```
 
-### Null
+### Non-Null Guarantee
 
-Safe pointers can be null. `&null` is the null pointer literal, equivalent to `nullptr` in C++:
+`*T` cannot hold null. Attempting to assign `&null` to a `*T` is a compile error:
 
 ```kairo
-var p: *i32 = &null
+var p: *i32 = &null   // compile error: *T is non-null
+
+var x = 42
+var p: *i32 = &x      // ok: p is guaranteed valid
+*p = 100              // no null check needed
 ```
 
-Dereferencing a null `*T` panics in both debug and release builds. The compiler inserts a null check
-before every dereference:
+If you need a pointer that might be absent, use `*T?`:
 
 ```kairo
-var p: *i32 = &null
-*p = 10   // panic: null pointer dereference
+var p: *i32? = get_pointer()   // might be null
+
+if p? {
+    std::println(*p)   // safe: compiler has verified p is non-null
+}
 ```
 
-When the compiler can prove a pointer is non-null (e.g., it was just assigned from `&x` where `x` is
-a live variable), the null check is elided. The safety guarantee is the same the optimization is
-invisible to the programmer.
-
-### Explicit null checking
-
-Check for null with a direct comparison before dereferencing:
+For raw nullable pointers with no compiler tracking, use `unsafe *T`:
 
 ```kairo
-var p: *i32 = get_pointer()
-if p != &null {
-    std::println(*p)   // compiler knows p is non-null here, check elided
+var raw: unsafe *i32 = &null   // ok: raw pointers can be null
+if raw != &null {
+    std::println(*raw)
 }
 ```
 
@@ -337,19 +337,33 @@ See [Functions](/docs/language/functions#function-pointers) for function pointer
 
 ## Pointers and Nullable Types
 
-Pointers and nullable types (`T?`) are separate systems:
+`*T` is non-null by construction. To represent a pointer that might not exist, use `*T?` which
+wraps the pointer in the standard `Nullable<T>` system:
 
-| | `*T` | `T?` |
-|---|---|---|
-| Can be null | Yes (`&null`) | Yes (`null`) |
-| Null check mechanism | `ptr != &null` | `val?`, `?.`, `??`, `unwrap!()` |
-| Dereference null | Panics | Compile error (must check first) |
-| AMT tracked | Yes | N/A (value type) |
+| | `*T` | `*T?` | `unsafe *T` |
+|---|---|---|---|
+| Can be null | No | Yes | Yes |
+| Null check mechanism | N/A | `?.`, `??`, `unwrap!()`, `val?` | `ptr != &null` (manual) |
+| Dereference null | Cannot happen | Compile error (must check first) | Undefined behavior |
+| AMT tracked | Yes | Yes | No |
 
-Pointers do not support `?`, `?.`, `??`, or `unwrap!()`. Nullable types do not support `->` or
-pointer arithmetic.
+`*T?` supports the same null-handling operators as any other nullable type. `unsafe *T` uses
+manual null comparison, it does not participate in the `Nullable<T>` system.
 
-See [Variables](/docs/language/variables#nullable-types) for the nullable type system.
+```kairo
+var p: *i32 = &x            // always valid, no null check needed
+var q: *i32? = find_ptr()   // might be null must check before use
+var r: unsafe *i32 = &null  // raw pointer, nullable, no tracking
+
+if q? {
+    std::println(*q)         // compiler knows q is non-null here
+}
+
+var val = q ?? &fallback     // use fallback pointer if q is null
+var forced = unwrap!(q)      // panics if null
+```
+
+See [Variables](/docs/language/variables#nullable-types) for the full nullable type system.
 
 ---
 
