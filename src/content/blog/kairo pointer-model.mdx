@@ -1,0 +1,146 @@
+---
+title: "Pointers Without References: Kairo's Pointer Model"
+description: "Why Kairo has one pointer type instead of splitting pointers and references, and how AMT makes it work without runtime cost."
+pubDate: 2025-12-22
+author: dhruvan
+tags: [design, pointers, amt]
+---
+
+# Pointers Without References: Kairo's Pointer Model
+
+C++ has pointers and references. Rust has raw pointers, references, mutable references, and smart pointers. Go has pointers but no pointer arithmetic. Every systems language ends up with some combination of indirection types, each with its own rules, its own syntax, and its own mental overhead.
+
+Kairo has one: `*T`. One pointer type, 8 bytes, non-null, with full compile-time safety analysis. No references. No borrow syntax. No lifetime annotations.
+
+## The Problem with Splitting Pointers and References
+
+C++ has `T*` and `T&`. In theory, references are "safe pointers that can't be null and can't be reseated." In practice, you can absolutely create dangling references, null references through casts, and references to dead stack frames. The compiler doesn't stop you. The "safety" is convention, not enforcement.
+
+Rust fixed the enforcement problem. `&T` and `&mut T` are genuinely safe, the borrow checker proves at compile time that references don't dangle and that mutable access is exclusive. But the cost is complexity. You now have `&T`, `&mut T`, `*const T`, `*mut T`, `Box<T>`, `Rc<T>`, `Arc<T>`, `Weak<T>`, and lifetime annotations (`'a`) to connect them all. The programmer has to choose the right indirection type at every point and annotate lifetimes when the compiler can't infer them.
+
+This is a real barrier. Not a skill issue, a complexity issue. Lifetime annotations are the number one complaint from developers learning Rust, and they exist because the borrow checker is function-local: it needs the programmer to describe how lifetimes relate across function boundaries.
+
+## Kairo's Answer: One Pointer, Compile-Time Safety
+
+`*T` is the only safe pointer type in Kairo. It's 8 bytes, just an address, same size as a C pointer. No runtime metadata, no fat pointer overhead. Non-null by construction.
+
+```kairo
+var x = 42
+var p: *i32 = &x
+*p = 100              // guaranteed valid, no null check needed
+
+var bad: *i32 = &null // compile error: *T is non-null
+```
+
+The safety comes from AMT (Automatic Memory Tracking), which performs whole-program analysis at compile time. AMT tracks every pointer's lifetime, provenance, and usage across the entire program, not just within a single function. It knows where a pointer was created, what it points to, whether the target is still alive, and whether any aliasing violations exist.
+
+Because AMT sees the whole program, it doesn't need the programmer to annotate lifetimes. There are no `'a` parameters, no borrow syntax, no distinction between "I'm borrowing this" and "I'm pointing to this." You write `*T`, and the compiler figures out the rest.
+
+## AMT Auto-Promotion: Debug vs Release
+
+AMT can automatically promote a `*T` to a smart pointer (`std::Unique<*T>`, `std::Shared<*T>`, or `std::Weak<*T>`) when it determines the pointer needs to outlive its original scope:
+
+```kairo
+fn make_config() -> *Config {
+    var cfg = std::create<Config>(8080)
+    return cfg
+}
+```
+
+**In debug builds,** AMT warns and promotes `cfg` to whichever smart pointer fits the usage pattern. This keeps you moving, you don't have to think about ownership while you're iterating on logic.
+
+**In release builds,** AMT does not auto-promote. Instead, it emits a compile error that tells you exactly where promotion would have happened, what smart pointer type is needed, and how to fix it:
+
+```
+error[AMT]: pointer 'cfg' escapes its scope and requires ownership annotation
+  --> src/config.k:3:12
+ 3 |     return cfg
+   |            ^^^ escapes function scope
+   note: AMT would promote to: std::Unique<*Config>
+     2 |     var cfg: std::Unique<*Config> = std::create<Config>(8080)
+   fix: annotate the type explicitly
+```
+
+This is deliberate. Debug builds are for getting things working. Release builds are for getting things right. If your code is going to ship, the ownership model should be explicit in the source, not inferred by the compiler behind your back.
+
+If AMT can't find any safe promotion path, debug or release, it's a hard compile error in both modes. The program doesn't compile until the ownership is unambiguous.
+
+## Nullable Pointers Are Opt-In
+
+`*T` can't be null. If you need a pointer that might not exist, you opt into nullability explicitly with `*T?`, which wraps the pointer in Kairo's standard `Nullable<T>` system:
+
+```kairo
+var p: *i32? = find_pointer()
+
+if p? {
+    std::println(*p)        // compiler verified non-null
+}
+
+var val = p ?? &fallback    // null coalescing
+var forced = unwrap!(p)     // panics if null
+```
+
+Null pointer dereferences are impossible on `*T`, the type can'thold null, so there's nothing to check. On `*T?`, the compilerforces you to handle the null case before you can dereference. Nullbugs become compile errors.
+
+For raw C-style pointers with no safety and no tracking, there's `unsafe *T`:
+
+```kairo
+var raw: unsafe *i32 = &null  // nullable, no checks, no tracking
+```
+
+Three types, clear roles:
+
+| Type | Null | Tracked | Use case |
+|---|---|---|---|
+| `*T` | No | Yes (AMT) | Default, safe, non-null |
+| `*T?` | Yes | Yes (AMT) | Optional pointer, might not exist |
+| `unsafe *T` | Yes | No | FFI, hardware, custom allocators |
+
+## Why Not References?
+
+Because they don't add anything, and they hide information.
+
+In C++, references exist partly for safety (non-null, can't be reseated) and partly for convenience, pass-by-reference avoids copies, auto-deref hides the indirection, and the syntax is cleaner than pointer syntax. In Rust, references exist because the borrow checker needs syntactic markers to distinguish borrows from ownership.
+
+Kairo rejects the convenience argument. A reference that auto-dereferences abstracts away the fact that you're working through a pointer. That abstraction hides something significant: you are accessing memory you don't own, through an address that points somewhere else. Kairo's philosophy is explicitness at the syntax level. If you're using a pointer, the code should look like you're using a pointer.
+
+The performance argument, "references avoid copies", is handled by the compiler, not by a language feature. Kairo has an optimization pass that automatically promotes value parameters to pointer parameters when the type is larger than a pointer:
+
+```kairo
+fn process(data: string) {
+    std::println(data)
+}
+```
+
+If the compiler sees that `data` is larger than 8 bytes and you don't alias it, modify it, mark it `volatile`, or use the function in an `async` context, it silently rewrites the parameter to `data: *const string` and inserts dereferences where needed. You get pass-by-pointer performance with value semantics in the source code, no reference type required, no syntax change, no programmer decision.
+
+The safety argument is handled by AMT. `*T` is already non-null and lifetime-tracked. A separate `&T` would be a second spelling of the same guarantee.
+
+Three reasons languages have references. Kairo handles all three without adding a type.
+
+## The `const` Model
+
+Mutability is controlled by `const`, not by pointer type. `const` binds left-to-right, one level at a time:
+
+```kairo
+var p: *i32 = &x           // mutable pointer, mutable target
+var p: *const i32 = &x     // mutable pointer, const target
+const p: *i32 = &x         // const pointer, mutable target
+const p: *const i32 = &x   // const pointer, const target
+```
+
+No `&T` vs `&mut T`. No `const T&` vs `T&`. One pointer type, one const rule, applied uniformly. The `const` applies to the thing immediately to its right, no C++ ambiguity about whether the pointer or the pointee is const.
+
+## What This Costs
+
+**Whole-program analysis is expensive.** AMT needs to see the entire program to make its safety guarantees. This is more expensive than Rust's function-local borrow checking. Kairo mitigates this with `.ksummary` artifacts, precomputed ownership summaries for each translation unit that AMT can consume without re-analyzing dependencies. But it's still more work than a local analysis.
+
+**No lifetime polymorphism.** Rust's lifetime parameters let you write functions that are generic over lifetimes, the function works regardless of how long the references live, as long as the constraints are satisfied. Kairo doesn't have this. AMT analyzes concrete lifetimes, not abstract ones. In practice, this hasn't been a limitation because AMT's auto-promotion handles the cases where Rust would need lifetime parameters, but it's a theoretical expressiveness gap.
+
+**Learning curve for C++ devs.** C++ developers expect to write `T&` for references. Kairo says "just use `*T`." The pointer syntax carries baggage, C++ devs associate `*` with unsafety. The reality is that Kairo's `*T` is safer than C++'s `T&`, but the syntax doesn't signal that. This is a communication problem, not a technical one.
+
+## The Design Principle
+
+Kairo's pointer model follows the same principle as `match` replacing `switch`: if you can get the same safety guarantees with less complexity, do it. References are a patch for unsafe pointers. If the pointer is already safe, you don't need the patch.
+
+One pointer type. Compile-time safety. Zero runtime cost. No annotations.

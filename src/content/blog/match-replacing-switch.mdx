@@ -1,0 +1,180 @@
+---
+title: "Why Kairo Has match Instead of switch"
+description: "The design reasoning behind replacing switch with match as Kairo's multi-way dispatch construct."
+pubDate: 2026-01-14
+author: dhruvan
+tags: [design, syntax]
+---
+
+# Why Kairo Replaced `switch` With `match`
+
+Kairo doesn't have `switch`. It has `match`. This wasn't a cosmetic rename, it's a different construct with different semantics that eliminates an entire class of bugs that `switch` has carried forward for fifty years.
+
+## What's Wrong with `switch`
+
+The core problem with C-style `switch` is fall-through. Every case falls into the next unless you explicitly `break`. This is the default behavior, and it's almost never what you want.
+
+```cpp
+// C++
+switch (status) {
+    case 200:
+        handle_ok();
+        // forgot break falls through to 404 handling
+    case 404:
+        handle_not_found();
+        break;
+}
+```
+
+This is a real bug that has shipped in real software for decades. The "fix" is discipline: remember to write `break` at the end of every case, every time, forever. Languages have been patching around this with warnings, linters, and attributes like `[[fallthrough]]`, all to compensate for a default that should never have been the default.
+
+Kairo's answer is simple: don't have fall-through at all. Each case in a `match` is an isolated block. There's nothing to fall through to, so there's nothing to forget.
+
+```kairo
+match status_code {
+    case 200 { handle_ok() }
+    case 404 { handle_not_found() }
+    case 500 { handle_server_error() }
+    default  { handle_unknown() }
+}
+```
+
+If you want multiple values to hit the same code, list them:
+
+```kairo
+match priority {
+    case 1, 2, 3 { handle_high() }
+    case 4, 5    { handle_medium() }
+    default      { handle_low() }
+}
+```
+
+No fall-through. No `break`. No ambiguity.
+
+## Exhaustiveness Checking
+
+`switch` in C++ doesn't care if you miss a case. You can switch on an enum, forget a variant, and the compiler says nothing (unless you turn on specific warnings, and even then it's not an error).
+
+`match` in Kairo enforces exhaustiveness. The compiler verifies every possible value is handled:
+
+| Type | Rule |
+|---|---|
+| Plain enum | All variants covered, or `default` present |
+| ADT enum | All variants covered, or `default` present |
+| Booleans | `true` + `false` covers it |
+| Integers / strings | `default` required |
+
+Add a variant to an enum and every `match` on that enum becomes a compile error until you handle the new case. The compiler catches it, not your users.
+
+## ADT Destructuring
+
+This is where `match` earns its name. Kairo has ADT enums, variants that carry structured payloads:
+
+```kairo
+enum <T> ParseResult {
+    Success { value: T, bytes_consumed: i32 },
+    Error   { message: string, position: i32 },
+    EndOfInput,
+}
+```
+
+`match` destructures these directly. You bind payload fields with `var` or `const` and the compiler checks that your field names match the declaration:
+
+```kairo
+match result {
+    case .Success(var value, var bytes_consumed) {
+        std::println(f"parsed {value} from {bytes_consumed} bytes")
+    }
+    case .Error(const message, const position) {
+        std::println(f"error at {position}: {message}")
+    }
+    case .EndOfInput {
+        std::println("nothing left to parse")
+    }
+}
+```
+
+You can omit fields you don't need, exhaustive field extraction isn't required. And you can add `where` guards for conditional matching:
+
+```kairo
+match result {
+    case .Success(var value) where value > 0 {
+        process_positive(value)
+    }
+    case .Success(var value) {
+        process_non_positive(value)
+    }
+    default { }
+}
+```
+
+Try doing this with `switch`. You can't, `switch` dispatches on a single value. Destructuring a tagged union in C++ means pulling out the tag, switching on it, then manually casting or accessing the payload. It's verbose, error-prone, and the compiler can't verify you got the fields right.
+
+## `match` as an Expression
+
+`match` produces a value. Every branch returns the same type, and the compiler enforces it:
+
+```kairo
+var label = match level {
+    case .Debug   { "debug" }
+    case .Info    { "info" }
+    case .Warning { "warning" }
+    case .Error   { "error" }
+    case .Fatal   { "fatal" }
+}
+```
+
+This works with ranges too:
+
+```kairo
+var severity = match code {
+    case 200..=299 { 0 }
+    case 400..=499 { 1 }
+    case 500..=599 { 2 }
+    default        { -1 }
+}
+```
+
+No need for a ternary operator or a separate variable initialized before the switch.
+
+## Struct Matching
+
+`match` isn't limited to enums. Structs can be destructured the same way, combined with `where` guards:
+
+```kairo
+match response {
+    case Response(var status, var body) where status == 200 {
+        process(body)
+    }
+    case Response(var status) where status >= 400 {
+        log_error(f"HTTP {status}")
+    }
+    default { }
+}
+```
+
+## What About `break` in Loops?
+
+Since `match` cases don't fall through, there's nothing to `break` out of inside a match. So when a `match` is nested inside a loop, `break` does what you'd expect, it exits the loop:
+
+```kairo
+for item in items {
+    match item.kind {
+        case .Sentinel {
+            break   // exits the for loop
+        }
+        case .Data(var payload) {
+            process(payload)
+        }
+        default { }
+    }
+}
+```
+
+No more wondering whether `break` exits the switch or the loop.
+
+## The Design Principle
+
+Kairo's general approach is: if the default behavior of a construct causes bugs, change the default. Don't add warnings, attributes, or linter rules to patch over a broken default. Fix it.
+
+`switch` with fall-through is a broken default. `match` with isolated cases, exhaustiveness checking, destructuring, and expression form is the fix.

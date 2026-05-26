@@ -1,0 +1,137 @@
+---
+title: "Why Kairo Has Bidirectional C++ Interop Instead of Bindings"
+description: "The design reasoning behind Kairo's native C++ interoperability and why we skipped the binding generator approach entirely."
+pubDate: 2025-06-10
+author: dhruvan
+tags: [design, interop, c++]
+---
+
+# Why Kairo Has Bidirectional C++ Interop Instead of Bindings
+
+If you're building a new systems language in 2026, you have to answer one question before anything else: how does it talk to C++? The entire systems programming ecosystem runs on C and C++ libraries. Your language is dead on arrival if it can't use them.
+
+The standard answer is bindings. Write your language, then build a tool that reads C/C++ headers and generates wrapper code your language can call. Rust has `bindgen` for C, `cxx` and `autocxx` for C++. Every language in this space has some version of this.
+
+Kairo doesn't. Kairo parses C++ headers directly, makes every declaration available as a native Kairo symbol, and goes the other direction too, C++ can `#include` Kairo files. No binding generator, no wrapper code, no serialization layer. The interop is the compiler.
+
+## The Problem with Bindings
+
+Binding generators are a translation layer between two type systems. That translation is where things break.
+
+**Build complexity.** `bindgen` is a separate tool in your build pipeline. It reads headers, generates Rust code, and that code has to be compiled alongside your project. Your build system now has an extra step that can fail independently, and debugging build failures means understanding what the generator produced, not just what you wrote. `cxx` requires you to write a bridge definition in a DSL that describes the interface between Rust and C++, a third language in your project that you have to keep in sync with both sides.
+
+**Type mismatches.** C++ has a rich type system, classes with inheritance, templates, concepts, operator overloading, move semantics, vtables. Binding generators have to map all of this into the target language's type system, and the mapping is always lossy. Templates are particularly painful: `bindgen` can only generate bindings for concrete template instantiations you explicitly request. You can't write generic code over a C++ template from the Rust side without manually instantiating every specialization you need.
+
+**Pointer semantics.** This is where bindings get dangerous. C++ uses raw pointers, references, `const` references, `unique_ptr`, `shared_ptr`, and move semantics. The generated bindings have to express all of this in the target language's pointer model, and the generator doesn't always get it right. You end up with `unsafe` blocks wrapping binding calls where the safety contract is "trust that the generator understood the C++ lifetime semantics correctly."
+
+**Maintenance burden.** Every time a C++ header changes, the bindings need to be regenerated. If the API changes in a way the generator doesn't handle cleanly, you're debugging generated code you didn't write to figure out why the types don't line up anymore. In large codebases with hundreds of C++ dependencies, this is a constant tax.
+
+**One-way by default.** Most binding generators only go in one direction: call C++ from your language. Going the other way, letting C++ call your code, is either unsupported, requires manual `extern "C"` exports that throw away your type system, or needs yet another tool.
+
+## How Kairo Does It
+
+Kairo's approach is: skip the translation layer entirely.
+
+### Kairo calling C++
+
+`ffi "c++" import` invokes Clang's frontend internally to parse the header. Every exported declaration, functions, classes, enums, templates, concepts, becomes a native Kairo symbol with its original name and signature. No generated code, no bridge file.
+
+```kairo
+ffi "c++" import "my_code.hh";
+
+fn main() {
+    var obj = MyClass("Kairo")
+    std::println(f"name = {obj.get_name()}")
+    my_function(42)
+}
+```
+
+That's it. If the C++ header compiles with Clang, Kairo can use it.
+
+### C++ calling Kairo
+
+The `kcc` driver, a libclang-based compiler wrapper, makes `#include "file.k"` work transparently in C++ translation units:
+
+```cpp
+#include "my_code.k"
+#include <iostream>
+
+int main() {
+    MyKairoClass obj("C++");
+    std::cout << obj.get_name() << std::endl;
+    my_kairo_function(42);
+    return 0;
+}
+```
+
+`kcc` intercepts the `#include`, invokes the Kairo compiler in-process to produce a C++-compatible header and object file, and links everything together. From the C++ side, Kairo types look like native C++ types because they are, Kairo emits ABI-compatible object code following the platform's native C++ ABI (Itanium on Unix, MSVC on Windows).
+
+### Templates cross the boundary
+
+This is where the binding approach falls apart completely, and where Kairo's approach pays off the most. C++ concepts and Kairo generic constraints are interchangeable:
+
+```kairo
+ffi "c++" import "my_code.hh";
+
+fn <T impl Addable> add(a: T, b: T) -> T {
+    return a + b
+}
+```
+
+`T impl Addable` in Kairo maps directly to `requires Addable<T>` in the generated output. The constraint crosses the boundary without erasure. A Kairo generic type can satisfy a C++ concept, and a C++ concept can constrain a Kairo generic parameter.
+
+Try doing this with `bindgen`. You can't, you'd need to manually instantiate every template specialization and generate separate bindings for each one.
+
+### Inline C++ for the edge cases
+
+When you need a few lines of C++ without a separate header:
+
+```kairo
+import libcxx::iostream::{cout, endl};
+
+fn main() {
+    inline "c++" {
+        cout << "Hello from C++!" << endl;
+    }
+}
+```
+
+## Pointer Safety Across the Boundary
+
+Kairo doesn't pretend the interop boundary is safe. Any pointer or reference passed to C/C++ requires an explicit `unsafe` block, because the compiler can't enforce safety guarantees on the C++ side:
+
+```kairo
+ffi "c++" import "my_code.hh";
+
+fn main() {
+    var x = 41
+
+    unsafe {
+        add_one(unsafe &x)
+    }
+
+    std::println(f"x = {x}")  // 42
+}
+```
+
+`unsafe &` strips bounds tracking and hands a raw pointer to C++. The caller owns the memory contract from that point. This is explicit, visible, and greppable, you can search a Kairo codebase for every FFI boundary crossing in seconds.
+
+The difference from bindings: when you call a generated binding function, the `unsafe` is there but the actual pointer conversion happened inside generated code you didn't write. In Kairo, the conversion is in your code, where you can see exactly what safety guarantees you're giving up.
+
+## What This Costs
+
+Nothing is free. Kairo's interop approach has tradeoffs:
+
+**Clang dependency.** Kairo's `ffi "c++"` uses Clang's frontend to parse headers. The compiler ships with a Clang frontend embedded. This is a large dependency, but it's the same tradeoff as any tool that needs to understand C++, including `bindgen`, which also uses `libclang`.
+
+**C++20 modules not yet supported.** The interop layer relies on header-based inclusion. Consuming pre-compiled C++ module interfaces (BMIs) is on the roadmap but not shipped yet.
+
+**Exception direction.** Kairo can catch C++ exceptions, but throwing Kairo panics into C++ isn't supported yet. For Kairo-to-C++ error signaling, use return types.
+
+## Why This Matters
+
+The systems programming world has decades of C++ libraries. Physics engines, game engines, database kernels, OS APIs, networking stacks, all C++. A new language that can't use these fluently is a toy.
+
+Bindings are a tax you pay on every library, every API change, every template instantiation. Kairo's position is that the compiler should handle this natively, the same way it handles everything else: parse it, type-check it, emit code. No extra tools, no extra steps, no extra languages in your build.
+
+That's the bet. So far, it's working.

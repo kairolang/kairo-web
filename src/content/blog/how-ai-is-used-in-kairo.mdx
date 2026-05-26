@@ -1,0 +1,133 @@
+---
+title: "How AI Is Used in Kairo"
+description: "Full transparency on where and how AI tooling is used across the Kairo project."
+pubDate: 2026-05-26
+author: dhruvan
+tags: [transparency, process]
+---
+
+# How AI Is Used in Kairo
+
+Kairo is being built by a small core team of university students. I (Dhruvan) do the majority of the compiler and language design work, so most of the AI usage described here is mine. I want to be completely transparent about where and how AI is used in this project.
+
+This is a point-in-time snapshot as of May 2026. If usage changes, I'll write a follow-up.
+
+## What Is Not AI-Assisted
+
+To be explicit: the language design, compiler architecture (Stage 0 and Stage 1), memory model, type system, ABI decisions, codegen pipeline, and build system are all human-written and human-designed.
+
+## Why I'm Writing This
+
+I know the systems programming community has strong opinions about AI in development. I'd rather be upfront about exactly where it's used than have someone find out later and wonder what else I didn't mention. This is the complete picture.
+
+## Compiler
+
+The compiler is written by hand. Every line of the lexer, parser, AST, arena allocator, diagnostics engine, preprocessor, and codegen pipeline is human-written code. No AI-generated code exists in the compiler, in either Stage 0 or Stage 1.
+
+I don't use Copilot or any inline code completion. Kairo is a new language, it doesn't exist in any training data. AI models can't suggest Kairo code because they've never seen it. The compiler is self-hosted, so autocomplete is useless. Every line is written manually.
+
+## Debugging
+
+When I hit deep bugs in the compiler, I use Claude as a debugging partner. Kairo compiles through a C++ codegen layer (stage0 compiler), so all LLDB symbols are mangled C++ names that are painful to read. My workflow looks like this: I run through the trace in LLDB, give Claude the output along with the relevant source context, it tells me what commands to run or what state to inspect, I run them, feed results back, and we narrow down the root cause together. Then I write the fix.
+
+A recent example: empty source files were crashing the compiler. The debugging session narrowed it down to a `file.size() - 1` on a zero-length file, the subtraction underflowed a `usize` into `usize(-1)`, which blew up everything downstream. From there it went from crashing to working but slow (a spin-wait bug), then to instant. Simple bug once found, but buried under mangled symbols and threaded execution. The AI helped me locate the problem faster. It didn't write the fix.
+
+AI is simply used as a second pair of eyes on diagnostic output, not as a code author.
+
+## Documentation
+
+Every page on kairolang.org started as a raw technical dump, syntax examples, ABI lowering details, generated C++ output, invariants, edge cases. The kind of notes that make perfect sense to me and no one else.
+
+I gave those dumps to Claude to restructure into clean reference documentation. The LLM organizes sections, writes prose transitions, formats tables and code blocks, and smooths out wording. I provide all technical content, review every page for correctness, and rewrite anything that misrepresents the language semantics.
+
+The technical substance, what the language does, how it works, what the invariants are, is mine. The prose polish is AI-assisted. If you find a technical error in the docs, that's on me.
+
+## Website
+
+I'm not a web developer. I've never had a passion for web design, and Astro, CSS, HTML, and JS are not languages I work in. The kairolang.org website was built by Claude. I described the theme, layout, what the site should contain, and what it's for. The AI wrote the Astro components, CSS, and frontend code. I reviewed the result and fixed issues as I came across them.
+
+The website source is public at [github.com/kairolang/kairo-web](https://github.com/kairolang/kairo-web).
+
+## Git Commit Messages
+
+I use GitLens AI to generate commit messages. That's pure laziness. The commits are mine, the messages are auto-generated.
+
+## LSP and VSCode Extension (Stage 0)
+
+The Stage 0 compiler is fully hand-written. But the LSP integration and VSCode extension were AI-assisted. I built a pseudo-LSP mode into the compiler, pass `--lsp-mode` and it returns diagnostics as JSON, then gave Claude the LSP protocol spec. Claude wrote the Python (pygls) server that bridges compiler output to VSCode, and the extension code to wire it up.
+
+It's not great. It was enough to unblock Stage 1 development without spending weeks on the LSP protocol and VSCode extension API. The Stage 1 LSP server and extension will be fully hand-written.
+
+If you have questions, open an issue on [GitHub](https://github.com/kairolang/kairo/issues) or ask in Discord.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# How Kairo leverages AI
+
+Kairo is being created by a small core team of university students. Most of the AI usage mentioned here is mine, since I (Dhruvan) undertake most of the compiler and language design work. I want to be upfront about where and how AI is employed in this project.
+
+This is a snapshot as of May 2026. I'll write a follow up if usage changes.
+
+## What Not AI-Assisted
+
+To be clear: the language design, compiler architecture (Stage 0 and Stage 1), memory model, type system, ABI decisions, codegen pipeline, and build system are all human-written and human-designed.
+
+## Why I’m Writing This
+
+I know that the systems programming community has a lot of opinions about AI in development. I'd rather be straightforward about where exactly it's utilized, than have someone find out later and question what else I didn't tell them about it.
+
+## Compiler
+
+The compiler is hand written. Every line of code in the lexer, parser, AST, arena allocator, diagnostics engine, preprocessor and codegen pipeline is hand-written. No AI-generated code exists in the compiler, in either Stage 0 or Stage 1.
+
+I don’t use Copilot or any kind of inline code completion. Kairo is a novel language, it does not exist in any training data. AI models can’t recommend Kairo code since they have never seen Kairo code. Autocomplete is useless, the compiler is self-hosted. All lines are hand written.
+
+## Debugging
+
+When I encounter deep bugs in the compiler, I use Claude as a debugging partner. Kairo compiles via a C++ codegen layer (stage0 compiler), hence all LLDB symbols are mangled C++ names which are hard to read. My methodology is: I walk through the trace in LLDB, try to find and fix the issue myself - if and only if, I'm not able to - I provide the output with relevant source context to Claude, it tells me what commands to perform or what state to look at, I run them, feed the results back, and we figure out what’s really going on. Then I write the repair.
+
+Recent example: empty source files crashed compiler . The debugging session found it was a `file.size() - 1` on a zero-length file. The subtraction underflowed a `usize` into `usize(-1)`. This blew out everything downstream, making a buffer null, and then crashing on a SEGFAULT, the crash never traced back to the underflow, the crash was in a completely unrelated file that I thought was isolated. Then it went from crashing to working but slow (a spin-wait bug), again another underflow in the SourceLineTable then to immediate execution after all the fixes. It was a simple problem, but it's buried by mangled symbols and threaded execution. The AI helped me find the problem faster. It did not write the fix.
+
+AI is utilized as a second pair of eyes on diagnostic output, not as a code author.
+
+## Docs
+
+Every page on kairolang.org was a raw technical dump, syntax examples, ABI lowering information, generated C++ output, invariants, edge cases. The kind of notes that make sense to me and nobody else.
+
+I handed those dumps to Claude to rework into polished-ish reference documentation. The LLM structures sections, writes prose transitions, formats tables and code blocks, and smooths out phrasing. I do all the technical writing, examine every page for correctness, and change anything that misrepresents the language semantics.
+
+The technical substance, the language itself, how it operates, the invariants are mine. AI helps with the prose refinement. If you see something in the docs that’s a technical error, that’s on me.
+
+## Web site
+
+I'm not a web developer. I've never had a passion. Astro, CSS, HTML and JS are not languages that I work with. The kairolang.org website was built by: Claude. I explained the theme, layout, what the site should include and what is it for. The AI wrote the Astro components, CSS and front end code. I looked over the output, and corrected errors wherever I found them.
+
+The website source is publicly available at [github.com/kairolang/kairo-web](https://github.com/kairolang/kairo-web).
+
+## Git Commit Messages
+
+I use GitLens AI to write my commit messages. That’s just pure-laziness. The commits are mine, the messages are autogenerated.
+
+## LSP and VSCode Extension (Stage 0)
+
+Stage 0 compiler is written entirely by hand. But the LSP integration and VSCode extension were AI helped. I implemented a pseudo-LSP mode in the compiler, pass it `--lsp-mode` and it returns diagnostics as JSON, then I provided Claude the LSP protocol spec. Claude built the Python (pygls) server that connects the compiler output to VSCode and the extension code to wire it up.
+
+It's not great but, it was enough to unblock Stage 1 development, without spending weeks on the LSP protocol and VSCode extension API. The Stage 1 LSP server and extension will be developed from scratch.
+
+If you have questions, open an issue on [GitHub](https://github.com/kairolang/kairo/issues).
