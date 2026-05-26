@@ -44,7 +44,8 @@ jobs:
         working-directory: ${{ env.BUILD_PATH }}
 
       - name: Build with Astro
-        run: bun run astro build --site "${{ steps.pages.outputs.origin }}" --base "${{ steps.pages.outputs.base_path }}"
+        # Removed the --site and --base overrides to let astro.config.mjs handle the custom domain natively
+        run: bun run astro build
         working-directory: ${{ env.BUILD_PATH }}
 
       - name: Upload artifact
