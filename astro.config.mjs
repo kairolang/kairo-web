@@ -19,7 +19,7 @@ try {
 }
 
 export default defineConfig({
-  site: 'https://kairolang.org',
+  site: 'https://www.kairolang.org',
   output: 'static',
   integrations: [mdx(), sitemap()],
   vite: {
