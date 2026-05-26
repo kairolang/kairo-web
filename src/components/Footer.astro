@@ -48,38 +48,50 @@
       <!-- Column 2: Language links -->
       <div>
         <p style="
-          font-family:'Space Grotesk',sans-serif;
-          font-size:0.7rem;
-          font-weight:700;
-          letter-spacing:0.12em;
-          text-transform:uppercase;
-          color:var(--text-3);
-          margin-bottom:1rem;
+            font-family:'Space Grotesk',sans-serif;
+            font-size:0.7rem;
+            font-weight:700;
+            letter-spacing:0.12em;
+            text-transform:uppercase;
+            color:var(--text-3);
+            margin-bottom:1rem;
         ">Language</p>
         <div style="display:flex;flex-direction:column;gap:0.6rem;">
-          {[
+            {[
             { href: '/docs', label: 'Documentation' },
             { href: '/docs/install', label: 'Installation' },
+            { href: '/llms.txt', label: 'LLM Context', dont_show: true },
+            { href: '/llms-full.txt', label: 'LLM Full Docs', dont_show: true },
             { href: '/blog', label: 'Blog' },
             { href: 'https://github.com/kairolang/kairo-lang/releases', label: 'Changelog ↗', external: true },
-          ].map(link => (
+            ].map(link => (
             <a
-              href={link.href}
-              target={link.external ? '_blank' : undefined}
-              rel={link.external ? 'noopener noreferrer' : undefined}
-              style="
+                href={link.href}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : undefined}
+                style={link.dont_show ? `
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+                ` : `
                 font-family:'Inter',sans-serif;
                 font-size:0.875rem;
                 color:var(--text-2);
                 text-decoration:none;
                 transition:color 0.2s;
-              "
-              onmouseenter="this.style.color='var(--text)'"
-              onmouseleave="this.style.color='var(--text-2)'"
+                `}
+                onmouseenter={!link.dont_show ? "this.style.color='var(--text)'" : undefined}
+                onmouseleave={!link.dont_show ? "this.style.color='var(--text-2)'" : undefined}
             >{link.label}</a>
-          ))}
+            ))}
         </div>
-      </div>
+        </div>
 
       <!-- Column 3: Community links -->
       <div>
