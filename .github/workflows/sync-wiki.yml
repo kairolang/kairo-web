@@ -1,0 +1,48 @@
+name: Sync Language Docs to Wiki
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/content/docs/language/**']
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout kairo-web
+        uses: actions/checkout@v4
+
+      - name: Checkout kairo wiki
+        uses: actions/checkout@v4
+        with:
+          repository: kairolang/kairo.wiki
+          path: wiki
+          token: ${{ secrets.WIKI_SYNC_TOKEN }}
+
+      - name: Sync language docs
+        run: |
+          set -euo pipefail
+
+          # Clear existing wiki pages, preserve sidebar/footer/home
+          find wiki -maxdepth 1 -name '*.md' ! -name '_*.md' ! -name 'Home.md' -delete
+
+          # Copy each .mdx, strip frontmatter
+          for src in src/content/docs/language/*.mdx; do
+            base=$(basename "${src%.mdx}")
+            name=$(echo "$base" | sed 's/^./\U&/')
+            sed '1{/^---$/!q;};1,/^---$/d' "$src" > "wiki/${name}.md"
+          done
+
+      - name: Commit and push
+        working-directory: wiki
+        run: |
+          git config user.name "kairo-docs-bot"
+          git config user.email "docs@kairolang.org"
+          git add -A
+          git diff --staged --quiet || {
+            git commit -m "sync language docs from kairo-web@${GITHUB_SHA:0:7}"
+            git push
+          }
