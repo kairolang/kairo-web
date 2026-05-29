@@ -57,7 +57,7 @@ build mode:
 
 This matches Rust's overflow model and catches bugs during development without paying for checks in production.
 
-### Extended-width integers (u128–u512, i128–i512)
+### Extended-width integers (u128-u512, i128-i512)
 
 If the target hardware supports wide registers (e.g., AVX-512), these types map directly to hardware. Otherwise,
 the compiler stores them as structs of smaller integers and emits SIMD-accelerated arithmetic when available,
@@ -134,7 +134,7 @@ implicit conversion from integers.
 
 | Type | Size | Description | C++ Equivalent |
 |---|---|---|---|
-| `char` | 4 bytes | Unicode scalar value (U+0000–U+10FFFF) | `char32_t` |
+| `char` | 4 bytes | Unicode scalar value (U+0000-U+10FFFF) | `char32_t` |
 
 A `char` holds a single decoded Unicode codepoint. It is always 4 bytes regardless of which codepoint it
 represents.

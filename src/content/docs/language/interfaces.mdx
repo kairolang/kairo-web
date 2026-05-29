@@ -10,6 +10,10 @@ Interfaces define a set of method signatures that a type must satisfy. They are 
 contracts no vtable, no runtime dispatch, no storage overhead. A type conforms to an interface if it
 has all the required methods with matching signatures, whether or not it explicitly declares conformance.
 
+Interfaces are a compile-time mechanism. For runtime polymorphism, use a base
+[class](/docs/language/classes) with `virtual` methods and dispatch through a base pointer. Interfaces
+and virtual dispatch solve different problems and can be used together on the same type.
+
 ---
 
 ## Declaration
@@ -193,6 +197,32 @@ class Config impl Defaultable {
 }
 ```
 
+### Lifecycle attributes on constructor requirements
+
+Constructor requirements can carry `@copy` or `@move` attributes to require a specific lifecycle
+category. This is how you express "T must be copyable" or "T must be movable" as an interface bound:
+
+```kairo
+interface Copyable {
+    fn Copyable(self)               // default ctor
+
+    @copy
+    fn Copyable(self, other: Self)
+}
+
+interface Moveable {
+    fn Moveable(self)
+
+    @move
+    fn Moveable(self, other: Self)
+}
+
+fn <T impl Copyable> store(item: T) -> T { ... }
+fn <T impl Moveable> consume(item: T)    { ... }
+```
+
+The standard library will provide canonical lifecycle interfaces; these are just examples. See [Lifecycle Categories](/docs/language/classes#lifecycle-categories) for the underlying model.
+
 ---
 
 ## Static Methods in Interfaces
@@ -228,8 +258,8 @@ class Timestamp impl Parseable<Timestamp> {
 
 ## Return Types with `Self`
 
-Interface methods can use `Self` as a return type. `Self` always refers to a reference to the
-conforming type:
+Interface methods can use `Self` as a return type. `Self` resolves to the conforming type a class
+that `impl Chainable` and returns `Self` returns its own type:
 
 ```kairo
 interface Chainable {
@@ -238,17 +268,25 @@ interface Chainable {
 
 class Pipeline impl Chainable {
     fn then(self, next: Self) -> Self {
-        // Self resolves to Pipeline here
-        // returns a reference to Pipeline
+        // Self resolves to Pipeline
+        return self
     }
 }
 ```
 
-For returning a copy or a pointer, use the interface name or a pointer to it:
+Kairo has no user-visible reference types [AMT](/docs/language/amt) infers reference semantics where
+needed. In practice this means `Self` returns enable fluent chaining without `->` or explicit
+dereferencing:
 
 ```kairo
-interface <T> Factory {
-    static fn create() -> *T    // returns a pointer to the conforming type
+Pipeline().then(other).then(another).run()
+```
+
+To return a pointer to the conforming type, use `*Self`:
+
+```kairo
+interface Cloneable {
+    fn clone(self) -> *Self
 }
 ```
 
@@ -322,15 +360,15 @@ for the full constraint system.
 
 ```kairo
 fn <T impl Serializable> save(data: T) { ... }   // T has serialize() and byte_size()
-fn <T derives Base> process(data: T) { ... }       // T is a subclass of Base
+fn <T derives Base> process(data: T) { ... }     // T is a subclass of Base
 ```
 
 ---
 
-## Top-Level Only
+## Declaration Scope
 
-Interfaces must be declared at the top level of a file. They cannot be nested inside classes, structs,
-enums, or other interfaces:
+Interfaces must be declared at module scope. They cannot be nested inside classes, structs, enums, or
+other interfaces:
 
 ```kairo
 interface Valid {
@@ -341,6 +379,8 @@ class Outer {
     // interface Invalid { ... }   // compile error: interfaces cannot be nested
 }
 ```
+
+See [Modules](/docs/language/modules) for module organization.
 
 ---
 
@@ -367,10 +407,10 @@ Interfaces cannot declare variables, constants, static variables, or eval bindin
 
 ```kairo
 interface Invalid {
-    // var x: i32              // compile error
+    // var x: i32             // compile error
     // const Y: i32 = 10      // compile error
     // static z: i32 = 0      // compile error
-    fn valid_method(self)      // ok
+    fn valid_method(self)     // ok
 }
 ```
 

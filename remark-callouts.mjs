@@ -74,7 +74,7 @@ export default function remarkCallouts() {
 
       // If the first paragraph is now empty text, remove that text node
       if (firstInline.value === '' && firstChild.children.length === 1) {
-        // The whole first paragraph was just the marker — remove it
+        // The whole first paragraph was just the marker remove it
         node.children.shift();
       } else if (firstInline.value === '') {
         // Remove the empty text node but keep other inline children

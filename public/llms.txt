@@ -48,12 +48,12 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 - [std::Generator](https://www.kairolang.org/docs/library/core/std/generator/): Generator/coroutine type for lazy yield-based iteration.
 - [std::TypeErasure](https://www.kairolang.org/docs/library/core/std/typeerasure/): Runtime type erasure with clone, destroy, and type_info introspection.
 - [std::String](https://www.kairolang.org/docs/library/core/std-string/basic/): String type with slicing, search, replace, split, strip, and comparison operations.
-- [std::Memory](https://www.kairolang.org/docs/library/core/std-memory/copy/): Manual memory management — alloc, free, copy, move, compare, stack/heap introspection.
+- [std::Memory](https://www.kairolang.org/docs/library/core/std-memory/copy/): Manual memory management alloc, free, copy, move, compare, stack/heap introspection.
 - [std::Panic](https://www.kairolang.org/docs/library/core/std-panic/frame/): Panic frame and context introspection for error handling and crash diagnostics.
-- [std::Error](https://www.kairolang.org/docs/library/core/std-error/baseerror/): Base error types — RuntimeError, NullValueError, TypeMismatchError, StateMismatchError.
-- [std::Meta](https://www.kairolang.org/docs/library/core/std-meta/declval/): Compile-time type introspection — const/volatile/reference removal, lvalue/rvalue reference addition, enable_if.
+- [std::Error](https://www.kairolang.org/docs/library/core/std-error/baseerror/): Base error types RuntimeError, NullValueError, TypeMismatchError, StateMismatchError.
+- [std::Meta](https://www.kairolang.org/docs/library/core/std-meta/declval/): Compile-time type introspection const/volatile/reference removal, lvalue/rvalue reference addition, enable_if.
 - [std::abi](https://www.kairolang.org/docs/library/core/std-abi/demangle/): Symbol name mangling and demangling utilities.
-- [std Functions](https://www.kairolang.org/docs/library/core/std/functions/as_cast/): Free functions — as_cast, as_const, as_unsafe, to_string, crash, range, stringf.
+- [std Functions](https://www.kairolang.org/docs/library/core/std/functions/as_cast/): Free functions as_cast, as_const, as_unsafe, to_string, crash, range, stringf.
 - [libcxx Namespace](https://www.kairolang.org/docs/library/core/libcxx/): C++ standard library interop layer.
 
 ## Toolchain

@@ -22,7 +22,7 @@
         <div class="cap-number">01</div>
         <div class="cap-content">
           <h3 class="cap-title">Include a .k file from C++</h3>
-          <p class="cap-desc">Kairo compiles to Clang tokens, not object files. Your C++ build includes Kairo files the same way it includes headers — no FFI boundary, no ABI negotiation, templates and inlining work as normal.</p>
+          <p class="cap-desc">Kairo compiles to Clang tokens, not object files. Your C++ build includes Kairo files the same way it includes headers no FFI boundary, no ABI negotiation, templates and inlining work as normal.</p>
           <pre class="cap-code"><code class="cap-code-inner">// main.cpp
 #include "renderer.k"
 
@@ -41,7 +41,7 @@ int main() &#123;
         <div class="cap-number">02</div>
         <div class="cap-content">
           <h3 class="cap-title">Use any C++ library directly</h3>
-          <p class="cap-desc"><code class="cap-inline">ffi "c++"</code> import gives you the full C++ symbol table — classes, templates, operator overloads, everything. No bindings to write, no generated glue code, no runtime overhead.</p>
+          <p class="cap-desc"><code class="cap-inline">ffi "c++"</code> import gives you the full C++ symbol table classes, templates, operator overloads, everything. No bindings to write, no generated glue code, no runtime overhead.</p>
           <pre class="cap-code"><code class="cap-code-inner">ffi "c++" import "llvm/IR/Module.h"
 ffi "c++" import "llvm/IR/IRBuilder.h"
 
@@ -62,7 +62,7 @@ var fn      = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, "
         <div class="cap-number">03</div>
         <div class="cap-content">
           <h3 class="cap-title">Safety without rewriting</h3>
-          <p class="cap-desc">The BCIR borrow checker analyzes ownership across your Kairo and C++ code together. Invalid borrows lower to smart pointers automatically — the code still compiles, you get a report of what was fixed.</p>
+          <p class="cap-desc">The BCIR borrow checker analyzes ownership across your Kairo and C++ code together. Invalid borrows lower to smart pointers automatically the code still compiles, you get a report of what was fixed.</p>
           <pre class="cap-code"><code class="cap-code-inner">fn process(data: *u8, len: usize) &#123;
     var ptr = data
     std::Memory::free(data)
