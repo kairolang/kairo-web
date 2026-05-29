@@ -1,7 +1,7 @@
 ---
 order: 4
 title: Control Flow
-description: Conditionals, switch, loops, labeled breaks, try/catch/finally, panic, assert, jumps, compile-time branching, and branch hints in Kairo.
+description: Conditionals, match, loops, labeled breaks, try/catch/finally, panic, assert, jumps, compile-time branching, and branch hints in Kairo.
 ---
 
 # Control Flow
@@ -45,7 +45,7 @@ branches are not permitted in expression form.
 
 > [!TIP]
 > The compiler warns if `else if` nesting exceeds 3 levels. Consider restructuring deeply nested conditionals
-> into a `switch` or separate function.
+> into a `match` or separate function.
 
 ### Empty branches
 
@@ -396,8 +396,8 @@ target the innermost enclosing loop.
 | `continue` | Skips to the next iteration of the innermost loop |
 | `continue label` | Skips to the next iteration of the loop identified by `label` |
 
-`break` and `continue` are statements, not expressions they do not produce values. Inside a `switch`
-nested within a loop, `break` exits the **loop**, not the switch (switch cases are already isolated blocks
+`break` and `continue` are statements, not expressions they do not produce values. Inside a `match`
+nested within a loop, `break` exits the **loop**, not the match (match cases are already isolated blocks
 with no fall-through by default).
 
 ---
@@ -591,7 +591,7 @@ fn process() {
 }
 ```
 
-All control flow constructs (`if`, `switch`, `for`, `while`, `loop`, `try`) create implicit blocks
+All control flow constructs (`if`, `match`, `for`, `while`, `loop`, `try`) create implicit blocks
 their bodies follow the same scoping and destruction rules.
 
 See [Variables](/docs/language/variables#scope-and-lifetime) and [AMT](/docs/language/amt) for full lifetime semantics.
@@ -674,7 +674,7 @@ reaches an `@unreachable` branch at runtime, the behavior is undefined the compi
 eliminate the branch entirely and may miscompile surrounding code under that assumption.
 
 ```kairo
-switch direction {
+match direction {
     case .North { /* ... */ }
     case .South { /* ... */ }
     case .East  { /* ... */ }

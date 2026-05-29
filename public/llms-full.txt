@@ -1,4 +1,4 @@
-# Kairo — Full Documentation
+# Kairo Full Documentation
 
 > Kairo is a statically typed, compiled systems programming language with native bidirectional C++ interoperability.
 

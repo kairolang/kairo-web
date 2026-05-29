@@ -11,8 +11,8 @@
  * and concatenates them in a logical order into one markdown file.
  */
 
-import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
-import { join, relative, extname, basename } from 'node:path';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, extname, join, relative } from 'node:path';
 
 // ── Configuration ──────────────────────────────────────────────
 const CONTENT_DIR  = 'src/content/docs';   // adjust if different
@@ -179,7 +179,7 @@ function sortDocs(files, baseDir) {
 async function main() {
   const parts = [];
 
-  parts.push('# Kairo — Full Documentation\n');
+  parts.push('# Kairo Full Documentation\n');
   parts.push('> Kairo is a statically typed, compiled systems programming language with native bidirectional C++ interoperability.\n');
   parts.push('> This file contains the complete language documentation concatenated for LLM consumption.\n');
   parts.push(`> Generated: ${new Date().toISOString()}\n`);

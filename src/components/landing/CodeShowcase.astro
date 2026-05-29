@@ -206,7 +206,7 @@ fn start_server(path: string) -> Config {
       heading: 'The compiler knows what can fail',
       points: [
         { label: '`panic` on the signature', body: 'Mark a function `panic` and the compiler traces every failure reachable in its entire call graph. Nothing hidden, nothing implicit.' },
-        { label: 'Exhaustive catch blocks', body: 'Catch blocks work like a switch on an enum. Handle every reachable panic type and the compiler clears your function\'s signature. Your callers inherit the guarantee automatically, no annotations, no propagation to think about.' },
+        { label: 'Exhaustive catch blocks', body: 'Catch blocks work like a match on an enum. Handle every reachable panic type and the compiler clears your function\'s signature. Your callers inherit the guarantee automatically, no annotations, no propagation to think about.' },
         { label: 'Propagate what you don\'t own', body: 'Use `catch e { panic e }` to handle what you care about and push the rest upstream. The original panic travels intact, no wrapping, no lost context.' },
         { label: 'Dead catches are flagged too', body: 'If a catch block handles a panic type that can\'t actually reach that scope, the compiler tells you. Catch blocks stay honest as code changes over time.' },
       ],

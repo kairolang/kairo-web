@@ -107,9 +107,24 @@ var s = Stack<i32>()   // no arguments to infer from, must specify
 
 ### Return type inference
 
-Return types are not inferred for regular functions they must be declared explicitly or default to
-`void`. Expression-bodied functions (`fn foo() -> T = expr`) infer the return type from the expression
-if the annotation is omitted. See [Functions](/docs/language/functions#expression-bodied-functions).
+Return types are never inferred for block-bodied functions or forward declarations. They must be declared
+explicitly, or they default to `void`:
+
+```kairo
+fn add(a: i32, b: i32) -> i32 { return a + b }   // explicit
+fn log(msg: string) { std::println(msg) }        // defaults to void
+```
+
+Expression-bodied functions (`fn foo() = expr`) are the one exception: if the return
+type annotation is omitted, it is inferred from the expression.
+
+```kairo
+fn square(x: i32) = x * x          // inferred as i32
+fn name() = "Kairo"                // inferred as string
+fn typed(x: i32) -> i64 = x as i64 // explicit still allowed
+```
+
+See [Functions](/docs/language/functions#expression-bodied-functions)
 
 ---
 
