@@ -1,105 +1,281 @@
 ---
-title: Installation
-description: How to install the Kairo compiler on your system.
 order: 2
+title: Installation
+description: Install the Kairo compiler from a prebuilt release or build it from source on Linux, macOS, and Windows.
 section: Getting Started
 ---
 
 # Installation
 
-> **Note**: The Kairo compiler is currently in **stage 0**. It is written in C++ and is not yet feature-complete. We're actively working on a self-hosted compiler written in Kairo itself.
+There are two ways to get Kairo: download a **prebuilt binary** (fastest), or **build from
+source**. Most users want the prebuilt binary.
 
-## For Users
+Kairo ships as two compilers:
 
-Download a pre-built binary from [GitHub Releases](https://github.com/kairolang/kairo-lang/releases).
+- **Stage 0** the current compiler, written in C++. It transpiles Kairo to C++ and does **not**
+  require LLVM. This is what almost everyone wants.
+- **Stage 1** the self-hosted compiler, written in Kairo (work in progress). Building it requires
+  a working Stage 0 compiler **and** the LLVM submodule.
 
-### macOS / Linux
+Unless you are developing Kairo itself, install Stage 0 and stop there.
+
+---
+
+## Prebuilt Binaries
+
+Download the archive for your platform from the
+[release page](https://github.com/kairolang/kairo/releases), extract it, and add the `bin`
+directory to your `PATH`.
+
+| Platform | Architecture | File |
+|---|---|---|
+| Linux | x86_64 | `kairo-<version>-x86_64-linux-gnu.tar.xz` |
+| Linux | aarch64 | `kairo-<version>-aarch64-linux-gnu.tar.xz` |
+| macOS | Apple Silicon | `kairo-<version>-arm64-apple-macosx.zip` |
+| macOS | Intel | `kairo-<version>-x86_64-apple-macosx.zip` |
+| Windows | x64 | `kairo-<version>-x64-windows-msvc.zip` |
+| Windows | arm64 | `kairo-<version>-arm64-windows-msvc.zip` |
+
+### System requirements
+
+- **Linux:** glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+, RHEL 9+, Fedora 37+)
+- **macOS:** 13.3 (Ventura) or newer
+- **Windows:** Windows 10 or newer no Visual C++ Redistributable required, the runtime is
+  statically linked
+
+The Linux binaries are self-contained no system libc++ or libunwind required.
+
+> [!CAUTION]
+> On macOS, a downloaded binary is quarantined and Gatekeeper will refuse to run it
+> ("cannot verify this app is free of malware"), because the release binaries are not yet
+> notarized. Clear the quarantine flag before first run:
+>
+> ```bash
+> xattr -dr com.apple.quarantine ./kairo
+> ```
+>
+> This applies only to binaries downloaded from the release page builds from source are
+> unaffected.
+
+---
+
+## Building from Source
+
+### Requirements
+
+Stage 0 requires:
+
+- **Clang 18 or newer** libstdc++ is **not** supported, you must build with Clang and libc++
+- **libc++** and **libc++abi**
+- **xmake** the build system
+- **git**
+
+Stage 1 additionally requires the LLVM submodule (see [below](#stage-1-optional)). The VSCode
+extension additionally requires **Node.js** and **npm**.
+
+### 1. Install dependencies
+
+Every platform needs Clang 18+ with libc++. The sections below show how to get a satisfying
+toolchain.
+
+#### Linux Arch / Manjaro
+
+Arch's `clang` is current (well past 18), so no version pinning is needed.
 
 ```bash
-# Download and extract
-curl -L https://github.com/kairolang/kairo-lang/releases/latest/download/kairo-linux.tar.gz | tar xz
-
-# Add to PATH
-export PATH=$PATH:~/kairo/bin
+sudo pacman -S git clang libc++ libc++abi lld cmake ninja xmake
 ```
 
-Or use the installer script:
+#### Linux Ubuntu / Debian
+
+The distro Clang is often older than 18 or defaults to libstdc++, so install from LLVM's apt repo
+(18 is the minimum; newer is fine):
 
 ```bash
-curl -fsSL https://kairolang.org/install.sh | bash
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 18
+sudo apt-get install -y libc++-18-dev libc++abi-18-dev git
+# make clang-18 the default clang/clang++
+sudo update-alternatives --install /usr/bin/clang   clang   /usr/bin/clang-18   100
+sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
 ```
 
-### Windows
+#### Linux Fedora / RHEL
 
-Download `kairo-windows.zip` from releases, extract to `C:\Kairo`, and add `C:\Kairo\bin` to your PATH environment variable.
+Ensure `clang --version` reports 18+. Older RHEL ships an older toolchain you may need a newer
+LLVM module to meet the minimum.
 
-> **Note** : `C:\` is just used for the examples sake here , you can extract the compiler wherever you want to, so long as the bin address is modified accordingly.
+```bash
+sudo dnf install -y clang libcxx-devel libcxxabi-devel git cmake ninja-build
+```
 
-Or via PowerShell:
+Then install xmake on any Linux distro that did not already provide it:
+
+```bash
+curl -fsSL https://xmake.io/shget.text | bash
+```
+
+#### macOS
+
+Install the LLVM toolchain and xmake with Homebrew, then put Homebrew's Clang on your `PATH`:
+
+```bash
+brew install llvm xmake
+echo 'export PATH="'"$(brew --prefix llvm)"'/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+> [!NOTE]
+> Apple's bundled Clang reports its own version numbers that do not map to upstream LLVM
+> releases, and may not satisfy the Clang 18+ / C++23 / libc++ requirements. Use the Homebrew
+> LLVM toolchain.
+
+#### Windows
+
+Install xmake in PowerShell:
 
 ```powershell
-irm https://kairolang.org/install.ps1 | iex
+irm https://xmake.io/psget.text | iex
 ```
 
-### Verify Installation
+For the compiler toolchain, install **Visual Studio** with the "Desktop development with C++"
+workload, or **LLVM for Windows** from [releases.llvm.org](https://releases.llvm.org/). xmake
+detects the toolchain automatically.
+
+### 2. Clone the repository
 
 ```bash
-kairo --version
-# Kairo version 0.1.0-alpha
+git clone https://github.com/kairolang/kairo/
+cd kairo
+git checkout archive/beta-helix-0.0.1
 ```
 
-## For Contributors (Build from Source)
-
-### Prerequisites
-
-- GCC 11+ / Clang 12+ / MSVC 19.29+
-- [Xmake](https://xmake.io) build tool
-- Python 3.x (for build scripts)
-- Git
-
-### Build
+Pull submodules. For Stage 0 this is a fast clone it does not pull LLVM:
 
 ```bash
-git clone https://github.com/kairolang/kairo-lang.git
-cd kairo-lang
-xmake build -j8 -v
+git submodule update --init --recursive
 ```
 
-Build time is approximately 20–30 minutes on an 8-core machine.
-
-### Run Tests
+### 3. Build Stage 0
 
 ```bash
-xmake run tests
-xmake run kairo -h
+xmake
 ```
 
-### Install Locally
+No flags needed. The build produces a self-contained compiler in
+`build/release/<platform>/bin/`: `kairo` and `kbld`.
+
+### 4. Add to PATH
+
+**Linux / macOS:**
 
 ```bash
-xmake install -o ~/.local
+export PATH="$PATH:$(ls -d $(pwd)/build/release/*/bin)"
 ```
 
-## Editor Support
+Add that line to your `~/.bashrc` or `~/.zshrc` to make it permanent.
 
-### VS Code
+**Windows (PowerShell):**
 
-Install the **Kairo Language Extension** from the marketplace for syntax highlighting and LSP integration.
+```powershell
+$env:Path += ";$((Get-ChildItem -Directory .\build\release\*\bin).FullName)"
+```
 
-### Neovim / Vim
+This sets `PATH` for the current session. To persist it across sessions:
 
-Coming Soon
+```powershell
+$binPath = (Get-ChildItem -Directory .\build\release\*\bin).FullName
+[Environment]::SetEnvironmentVariable("Path", "$env:Path;$binPath", "User")
+```
 
-### Other Editors
+For Command Prompt, add the path via System Properties → Environment Variables.
 
-Coming Soon
+### 5. Validate
 
-## Troubleshooting
+Create a file called `test.k`:
 
-**Command not found after install?**
+```kairo
+fn main() -> i32 {
+    var x = 5;
+    var y = 10;
+    std::print(f"Hello, world! Sum of {x} and {y} is {x + y}");
+    return 0;
+}
+```
 
-Make sure `~/.kairo/bin` (or your install directory) is in your `PATH`.
+Compile and run it:
 
-**Build fails?**
+```bash
+kairo test.k
+```
 
-Ensure you have a recent C++ compiler. Check the [GitHub Issues](https://github.com/kairolang/kairo-lang/issues) for known build problems.
+---
+
+## Stage 1 (optional)
+
+Stage 1 is the self-hosted compiler, still in development. It requires a working Stage 0 build
+(above) plus the LLVM submodule.
+
+```bash
+git checkout canary
+git submodule update --init --recursive   # pulls LLVM this time — large download
+kbld                                       # must be on PATH, or use ./build/release/<platform>/bin/kbld
+```
+
+You can run test files whose entry point is `fn Test() -> i32 { ... }`:
+
+```bash
+kbld test Compiler/Lexer/Lexer.k
+```
+
+> [!WARNING]
+> Re-run `git submodule update --init --recursive` after switching to `canary`. That branch
+> adds the LLVM submodule, which the Stage 0 clone deliberately skips to stay small.
+
+---
+
+## VSCode Extension
+
+VSCode is currently the only editor with LSP support and `.k` syntax highlighting. The language
+server ships as part of the compiler, so there is nothing extra to run the extension only needs
+to locate `kairo`.
+
+### Install
+
+Pick whichever is easiest:
+
+- **Marketplace** install from the
+  [Kairo extension page](https://marketplace.visualstudio.com/items?itemName=KSF.kairo).
+- **Prebuilt VSIX** download the latest `.vsix` from
+  [kairo-lsp](https://github.com/kairolang/kairo-lsp/), then in VSCode:
+  **Extensions** → **⋯** → **Install from VSIX…**
+- **Build from source:**
+
+```bash
+git clone https://github.com/kairolang/kairo-lsp/
+cd kairo-lsp
+npm install
+npm run build --omit=dev
+npx @vscode/vsce package
+```
+
+This produces a `.vsix` you install the same way.
+
+### Configure
+
+If `kairo` is on your `PATH`, the extension finds it automatically no configuration needed.
+Otherwise set `kairo.path` in your VSCode `settings.json` to the compiler's location. If it cannot
+find the compiler, you get a single "path not set" warning.
+
+### Debugging
+
+- **Run Kairo File** runs and attaches the debugger
+- **Run Kairo File with Args** prompts for comma-separated args (e.g. `arg1,arg2,arg3`)
+
+Both work with `fn main()` or `fn Test()` entry points.
+
+> [!WARNING]
+> With `fn Test()`, VSCode redirects to a temporary file during debugging. Breakpoints work, but
+> **edits are not saved back to your original file** re-running the debugger resets everything.
+> Use `fn main()` for active development.
