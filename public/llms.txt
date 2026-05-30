@@ -26,7 +26,8 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 - [Interfaces](https://www.kairolang.org/docs/language/interfaces/): Interface declarations, structural conformance, generic interfaces, interface inheritance, operator requirements, and zero-cost contract semantics.
 - [Type System](https://www.kairolang.org/docs/language/type-system/): Type aliases, type inference, implicit conversions, subtyping, `TypeInfo`, `typeof`, nullable nesting, void, never types, and type identity.
 - [Casting](https://www.kairolang.org/docs/language/casting/): Explicit type conversions with `as`, numeric truncation, pointer casts, downcasting, nullable collapsing, user-defined conversions, and cast safety rules.
-- [Where Clauses](https://www.kairolang.org/docs/language/bounds/): Where clause syntax, compile-time and runtime constraint evaluation, where-based overload dispatch, and constraint semantics.
+- [Requires Clauses](https://www.kairolang.org/docs/language/requires/): Requires Clause syntax, compile-Time evaluation, constraint semantics.
+- [Where Clauses](https://www.kairolang.org/docs/language/where/): Where Clause syntax, compile-Time evaluation, constraint semantics.
 - [Pointers & Raw Pointers](https://www.kairolang.org/docs/language/pointers/): Safe pointers (`*T`), unsafe raw pointers (`unsafe *T`), null semantics, pointer arithmetic, smart pointer promotion, void pointers, and pointer safety rules.
 - [Ownership](https://www.kairolang.org/docs/language/ownership/): Ownership model, move semantics, borrowing rules, copy vs move, and how ownership interacts with AMT analysis.
 - [AMT](https://www.kairolang.org/docs/language/amt/): Automatic Memory Tracking full-program lifetime analysis, smart pointer promotion, allocator integration, and compile-time safety guarantees.

@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-05-26T22:45:31.935Z
+> Generated: 2026-05-30T05:14:23.545Z
 
 ---
 
@@ -15,6 +15,10 @@ SECTION: GETTING STARTED
 
 ## Welcome to Kairo
 URL: https://www.kairolang.org/docs/
+
+> [!WARNING]
+> The language reference describes Stage 1 Kairo. Not the Stage 0 compiler. Stage 1 is still under development and the syntax and standard library may change before 1.0. The Stage 0 compiler is stable and can be used to build Kairo programs, but it does not yet support all Stage 1 features.
+
 
 # Kairo
 
@@ -332,102 +336,278 @@ URL: https://www.kairolang.org/docs/install/
 
 # Installation
 
-> **Note**: The Kairo compiler is currently in **stage 0**. It is written in C++ and is not yet feature-complete. We're actively working on a self-hosted compiler written in Kairo itself.
+There are two ways to get Kairo: download a **prebuilt binary** (fastest), or **build from
+source**. Most users want the prebuilt binary.
 
-## For Users
+Kairo ships as two compilers:
 
-Download a pre-built binary from [GitHub Releases](https://github.com/kairolang/kairo-lang/releases).
+- **Stage 0** the current compiler, written in C++. It transpiles Kairo to C++ and does **not**
+  require LLVM. This is what almost everyone wants.
+- **Stage 1** the self-hosted compiler, written in Kairo (work in progress). Building it requires
+  a working Stage 0 compiler **and** the LLVM submodule.
 
-### macOS / Linux
+Unless you are developing Kairo itself, install Stage 0 and stop there.
+
+---
+
+## Prebuilt Binaries
+
+Download the archive for your platform from the
+[release page](https://github.com/kairolang/kairo/releases), extract it, and add the `bin`
+directory to your `PATH`.
+
+| Platform | Architecture | File |
+|---|---|---|
+| Linux | x86_64 | `kairo-<version>-x86_64-linux-gnu.tar.xz` |
+| Linux | aarch64 | `kairo-<version>-aarch64-linux-gnu.tar.xz` |
+| macOS | Apple Silicon | `kairo-<version>-arm64-apple-macosx.zip` |
+| macOS | Intel | `kairo-<version>-x86_64-apple-macosx.zip` |
+| Windows | x64 | `kairo-<version>-x64-windows-msvc.zip` |
+| Windows | arm64 | `kairo-<version>-arm64-windows-msvc.zip` |
+
+### System requirements
+
+- **Linux:** glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+, RHEL 9+, Fedora 37+)
+- **macOS:** 13.3 (Ventura) or newer
+- **Windows:** Windows 10 or newer no Visual C++ Redistributable required, the runtime is
+  statically linked
+
+The Linux binaries are self-contained no system libc++ or libunwind required.
+
+> [!CAUTION]
+> On macOS, a downloaded binary is quarantined and Gatekeeper will refuse to run it
+> ("cannot verify this app is free of malware"), because the release binaries are not yet
+> notarized. Clear the quarantine flag before first run:
+>
+> ```bash
+> xattr -dr com.apple.quarantine ./kairo
+> ```
+>
+> This applies only to binaries downloaded from the release page builds from source are
+> unaffected.
+
+---
+
+## Building from Source
+
+### Requirements
+
+Stage 0 requires:
+
+- **Clang 18 or newer** libstdc++ is **not** supported, you must build with Clang and libc++
+- **libc++** and **libc++abi**
+- **xmake** the build system
+- **git**
+
+Stage 1 additionally requires the LLVM submodule (see [below](#stage-1-optional)). The VSCode
+extension additionally requires **Node.js** and **npm**.
+
+### 1. Install dependencies
+
+Every platform needs Clang 18+ with libc++. The sections below show how to get a satisfying
+toolchain.
+
+#### Linux Arch / Manjaro
+
+Arch's `clang` is current (well past 18), so no version pinning is needed.
 
 ```bash
-# Download and extract
-curl -L https://github.com/kairolang/kairo-lang/releases/latest/download/kairo-linux.tar.gz | tar xz
-
-# Add to PATH
-export PATH=$PATH:~/kairo/bin
+sudo pacman -S git clang libc++ libc++abi lld cmake ninja xmake
 ```
 
-Or use the installer script:
+#### Linux Ubuntu / Debian
+
+The distro Clang is often older than 18 or defaults to libstdc++, so install from LLVM's apt repo
+(18 is the minimum; newer is fine):
 
 ```bash
-curl -fsSL https://kairolang.org/install.sh | bash
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 18
+sudo apt-get install -y libc++-18-dev libc++abi-18-dev git
+# make clang-18 the default clang/clang++
+sudo update-alternatives --install /usr/bin/clang   clang   /usr/bin/clang-18   100
+sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
 ```
 
-### Windows
+#### Linux Fedora / RHEL
 
-Download `kairo-windows.zip` from releases, extract to `C:\Kairo`, and add `C:\Kairo\bin` to your PATH environment variable.
+Ensure `clang --version` reports 18+. Older RHEL ships an older toolchain you may need a newer
+LLVM module to meet the minimum.
 
-> **Note** : `C:\` is just used for the examples sake here , you can extract the compiler wherever you want to, so long as the bin address is modified accordingly.
+```bash
+sudo dnf install -y clang libcxx-devel libcxxabi-devel git cmake ninja-build
+```
 
-Or via PowerShell:
+Then install xmake on any Linux distro that did not already provide it:
+
+```bash
+curl -fsSL https://xmake.io/shget.text | bash
+```
+
+#### macOS
+
+Install the LLVM toolchain and xmake with Homebrew, then put Homebrew's Clang on your `PATH`:
+
+```bash
+brew install llvm xmake
+echo 'export PATH="'"$(brew --prefix llvm)"'/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+> [!NOTE]
+> Apple's bundled Clang reports its own version numbers that do not map to upstream LLVM
+> releases, and may not satisfy the Clang 18+ / C++23 / libc++ requirements. Use the Homebrew
+> LLVM toolchain.
+
+#### Windows
+
+Install xmake in PowerShell:
 
 ```powershell
-irm https://kairolang.org/install.ps1 | iex
+irm https://xmake.io/psget.text | iex
 ```
 
-### Verify Installation
+For the compiler toolchain, install **Visual Studio** with the "Desktop development with C++"
+workload, or **LLVM for Windows** from [releases.llvm.org](https://releases.llvm.org/). xmake
+detects the toolchain automatically.
+
+### 2. Clone the repository
 
 ```bash
-kairo --version
-# Kairo version 0.1.0-alpha
+git clone https://github.com/kairolang/kairo/
+cd kairo
+git checkout archive/beta-helix-0.0.1
 ```
 
-## For Contributors (Build from Source)
-
-### Prerequisites
-
-- GCC 11+ / Clang 12+ / MSVC 19.29+
-- [Xmake](https://xmake.io) build tool
-- Python 3.x (for build scripts)
-- Git
-
-### Build
+Pull submodules. For Stage 0 this is a fast clone it does not pull LLVM:
 
 ```bash
-git clone https://github.com/kairolang/kairo-lang.git
-cd kairo-lang
-xmake build -j8 -v
+git submodule update --init --recursive
 ```
 
-Build time is approximately 20–30 minutes on an 8-core machine.
-
-### Run Tests
+### 3. Build Stage 0
 
 ```bash
-xmake run tests
-xmake run kairo -h
+xmake
 ```
 
-### Install Locally
+No flags needed. The build produces a self-contained compiler in
+`build/release/<platform>/bin/`: `kairo` and `kbld`.
+
+### 4. Add to PATH
+
+**Linux / macOS:**
 
 ```bash
-xmake install -o ~/.local
+export PATH="$PATH:$(ls -d $(pwd)/build/release/*/bin)"
 ```
 
-## Editor Support
+Add that line to your `~/.bashrc` or `~/.zshrc` to make it permanent.
 
-### VS Code
+**Windows (PowerShell):**
 
-Install the **Kairo Language Extension** from the marketplace for syntax highlighting and LSP integration.
+```powershell
+$env:Path += ";$((Get-ChildItem -Directory .\build\release\*\bin).FullName)"
+```
 
-### Neovim / Vim
+This sets `PATH` for the current session. To persist it across sessions:
 
-Coming Soon
+```powershell
+$binPath = (Get-ChildItem -Directory .\build\release\*\bin).FullName
+[Environment]::SetEnvironmentVariable("Path", "$env:Path;$binPath", "User")
+```
 
-### Other Editors
+For Command Prompt, add the path via System Properties → Environment Variables.
 
-Coming Soon
+### 5. Validate
 
-## Troubleshooting
+Create a file called `test.k`:
 
-**Command not found after install?**
+```kairo
+fn main() -> i32 {
+    var x = 5;
+    var y = 10;
+    std::print(f"Hello, world! Sum of {x} and {y} is {x + y}");
+    return 0;
+}
+```
 
-Make sure `~/.kairo/bin` (or your install directory) is in your `PATH`.
+Compile and run it:
 
-**Build fails?**
+```bash
+kairo test.k
+```
 
-Ensure you have a recent C++ compiler. Check the [GitHub Issues](https://github.com/kairolang/kairo-lang/issues) for known build problems.
+---
+
+## Stage 1 (optional)
+
+Stage 1 is the self-hosted compiler, still in development. It requires a working Stage 0 build
+(above) plus the LLVM submodule.
+
+```bash
+git checkout canary
+git submodule update --init --recursive   # pulls LLVM this time large download
+kbld                                       # must be on PATH, or use ./build/release/<platform>/bin/kbld
+```
+
+You can run test files whose entry point is `fn Test() -> i32 { ... }`:
+
+```bash
+kbld test Compiler/Lexer/Lexer.k
+```
+
+> [!WARNING]
+> Re-run `git submodule update --init --recursive` after switching to `canary`. That branch
+> adds the LLVM submodule, which the Stage 0 clone deliberately skips to stay small.
+
+---
+
+## VSCode Extension
+
+VSCode is currently the only editor with LSP support and `.k` syntax highlighting. The language
+server ships as part of the compiler, so there is nothing extra to run the extension only needs
+to locate `kairo`.
+
+### Install
+
+Pick whichever is easiest:
+
+- **Marketplace** install from the
+  [Kairo extension page](https://marketplace.visualstudio.com/items?itemName=KSF.kairo).
+- **Prebuilt VSIX** download the latest `.vsix` from
+  [kairo-lsp](https://github.com/kairolang/kairo-lsp/), then in VSCode:
+  **Extensions** → **⋯** → **Install from VSIX…**
+- **Build from source:**
+
+```bash
+git clone https://github.com/kairolang/kairo-lsp/
+cd kairo-lsp
+npm install
+npm run build --omit=dev
+npx @vscode/vsce package
+```
+
+This produces a `.vsix` you install the same way.
+
+### Configure
+
+If `kairo` is on your `PATH`, the extension finds it automatically no configuration needed.
+Otherwise set `kairo.path` in your VSCode `settings.json` to the compiler's location. If it cannot
+find the compiler, you get a single "path not set" warning.
+
+### Debugging
+
+- **Run Kairo File** runs and attaches the debugger
+- **Run Kairo File with Args** prompts for comma-separated args (e.g. `arg1,arg2,arg3`)
+
+Both work with `fn main()` or `fn Test()` entry points.
+
+> [!WARNING]
+> With `fn Test()`, VSCode redirects to a temporary file during debugging. Breakpoints work, but
+> **edits are not saved back to your original file** re-running the debugger resets everything.
+> Use `fn main()` for active development.
 
 ---
 
@@ -857,7 +1037,7 @@ build mode:
 
 This matches Rust's overflow model and catches bugs during development without paying for checks in production.
 
-### Extended-width integers (u128–u512, i128–i512)
+### Extended-width integers (u128-u512, i128-i512)
 
 If the target hardware supports wide registers (e.g., AVX-512), these types map directly to hardware. Otherwise,
 the compiler stores them as structs of smaller integers and emits SIMD-accelerated arithmetic when available,
@@ -934,7 +1114,7 @@ implicit conversion from integers.
 
 | Type | Size | Description | C++ Equivalent |
 |---|---|---|---|
-| `char` | 4 bytes | Unicode scalar value (U+0000–U+10FFFF) | `char32_t` |
+| `char` | 4 bytes | Unicode scalar value (U+0000-U+10FFFF) | `char32_t` |
 
 A `char` holds a single decoded Unicode codepoint. It is always 4 bytes regardless of which codepoint it
 represents.
@@ -1263,7 +1443,7 @@ class Token {
     fn Token() = delete
 }
 
-var t: Token   // ⚠ warning: t is uninitialized (suppress with @no_warn(UNINIT))
+var t: Token   // warning: t is uninitialized (suppress with @no_warn(UNINIT))
 ```
 
 ---
@@ -2114,7 +2294,7 @@ branches are not permitted in expression form.
 
 > [!TIP]
 > The compiler warns if `else if` nesting exceeds 3 levels. Consider restructuring deeply nested conditionals
-> into a `switch` or separate function.
+> into a `match` or separate function.
 
 ### Empty branches
 
@@ -2465,8 +2645,8 @@ target the innermost enclosing loop.
 | `continue` | Skips to the next iteration of the innermost loop |
 | `continue label` | Skips to the next iteration of the loop identified by `label` |
 
-`break` and `continue` are statements, not expressions they do not produce values. Inside a `switch`
-nested within a loop, `break` exits the **loop**, not the switch (switch cases are already isolated blocks
+`break` and `continue` are statements, not expressions they do not produce values. Inside a `match`
+nested within a loop, `break` exits the **loop**, not the match (match cases are already isolated blocks
 with no fall-through by default).
 
 ---
@@ -2660,7 +2840,7 @@ fn process() {
 }
 ```
 
-All control flow constructs (`if`, `switch`, `for`, `while`, `loop`, `try`) create implicit blocks
+All control flow constructs (`if`, `match`, `for`, `while`, `loop`, `try`) create implicit blocks
 their bodies follow the same scoping and destruction rules.
 
 See [Variables](/docs/language/variables#scope-and-lifetime) and [AMT](/docs/language/amt) for full lifetime semantics.
@@ -2743,7 +2923,7 @@ reaches an `@unreachable` branch at runtime, the behavior is undefined the compi
 eliminate the branch entirely and may miscompile surrounding code under that assumption.
 
 ```kairo
-switch direction {
+match direction {
     case .North { /* ... */ }
     case .South { /* ... */ }
     case .East  { /* ... */ }
@@ -2998,10 +3178,25 @@ Single-expression functions can use the `=` shorthand, omitting braces and `retu
 
 ```kairo
 fn add(a: i32, b: i32) -> i32 = a + b
-
 fn square(x: f64) -> f64 = x * x
-
 fn greeting(name: string) -> string = f"Hello, {name}!"
+```
+
+The return type annotation is optional for expression-bodied functions it is
+inferred from the expression when omitted. This is the only form of return type
+inference in Kairo; block-bodied functions always require an explicit return type
+(or default to `void`).
+
+```kairo
+fn add(a: i32, b: i32) = a + b              // inferred as i32
+fn greeting(name: string) = f"Hi, {name}!"  // inferred as string
+```
+
+Explicit annotations are still useful when you want to constrain or widen the
+inferred type:
+
+```kairo
+fn promote(x: i32) -> i64 = x as i64        // would otherwise infer i32
 ```
 
 ---
@@ -3323,28 +3518,62 @@ special operator syntax (`l++`/`r++`, `op as`, `op in`, `op delete`), and restri
 
 ## Forward Declarations
 
-Functions can be forward-declared signature without a body for mutual recursion or when the
-implementation is provided elsewhere (e.g., in a separate translation unit or via [C/C++ interop](/docs/language/c-c++)):
+A function can be declared without a body a signature followed by no block:
 
 ```kairo
-fn parse_expression(tokens: [Token]) -> Expr           // forward declaration
-fn parse_statement(tokens: [Token]) -> Stmt            // forward declaration
-
-fn parse_expression(tokens: [Token]) -> Expr {
-    // can call parse_statement here
-}
-
-fn parse_statement(tokens: [Token]) -> Stmt {
-    // can call parse_expression here
-}
+fn parse_expression(tokens: [Token]) -> Expr
+fn parse_statement(tokens: [Token]) -> Stmt
 ```
 
-The signature of the forward declaration must exactly match the later definition parameter types, return
-type, and all modifiers. A mismatch is a compile error.
+Within a single module, forward declarations are rarely needed. Kairo hoists all
+top-level declarations before type checking, so mutual recursion works without
+them:
 
-> [!NOTE]
-> Forward declarations also apply to classes, structs, enums, and static variables. See
-> [Classes](/docs/language/classes) and [Structures](/docs/language/structures) for type forward declarations.
+```kairo
+fn is_even(n: u32) -> bool = if n == 0 { true } else { is_odd(n - 1) }
+fn is_odd(n: u32) -> bool  = if n == 0 { false } else { is_even(n - 1) }
+```
+
+Forward declarations are used when the definition lives elsewhere:
+
+- **FFI imports** the body is provided by a C or C++ library. See
+  [C/C++ Interop](/docs/language/c-c++).
+- **Separate translation units** the declaration is visible to callers; the
+  definition is linked in from another `.kro` file.
+- **Out-of-line class methods** declared in the class body, defined outside it using the `Class::method` qualified-name syntax:
+
+    ```kairo
+    class Parser {
+        var pos: usize
+        fn advance(self)    -> Token
+        fn peek(self) const -> Token
+    }
+
+    fn Parser::advance(self) -> Token {
+        var t = self.tokens[self.pos]
+        self.pos += 1
+        return t
+    }
+
+    fn Parser::peek(self) const -> Token = self.tokens[self.pos]
+    ```
+
+    See [Classes](/docs/language/classes#out-of-line-definitions) for the full rules.
+
+### Signature matching
+
+When a definition follows a forward declaration, the two must match exactly:
+
+- Parameter types, return type, and all function modifiers (`const`, `unsafe`,
+  `panic`, `eval`, `async`, `inline`, `final`, `volatile`)
+- Visibility (`pub`, `priv`, `prot`)
+- ABI linkage (`ffi "c"`, `ffi "c++"`, `static`, `virtual`, `override`)
+
+Parameter names and default values may differ the declaration's names and
+defaults are used at call sites that see only the declaration; the definition's
+are used everywhere else. For consistency, keep them the same.
+
+A mismatch in any other element is a compile error.
 
 ---
 
@@ -3665,9 +3894,9 @@ URL: https://www.kairolang.org/docs/language/classes/
 
 # Classes
 
-Classes are Kairo's primary mechanism for encapsulating state and behavior. They follow C++ semantics closely
--- same object layout, same vtable rules, same ABI with a cleaner declaration syntax and a few deliberate
-restrictions (no `const` overloading, no `friend`, explicit `self`).
+Classes are Kairo's primary mechanism for encapsulating state and behavior. The object model layout,
+vtables, ABI follows the platform's C++ convention. The surface syntax is cleaner, `self` is always
+explicit, and the copy/move model is expressed through attributes rather than reference qualifiers.
 
 ---
 
@@ -3693,21 +3922,20 @@ obj.sum()   // 13.14
 ```
 
 Members are declared with `var`, `const`, `static`, or `eval` inside the class body. Methods are declared
-with `fn` and always take `self` as the first parameter for instance methods. Omitting `self` requires the
-`static` modifier. There is no ambiguity if `self` is present, it is an instance method; if not, it
-must be `static`.
+with `fn` and take `self` as the first parameter for instance methods. Omitting `self` requires the
+`static` modifier. If `self` is present, it is an instance method; if not, it must be `static`.
 
 ---
 
 ## `self` and `Self`
 
-`self` is the instance parameter. It behaves like a reference to the current object you use `self.member`
-to access fields and `self` to pass the object to other functions. `self` is not a pointer; you cannot
+`self` is the instance parameter. It behaves like a reference to the current object use `self.member` to
+access fields and `self` to pass the object to other functions. `self` is not a pointer; you cannot
 perform pointer arithmetic on it or reassign it.
 
-`Self` (capitalized) is a type alias for the enclosing class. In a generic class `class <T> Foo { ... }`,
-`Self` resolves to `Foo<T>`. Use `Self` in parameter types, return types, and anywhere you need to refer to
-the class's own type without spelling out generic arguments:
+`Self` (capitalized) is a type alias for the enclosing class. In a generic class `class <T> Foo`, `Self`
+resolves to `Foo<T>`. Use `Self` in parameter types, return types, and anywhere you need the class's own
+type without spelling out generic arguments:
 
 ```kairo
 class <T> Container {
@@ -3730,9 +3958,8 @@ class <T> Container {
 }
 ```
 
-`Self` always means a reference to the class type. For a pointer, use `*Self` or `*ClassName`. The bare
-class name (`Foo`, `Container<T>`) also works anywhere `Self` does `Self` is syntactic sugar, not a
-distinct type.
+`Self` always refers to a reference to the class type. For a pointer, use `*Self` or `*ClassName`. The
+bare class name works anywhere `Self` does `Self` is syntactic sugar, not a distinct type.
 
 ---
 
@@ -3746,7 +3973,7 @@ Visibility modifiers control access to members from outside the class:
 | `priv` | Accessible only within the defining class or module |
 | `prot` | Accessible within the defining class, subclasses, and the defining module |
 
-Modifiers are applied per-declaration. There are no visibility blocks (`public:` sections) like in C++.
+Modifiers are applied per-declaration. There are no visibility blocks (`public:` sections).
 
 ### Default visibility
 
@@ -3756,7 +3983,7 @@ Modifiers are applied per-declaration. There are no visibility blocks (`public:`
 | Methods, constructors, destructors | `pub` |
 | Operator overloads | `pub` |
 | Static methods | `pub` |
-| Nested types (classes, enums, structs) | `pub` |
+| Nested types | `pub` |
 
 ```kairo
 class Account {
@@ -3778,14 +4005,14 @@ class Account {
 }
 ```
 
-Visibility also applies at the top level. A `priv class` is only accessible within its file; a `prot class`
-is accessible within its module and subclasses. See [Modules](/docs/language/modules) for how top-level
+Visibility also applies at the top level a `priv class` is only accessible within its file, a `prot
+class` within its module and subclasses. See [Modules](/docs/language/modules) for how top-level
 visibility interacts with imports.
 
 > [!NOTE]
 > Kairo has no `friend` keyword. If external code needs access to internals, expose it through a public
 > method or adjust module-level visibility. `priv` at the top level restricts access to the current file,
-> which covers most factory and serialization patterns without a `friend` escape hatch.
+> which covers most factory and serialization patterns.
 
 ---
 
@@ -3807,13 +4034,12 @@ class Point {
 var p = Point(1.0, 2.0)
 ```
 
-Constructors support all the same features as regular functions default parameters, named arguments,
-overloading by parameter types, and generic type parameters. See [Functions](/docs/language/functions) for
-the full parameter syntax.
+Constructors support all the features of regular functions default parameters, named arguments,
+overloading by parameter types, generic type parameters. See [Functions](/docs/language/functions).
 
 ### `const` members in constructors
 
-Class-level `const` members can be initialized in the constructor body. They get exactly one assignment 
+Class-level `const` members can be initialized in the constructor body. They get exactly one assignment;
 after construction, they are frozen:
 
 ```kairo
@@ -3877,82 +4103,166 @@ class Resource {
 Destructors can be defaulted or deleted:
 
 ```kairo
-fn op delete(self) = default   // compiler-generated
+fn op delete(self) = default   // compiler-generated, memberwise destroy in reverse declaration order
 fn op delete(self) = delete    // prevent destruction (and therefore stack allocation)
 ```
 
-Destructors run at the end of the enclosing scope in reverse declaration order, identical to C++.
+Destructors run at the end of the enclosing scope in reverse declaration order.
 
 ---
 
-## The Rule of Five
+## Lifecycle Categories
 
-If a class defines none of the five special operations, the compiler generates all of them:
+Every class has a lifecycle category that determines how its instances can be transferred between
+variables. The category is implied by which transfer constructor the class defines.
+
+### Attribute syntax
+
+`@copy` and `@move` are attributes attached to a constructor. The convention is one attribute per line
+above the declaration:
 
 ```kairo
-class Implicit {
-    var data: i32
-}
-
-// Compiler generates:
-// fn Implicit(self) = default                              default constructor
-// fn op delete(self) = default                             destructor
-// fn Implicit(self, other: Self) = default                 copy constructor
-// fn op =(self, other: Self) -> Self = default             copy assignment
-// fn Implicit(self, other: mref!(Self)) = default          move constructor
-// fn op =(self, other: mref!(Self)) -> Self = default      move assignment
+@copy
+fn Buffer(self, other: Self) = default
 ```
 
-If the user defines any one of these, the remaining four are still compiler-generated unless explicitly
-`= delete`d. This differs from C++ where defining certain special members suppresses others Kairo always
-generates what you do not provide.
+Inline placement (`@copy fn Buffer(self, other: Self) = default`) is permitted but discouraged. See
+[Attributes](/docs/language/attributes) for the full attribute syntax.
 
-`mref!(Self)` is a compiler intrinsic that produces an rvalue reference (equivalent to C++'s `&&`). Kairo
-does not expose `&&T` as general-purpose syntax `mref!()` is the escape hatch for move semantics.
-See [Ownership](/docs/language/ownership) for the full move model.
+### The transfer constructor
 
-> [!NOTE]
-> The special member syntax is under consideration for revision. The current `op =` and constructor-based
-> approach mirrors C++ directly, but a more explicit naming scheme (`op copy`, `op move`) may replace it
-> in a future language revision. The semantics will remain identical.
-
----
-
-## `mutable` Members
-
-The `mutable` qualifier allows a member to be modified even through a `const` reference or in a `const`
-method. This is identical to C++'s `mutable` keyword:
+A constructor with the signature `fn Class(self, other: Self)` is the **transfer constructor**. It governs
+how instances of the class are passed by value. The attribute on this constructor selects the category:
 
 ```kairo
-class Cache {
-    var data: [i32]
-    mutable var hit_count: i32
+class Buffer {
+    @copy
+    fn Buffer(self, other: Self) = default
+}
 
-    fn Cache(self) {
-        self.data = []
-        self.hit_count = 0
-    }
-
-    fn lookup(const self, index: i32) -> i32 {
-        self.hit_count += 1   // ok: hit_count is mutable
-        return self.data[index]
-    }
+class UniqueFile {
+    @move
+    fn UniqueFile(self, other: Self) = default
 }
 ```
 
-`mutable` is only valid on instance variables inside class and struct bodies. It cannot appear on top-level
-variables, local variables, or `const`/`eval`/`static` declarations.
+A transfer constructor without an attribute defaults to `@copy`. A class with no transfer constructor at
+all is implicitly **COPY** with all four special members compiler-generated.
 
-> [!WARNING]
-> `mutable` breaks the semantic guarantee that `const` methods do not modify the object. Use it sparingly
-> caching, reference counting, and lazy initialization are the canonical use cases. If you find yourself
-> marking many members `mutable`, reconsider the `const` boundary.
+A class cannot define both `@copy` and `@move` transfer constructors pick one:
+
+```kairo
+class Bad {
+    @copy fn Bad(self, other: Self) = default
+    @move fn Bad(self, other: Self) = default   // compile error
+}
+```
+
+### The four categories
+
+| Category | Trigger | Semantics |
+|---|---|---|
+| **COPY** | `@copy` ctor (explicit or implicit) | Allows copy; AMT may silently elide a copy into a move when the source is unused after the transfer |
+| **MOVE** | `@move` ctor | Allows move only; copying is a compile error |
+| **NON_TRANSFER** | both `@copy` and `@move` are `= delete`d | Stack-only; cannot be assigned, copied, or moved |
+| **DEFAULT** | no transfer ctor declared | Treated as COPY with compiler-generated members |
+
+A NON_TRANSFER class is the canonical scope guard:
+
+```kairo
+class ScopeLock {
+    fn ScopeLock(self) = default
+
+    @copy
+    fn ScopeLock(self, other: Self) = delete
+
+    @move
+    fn ScopeLock(self, other: Self) = delete
+
+    fn op delete(self) { /* ... */ }
+}
+```
+
+### The Rule of Three
+
+The user writes at most three special members:
+
+1. The default constructor (`fn Class(self)`)
+2. **One** transfer constructor (`@copy` or `@move`, never both)
+3. The destructor (`fn op delete(self)`)
+
+Each may have a user body, `= default`, or `= delete`. Anything not written is compiler-generated.
+
+```kairo
+class Buffer {
+    var data: unsafe *u8
+    var size: usize
+
+    fn Buffer(self, size: usize) {
+        self.data = std::alloc<u8>(size)
+        self.size = size
+    }
+
+    @move
+    fn Buffer(self, other: Self) {
+        self.data  = other.data
+        self.size  = other.size
+        other.data = null
+        other.size = 0
+    }
+
+    fn op delete(self) {
+        std::free(self.data)
+    }
+}
+```
+
+### Assignment is auto-derived
+
+`op =` is generated from the transfer constructor the user does not write it. Writing it explicitly is a
+compile error.
+
+| Transfer ctor form | Generated `op =` |
+|---|---|
+| `= default` | `= default` |
+| `= delete` | `= delete` |
+| `{ body }` | destroys `self`, then runs the ctor body, then returns `self` |
+
+The body case handles self-assignment by destroying the current state before reconstructing it.
+
+This implies a consistency rule: if the transfer ctor has a body and `op delete` is `= delete`d, the class fails to compile the auto-derived `op =` needs to invoke the destructor and cannot. Fix by providing a destructor or by changing the transfer ctor to `= default` / `= delete`.
+
+### Defaulted moves of non-movable members
+
+`= default` on a `@move` ctor performs memberwise move: each member is moved through its own `@move` ctor. If a member is COPY-only (no `@move` available), that member is **copied** as part of the move matching C++ semantics. This is silent and almost always what you want; if a member must be moved or nothing, write the transfer ctor body explicitly and let the compiler error on the COPY-only field.
+
+### Implicit-copy-with-custom-destructor warning
+
+A class with a custom destructor but no explicit `@copy` or `@move` transfer constructor compiles, but emits a warning. The class is implicitly copyable, and a custom destructor almost always means the class owns a resource silent copies of that resource cause double-free and aliasing bugs.
+
+```kairo
+class UniqueFile {
+    var handle: unsafe *void
+
+    fn op delete(self) { close_file(self.handle) }
+    // warning: custom destructor with implicit copy constructor
+    //   help: declare as @move:
+    //           @move fn UniqueFile(self, other: Self) = default
+    //   help: or explicitly delete copy:
+    //           @copy fn UniqueFile(self, other: Self) = delete
+}
+```
+
+### AMT copy elision
+
+For COPY classes, [AMT](/docs/language/amt) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. AMT does not elide if the move constructor is
+deleted. Users do not opt into or out of this optimization.
 
 ---
 
 ## Inheritance
 
-Classes inherit from other classes using the `derives` keyword:
+Classes inherit from other classes using `derives`:
 
 ```kairo
 class Animal {
@@ -3984,15 +4294,13 @@ class Dog derives Animal {
 ### Inheritance visibility
 
 By default, inheritance is public. Append `pub`, `prot`, or `priv` after `derives` to control how base
-class members are exposed in the derived class:
+members are exposed in the derived class:
 
 ```kairo
 class Derived derives pub Base { ... }    // base members keep their visibility
 class Derived derives prot Base { ... }   // all base members become protected
 class Derived derives priv Base { ... }   // all base members become private
 ```
-
-This matches C++ inheritance visibility semantics exactly.
 
 ### Multiple inheritance
 
@@ -4008,60 +4316,50 @@ class Printable {
 class Document derives Serializable, Printable {
     // inherits both serialize() and print()
 }
-```
 
-Per-base visibility works with multiple inheritance:
-
-```kairo
 class Widget derives pub Drawable, prot EventHandler { ... }
 ```
 
 ### Calling base class methods
 
-There is no `super` keyword. Call base class methods explicitly using the qualified name:
+There is no `super` keyword. Call base methods explicitly using the qualified name:
 
 ```kairo
 class Derived derives Base {
     fn method(self) {
-        Base::method(self)   // call Base's implementation
-        // ... additional logic
+        Base::method(self)
     }
 }
 ```
 
-### Diamond inheritance
+### Diamond and virtual inheritance
 
-Diamond inheritance behaves identically to C++ if `B` and `C` both derive from `A`, and `D` derives
-from both `B` and `C`, then `D` contains two copies of `A`'s subobject. Disambiguate with qualified names:
+If `B` and `C` both derive from `A`, and `D` derives from both `B` and `C`, then `D` contains two copies
+of `A`'s subobject. Disambiguate with qualified names:
 
 ```kairo
 class A {
     fn method(self) { std::println("A") }
 }
 
-class B derives A {
-    fn method(self) { std::println("B") }
-}
-
-class C derives A {
-    fn method(self) { std::println("C") }
-}
+class B derives A { fn method(self) { std::println("B") } }
+class C derives A { fn method(self) { std::println("C") } }
 
 class D derives B, C {
     fn method(self) {
-        B::method(self)   // calls B's version
-        C::method(self)   // calls C's version
+        B::method(self)
+        C::method(self)
     }
 }
 ```
 
-Virtual inheritance is also supported to share a single `A` subobject between `B` and `C` see below.
+To share a single `A` subobject, use `derives virtual`. The most-derived class is responsible for
+initializing the virtual base directly; intermediate classes' calls to the virtual base constructor are
+ignored:
 
 ```kairo
-// Virtual inheritance single shared A subobject
 class A {
     var value: i32
-
     fn A(self, v: i32) { self.value = v }
 }
 
@@ -4075,18 +4373,28 @@ class C derives virtual A {
 
 class D derives B, C {
     fn D(self, v: i32) {
-        A::A(self, v)    // D must initialize the virtual base directly
+        A::A(self, v)    // D initializes the virtual base
         B::B(self, v)
         C::C(self, v)
     }
 }
-
-var d = D(42)
-// d.value is unambiguous only one A subobject exists
 ```
 
-To share a single `A` subobject instead of getting two copies, use `derives virtual`. The most-derived class (`D`) is responsible for initializing the virtual base directly intermediate classes' calls to the virtual base constructor are ignored, identical to C++ virtual inheritance.
-[Casting](/docs/language/casting) for upcasting and downcasting across inheritance hierarchies.
+### Lifecycle category matching
+
+A derived class's lifecycle category must be compatible with its base's:
+
+| Base category | Allowed derived categories |
+|---|---|
+| COPY | COPY, NON_TRANSFER |
+| MOVE | MOVE, NON_TRANSFER |
+| NON_TRANSFER | NON_TRANSFER |
+
+A copyable base with a move-only derived class is a compile error slicing a derived instance through a
+base pointer would otherwise silently copy the base subobject of a class that promised never to be
+copied.
+
+See [Casting](/docs/language/casting) for upcasting and downcasting.
 
 ---
 
@@ -4115,14 +4423,12 @@ class Circle derives Shape {
 }
 
 var shape: *Shape = &Circle(5.0)
-shape->area()   // 78.539... dynamic dispatch calls Circle::area
+shape->area()   // 78.539... dynamic dispatch
 ```
 
-`virtual` on the base class method creates a vtable slot. `override` in the derived class replaces
-the entry in that slot. Both keywords behave identically to their C++ counterparts.
-
-A class only has a vtable pointer (8 bytes at offset 0) if it declares or inherits at least one `virtual`
-method. Non-polymorphic classes have no vtable overhead.
+`virtual` creates a vtable slot. `override` in the derived class replaces the entry in that slot. A class
+only has a vtable pointer (8 bytes at offset 0) if it declares or inherits at least one `virtual` method.
+Non-polymorphic classes have no vtable overhead.
 
 ### Abstract classes (pure virtual)
 
@@ -4130,16 +4436,14 @@ A method declared with `= virtual` has no body and must be overridden by any non
 
 ```kairo
 class Shape {
-    fn area(self) const -> f64 = virtual    // pure virtual
+    fn area(self) const -> f64 = virtual
     fn perimeter(self) const -> f64 = virtual
 }
 
 class Circle derives Shape {
     var radius: f64
 
-    fn Circle(self, radius: f64) {
-        self.radius = radius
-    }
+    fn Circle(self, radius: f64) { self.radius = radius }
 
     override fn area(self) const -> f64 {
         return 3.14159 * self.radius * self.radius
@@ -4151,24 +4455,20 @@ class Circle derives Shape {
 }
 
 // var s = Shape()   // compile error: Shape has pure virtual methods
-var c = Circle(5.0)  // ok: all pure virtuals are overridden
+var c = Circle(5.0)  // ok: all pure virtuals overridden
 ```
 
 `= virtual` implies vtable participation no `virtual` prefix is needed on the declaration. A class with
 any `= virtual` method cannot be instantiated directly.
 
----
-
-## `final`
+### `final`
 
 `final` prevents further overriding of a method or derivation from a class:
 
 ```kairo
-final class Singleton {
-    // ...
-}
+final class Singleton { /* ... */ }
 
-// class Derived derives Singleton { }   // compile error: Singleton is final
+// class Derived derives Singleton { }   // compile error
 
 class Base {
     virtual fn process(self) { ... }
@@ -4179,11 +4479,9 @@ class Middle derives Base {
 }
 
 class Bottom derives Middle {
-    // override fn process(self) { ... }   // compile error: process is final in Middle
+    // override fn process(self) { ... }   // compile error: final in Middle
 }
 ```
-
-`final` on a method can be combined with `override`. `final` on a class prevents any inheritance.
 
 ---
 
@@ -4211,9 +4509,8 @@ class UserId impl Hashable {
 ```
 
 Interface conformance is structural a class that has the required methods satisfies the interface
-whether or not `impl` is declared. The `impl` keyword triggers an explicit check at the declaration site.
-Without it, the check happens at the point of use (e.g., when the class is passed to a generic function
-with an `impl` bound).
+whether or not `impl` is declared. The `impl` keyword triggers the check at the declaration site rather
+than at the point of use.
 
 ```kairo
 class Point {
@@ -4225,11 +4522,10 @@ class Point {
 
 fn <T impl Hashable> insert(set: {T}, item: T) { ... }
 
-insert(my_set, Point(1.0, 2.0))   // compiles: Point has hash(), satisfies Hashable
+insert(my_set, Point(1.0, 2.0))   // compiles: Point has hash()
 ```
 
-See [Interfaces](/docs/language/interfaces) for interface declarations, default methods, and
-[Bounds](/docs/language/bounds) for generic constraint syntax.
+See [Interfaces](/docs/language/interfaces) and [Bounds](/docs/language/bounds).
 
 ---
 
@@ -4273,27 +4569,49 @@ class <T> Derived derives Base<T> {
 }
 ```
 
-Constrain type parameters with `impl` or `derives` bounds:
+### Type parameter constraints
+
+By default, a type parameter accepts any `T`. Whether a specific `T` is valid for a given instantiation
+depends on what the body does with it by-reference use accepts anything, copying requires a COPY type,
+moving requires COPY or MOVE, returning by value requires COPY or MOVE. Instantiation errors point at
+both the body operation that required the capability and the type that lacks it.
+
+Explicit bounds document intent and fail fast at the constraint check rather than mid-body. Two kinds of
+bounds exist:
+
+**Kind bounds** restrict `T` to a specific category of type declaration:
 
 ```kairo
-class <T impl Comparable> SortedList {
-    var items: [T]
-
-    fn insert(self, item: T) {
-        // can use comparison operators on T
-    }
-}
+fn <T: class>  process(item: T)   { ... }
+fn <T: struct> serialize(item: T) { ... }
+fn <T: enum>   stringify(item: T) { ... }
+fn <T: union>  inspect(item: T)   { ... }
 ```
 
-See [Functions](/docs/language/functions#generic-functions) for generic syntax and
-[Bounds](/docs/language/bounds) for the full constraint system.
+**Interface bounds** restrict `T` to types that satisfy a given interface. The standard library will
+provide interfaces describing lifecycle capabilities, allowing constraints like "T must be copyable" or
+"T must be movable" to be written as interface bounds. The exact names and shapes of these interfaces are
+still being finalized in `std` write your own if you need them now:
+
+```kairo
+interface Copyable {
+    fn Copyable(self)               // default ctor
+
+    @copy
+    fn Copyable(self, other: Self)
+}
+
+fn <T impl Copyable> store(item: T) -> T { ... }
+```
+
+See [Bounds](/docs/language/bounds) for the full constraint system.
 
 ---
 
 ## Static Members
 
-Static members belong to the class, not to any instance. They are declared with `static` and accessed
-via `ClassName::member`:
+Static members belong to the class, not to any instance. They are declared with `static` and accessed via
+`ClassName::member`:
 
 ```kairo
 class Counter {
@@ -4313,10 +4631,8 @@ var b = Counter()
 Counter::get_count()   // 2
 ```
 
-Static variables require an explicit type annotation. They can be initialized at the declaration site
-(as above) or left for program-startup initialization, following the same rules as C++ static members.
-
-Static methods do not take `self` and cannot access instance members.
+Static variables require an explicit type annotation. They can be initialized at the declaration site or
+at program startup. Static methods do not take `self` and cannot access instance members.
 
 ---
 
@@ -4342,19 +4658,48 @@ class Sensor {
 
 const sensor: *const Sensor = &some_sensor
 sensor->value()        // ok: const method
-// sensor->calibrate(1.0)  // compile error: calibrate is not const
+// sensor->calibrate(1.0)  // compile error: not const
 ```
 
 `const` and non-`const` methods with the same name and parameter types cannot coexist use distinct
-names like `get()` and `get_mut()`. See [Variables](/docs/language/variables#the-const-binding-rule) for
-the full `const` model.
+names like `get()` and `get_mut()`. See [Variables](/docs/language/variables#the-const-binding-rule).
+
+### `mutable` members
+
+The `mutable` qualifier allows a member to be modified even through a `const` reference or in a `const`
+method:
+
+```kairo
+class Cache {
+    var data: [i32]
+    mutable var hit_count: i32
+
+    fn Cache(self) {
+        self.data = []
+        self.hit_count = 0
+    }
+
+    fn lookup(const self, index: i32) -> i32 {
+        self.hit_count += 1   // ok: mutable
+        return self.data[index]
+    }
+}
+```
+
+`mutable` is only valid on instance variables inside class and struct bodies. It cannot appear on
+top-level variables, local variables, or `const`/`eval`/`static` declarations.
+
+> [!WARNING]
+> `mutable` breaks the semantic guarantee that `const` methods do not modify the object. Use it sparingly
+> caching, reference counting, and lazy initialization are the canonical use cases. If you find
+> yourself marking many members `mutable`, reconsider the `const` boundary.
 
 ---
 
 ## Nested Classes
 
 Classes can be declared inside other classes. Nested classes can access private members of the enclosing
-class, matching C++ behavior:
+class:
 
 ```kairo
 class Tree {
@@ -4374,13 +4719,13 @@ class Tree {
 
 ---
 
-## Forward Declarations
+## Forward Declarations and Out-of-Line Definitions
 
-A class can be forward-declared without a body for use in situations where the full definition is not yet
-available typically for mutual references or when the implementation is in a separate translation unit:
+A class can be forward-declared without a body sufficient for `*Class` uses, not for `sizeof` or member
+access:
 
 ```kairo
-class Parser    // forward declaration enough for *Parser, not for sizeof or member access
+class Parser
 
 class Lexer {
     var parser: unsafe *Parser   // ok: pointer to incomplete type
@@ -4392,34 +4737,113 @@ class Parser {
 }
 ```
 
-A class can also be forward-declared with member signatures but no method bodies:
+Member methods can also be declared inside the class body without a body and defined out-of-line using
+the `Class::method` qualified-name syntax:
 
 ```kairo
 class Parser {
-    var lexer: Lexer
+    var tokens: [Token]
+    var pos: usize
 
-    fn parse(self) -> Expr       // signature only
-    fn next_token(self) -> Token // signature only
+    pub fn Parser(self, tokens: [Token])
+    pub fn advance(self) -> Token
+    pub fn peek(self) const -> Token
+    priv fn error(self, msg: string) panic
 }
 
-fn Parser::parse(self) -> Expr {
-    // body defined outside the class
+fn Parser::Parser(self, tokens: [Token]) {
+    self.tokens = tokens
+    self.pos = 0
 }
 
-fn Parser::next_token(self) -> Token {
-    // body defined outside the class
+fn Parser::advance(self) -> Token {
+    var t = self.tokens[self.pos]
+    self.pos += 1
+    return t
+}
+
+fn Parser::peek(self) const -> Token = self.tokens[self.pos]
+
+fn Parser::error(self, msg: string) panic {
+    panic std::Error::Parse(msg, self.pos)
 }
 ```
 
-Out-of-class definitions must exactly match the forward-declared signature parameter types, return type,
-and all modifiers. Default parameter values belong in the forward declaration, not the out-of-class
-definition.
+This pattern keeps the class body small and readable as an API surface, with implementation details
+defined separately.
+
+### Rules
+
+- The qualified definition's signature must exactly match the in-class declaration: parameter types,
+  return type, and all function modifiers (`const`, `unsafe`, `panic`, `eval`, `async`, `inline`,
+  `final`, `virtual`, `override`, `static`).
+- **Visibility is omitted** from the out-of-line definition it is taken from the in-class declaration.
+  Writing `pub fn Parser::advance` is a compile error.
+- **Default arguments** must appear on the in-class declaration, not the out-of-line definition.
+- Parameter names may differ between declaration and definition; the definition's names are used in the
+  body.
+
+### Generic classes
+
+For generic classes, the type parameters are re-declared on the out-of-line definition and the class
+name carries its generic arguments:
+
+```kairo
+class <T> Vec {
+    var data: unsafe *T
+    var len: usize
+    var cap: usize
+
+    pub fn push(self, value: T)
+    pub fn get(self, i: usize) const -> T
+}
+
+fn <T> Vec<T>::push(self, value: T) {
+    if self.len == self.cap { self.grow() }
+    self.data[self.len] = value
+    self.len += 1
+}
+
+fn <T> Vec<T>::get(self, i: usize) const -> T = self.data[i]
+```
+
+### Operators, constructors, destructors
+
+Operator overloads, constructors, and destructors follow the same pattern:
+
+```kairo
+class Vec2 {
+    var x: f64
+    var y: f64
+
+    pub fn Vec2(self, x: f64, y: f64)
+    pub fn op delete(self)
+    pub fn op +(self, other: Vec2) -> Vec2
+}
+
+fn Vec2::Vec2(self, x: f64, y: f64) {
+    self.x = x
+    self.y = y
+}
+
+fn Vec2::op delete(self) { /* ... */ }
+
+fn Vec2::op +(self, other: Vec2) -> Vec2 = Vec2(self.x + other.x, self.y + other.y)
+```
+
+### Nested types
+
+For methods on a nested type, chain the qualifiers:
+
+```kairo
+fn Outer::Inner::method(self) { /* ... */ }
+```
 
 ---
 
 ## Operator Overloading
 
-Operators are overloaded with the `fn op` syntax inside the class body:
+Operators are overloaded with `fn op` syntax inside the class body:
 
 ```kairo
 class Vec2 {
@@ -4450,23 +4874,25 @@ Special operators beyond arithmetic:
 | Syntax | Purpose |
 |---|---|
 | `fn op delete(self)` | Destructor |
-| `fn op as(self) -> TargetType` | Custom type conversion via `as` keyword |
-| `fn <T> op await(self, obj: std::forward<T>) -> T` | Custom awaitable (e.g., futures) |
+| `fn op as(self) -> TargetType` | Custom type conversion via `as` |
+| `fn <T> op await(self, obj: std::forward<T>) -> T` | Custom awaitable |
 
-See [Operators](/docs/language/operators#operator-overloading) for the full list of overloadable operators
-and restrictions.
+`op =` is **not** user-definable it is auto-derived from the transfer constructor. See
+[Lifecycle Categories](#lifecycle-categories).
+
+See [Operators](/docs/language/operators#operator-overloading) for the full list of overloadable
+operators and restrictions.
 
 ---
 
-## Memory Layout
+## Memory Layout and Allocation
 
 Class layout follows the platform's C++ ABI:
 
-- **Non-polymorphic classes:** members laid out in declaration order with standard padding and alignment
-  rules, identical to C++ struct layout.
+- **Non-polymorphic classes**: members laid out in declaration order with standard padding and alignment.
 - **Polymorphic classes** (at least one `virtual` method): vtable pointer at offset 0 (8 bytes on 64-bit),
   followed by members.
-- **Inheritance:** base class subobject precedes derived members, matching C++ layout.
+- **Inheritance**: base class subobject precedes derived members.
 
 Layout can be controlled with attributes:
 
@@ -4483,9 +4909,7 @@ class Aligned {
 }
 ```
 
-### Allocation
-
-Classes follow C++ allocation rules. A plain `var` declaration allocates on the stack:
+A plain `var` declaration allocates on the stack:
 
 ```kairo
 var obj = Foo(42)   // stack-allocated
@@ -4495,17 +4919,16 @@ Heap allocation uses `std::create<T>()`, which returns a pointer. [AMT](/docs/la
 whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
-var ptr = std::create<Foo>(42)   // heap-allocated, AMT chooses pointer type
+var ptr = std::create<Foo>(42)
 ```
 
-See [Pointers](/docs/language/pointers) for pointer types and [AMT](/docs/language/amt) for the
-full allocation and lifetime model.
+See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt).
 
 ---
 
 ## Structs vs Classes
 
-Structs and classes are distinct types in Kairo:
+Structs and classes are distinct types:
 
 | | Class | Struct |
 |---|---|---|
@@ -4514,8 +4937,9 @@ Structs and classes are distinct types in Kairo:
 | Aggregate initialization | No (must use constructor) | Yes (`Foo { field: value }`) |
 | Inheritance | `derives` | Not supported |
 | Virtual dispatch | Yes | No |
+| Lifecycle categories | Yes | N/A (always trivially copyable) |
 
-See [Structures](/docs/language/structures) for struct declarations and semantics.
+See [Structures](/docs/language/structures).
 
 ---
 
@@ -4536,6 +4960,25 @@ class Point {
         var dx = self.x - other.x
         var dy = self.y - other.y
         return std::sqrt(dx * dx + dy * dy)
+    }
+}
+
+// Move-only class
+class UniqueFile {
+    var handle: unsafe *void
+
+    fn UniqueFile(self, path: string) {
+        self.handle = open_file(path)
+    }
+
+    @move
+    fn UniqueFile(self, other: Self) {
+        self.handle  = other.handle
+        other.handle = null
+    }
+
+    fn op delete(self) {
+        close_file(self.handle)
     }
 }
 
@@ -5724,6 +6167,10 @@ Interfaces define a set of method signatures that a type must satisfy. They are 
 contracts no vtable, no runtime dispatch, no storage overhead. A type conforms to an interface if it
 has all the required methods with matching signatures, whether or not it explicitly declares conformance.
 
+Interfaces are a compile-time mechanism. For runtime polymorphism, use a base
+[class](/docs/language/classes) with `virtual` methods and dispatch through a base pointer. Interfaces
+and virtual dispatch solve different problems and can be used together on the same type.
+
 ---
 
 ## Declaration
@@ -5907,6 +6354,32 @@ class Config impl Defaultable {
 }
 ```
 
+### Lifecycle attributes on constructor requirements
+
+Constructor requirements can carry `@copy` or `@move` attributes to require a specific lifecycle
+category. This is how you express "T must be copyable" or "T must be movable" as an interface bound:
+
+```kairo
+interface Copyable {
+    fn Copyable(self)               // default ctor
+
+    @copy
+    fn Copyable(self, other: Self)
+}
+
+interface Moveable {
+    fn Moveable(self)
+
+    @move
+    fn Moveable(self, other: Self)
+}
+
+fn <T impl Copyable> store(item: T) -> T { ... }
+fn <T impl Moveable> consume(item: T)    { ... }
+```
+
+The standard library will provide canonical lifecycle interfaces; these are just examples. See [Lifecycle Categories](/docs/language/classes#lifecycle-categories) for the underlying model.
+
 ---
 
 ## Static Methods in Interfaces
@@ -5942,8 +6415,8 @@ class Timestamp impl Parseable<Timestamp> {
 
 ## Return Types with `Self`
 
-Interface methods can use `Self` as a return type. `Self` always refers to a reference to the
-conforming type:
+Interface methods can use `Self` as a return type. `Self` resolves to the conforming type a class
+that `impl Chainable` and returns `Self` returns its own type:
 
 ```kairo
 interface Chainable {
@@ -5952,17 +6425,25 @@ interface Chainable {
 
 class Pipeline impl Chainable {
     fn then(self, next: Self) -> Self {
-        // Self resolves to Pipeline here
-        // returns a reference to Pipeline
+        // Self resolves to Pipeline
+        return self
     }
 }
 ```
 
-For returning a copy or a pointer, use the interface name or a pointer to it:
+Kairo has no user-visible reference types [AMT](/docs/language/amt) infers reference semantics where
+needed. In practice this means `Self` returns enable fluent chaining without `->` or explicit
+dereferencing:
 
 ```kairo
-interface <T> Factory {
-    static fn create() -> *T    // returns a pointer to the conforming type
+Pipeline().then(other).then(another).run()
+```
+
+To return a pointer to the conforming type, use `*Self`:
+
+```kairo
+interface Cloneable {
+    fn clone(self) -> *Self
 }
 ```
 
@@ -6036,15 +6517,15 @@ for the full constraint system.
 
 ```kairo
 fn <T impl Serializable> save(data: T) { ... }   // T has serialize() and byte_size()
-fn <T derives Base> process(data: T) { ... }       // T is a subclass of Base
+fn <T derives Base> process(data: T) { ... }     // T is a subclass of Base
 ```
 
 ---
 
-## Top-Level Only
+## Declaration Scope
 
-Interfaces must be declared at the top level of a file. They cannot be nested inside classes, structs,
-enums, or other interfaces:
+Interfaces must be declared at module scope. They cannot be nested inside classes, structs, enums, or
+other interfaces:
 
 ```kairo
 interface Valid {
@@ -6055,6 +6536,8 @@ class Outer {
     // interface Invalid { ... }   // compile error: interfaces cannot be nested
 }
 ```
+
+See [Modules](/docs/language/modules) for module organization.
 
 ---
 
@@ -6081,10 +6564,10 @@ Interfaces cannot declare variables, constants, static variables, or eval bindin
 
 ```kairo
 interface Invalid {
-    // var x: i32              // compile error
+    // var x: i32             // compile error
     // const Y: i32 = 10      // compile error
     // static z: i32 = 0      // compile error
-    fn valid_method(self)      // ok
+    fn valid_method(self)     // ok
 }
 ```
 
@@ -6251,9 +6734,24 @@ var s = Stack<i32>()   // no arguments to infer from, must specify
 
 ### Return type inference
 
-Return types are not inferred for regular functions they must be declared explicitly or default to
-`void`. Expression-bodied functions (`fn foo() -> T = expr`) infer the return type from the expression
-if the annotation is omitted. See [Functions](/docs/language/functions#expression-bodied-functions).
+Return types are never inferred for block-bodied functions or forward declarations. They must be declared
+explicitly, or they default to `void`:
+
+```kairo
+fn add(a: i32, b: i32) -> i32 { return a + b }   // explicit
+fn log(msg: string) { std::println(msg) }        // defaults to void
+```
+
+Expression-bodied functions (`fn foo() = expr`) are the one exception: if the return
+type annotation is omitted, it is inferred from the expression.
+
+```kairo
+fn square(x: i32) = x * x          // inferred as i32
+fn name() = "Kairo"                // inferred as string
+fn typed(x: i32) -> i64 = x as i64 // explicit still allowed
+```
+
+See [Functions](/docs/language/functions#expression-bodied-functions)
 
 ---
 
@@ -6992,208 +7490,143 @@ reference.
 
 ---
 
-## Where Clauses
-URL: https://www.kairolang.org/docs/language/bounds/
+## Requires Clauses
+URL: https://www.kairolang.org/docs/language/requires/
 
-# Where Clauses
+# Requires Clauses
 
-Where clauses attach constraints to declarations. A `where` clause specifies a condition that must hold
-for the declaration to be valid. If the condition can be evaluated at compile time, a violation is a
-compile error. If it can only be evaluated at runtime, the compiler generates dispatch code that selects
-among overloads based on which constraints are satisfied.
+`requires` attaches compile-time constraints to declarations. A `requires` clause specifies a
+condition that must hold at compile time if it doesn't, the program does not compile. There is
+no runtime fallback, no dispatch, no branching. `requires` is a static gate.
+
+For runtime-conditional dispatch, see [Where Clauses](/docs/language/where).
 
 | Property | Guarantee |
 |---|---|
-| Compile-time check | When the expression is compile-time evaluable |
-| Runtime check | When the expression depends on runtime values |
+| Evaluation time | Compile time, always |
 | Memory safe | Yes |
-| Thread safe | Yes |
-| Undefined behavior | No |
-| Requires unsafe | No |
+| Runtime cost | Zero |
+| Valid on functions | Yes |
+| Valid on types | Yes |
+| Valid on interface methods | Yes |
+| Valid on interfaces | Yes (constrains conforming types) |
 
 ---
 
 ## Basic Syntax
 
-A `where` clause appears after the parameter list (and return type, if present) and before the function
-body. It takes a single boolean expression:
+A `requires` clause appears after the parameter list and return type, before the function body:
 
 ```kairo
 fn divide(a: i32, b: i32) -> i32
-  where b != 0 {
+  requires b != 0 {
     return a / b
 }
+```
+
+If the condition cannot be evaluated at compile time, the compiler emits a hard error:
+
+```
+error: requires expression is not compile-time evaluable
+  --> src/math.k:1:32
+  1 | fn divide(a: i32, b: i32) -> i32
+  2 |   requires b != 0 {
+    |            ^^^^^^ depends on runtime value 'b'
+  note: for runtime-conditional dispatch, use 'where'
 ```
 
 Multiple conditions are combined with boolean operators in a single expression:
 
 ```kairo
 fn safe_index(arr: [i32], i: i32) -> i32
-  where i >= 0 && i < arr.len() {
+  requires i >= 0 && i < arr.len() {
     return arr[i]
 }
 ```
 
 ---
 
-## Compile-Time Constraints
+## Compile-Time Expressions
 
-When the `where` expression can be evaluated at compile time, the compiler checks it statically. A
-violation is a hard compile error:
+Any expression the compiler can evaluate statically is valid in a `requires` clause:
 
-```kairo
-fn <T> fixed_buffer(size: i32) -> [T; size]
-  where sizeof(T) <= 64 && size > 0 {
-    // ...
-}
+| Expression | Example |
+|---|---|
+| `sizeof(T)` | `requires sizeof(T) <= 64` |
+| `alignof(T)` | `requires alignof(T) >= 16` |
+| Arithmetic and comparisons | `requires N > 0 && N <= 1024` |
+| `eval` variables and functions | `requires is_power_of_two(N)` |
+| Type trait checks | `requires T impl Comparable` |
+| `typeof` queries | `requires typeof T == i32` |
 
-fixed_buffer<u8>(100)     // ok: sizeof(u8) == 1, 100 > 0
-fixed_buffer<u8>(-1)      // compile error: -1 > 0 is false
-```
-
-Compile-time constraints are useful for restricting generic instantiations, enforcing size limits, and
-catching invalid configurations before codegen.
-
-### Available compile-time expressions
-
-Any expression that the compiler can evaluate statically is valid, including:
-
-- `sizeof(T)` size of a type in bytes
-- `alignof(T)` alignment of a type in bytes
-- Literal comparisons and arithmetic
-- `eval` variables and functions (see [Eval](/docs/language/eval))
-- Type trait checks (`T impl SomeInterface`, `T derives SomeClass`)
+If the expression depends on a runtime value, it belongs in a `where` clause, not `requires`.
 
 ---
 
-## Type Constraints in Where Clauses
+## Type Constraints
 
-`impl` and `derives` bounds can appear in `where` clauses as an alternative to inline bounds on type
-parameters. The compiler desugars them into the equivalent generic bound:
+`impl` and `derives` bounds can appear in `requires` clauses as an alternative to inline bounds
+on type parameters. The compiler desugars them identically:
 
 ```kairo
 // These are equivalent:
 fn <T impl Serializable> save(data: T) { ... }
-fn <T> save(data: T) where T impl Serializable { ... }
+fn <T> save(data: T) requires T impl Serializable { ... }
+```
 
-// Useful when the constraint is complex or involves multiple parameters:
+The `requires` form is preferred when constraints are long or involve relationships between
+multiple type parameters:
+
+```kairo
 fn <T, U> convert(input: T) -> U
-  where T impl Serializable && U impl Deserializable {
+  requires T impl Serializable && U impl Deserializable {
     var bytes = input.serialize()
     return U::from_bytes(bytes)
 }
 ```
 
-The `where` form is preferred when constraints are long or involve relationships between multiple type
-parameters, keeping the generic parameter list clean.
-
 ---
 
-## Runtime Constraints and Overload Dispatch
+## Requires on Types
 
-When a `where` expression depends on runtime values, the compiler cannot check it statically. Instead,
-it generates dispatch code that selects among candidate overloads at runtime. The caller must provide
-a fallback overload without a `where` clause (or with a different `where` clause) that covers the
-failing case:
-
-```kairo
-fn divide(a: i32, b: i32) -> i32
-  where b != 0 {
-    return a / b
-}
-
-fn divide(a: i32, b: i32) -> i32 {
-    return 0   // fallback when b == 0
-}
-```
-
-The compiler folds these into a single function with branch dispatch:
-
-```kairo
-// Conceptual codegen:
-fn divide(a: i32, b: i32) -> i32 {
-    if b != 0 {
-        return a / b
-    } else {
-        return 0
-    }
-}
-```
-
-If no unconstrained fallback exists and the constraint is runtime-evaluated, the compiler emits an
-error every runtime code path must have a candidate.
-
-### Declaration order determines priority
-
-When multiple `where`-constrained overloads exist for the same function, they are checked in
-declaration order. The first satisfied constraint wins. The unconstrained overload is always the
-final fallback:
-
-```kairo
-fn classify(x: i32) -> string where x > 100 { return "high" }
-fn classify(x: i32) -> string where x > 0   { return "positive" }
-fn classify(x: i32) -> string               { return "non-positive" }
-```
-
-Codegen:
-
-```kairo
-// Conceptual:
-fn classify(x: i32) -> string {
-    if x > 100      { return "high" }
-    else if x > 0   { return "positive" }
-    else            { return "non-positive" }
-}
-```
-
-The user controls priority by controlling declaration order. The compiler does not attempt to
-determine which constraint is "more specific" it chains them sequentially.
-
-> [!CAUTION]
-> Runtime `where` dispatch introduces branching at the call site. This can create timing
-> side-channels if the constrained function processes sensitive data and the branch structure
-> leaks information through execution time differences.
-
----
-
-## Where Clauses on Types
-
-Where clauses can appear on class, struct, and enum declarations. The constraint is checked when the
-type is instantiated (for generics, at monomorphization time):
+`requires` on a class, struct, or enum is checked at instantiation time. A violation is a hard
+compile error at the point of use:
 
 ```kairo
 class <T> SmallBuffer
-  where sizeof(T) <= 128 {
+  requires sizeof(T) <= 128 {
     var data: [T; 16]
 }
 
-SmallBuffer<i32>()    // ok: sizeof(i32) == 4
-SmallBuffer<[u8; 256]>()  // compile error: sizeof([u8; 256]) == 256 > 128
+SmallBuffer<i32>()         // ok: sizeof(i32) == 4
+SmallBuffer<[u8; 256]>()   // compile error: sizeof([u8; 256]) == 256, exceeds 128
 
 struct <T> Aligned16
-  where alignof(T) >= 16 {
+  requires alignof(T) >= 16 {
     var value: T
 }
 
 enum <T> Compact
-  where sizeof(T) <= 8 {
+  requires sizeof(T) <= 8 {
     Some { value: T },
     None,
 }
 ```
 
-Where clauses are not permitted on interfaces. Interface requirements are expressed through method
-signatures and generic bounds on type parameters.
+Type-level constraints are always `requires`. There is no runtime dispatch on type instantiation
+either the type is valid or it isn't.
 
 ---
 
-## Where Clauses on Interface Methods
+## Requires on Interface Methods
 
-Interface method signatures can include `where` clauses. The conforming type inherits the constraint:
+`requires` on an interface method constrains what conforming types must satisfy. The conforming
+type must implement the method with an identical `requires` clause:
 
 ```kairo
 interface Accumulator {
-    fn add(self, value: i32) -> Self where value > 0
+    fn add(self, value: i32) -> Self
+      requires value > 0
 }
 
 class Counter impl Accumulator {
@@ -7201,25 +7634,258 @@ class Counter impl Accumulator {
 
     fn Counter(self) { self.total = 0 }
 
-    fn add(self, value: i32) -> Self where value > 0 {
+    fn add(self, value: i32) -> Self
+      requires value > 0 {
         self.total += value
-        return self
-    }
-
-    fn add(self, value: i32) -> Self {
-        // fallback for value <= 0
         return self
     }
 }
 ```
 
+Because interfaces are zero-cost structural contracts, `requires` is the only valid constraint
+keyword on interface members. `where` is not permitted runtime dispatch inside an interface
+method would violate the zero-cost guarantee.
+
 ---
 
-## Where Clauses in Match
+## Requires on Interfaces
+
+A `requires` clause on an interface declaration constrains which types can conform. A type that
+does not satisfy the `requires` cannot implement the interface, even if it has all the required
+methods:
+
+```kairo
+interface <T> SmallStorable
+  requires sizeof(T) <= 64 {
+    fn store(self) -> [byte]
+    fn load(data: [byte]) -> T
+}
+```
+
+This is distinct from `requires` on an individual method it applies to the entire interface
+as a precondition on conformance.
+
+---
+
+## Requires and eval
+
+`requires` expressions are evaluated by the same compile-time engine as `eval`. Any `eval`
+function or variable is usable in a `requires` clause:
+
+```kairo
+eval fn is_power_of_two(n: i32) -> bool {
+    return n > 0 && (n & (n - 1)) == 0
+}
+
+fn <const N: i32> aligned_buffer() -> [u8; N]
+  requires is_power_of_two(N) {
+    return [0; N]
+}
+
+aligned_buffer<256>()   // ok: 256 is a power of two
+aligned_buffer<300>()   // compile error: 300 is not a power of two
+```
+
+See [Eval](/docs/language/eval) for compile-time evaluation rules.
+
+---
+
+## Requires and panic
+
+`requires` and `panic` serve different purposes and can coexist. `requires` filters invalid inputs
+before the function body executes. `panic` handles valid inputs that produce errors during
+processing:
+
+```kairo
+fn parse_port(input: string) panic -> i32
+  requires input.len() > 0 {
+    var port = std::parse<i32>(input)
+    if port < 0 || port > 65535 {
+        panic std::Error::Runtime("port out of range")
+    }
+    return port
+}
+```
+
+The `requires` clause rejects empty strings at compile time (when the argument is a constant) or
+documents the precondition for the caller. The `panic` handles the runtime error case of a
+non-empty string that isn't a valid port.
+
+---
+
+## Summary
+
+```kairo
+// Compile-time size constraint on a generic
+fn <T> stack_alloc() -> T
+  requires sizeof(T) <= 4096 {
+    // ...
+}
+
+// Type constraint in requires clause
+fn <T, U> transform(input: T) -> U
+  requires T impl Readable && U impl Writable {
+    // ...
+}
+
+// Requires on a class
+class <T> InlineBuffer
+  requires sizeof(T) <= 64 {
+    var data: [T; 8]
+}
+
+// Requires on an interface method
+interface Validator {
+    fn validate(self, input: string) -> bool
+      requires input.len() > 0
+}
+
+// Requires with eval function
+eval fn fits_in_cache_line(n: i32) -> bool = n <= 64
+
+struct <T> CacheAligned
+  requires fits_in_cache_line(sizeof(T)) {
+    var value: T
+}
+```
+
+---
+
+## Where Clauses
+URL: https://www.kairolang.org/docs/language/where/
+
+# Where Clauses
+
+`where` attaches runtime-conditional constraints to function declarations. A `where` clause
+specifies a condition that is checked at the call site if it fails, execution falls through to
+the next matching overload. The compiler folds multiple `where`-constrained overloads into a
+single function with branch dispatch.
+
+For compile-time constraints, see [Requires Clauses](/docs/language/requires).
+
+| Property | Guarantee |
+|---|---|
+| Evaluation time | Runtime |
+| Memory safe | Yes |
+| Thread safe | Yes |
+| Undefined behavior | No |
+| Requires unsafe | No |
+| Valid on functions | Yes |
+| Valid on types | No use `requires` |
+| Valid on interfaces | No interfaces are zero-cost, use `requires` |
+
+---
+
+## Basic Syntax
+
+A `where` clause appears after the parameter list and return type, before the function body:
+
+```kairo
+fn sqrt(x: f64) -> f64
+  where x >= 0.0 {
+    return std::math::sqrt(x)
+}
+
+fn sqrt(x: f64) -> f64 {
+    return 0.0   // fallback for negative input
+}
+```
+
+At the call site, the compiler generates a branch. If the condition holds, the constrained
+overload runs. If not, execution falls to the next candidate.
+
+Multiple conditions are combined with boolean operators:
+
+```kairo
+fn safe_divide(a: i32, b: i32) -> i32
+  where b != 0 && a >= 0 {
+    return a / b
+}
+
+fn safe_divide(a: i32, b: i32) -> i32 {
+    return 0   // fallback
+}
+```
+
+---
+
+## Fallback Requirement
+
+Every `where`-constrained overload must have a fallback an overload with no `where` clause (or
+a `where` clause that covers the remaining cases). If no fallback exists, the compiler emits an
+error:
+
+```
+error: no fallback overload for 'sqrt' when where condition fails
+  --> src/math.k:1:1
+  1 | fn sqrt(x: f64) -> f64
+  2 |   where x >= 0.0 {
+  note: add an overload without a 'where' clause to handle all remaining cases
+```
+
+The fallback is the compiler's guarantee that every call site has a valid code path.
+
+---
+
+## Declaration Order Determines Priority
+
+When multiple `where`-constrained overloads exist for the same function, the compiler checks them
+in declaration order. The first satisfied condition wins. The unconstrained overload is always
+the final fallback:
+
+```kairo
+fn categorize(x: i32) -> string where x > 100  { return "high" }
+fn categorize(x: i32) -> string where x > 0    { return "positive" }
+fn categorize(x: i32) -> string                 { return "non-positive" }
+```
+
+Conceptual codegen:
+
+```kairo
+fn categorize(x: i32) -> string {
+    if x > 100     { return "high" }
+    else if x > 0  { return "positive" }
+    else           { return "non-positive" }
+}
+```
+
+Declaration order is the programmer's explicit priority control. The compiler does not attempt to
+determine which condition is "more specific" it chains them sequentially in the order they
+appear in source.
+
+> [!WARNING]
+> A `where` condition that is a strict subset of a preceding condition will never fire. The
+> compiler emits a warning when it can statically determine that a `where` clause is unreachable:
+>
+> ```kairo
+> fn process(x: i32) -> string where x > 50 { return "high" }
+> fn process(x: i32) -> string where x > 100 { return "very high" }  // warning: unreachable
+> fn process(x: i32) -> string { return "low" }
+> ```
+
+---
+
+## Overlapping Conditions
+
+If two `where` clauses have overlapping conditions that cannot be statically determined to be
+disjoint, the compiler emits a warning:
+
+```kairo
+fn handle(x: i32) -> string where x > 0 && x < 100 { return "small positive" }
+fn handle(x: i32) -> string where x > 50            { return "over 50" }  // warning: overlaps with above
+fn handle(x: i32) -> string                          { return "other" }
+```
+
+Declaration order still determines the result `x == 75` hits the first overload but the
+warning signals that the intent may not match the behavior.
+
+---
+
+## Where in Match
 
 The `where` keyword also appears in `match` arms as a guard condition. Match guards are always
-evaluated at runtime and do not participate in the overload dispatch system they are simple
-boolean filters on a matched pattern:
+evaluated at runtime and are independent of the overload dispatch system they are simple boolean
+filters on a matched pattern, not function overloads:
 
 ```kairo
 match result {
@@ -7238,101 +7904,128 @@ See [Control Flow](/docs/language/control-flow#match) for the full `match` synta
 
 ---
 
-## Interaction with Other Features
+## Runtime Dispatch and Timing
 
-### Compile-time where and `eval`
+`where` dispatch introduces a branch at the call site. In most cases this is a single conditional
+jump that the branch predictor handles efficiently. However, if the constrained function processes
+sensitive data, the branch structure can leak information through execution time differences.
 
-A `where` clause on an `eval` function is always evaluated at compile time. If the constraint cannot
-be statically checked, the compiler emits an error:
+> [!CAUTION]
+> Runtime `where` dispatch creates observable branching. If the function handles sensitive data
+> (cryptographic keys, authentication tokens, private user data), the timing difference between
+> the constrained and fallback paths may be measurable by an attacker. Use constant-time
+> implementations in those cases and do not rely on `where` dispatch for security-critical
+> branching.
+
+---
+
+## Where and panic
+
+`where` clauses and `panic` are orthogonal. `where` selects which overload runs based on a
+runtime condition. `panic` signals an error from within a function body. They can coexist:
 
 ```kairo
-eval fn compute_table_size(element_size: i32) -> i32
-  where element_size > 0 {
-    return 1024 / element_size
-}
-```
-
-See [Eval](/docs/language/eval) for compile-time evaluation rules.
-
-### Where and `panic`
-
-A `where` clause and `panic` serve different purposes. `where` constrains inputs before the function
-body executes. `panic` signals errors from within the function body. They can coexist:
-
-```kairo
-fn parse_port(input: string) panic -> i32
-  where input.len() > 0 {
-    var port = std::parse<i32>(input)
-    if port < 0 || port > 65535 {
-        panic std::Error::Runtime("port out of range")
+fn connect(host: string, port: i32) panic -> Connection
+  where port > 0 && port <= 65535 {
+    var conn = tcp_connect(host, port)
+    if !conn.is_valid() {
+        panic std::Error::IO("connection failed")
     }
-    return port
+    return conn
+}
+
+fn connect(host: string, port: i32) -> Connection {
+    // fallback: invalid port, return a no-op connection
+    return Connection::invalid()
 }
 ```
 
-The `where` clause filters invalid inputs. The `panic` handles valid inputs that produce errors
-during processing. See [Panic](/docs/language/panic) for the panic model.
+---
 
-### Where and `unsafe`
+## Where and unsafe
 
-`where` clauses and `unsafe` overloads are orthogonal. Safe overloads dispatch among themselves based on `where` constraints. Unsafe overloads are a separate namespace selected explicitly by the caller with the `unsafe` keyword they do not participate in `where`-based dispatch:
+`where` constraints and `unsafe` overloads are in separate namespaces. Safe overloads dispatch
+among themselves based on `where` conditions. Unsafe overloads are selected explicitly by the
+caller with the `unsafe` keyword and do not participate in `where`-based dispatch:
 
 ```kairo
-// Safe version with a where constraint + its fallback
-fn access(ptr: *i32, offset: i32) -> i32
-  where offset >= 0 {
-    return *(ptr + offset)
+// Safe dispatch: where selects between these
+fn access(data: [i32], index: i32) -> i32
+  where index >= 0 && index < data.len() {
+    return data[index]
 }
 
-fn access(ptr: *i32, offset: i32) -> i32 { // if this doesn't exist, the compiler will error because no default candidate is available
-    return 0   // safe fallback
+fn access(data: [i32], index: i32) -> i32 {
+    return 0   // fallback
 }
 
-// Unsafe version completely separate, caller explicitly selects it
-fn access(ptr: *i32, offset: i32) unsafe -> i32 {
-    return *(ptr + offset)   // no bounds check at all
+// Unsafe overload: separate namespace, caller selects explicitly
+fn access(data: [i32], index: i32) unsafe -> i32 {
+    return data[index]   // no bounds check
 }
+
+var a = access(data, 5)          // safe dispatch
+var b = unsafe access(data, 5)   // unsafe overload, no where dispatch
 ```
 
 See [Unsafe](/docs/language/unsafe) for the unsafe overload model.
 
 ---
 
+## What where Cannot Do
+
+`where` is only valid on free functions and methods. The following are compile errors:
+
+```kairo
+// compile error: where on a type use requires instead
+class <T> Buffer
+  where sizeof(T) <= 128 {
+    var data: [T; 16]
+}
+
+// compile error: where on an interface method interfaces are zero-cost, use requires
+interface Validator {
+    fn validate(self, input: string) -> bool
+      where input.len() > 0
+}
+```
+
+Type instantiation is always compile-time. Interface conformance is a zero-cost structural
+contract. Neither admits runtime dispatch. Use `requires` for both.
+
+---
+
 ## Summary
 
 ```kairo
-// Compile-time constraint on a generic
-fn <T> stack_alloc() -> T
-  where sizeof(T) <= 4096 {
-    // ...
+// Basic runtime dispatch with fallback
+fn sqrt(x: f64) -> f64 where x >= 0.0 { return std::math::sqrt(x) }
+fn sqrt(x: f64) -> f64                 { return 0.0 }
+
+// Multiple constrained overloads declaration order is priority
+fn classify(temp: f64) -> string where temp > 100.0 { return "boiling" }
+fn classify(temp: f64) -> string where temp > 0.0   { return "liquid" }
+fn classify(temp: f64) -> string                     { return "frozen" }
+
+// Where with panic
+fn parse_positive(input: string) panic -> i32
+  where input.len() > 0 {
+    var n = std::parse<i32>(input)
+    if n <= 0 { panic std::Error::Runtime("not positive") }
+    return n
 }
 
-// Runtime constraint with fallback dispatch
-fn sqrt(x: f64) -> f64
-  where x >= 0.0 {
-    return std::math::sqrt(x)
+fn parse_positive(input: string) -> i32 {
+    return 0
 }
 
-fn sqrt(x: f64) -> f64 {
-    return 0.0   // fallback for negative input
-}
+// Where coexisting with unsafe overload
+fn divide(a: i32, b: i32) -> i32 where b != 0 { return a / b }
+fn divide(a: i32, b: i32) -> i32               { return 0 }
+fn divide(a: i32, b: i32) unsafe -> i32        { return a / b }  // no check
 
-// Type constraint in where clause
-fn <T, U> transform(input: T) -> U
-  where T impl Readable && U impl Writable {
-    // ...
-}
-
-// Where clause on a class
-class <T> InlineBuffer
-  where sizeof(T) <= 64 {
-    var data: [T; 8]
-}
-
-// Multiple constrained overloads (declaration order = priority)
-fn categorize(temp: f64) -> string where temp > 100.0 { return "boiling" }
-fn categorize(temp: f64) -> string where temp > 0.0   { return "liquid" }
-fn categorize(temp: f64) -> string                     { return "frozen" }
+var result = divide(10, 0)          // 0 (fallback)
+var fast   = unsafe divide(10, 2)   // 5 (unsafe, no dispatch)
 ```
 
 ---
@@ -10662,8 +11355,6 @@ Exporting Kairo code as a C++ module interface unit (`.cppm`) is also planned bu
 
 **For now:** use header-based interop (`ffi "c++"` + `kcc`) for all cross-language boundaries.
 
----
-
 ========================================================================
 SECTION: BLOG
 ========================================================================
@@ -11046,129 +11737,6 @@ No more wondering whether `break` exits the switch or the loop.
 Kairo's general approach is: if the default behavior of a construct causes bugs, change the default. Don't add warnings, attributes, or linter rules to patch over a broken default. Fix it.
 
 `switch` with fall-through is a broken default. `match` with isolated cases, exhaustiveness checking, destructuring, and expression form is the fix.
-
----
-
-## Proposal: New Operator Syntax
-URL: https://www.kairolang.org/blog/new-operator-syntax/
-
-# Proposal: New Operator Syntax
-
-We're proposing a new, cleaner syntax for operator overloading in Kairo. This replaces the previous approach of using `impl std::ops::Add` style trait implementations with a more direct, readable syntax.
-
-## The Problem
-
-The old approach required implementing external interfaces for operator overloading:
-
-```kairo
-impl std::ops::Add for Vector2 {
-    fn add(self, rhs: Vector2) -> Vector2 {
-        return Vector2 {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        };
-    }
-}
-```
-
-This is verbose, requires knowing which interface maps to which operator, and separates the operator implementation from the type definition in a way that can be confusing.
-
-## The Proposal: `fn op <operator>`
-
-We're introducing direct operator function syntax using `fn op`:
-
-```kairo
-struct Vector2 {
-    x: f64,
-    y: f64,
-}
-
-impl Vector2 {
-    // Operator overloading - clean and explicit
-    fn op +(self, rhs: Vector2) -> Vector2 {
-        return Vector2 {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        };
-    }
-
-    fn op -(self, rhs: Vector2) -> Vector2 {
-        return Vector2 {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        };
-    }
-
-    fn op *(self, scalar: f64) -> Vector2 {
-        return Vector2 {
-            x: self.x * scalar,
-            y: self.y * scalar,
-        };
-    }
-
-    fn op ==(self, rhs: Vector2) -> bool {
-        return self.x == rhs.x && self.y == rhs.y;
-    }
-}
-```
-
-## Usage
-
-The syntax is exactly what you'd expect:
-
-```kairo
-fn main() {
-    let a = Vector2 { x: 1.0, y: 2.0 };
-    let b = Vector2 { x: 3.0, y: 4.0 };
-
-    let c = a + b;           // Vector2 { x: 4.0, y: 6.0 }
-    let d = a * 2.0;         // Vector2 { x: 2.0, y: 4.0 }
-    let equal = a == b;      // false
-
-    print(f"c = ({c.x}, {c.y})");
-}
-```
-
-## Supported Operators
-
-The following operators can be overloaded with `fn op`:
-
-| Operator | Description |
-|----------|-------------|
-| `+`  | Addition |
-| `-`  | Subtraction / unary negation |
-| `*`  | Multiplication |
-| `/`  | Division |
-| `%`  | Remainder |
-| `==` | Equality |
-| `!=` | Inequality |
-| `<`  | Less than |
-| `>`  | Greater than |
-| `<=` | Less than or equal |
-| `>=` | Greater than or equal |
-| `[]` | Index |
-| `()` | Call |
-
-## Comparison with Other Languages
-
-- **C++**: `operator+` - similar idea, but buried in C++'s syntax noise
-- **Rust**: `impl Add for T` - trait-based, more flexible but verbose
-- **Zig**: No operator overloading - intentionally excluded
-- **Kairo**: `fn op +` - explicit, readable, lives with the type
-
-## Open Questions
-
-1. Should `fn op` be allowed in `interface` definitions?
-2. How should operator overloading interact with generics?
-3. Should there be restrictions on which operators can return types other than `Self`?
-
-We'd love feedback from the community. Open an issue on [GitHub](https://github.com/kairolang/kairo-lang/issues) or discuss in Discord.
-
-## Timeline
-
-This change is targeted for the `0.2.0-alpha` release. The old `impl std::ops::*` syntax will continue to work for one release cycle before being removed.
-
----
 
 ## Why Kairo Has Bidirectional C++ Interop Instead of Bindings
 URL: https://www.kairolang.org/blog/why-native-interop-instead-of-bindings/
