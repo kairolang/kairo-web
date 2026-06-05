@@ -61,8 +61,7 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 
 ### `==` vs `===`
 
-On pointers, `==` compares **addresses** whether two pointers point to the same memory location. `===`
-dereferences both pointers (with a runtime null check) and compares the **values** they point to.
+On pointers, `==` compares **addresses** whether two pointers point to the same memory location. `===` dereferences both pointers and compares the values they point to. `===` is defined only on `*T`, which is non-null by construction, so no null check is needed. For a pointer that might be null, use `*T?` and the nullable operators (?, ??) before comparing.
 
 ```kairo
 var z = 42
