@@ -524,7 +524,7 @@ pre {
   border-radius: 2px;
   padding: 1.5rem;
   overflow-x: auto;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'Geist', monospace;
   font-size: 0.875rem;
   line-height: 1.7;
   tab-size: 2;
@@ -537,7 +537,7 @@ pre {
 }
 
 code {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'Geist Mono', monospace;
   font-size: 0.875em;
 }
 

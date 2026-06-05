@@ -133,7 +133,7 @@ No `&T` vs `&mut T`. No `const T&` vs `T&`. One pointer type, one const rule, ap
 
 ## What This Costs
 
-**Whole-program analysis is expensive.** AMT needs to see the entire program to make its safety guarantees. This is more expensive than Rust's function-local borrow checking. Kairo mitigates this with `.ksummary` artifacts, precomputed ownership summaries for each translation unit that AMT can consume without re-analyzing dependencies. But it's still more work than a local analysis.
+**Whole-program analysis is expensive.** AMT needs to see the entire program to make its safety guarantees. This is more expensive than Rust's function-local borrow checking. Kairo mitigates this with `.amt` artifacts, precomputed ownership summaries for each translation unit that AMT can consume without re-analyzing dependencies. But it's still more work than a local analysis.
 
 **No lifetime polymorphism.** Rust's lifetime parameters let you write functions that are generic over lifetimes, the function works regardless of how long the references live, as long as the constraints are satisfied. Kairo doesn't have this. AMT analyzes concrete lifetimes, not abstract ones. In practice, this hasn't been a limitation because AMT's auto-promotion handles the cases where Rust would need lifetime parameters, but it's a theoretical expressiveness gap.
 

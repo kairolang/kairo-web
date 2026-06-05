@@ -31,7 +31,7 @@ What this means concretely:
   with two roundings. If you need strict per-operation rounding, use
   `--fp-contract=off`.
 - Overflow produces `inf`, underflow produces `0.0`. Operations that produce
-  `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 -- no
+  `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754; no
   crash, no trap. Check for `NaN` explicitly with `std::is_nan()` when needed.
 - NaN payload bits are not guaranteed to be preserved across arithmetic
   operations and are not guaranteed to be portable across architectures.
@@ -72,9 +72,9 @@ What this means concretely:
 ### Source Files
 
 Kairo source files are **UTF-8** only. No BOM. No other encoding is accepted.
-The lexer validates UTF-8 byte sequences using SIMD acceleration and rejects
-invalid sequences as hard errors with a diagnostic pointing at the exact byte
-offset and offending bytes. A BOM at the start of a `.k` file is an error.
+The lexer validates UTF-8 byte sequences and rejects invalid sequences as hard
+errors with a diagnostic pointing at the exact byte offset and offending bytes.
+A BOM at the start of a `.k` file is an error.
 
 ### String Internal Representation
 
@@ -83,7 +83,7 @@ with small string optimization (SSO). Strings up to 23 bytes are stored inline
 without a heap allocation. Longer strings are heap-allocated.
 
 - **Codepoint indexing:** `s[i]` returns a `char` (4-byte Unicode scalar value)
-  at codepoint position `i`. This is O(1) amortized -- the implementation uses
+  at codepoint position `i`. This is O(1) amortized; the implementation uses
   a sparse breadcrumb cache to locate the nearest codepoint boundary and decodes
   from there.
 - **Byte indexing:** `s.bytes[i]` returns a raw `byte` at byte offset `i`. This
@@ -102,9 +102,9 @@ beyond the standard identifier grammar. Concretely:
 
 - Letters and digits from any script: Latin, Arabic, Chinese, Cyrillic,
   Devanagari, etc. all valid.
-- Emoji: valid. `var speed: f64 = 0.0` compiles.
+- Emoji: valid.
 - Combining marks: valid as continuation characters.
-- Whitespace, control characters, surrogates (U+D800-U+DFFF): never valid in
+- Whitespace, control characters: never valid in
   identifiers.
 
 Two identifiers are equal if and only if their sequences of scalar values are
@@ -134,7 +134,7 @@ Kairo primitives, conversions to C++ string types are implicit:
 
 | Conversion | Output | Use case |
 |---|---|---|
-| `as libcxx::string` | UTF-8 `std::string` | Natural fit -- Kairo strings are UTF-8 internally |
+| `as libcxx::string` | UTF-8 `std::string` | Natural fit; Kairo strings are UTF-8 internally |
 | `as libcxx::u16string` | UTF-16 `std::u16string` | Windows WinAPI (`LPWSTR`), Java interop |
 | `as libcxx::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
 | `as unsafe *i8` | Null-terminated UTF-8 | Passing to C functions expecting `const char*` |
@@ -143,13 +143,11 @@ See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
 
 ### What Kairo Does Not Do
 
-- **Normalization**: Kairo does not normalize source text or string values.
-  NFC, NFD, NFKC, NFKD are not applied automatically anywhere.
 - **Locale-sensitive operations**: `string` comparison is binary (codepoint
   by codepoint). Locale-sensitive collation is not in the standard library.
   Use a third-party ICU binding if you need locale-aware sorting.
 - **Encoding detection**: Kairo does not detect or guess source file encoding.
-  UTF-8, no BOM, period.
+  UTF-8, no BOM.
 - **Null termination**: `string` is not null-terminated internally. Conversion
   methods for C interop add a null byte. Passing raw string data directly to a
   C function expecting a null-terminated string is undefined behavior.
@@ -168,7 +166,7 @@ files via Clang's backend. The relevant documents per platform:
   alignment (16-byte at call site), parameter passing, return value encoding,
   varargs layout, TLS model, ELF object format.
 - Kairo respects the red zone (128 bytes below RSP) by default. Kernel code
-  should compile with `--kernel-mode` which passes `-mno-red-zone` to Clang.
+  should compile with `--kernel-mode`.
 - SIMD types (`f32x4`, `f32x8`, etc.) follow the psABI's XMM/YMM/ZMM
   classification rules. Vectors passed on the stack are 16-byte aligned minimum.
 
@@ -265,13 +263,13 @@ C++ standard versions through C++26.
 
 The ABI boundary between Kairo-emitted code and C++-emitted code is:
 
-- **Itanium C++ ABI** on all platforms except Windows MSVC targets. This is what
-  Clang uses by default on Linux/macOS.
+- **Itanium C++ ABI** on all platforms except Windows MSVC targets.
 - **MSVC C++ ABI** on Windows when `--cxx-abi=msvc` is set.
-- Name mangling follows the ABI. Kairo functions exported across the FFI boundary
-  use `extern "C"` linkage (no mangling) by default. C++-mangled names are only
-  produced for Kairo code that explicitly opts in, which is rare and generally
-  only needed when subclassing C++ types.
+- Name mangling follows the Itanium C++ ABI scheme by default. 
+  Kairo functions exported across the FFI boundary use C++ name mangling to
+  support overloading and seamless interop with Clang-compiled C++ code.
+  Explicit `ffi "C"` linkage (no mangling) is only used for C interop or
+  when specifically requested.
 - C++ exceptions propagate across the Kairo/C++ boundary normally because both
   sides use the same unwinding tables (`.eh_frame` / `__eh_frame`). Kairo
   functions are trivially `noexcept` at the ABI level (panics are returned as

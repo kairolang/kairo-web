@@ -6,51 +6,514 @@ description: Automatic Memory Tracking full-program lifetime analysis, smart poi
 
 # AMT (Automatic Memory Tracking)
 
-> [!IMPORTANT]
-> This page is under development. AMT is Kairo's core memory safety mechanism and its documentation
-> will be comprehensive once the implementation is finalized.
-
 AMT is a compile-time analysis pass that tracks pointer lifetimes, determines ownership, and
-automatically promotes pointers to the appropriate smart pointer type. It provides memory safety
-without requiring lifetime annotations from the programmer.
+automatically promotes pointers to the appropriate smart pointer type in debug builds. It provides
+memory safety without requiring lifetime annotations from the programmer.
 
-Key concepts that will be covered on this page:
+AMT operates on safe pointers (`*T`) only. Raw pointers (`unsafe *T`) are not tracked, and stack
+allocations are never promoted AMT only promotes heap-allocated pointers created through
+`std::create<T>()` or equivalent allocator calls. Invalid use of stack pointers (dangling, escaping
+scope) is always a hard compile error in both debug and release builds.
 
-- Full-program analysis model how AMT tracks pointer provenance across function boundaries
-- Smart pointer promotion when and how `*T` is promoted to `std::Unique<*T>`, `std::Shared<*T>`,
-  or `std::Weak<*T>`
-- Compile errors vs automatic fixes when AMT can resolve an issue silently and when it must
-  reject the program
-- Allocator integration `std::create<T>()`, `std::alloc<T>()`, custom allocators, and how AMT
-  interacts with allocation strategies
-- `fn op delete` and automatic destructor insertion
-- Cross-translation-unit analysis via `.ksummary` artifacts
-- Interaction with [unsafe blocks](/docs/language/unsafe) how `unsafe { }` suspends AMT and how
-  `forget!()` drops pointers from tracking
-- Interaction with [C/C++ interop](/docs/language/c-c++) smart pointer mapping between Kairo's
-  AMT types and C++ `std::unique_ptr`, `std::shared_ptr`, `std::weak_ptr`
+> [!WARNING]
+> AMT is not yet implemented. The compiler is currently in the **Stage 1** parsing phase.
+> AMT development begins at **Stage 2**. The roadmap:
+>
+> - **Stage 0** (stable): C++ compiler, transpiles Kairo to C++.
+> - **Stage 1** (current): self-hosted compiler frontend parser, AST, diagnostics.
+> - **Stage 1.5**: Stage 1 migrated to Kairo's standard library, fully self-hosting.
+> - **Stage 2**: compiler rewritten using Kairo's extended feature set. **AMT work begins here.**
+>
+> This page describes the intended design. The semantics are the target, not the current state. Details may change during implementation.
 
-See [Pointers](/docs/language/pointers) for pointer types and
-[Ownership](/docs/language/ownership) for the ownership model that AMT enforces.
+---
 
-`fn op delete (self)` defines custom destruction. If not defined, compiler generates `fn op delete (self) = default`. If any member has a deleted destructor, the whole object requires `unsafe` to use.
+## The Analysis Model
 
-Allocator system:
+AMT performs whole-program analysis. Every translation unit is analyzed and its results are cached
+in a `.amt` file. The final link pass consumes all `.amt` files to resolve cross-TU pointer flows.
 
-```kairo
-class MyAllocator impl std::Allocator {
-    fn allocate(self, size: usize) -> *u8
-    fn deallocate(self, ptr: *u8, size: usize)
-}
+The analysis tracks three properties for every safe pointer:
 
-@set_allocator(MyAllocator)
+- **Provenance**: where the pointer was created and what allocation it points into.
+- **Lifetime**: the scope in which the pointer is live and the scope in which its target is valid.
+- **Aliasing**: whether multiple live pointers refer to the same allocation, and how they relate
+  (exclusive, shared, back-reference).
+
+AMT does not require annotations. It infers all three properties from usage. When the analysis
+can prove a pointer's lifetime, provenance, and aliasing unambiguously, it proceeds silently. When
+it cannot, the behavior depends on the build mode.
+
+### Analysis scope and the limits of inference
+
+Within a single function, AMT tracks pointer flow directly. Across function and TU boundaries, it
+relies on the `.amt` summaries: each function's summary records what it does to every pointer
+parameter (dereferences it, stores it, aliases it, returns it, frees it). When a pointer is passed
+into a function, AMT consumes that function's summary rather than re-walking its body.
+
+This is what makes cross-TU iterator-invalidation and escape detection possible: the summary for
+`Vec::push` records that it may reallocate the backing buffer, so any live `*T` into that buffer is
+flagged at the call site. Where AMT has no summary a pointer stored into an opaque structure it
+cannot trace, or passed through a code path it cannot analyze it does not guess. It emits a hard
+error (see [When AMT cannot decide](#when-amt-cannot-decide)).
+
+---
+
+## Debug vs Release
+
+AMT behaves differently in debug and release builds. The difference is deliberate: debug builds
+are for getting things working, release builds are for getting things right.
+
+### Debug mode
+
+When AMT determines that a heap pointer outlives its original scope or needs ownership semantics,
+it **automatically promotes** the pointer to the appropriate smart pointer type (`std::Unique<*T>`,
+`std::Shared<*T>`, or `std::Weak<*T>`) and emits a **warning** that describes:
+
+- Where the promotion happened and why.
+- What smart pointer type was chosen.
+- What the programmer should annotate to make the code release-ready.
+
+```
+warning[AMT]: pointer 'cfg' promoted to std::Unique<*Config>
+  --> src/server.k:12:16
+  12 |     var cfg = std::create<Config>(8080)
+     |         ^^^ escapes function scope via return on line 15
+  note: AMT promoted this pointer because it has a single owner and no aliases
+  help: annotate explicitly for release builds:
+     12 |     var cfg: std::Unique<*Config> = std::create<Config>(8080)
 ```
 
-`std::create<T>` uses the active allocator. Everything in std that allocates goes through it. `delete x[0]` calls `T`'s `op delete` first, then the allocator's deallocation. Considering future granularity: `@set_allocator_for(T, MyAllocator)`, `@set_collection_allocator(MyAllocator)`, etc. undecided.
+Debug mode also inserts **runtime safety checks** that are not present in release builds:
 
-- `fn op delete (self)` custom destruction, `= default`, `= delete` behavior
-- `std::Allocator` interface with `allocate`/`deallocate`
-- `@set_allocator(MyAllocator)` global allocator override
-- `delete x[0]` explicit deletion calling `T`'s `op delete` then allocator's dealloc
-- `std::create<T>` uses the active allocator
-- Future granularity: `@set_allocator_for(T, ...)`, `@set_collection_allocator(...)` undecided
+- Null dereference checks on safe pointer access.
+- Use-after-free detection via poisoned memory patterns.
+- Double-free detection.
+
+These checks have runtime cost and exist only to catch bugs during development.
+
+### Release mode
+
+AMT does **not** auto-promote in release builds. If a pointer requires promotion, AMT emits a
+**hard compile error** with the same diagnostic information that debug mode would have produced
+as a warning the location, the reason, the suggested smart pointer type, and the fix:
+
+```
+error [AMT]: pointer 'cfg' escapes its scope and requires ownership annotation
+  --> src/server.k:12:16
+  12 |     var cfg = std::create<Config>(8080)
+     |         ^^^ escapes function scope via return on line 15
+  note: in debug mode, AMT would promote to: std::Unique<*Config>
+  help: annotate the type explicitly:
+     12 |     var cfg: std::Unique<*Config> = std::create<Config>(8080)
+  help: or restructure to avoid the escape
+```
+
+This is the "no hidden allocations" guarantee. In a release build, every smart pointer in the
+binary is visible in the source code. The compiler does not silently change pointer types behind
+the programmer's back.
+
+### Summary
+
+| | Debug | Release |
+|---|---|---|
+| Auto-promotion | Yes, with warning | No hard error |
+| Runtime null checks | Yes | No |
+| Use-after-free detection | Yes | No |
+| Double-free detection | Yes | No |
+| Stack escape | Hard error | Hard error |
+| Unprovable safety | Hard error | Hard error |
+
+---
+
+## Promotion Decision
+
+When AMT determines that a heap pointer needs ownership semantics, it selects one of three smart
+pointer types based on the pointer's usage pattern across the entire program.
+
+### `std::Unique<*T>` single owner
+
+The pointer has exactly one owner at any point in its lifetime. No other live pointer refers to
+the same allocation. Ownership may transfer between scopes (via return or assignment), but at
+every point in the program, exactly one binding holds the pointer.
+
+```kairo
+fn make_config() -> *Config {
+    var cfg = std::create<Config>(8080)
+    return cfg
+    // AMT: cfg has one owner, transferred to caller -> Unique
+}
+```
+
+### `std::Shared<*T>` multiple owners
+
+Multiple live pointers refer to the same allocation and AMT cannot prove single ownership. The
+allocation is reference-counted and freed when the last `Shared` pointer is destroyed.
+
+```kairo
+fn share_config(a: *Server, b: *Server) {
+    var cfg = std::create<Config>(8080)
+    a.config = cfg
+    b.config = cfg
+    // AMT: cfg is aliased across a and b -> Shared
+}
+```
+
+### `std::Weak<*T>` back-reference
+
+A pointer that, if promoted to `Shared`, would form a reference cycle (A -> B -> A). `Weak`
+pointers do not contribute to the reference count and do not prevent deallocation. Accessing a
+`Weak` pointer requires checking whether the target is still alive.
+
+```kairo
+class Node {
+    var child: *Node
+    var parent: *Node
+    // AMT: parent points back to the owner of this node -> Weak
+}
+```
+
+### No promotion needed
+
+Most pointers do not need promotion. A pointer that is created, used, and destroyed within a
+single scope or whose lifetime is provably contained within its referent's lifetime remains
+a plain `*T`. No smart pointer overhead is added:
+
+```kairo
+fn process() {
+    var data = std::create<Buffer>(1024)
+    fill(data)
+    consume(data)
+    std::destroy(data)
+    // AMT: data's lifetime is fully contained, no aliases -> plain *T
+}
+```
+
+### When AMT cannot decide
+
+If AMT cannot prove provenance, cannot determine aliasing, or cannot trace the pointer's flow
+(e.g., the pointer is stored in an opaque data structure or passed through a code path AMT
+cannot analyze), it does **not** guess. It emits a hard compile error in both debug and release
+modes:
+
+```
+error [AMT]: cannot determine ownership of pointer 'p'
+  --> src/engine.k:42:12
+  42 |     opaque_container.store(p)
+     |                           ^ pointer escapes into unanalyzable context
+  help: use 'unsafe *T' if this pointer is managed externally
+  help: use 'forget!(p)' in an unsafe block to drop AMT tracking
+```
+
+The distinction: AMT *heuristically promotes* when it has strong evidence (one owner -> Unique,
+multiple owners -> Shared, cycle -> Weak). AMT *hard errors* when it has insufficient evidence to
+make any determination. The heuristic is a best-effort assist in debug mode. The hard error is a
+safety guarantee in both modes.
+
+---
+
+## Stack Pointers
+
+AMT does not promote stack-allocated values. Stack memory is managed by scope variables are
+destroyed at the closing brace in reverse declaration order. Promotion does not apply because
+there is no heap allocation to transfer ownership of.
+
+What AMT does with stack pointers:
+
+- **Tracks lifetime**: ensures no pointer to a stack variable outlives the variable.
+- **Detects escapes**: a pointer to a stack local returned from a function is always a hard error.
+- **Detects dangling**: a pointer used after the referent's scope has ended is always a hard error.
+
+```kairo
+fn bad() -> *i32 {
+    var x = 42
+    return &x
+    // hard error: x is stack-allocated and destroyed at end of bad()
+    // AMT will not promote &x stack escapes are never promotable
+}
+
+fn also_bad() {
+    var p: *i32
+    {
+        var x = 42
+        p = &x
+    }
+    *p = 10
+    // hard error: x is destroyed at the closing brace, p is dangling
+}
+```
+
+These are hard errors in both debug and release. No warning, no promotion, no workaround except
+restructuring the code or using `unsafe *T` with manual lifetime management.
+
+There is no heap allocation behind a stack value, so no smart pointer can rescue an escaping stack
+pointer. This is why `return &local` is a hard error rather than a promotion candidate the rule
+the [Ownership](/docs/language/ownership) page refers to as "stack escape."
+
+---
+
+## Allocator Interaction
+
+AMT is aware of the allocator system. Kairo supports two kinds of allocators:
+
+### Global allocator
+
+The default allocator used by `std::create<T>()` and all standard library heap operations. It can
+be overridden with `@mem::set_allocator(MyAllocator)` at the top of a file.
+
+**Intentional friction**: `@mem::set_allocator` must appear at the top of **every file in the
+dependency graph** that the override affects. If a library sets a global allocator, every file
+that transitively depends on that library must also carry the annotation. This makes global
+allocator overrides visible and discourages libraries from changing the global allocator library
+authors should use scoped allocators instead.
+
+### Scoped allocator
+
+A scoped allocator is an allocator with RAII semantics it frees all memory it allocated when
+it goes out of scope. Set one with `@mem::set_scoped_allocator(MyAllocator)` on a function or
+block.
+
+```kairo
+@mem::set_scoped_allocator(ArenaAllocator)
+fn process_frame() {
+    var a = std::create<Mesh>(vertices)
+    var b = std::create<Texture>(pixels)
+    // a and b are allocated through ArenaAllocator
+    // ArenaAllocator frees everything when process_frame returns
+}
+```
+
+AMT tracks scoped allocator boundaries. A pointer allocated through a scoped allocator that
+escapes the allocator's scope is a **hard error** the allocator will free the memory when the
+scope ends, so the escaped pointer would dangle:
+
+```kairo
+@mem::set_scoped_allocator(ArenaAllocator)
+fn bad() -> *Config {
+    var cfg = std::create<Config>(8080)
+    return cfg
+    // hard error: cfg was allocated by ArenaAllocator, which frees at end of bad()
+    // returning cfg creates a dangling pointer no promotion can fix this
+}
+```
+
+This is not a promotable situation. No smart pointer can rescue a pointer whose backing memory
+is freed by the allocator. The only fix is restructuring: allocate through the global allocator,
+or move the scoped allocator boundary outward.
+
+### Freestanding allocator
+
+A variant of the scoped allocator interface for embedded and bare-metal targets. Freestanding
+allocators conform through `static` functions only no pointer indirection, no vtable. The
+compiler replaces `std::create<T>()` calls with direct static calls:
+
+```kairo
+// Instead of: cur_allocator->alloc(...)
+// Compiler emits: FreestandingAlloc::alloc(sizeof(T) * N) + placement construction
+```
+
+AMT treats freestanding allocators identically to scoped allocators for lifetime tracking
+purposes. The optimization is purely a codegen concern.
+
+---
+
+## Destruction Timing
+
+When AMT promotes a pointer to a smart pointer, the destructor fires at the end of the **lexical
+scope** of the binding that owns the pointer matching the behavior of non-promoted variables.
+
+```kairo
+fn example() {
+    var cfg = std::create<Config>(8080)
+    // ... use cfg ...
+}
+// cfg's destructor runs here, at the closing brace
+// If AMT promoted cfg to Unique, the Unique destructor runs here
+// If AMT promoted cfg to Shared, the refcount decrements here
+```
+
+There is no drop-at-last-use optimization. Destruction is deterministic and tied to lexical scope.
+This means:
+
+- Side effects in destructors (file close, lock release, network disconnect) are predictable.
+- `finally` blocks and destructor ordering compose correctly.
+- The programmer can reason about destruction order by reading the source.
+
+### Unique and stack-bound objects
+
+For `std::Unique<*T>` and non-promoted values, the object destructor runs at the owning binding's
+closing brace, in reverse declaration order relative to other bindings in the same scope.
+
+### Shared objects
+
+`std::Shared<*T>` separates two events:
+
+- **Refcount decrement** happens at each `Shared` binding's own scope boundary, in reverse
+  declaration order like any other binding.
+- **Object destruction** (the pointed-to object's destructor, then deallocation) happens exactly
+  once, when the *last* live `Shared` reference's scope ends and the count reaches zero.
+
+These are not the same guarantee. The per-binding decrement order is lexical and deterministic.
+The object destructor fires at the last owner, which may not be the last-declared binding in any
+single scope. For shared objects, reason about destruction timing as "when the final owner goes
+away," not "in reverse declaration order of the binding I'm looking at."
+
+`std::Weak<*T>` scope exit does not affect the reference count. The `Weak` pointer simply becomes
+invalid if the target has already been freed.
+
+---
+
+## Copy Elision
+
+For COPY types, AMT may emit a move instead of a copy when it proves the source is not used after
+the transfer. AMT does not elide if the move constructor is deleted, and the programmer does not
+opt into or out of this.
+
+Elision is permitted only when it is unobservable. The source binding would be destroyed at its
+own scope exit either way; elision means its destructor runs at the transfer point instead. AMT
+performs the elision **only when the destructor's observable effects do not depend on timing** —
+that is, when the type's destructor is trivial, or its effects (a `free`, a refcount decrement)
+produce the same observable program behavior whether they fire at the transfer or at scope exit.
+
+If the destructor has timing-sensitive side effects a file flush, a lock release, a log line —
+AMT does **not** elide. The copy is preserved and the source is destroyed at its lexical scope
+exit as written. This keeps the language's core promise intact: destructor side effects are
+predictable from reading the source. Elision is a silent optimization precisely because it is only
+applied where it cannot be observed.
+
+---
+
+## C/C++ Interop
+
+AMT's behavior at the FFI boundary depends on the C++ declaration's type signature.
+
+### Smart pointer parameters
+
+C++ functions that use smart pointer types are mapped automatically:
+
+| C++ type             | Kairo AMT type            | Requires `unsafe` |
+|----------------------|---------------------------|-------------------|
+| `std::unique_ptr<T>` | `std::Unique<*T>`         | No                |
+| `std::shared_ptr<T>` | `std::Shared<*T>`         | No                |
+| `std::weak_ptr<T>`   | `std::Weak<*T>`           | No                |
+| `T&`, `const T&`     | `*T`, `*const T`          | No                |
+| `T&&` (move ref)     | `*T` (ownership transfer) | No                |
+
+A mismatch between AMT's promotion and the C++ function's expected type is a compile error.
+
+### Raw pointer parameters
+
+C++ functions that take raw pointers (`T*`, `void*`) require an `unsafe` block. AMT does not
+track the pointer across the FFI boundary the C++ side is opaque. Use `forget!()` to release the
+pointer from tracking before handing it to C++. See [Unsafe](/docs/language/unsafe#forget) for the
+full mechanics of `forget!()` and FFI ownership transfer.
+
+### Shallow C++ analysis
+
+For raw pointer FFI calls, AMT performs a **one-level heuristic analysis** of the C++ function
+body (if the source is visible via the imported header). If the function only dereferences the
+pointer without aliasing, storing, or forwarding it, AMT may classify the call as safe and not
+require an `unsafe` block. This analysis does not recurse AMT will not walk the C++ call graph
+beyond the immediate function.
+
+If the C++ function's body is not visible (forward-declared, in a compiled library), AMT treats
+all raw pointer parameters as opaque and requires `unsafe`.
+
+---
+
+## Generic Code
+
+AMT tracks through generic instantiations. When a generic function is monomorphized, AMT analyzes
+the concrete instantiation with full type information:
+
+```kairo
+fn <T> take_ownership(x: *T) {
+    // AMT knows x is the sole pointer to the allocation after this call
+}
+
+fn caller() {
+    var cfg = std::create<Config>(8080)
+    take_ownership(cfg)
+    // AMT: cfg's ownership transferred into take_ownership
+    // Using cfg after this point is a compile error
+}
+```
+
+AMT understands lifecycle categories. If `T` has a `@move` transfer constructor, AMT tracks
+ownership transfer through the move. If `T` is `@copy`, AMT knows both the source and destination
+are live after the copy.
+
+Generic code is not an opaque boundary AMT analyzes each monomorphization as if it were a
+concrete function.
+
+---
+
+## What AMT Does Not Do
+
+- **Garbage collection**: AMT is a compile-time analysis. There is no runtime garbage collector,
+  no tracing, no mark-and-sweep. Reference counting for `Shared` pointers is the only runtime
+  cost, and it only exists when multiple ownership is required.
+
+- **Runtime borrow checking**: AMT does not insert runtime aliasing checks. All aliasing analysis
+  is done at compile time. If AMT cannot prove aliasing safety statically, it is a compile error.
+
+- **Lifetime annotations**: AMT does not require `'a`-style lifetime parameters. The whole-program
+  analysis infers lifetimes from usage. There is no lifetime polymorphism AMT analyzes concrete
+  lifetimes, not abstract ones.
+
+- **Automatic reference counting everywhere**: AMT promotes to `Shared` (which uses refcounting)
+  only when it determines multiple ownership exists. Single-owner pointers are promoted to
+  `Unique`, which has no refcount overhead. Pointers with fully contained lifetimes are not
+  promoted at all.
+
+- **Cross-language analysis**: AMT does not analyze C++ code beyond the one-level heuristic
+  described in [C/C++ Interop](#cc-interop). C++ code is treated as opaque beyond the immediate
+  function signature and body.
+
+---
+
+## `.amt` Files
+
+Each translation unit produces a `.amt` file alongside its object file. The `.amt` file contains
+a summary of every pointer's provenance, lifetime bounds, and promotion decisions for that TU.
+The link-time pass reads all `.amt` files to resolve cross-TU flows.
+
+`.amt` files are cached and invalidated when the source or any of its dependencies change. They
+do not need to be committed to version control the build system regenerates them.
+
+> [!IMPORTANT]
+> The `.amt` file format and the details of the link-time resolution pass are still being
+> finalized. The information above describes the intended architecture. Specifics may change
+> before 1.0.
+
+---
+
+## Summary
+
+| Type             | Tracked?  | Promoted?                 | Error on escape?                    |
+|------------------|-----------|---------------------------|-------------------------------------|
+| Plain *T (stack) | Yes       | Never                     | Always (hard error)                 |
+| Plain *T (heap)  | Yes       | Debug: yes \| Release: no | Release: hard error (must annotate) |
+| unsafe *T        | No        | Never                     | No (programmer's problem)           |
+| Scoped alloc ptr | Yes       | Never                     | Always (hard error)                 |
+| FFI smart ptr    | Yes       | Mapped 1:1                | Type mismatch = error               |
+| FFI raw ptr      | No        | Never                     | Requires unsafe block               |
+
+```kairo
+// Stack pointer AMT enforces lifetime, no promotion
+var x = 42
+var p: *i32 = &x
+
+// Heap pointer AMT tracks and may promote (debug) or require annotation (release)
+var cfg = std::create<Config>(8080)
+
+// Explicit annotation works in both debug and release
+var cfg: std::Unique<*Config> = std::create<Config>(8080)
+
+// Scoped allocator AMT enforces no escape
+@mem::set_scoped_allocator(ArenaAllocator)
+fn frame() {
+    var mesh = std::create<Mesh>(data)
+    // mesh cannot outlive frame() hard error if it tries
+}
+```

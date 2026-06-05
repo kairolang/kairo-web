@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-05-30T05:14:23.545Z
+> Generated: 2026-06-05T01:16:08.263Z
 
 ---
 
@@ -518,7 +518,7 @@ $binPath = (Get-ChildItem -Directory .\build\release\*\bin).FullName
 [Environment]::SetEnvironmentVariable("Path", "$env:Path;$binPath", "User")
 ```
 
-For Command Prompt, add the path via System Properties → Environment Variables.
+For Command Prompt, add the path via System Properties -> Environment Variables.
 
 ### 5. Validate
 
@@ -578,7 +578,7 @@ Pick whichever is easiest:
   [Kairo extension page](https://marketplace.visualstudio.com/items?itemName=KSF.kairo).
 - **Prebuilt VSIX** download the latest `.vsix` from
   [kairo-lsp](https://github.com/kairolang/kairo-lsp/), then in VSCode:
-  **Extensions** → **⋯** → **Install from VSIX…**
+  **Extensions** -> **⋯** -> **Install from VSIX…**
 - **Build from source:**
 
 ```bash
@@ -640,7 +640,7 @@ What this means concretely:
   with two roundings. If you need strict per-operation rounding, use
   `--fp-contract=off`.
 - Overflow produces `inf`, underflow produces `0.0`. Operations that produce
-  `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 -- no
+  `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754; no
   crash, no trap. Check for `NaN` explicitly with `std::is_nan()` when needed.
 - NaN payload bits are not guaranteed to be preserved across arithmetic
   operations and are not guaranteed to be portable across architectures.
@@ -681,9 +681,9 @@ What this means concretely:
 ### Source Files
 
 Kairo source files are **UTF-8** only. No BOM. No other encoding is accepted.
-The lexer validates UTF-8 byte sequences using SIMD acceleration and rejects
-invalid sequences as hard errors with a diagnostic pointing at the exact byte
-offset and offending bytes. A BOM at the start of a `.k` file is an error.
+The lexer validates UTF-8 byte sequences and rejects invalid sequences as hard
+errors with a diagnostic pointing at the exact byte offset and offending bytes.
+A BOM at the start of a `.k` file is an error.
 
 ### String Internal Representation
 
@@ -692,7 +692,7 @@ with small string optimization (SSO). Strings up to 23 bytes are stored inline
 without a heap allocation. Longer strings are heap-allocated.
 
 - **Codepoint indexing:** `s[i]` returns a `char` (4-byte Unicode scalar value)
-  at codepoint position `i`. This is O(1) amortized -- the implementation uses
+  at codepoint position `i`. This is O(1) amortized; the implementation uses
   a sparse breadcrumb cache to locate the nearest codepoint boundary and decodes
   from there.
 - **Byte indexing:** `s.bytes[i]` returns a raw `byte` at byte offset `i`. This
@@ -711,9 +711,9 @@ beyond the standard identifier grammar. Concretely:
 
 - Letters and digits from any script: Latin, Arabic, Chinese, Cyrillic,
   Devanagari, etc. all valid.
-- Emoji: valid. `var speed: f64 = 0.0` compiles.
+- Emoji: valid.
 - Combining marks: valid as continuation characters.
-- Whitespace, control characters, surrogates (U+D800-U+DFFF): never valid in
+- Whitespace, control characters: never valid in
   identifiers.
 
 Two identifiers are equal if and only if their sequences of scalar values are
@@ -743,7 +743,7 @@ Kairo primitives, conversions to C++ string types are implicit:
 
 | Conversion | Output | Use case |
 |---|---|---|
-| `as libcxx::string` | UTF-8 `std::string` | Natural fit -- Kairo strings are UTF-8 internally |
+| `as libcxx::string` | UTF-8 `std::string` | Natural fit; Kairo strings are UTF-8 internally |
 | `as libcxx::u16string` | UTF-16 `std::u16string` | Windows WinAPI (`LPWSTR`), Java interop |
 | `as libcxx::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
 | `as unsafe *i8` | Null-terminated UTF-8 | Passing to C functions expecting `const char*` |
@@ -752,13 +752,11 @@ See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
 
 ### What Kairo Does Not Do
 
-- **Normalization**: Kairo does not normalize source text or string values.
-  NFC, NFD, NFKC, NFKD are not applied automatically anywhere.
 - **Locale-sensitive operations**: `string` comparison is binary (codepoint
   by codepoint). Locale-sensitive collation is not in the standard library.
   Use a third-party ICU binding if you need locale-aware sorting.
 - **Encoding detection**: Kairo does not detect or guess source file encoding.
-  UTF-8, no BOM, period.
+  UTF-8, no BOM.
 - **Null termination**: `string` is not null-terminated internally. Conversion
   methods for C interop add a null byte. Passing raw string data directly to a
   C function expecting a null-terminated string is undefined behavior.
@@ -777,7 +775,7 @@ files via Clang's backend. The relevant documents per platform:
   alignment (16-byte at call site), parameter passing, return value encoding,
   varargs layout, TLS model, ELF object format.
 - Kairo respects the red zone (128 bytes below RSP) by default. Kernel code
-  should compile with `--kernel-mode` which passes `-mno-red-zone` to Clang.
+  should compile with `--kernel-mode`.
 - SIMD types (`f32x4`, `f32x8`, etc.) follow the psABI's XMM/YMM/ZMM
   classification rules. Vectors passed on the stack are 16-byte aligned minimum.
 
@@ -874,13 +872,13 @@ C++ standard versions through C++26.
 
 The ABI boundary between Kairo-emitted code and C++-emitted code is:
 
-- **Itanium C++ ABI** on all platforms except Windows MSVC targets. This is what
-  Clang uses by default on Linux/macOS.
+- **Itanium C++ ABI** on all platforms except Windows MSVC targets.
 - **MSVC C++ ABI** on Windows when `--cxx-abi=msvc` is set.
-- Name mangling follows the ABI. Kairo functions exported across the FFI boundary
-  use `extern "C"` linkage (no mangling) by default. C++-mangled names are only
-  produced for Kairo code that explicitly opts in, which is rare and generally
-  only needed when subclassing C++ types.
+- Name mangling follows the Itanium C++ ABI scheme by default. 
+  Kairo functions exported across the FFI boundary use C++ name mangling to
+  support overloading and seamless interop with Clang-compiled C++ code.
+  Explicit `ffi "C"` linkage (no mangling) is only used for C interop or
+  when specifically requested.
 - C++ exceptions propagate across the Kairo/C++ boundary normally because both
   sides use the same unwinding tables (`.eh_frame` / `__eh_frame`). Kairo
   functions are trivially `noexcept` at the ABI level (panics are returned as
@@ -1215,7 +1213,7 @@ var opaque: unsafe *void = get_handle()  // raw, untyped pointer
 
 ```kairo
 var x = 42
-var p: *i32 = &x          // safe pointer to x
+var p: *i32 = &x                // safe pointer to x
 var q: unsafe *i32 = unsafe &x  // raw pointer, no tracking
 ```
 
@@ -1885,8 +1883,7 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 
 ### `==` vs `===`
 
-On pointers, `==` compares **addresses** whether two pointers point to the same memory location. `===`
-dereferences both pointers (with a runtime null check) and compares the **values** they point to.
+On pointers, `==` compares **addresses** whether two pointers point to the same memory location. `===` dereferences both pointers and compares the values they point to. `===` is defined only on `*T`, which is non-null by construction, so no null check is needed. For a pointer that might be null, use `*T?` and the nullable operators (?, ??) before comparing.
 
 ```kairo
 var z = 42
@@ -8340,8 +8337,7 @@ var r = &a
 p == r    // true: same address
 ```
 
-`===` performs a null check before dereferencing. If either pointer is null, `===` returns `false`
-(two null pointers are not deeply equal there is no value to compare).
+`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system — null-check with `?` first, then `===` the unwrapped pointers.
 
 See [Operators](/docs/language/operators#comparison) for the full comparison model.
 
@@ -8448,25 +8444,489 @@ URL: https://www.kairolang.org/docs/language/ownership/
 
 # Ownership
 
-> [!IMPORTANT]
-> This page is under development. The ownership model is being finalized alongside AMT. Full
-> documentation will be added once the design is complete.
+> [!WARNING]
+> The ownership model is enforced by [AMT](/docs/language/amt), which is not yet implemented.
+> AMT development begins at **Stage 2** of the compiler roadmap. This page describes the
+> intended design. See [AMT](/docs/language/amt) for the implementation timeline.
 
-Kairo's ownership model governs how values are created, moved, borrowed, and destroyed. It works in
-conjunction with [AMT](/docs/language/amt) to provide memory safety without lifetime annotations.
+Kairo's ownership model governs how values are created, transferred, borrowed, and destroyed.
+It works in conjunction with [AMT](/docs/language/amt) to provide memory safety without lifetime
+annotations and without a separate reference type.
 
-Key concepts that will be covered on this page:
+The model has two parts: **transfer semantics** (how values move between bindings) and **pointer
+aliasing** (how multiple pointers to the same value interact). Transfer semantics are determined
+by the type's lifecycle category. Pointer aliasing is tracked by AMT at compile time.
 
-- Move semantics and when values are moved vs copied
-- Borrowing rules for safe pointers (`*T`) and `const` references
-- How `const [T]` acts as a non-owning view (cap set to zero, no growth, no deallocation)
-- Interaction between ownership and [closures](/docs/language/closures) (capture by copy vs by reference)
-- How [classes](/docs/language/classes#the-rule-of-five) implement the rule of five
-- How [structs](/docs/language/structures#copy-semantics) are always trivially copyable via `memcpy`
-- The `mref!()` intrinsic for rvalue references
+---
 
-See [AMT](/docs/language/amt) for the compile-time analysis that enforces ownership rules, and
-[Unsafe](/docs/language/unsafe) for opting out of ownership tracking.
+## Transfer Semantics
+
+Every type in Kairo has a lifecycle category that determines what happens when a value is assigned
+to a new binding, passed to a function, or returned. The category is set by which transfer
+constructor the type defines. See
+[Classes Lifecycle Categories](/docs/language/classes#lifecycle-categories) for the declaration
+syntax.
+
+### COPY types
+
+A type with a `@copy` transfer constructor (explicit or implicit) is copyable. Assignment produces
+an independent copy both the source and destination are live after the assignment:
+
+```kairo
+class Buffer {
+    var data: [i32]
+
+    @copy
+    fn Buffer(self, other: Self) = default
+}
+
+var a = Buffer()
+var b = a          // copy: a and b are independent
+b.data.push(42)
+a.data.len()       // 0 a is unaffected
+```
+
+AMT may **elide a copy into a move** when it proves the source is not used after the transfer and
+the elision is unobservable. This is a pure optimization with no observable semantic difference.
+AMT does not elide when the destructor has timing-sensitive side effects see
+[AMT Copy Elision](/docs/language/amt#copy-elision) for the exact rule.
+
+The programmer does not opt into or control copy elision. AMT applies it when safe.
+
+### MOVE types
+
+A type with a `@move` transfer constructor can only be moved. Assignment transfers ownership —
+the source is invalidated and cannot be used:
+
+```kairo
+class UniqueFile {
+    var handle: i32
+
+    @move
+    fn UniqueFile(self, other: Self) = default
+}
+
+var a = UniqueFile()
+var b = a              // move: ownership transfers to b
+// a is invalidated any use after this line is a compile error
+
+a.handle               // compile error: a has been moved
+b.handle               // ok: b owns the value
+```
+
+A type cannot define both `@copy` and `@move` pick one. A type with neither is implicitly COPY
+with compiler-generated members.
+
+### NON_TRANSFER types
+
+A type with both `@copy` and `@move` explicitly deleted cannot be assigned, copied, or moved.
+The auto-derived `op =` is also `= delete`d as a consequence there is no transfer constructor for
+it to be generated from. These are scope-bound values: they live and die in the scope where they
+are created:
+
+```kairo
+class ScopeLock {
+    @copy fn ScopeLock(self, other: Self) = delete
+    @move fn ScopeLock(self, other: Self) = delete
+}
+
+var lock = ScopeLock()
+// var copy = lock      // compile error: copy deleted
+// var moved = lock     // compile error: move deleted
+// lock = ScopeLock()   // compile error: op = is deleted
+// lock lives until end of scope, then destructor runs
+```
+
+### Structs
+
+Structs are always trivially copyable via `memcpy`. They have no transfer constructors, no
+destructors, and no lifecycle categories. Assignment always copies:
+
+```kairo
+struct Point { var x: f64; var y: f64 }
+
+var a = Point { x: 1.0, y: 2.0 }
+var b = a      // memcpy always, unconditionally
+b.x = 9.0
+a.x            // 1.0 independent copy
+```
+
+See [Structures](/docs/language/structures#copy-semantics).
+
+---
+
+## Function Parameters
+
+Function parameters follow the same transfer rules as assignment. Passing a COPY type copies it.
+Passing a MOVE type moves it the caller cannot use the value after the call:
+
+```kairo
+fn consume(file: UniqueFile) {
+    // file is owned by consume
+}
+
+var f = UniqueFile()
+consume(f)
+// f is invalidated moved into consume
+f.handle       // compile error: f has been moved
+```
+
+```kairo
+fn inspect(buf: Buffer) {
+    // buf is an independent copy
+}
+
+var b = Buffer()
+inspect(b)
+b.data.len()   // ok: b is still live, inspect got a copy
+```
+
+### Last-use move optimization
+
+For MOVE types, AMT detects when a value is passed to a function and never used again. In this
+case, the value is moved rather than requiring explicit annotation:
+
+```kairo
+var m = Moveable()
+foo(m)          // m is moved AMT sees m is not referenced after this line
+// m is invalidated from here
+```
+
+This only applies when the value is genuinely unused after the call. If any subsequent code
+references the value, it is a compile error (MOVE types cannot be copied).
+
+### Pass-by-pointer optimization
+
+When a function takes a parameter by value and the type is larger than a pointer (8 bytes on
+64-bit), the compiler may silently pass a pointer instead of copying. This is a **codegen
+optimization only** the source-level semantics are always by-value. The optimization applies
+only when AMT can prove the by-value semantics are preserved for the duration of the call:
+
+- The parameter is not aliased *and mutated* through any other live pointer while the call is in
+  progress i.e. AMT proves no write reaches the same allocation during the call.
+- The parameter is not modified inside the callee (or the function takes it as `const`).
+- The parameter is not stored, returned, or captured.
+- The function is not `async`.
+
+The first condition is stronger than "no other pointer exists." Kairo permits arbitrary mutable
+aliasing in single-threaded code (see [Pointer Aliasing](#pointer-aliasing)), so AMT cannot rely on
+the absence of aliases it must prove that no *write* through an alias is observable during the
+call. If it cannot prove this, the parameter is copied as written. The programmer does not control
+this optimization and cannot observe it.
+
+---
+
+## Pointer Aliasing
+
+Kairo allows multiple pointers to the same value. There is no Rust-style exclusivity rule (one
+mutable xor many immutable). Multiple `*T` to the same location is legal, and writing through
+one pointer is visible through all others:
+
+```kairo
+var x = 42
+var p: *i32 = &x
+var q: *i32 = &x
+*p = 100
+std::println(*q)   // 100 defined behavior
+```
+
+This applies uniformly regardless of `const`:
+
+```kairo
+var x = 42
+var p: *i32 = &x
+var q: *const i32 = &x
+*p = 100
+std::println(*q)   // 100 *const prevents mutation through q, not through p
+```
+
+`const` is a **semantic check on the binding**, not an aliasing constraint. `*const T` prevents
+the holder from mutating through that pointer. It does not prevent other pointers from mutating
+the same value. AMT does not change behavior based on `const` qualifiers it tracks provenance
+and lifetime independently of mutability.
+
+### What AMT enforces
+
+AMT does not restrict aliasing patterns in single-threaded code. What it does enforce:
+
+**Provenance validity.** A pointer must refer to memory that is still live. Using a pointer after
+its target has been destroyed is a hard error:
+
+```kairo
+var p: *i32
+{
+    var x = 42
+    p = &x
+}
+*p = 10    // hard error: x is destroyed, p is dangling
+```
+
+**Iterator invalidation.** A pointer into a container's buffer is invalidated by operations that
+may reallocate the buffer:
+
+```kairo
+var v: [i32] = [1, 2, 3]
+var p: *i32 = &v[0]
+v.push(4)           // may reallocate v's internal buffer
+std::println(*p)    // hard error: p's provenance is invalidated by push
+```
+
+AMT detects this through `.amt` summaries: `push`'s summary records that it may reallocate the
+backing buffer, so any live pointer into that buffer is flagged at the call site. Where the buffer
+is mutated through a path AMT cannot trace (an opaque container, a raw FFI call), AMT conservatively
+errors rather than allowing an unprovable access. See
+[AMT Analysis scope](/docs/language/amt#analysis-scope-and-the-limits-of-inference).
+
+**Stack escape.** A pointer to a stack-allocated value cannot outlive the value. Returning `&x`
+where `x` is a local is always a hard error. There is no heap allocation behind a stack value, so
+no smart pointer can rescue it this is why a stack escape is an error rather than a promotion
+candidate. See [AMT Stack Pointers](/docs/language/amt#stack-pointers).
+
+> [!NOTE]
+> **Data-race detection across threads** is part of the intended model but depends on Kairo's
+> concurrency design (`spawn`, the memory model, happens-before semantics), which is not yet
+> finalized. See [Concurrency](/docs/language/concurrency). Once that model is pinned, AMT will
+> treat concurrent write+read and write+write to the same allocation without synchronization as a
+> hard error. The semantics here are a target, not a current guarantee.
+
+### What AMT does not enforce
+
+AMT does not prevent multiple mutable pointers to the same value in single-threaded code. This
+is intentional many valid patterns require mutable aliasing (parent/child pointers, graph
+structures, cache-and-source patterns). The tradeoff: Kairo allows more programs than Rust at
+the cost of not statically preventing all aliasing bugs. AMT catches the ones that are provably
+wrong (dangling, invalidation, and once concurrency is finalized races) and lets the rest
+through.
+
+### `noalias` optimization
+
+When AMT proves that two pointers do not alias (point to different allocations or non-overlapping
+regions), it attaches `noalias` metadata to the LLVM IR. This enables the backend optimizer to
+perform more aggressive transformations (load/store reordering, vectorization) without the
+programmer writing anything. This is invisible the source code does not change, and the
+behavior is identical with or without the tag.
+
+---
+
+## Smart Pointer Promotion and Aliasing
+
+When AMT promotes a heap pointer to a smart pointer (in debug mode), the aliasing pattern
+determines which smart pointer type is chosen:
+
+```kairo
+// Single owner, no aliasing -> Unique
+var cfg = std::create<Config>(8080)
+return cfg
+// AMT: cfg has one owner -> Unique
+```
+
+```kairo
+// Aliased, both pointers escape -> Shared
+var cfg = std::create<Config>(8080)
+server_a.config = cfg
+server_b.config = cfg
+// AMT: cfg is aliased across two live bindings -> Shared
+```
+
+```kairo
+// Aliased, but the alias dies before escape -> Unique
+var cfg = std::create<Config>(8080)
+{
+    var tmp: *Config = cfg
+    validate(tmp)
+}
+// tmp is dead cfg has single ownership at this point
+return cfg
+// AMT: alias was short-lived, cfg is sole owner -> Unique
+```
+
+The promotion trigger is not "multiple pointers exist" but "multiple pointers exist AND the
+aliasing pattern requires shared ownership for safety." A short-lived alias that dies before the
+owner escapes does not force `Shared`.
+
+Because AMT is whole-program, the cases where promotion is actually needed are narrow. Most
+pointers have fully contained lifetimes and require no promotion at all.
+
+See [AMT Promotion Decision](/docs/language/amt#promotion-decision) for the full decision tree.
+
+---
+
+## Closure Captures
+
+Closures capture variables from their enclosing scope. The capture mode determines the ownership
+relationship between the closure and the captured variable.
+
+### Capture by transfer (`|=|`)
+
+`|=|` captures all referenced variables by their type's transfer semantics COPY types are
+copied, MOVE types are moved. Captures happen at closure creation time, not at invocation:
+
+```kairo
+var buf = Buffer()       // COPY type
+var file = UniqueFile()  // MOVE type
+
+var closure = fn ()|=| {
+    buf.data.push(1)     // operates on the closure's copy
+    file.close()         // operates on the moved-in file
+}
+
+buf.data.len()           // ok: buf was copied, original is still live
+file.handle              // compile error: file was moved into the closure
+```
+
+### Capture by address (`|&|`)
+
+`|&|` captures all referenced variables by address. The closure holds `*T` to each captured
+variable `&` here is the address-of operator, the same `&` used everywhere else in the
+language. Mutations through the pointer affect the original:
+
+```kairo
+var count = 0
+
+var inc = fn ()|&| {
+    count += 1    // modifies the original count through a pointer
+}
+
+inc()
+inc()
+count   // 2
+```
+
+AMT tracks address captures the same way it tracks any other pointer. If the closure escapes
+and the captured variable is stack-allocated, it is a hard error stack pointers cannot be
+promoted:
+
+```kairo
+fn make_closure() -> fn() -> i32 {
+    var x = 42
+    return fn ()|&| -> i32 { return x }
+    // hard error: x is stack-allocated, closure would outlive it
+    // AMT will not promote stack escapes are never promotable
+}
+```
+
+Capture by transfer avoids this the closure owns its own copy:
+
+```kairo
+fn make_closure() -> fn() -> i32 {
+    var x = 42
+    return fn ()|=| -> i32 { return x }
+    // ok: x is copied into the closure, no lifetime dependency
+}
+```
+
+### Per-variable capture
+
+Mix capture modes per variable. Unqualified names use transfer semantics, `&`-prefixed names
+capture by address:
+
+```kairo
+var a = Buffer()    // COPY
+var b = 0
+
+var closure = fn ()|a, &b| {
+    a.data.push(1)   // closure's own copy of a
+    b += 1            // modifies the original b through a pointer
+}
+```
+
+See [Closures](/docs/language/closures) for the full capture syntax.
+
+---
+
+## Destruction Order
+
+Values are destroyed at the end of their enclosing scope in **reverse declaration order**. This
+applies to stack-allocated, heap-allocated, and smart-pointer-promoted values alike:
+
+```kairo
+fn example() {
+    var a = Resource("first")
+    var b = Resource("second")
+    var c = Resource("third")
+}
+// destruction order: c, b, a
+```
+
+For smart pointers promoted by AMT:
+
+- `std::Unique<*T>`: the object destructor runs at the end of the owning binding's lexical scope,
+  in reverse declaration order.
+- `std::Shared<*T>`: each binding decrements the reference count at its own scope boundary in
+  reverse declaration order; the *object* destructor and deallocation run once, when the last
+  `Shared` reference's scope ends. The decrement order is lexical and deterministic; the object
+  destructor fires at the final owner, which is not necessarily the last-declared binding in any
+  single scope. See [AMT Destruction Timing](/docs/language/amt#destruction-timing).
+- `std::Weak<*T>`: invalidated at scope exit. Does not affect the reference count.
+
+There is no drop-at-last-use optimization. Destruction is tied to lexical scope, so side effects
+in destructors (file close, lock release, flush) are predictable from reading the source.
+
+---
+
+## Moved-From State
+
+After a value is moved, the source binding is **invalidated**. Any use of a moved-from binding
+is a compile error there is no "valid but unspecified" state like C++:
+
+```kairo
+var a = UniqueFile()
+var b = a              // move
+
+a.handle               // compile error: a has been moved
+a = UniqueFile()       // ok: a can be reassigned to a new value
+a.handle               // ok: a is live again
+```
+
+A moved-from binding can be reassigned. After reassignment, it is live again with the new value.
+But between the move and the reassignment, any access is a hard error.
+
+This is enforced by AMT in both debug and release builds. There is no runtime check the
+compiler statically tracks which bindings are live and which have been moved.
+
+---
+
+## Summary
+
+```
+Type category    Assignment    Source after    Function param
+COPY             Copy          Live            Copy (caller keeps)
+MOVE             Move          Invalidated     Move (caller loses)
+NON_TRANSFER     Error         N/A             Error
+Struct           memcpy        Live            memcpy (caller keeps)
+```
+
+```kairo
+// COPY: both sides live after transfer
+var a = Copyable()
+var b = a              // copy
+a.method()             // ok
+b.method()             // ok
+
+// MOVE: source invalidated after transfer
+var x = Moveable()
+var y = x              // move
+// x.method()          // compile error
+y.method()             // ok
+
+// Pointer aliasing: allowed, AMT checks provenance
+var val = 42
+var p = &val
+var q = &val
+*p = 100
+std::println(*q)       // 100
+
+// Closure capture by transfer
+var m = Moveable()
+var f = fn ()|=| { m.use() }
+// m is moved into f
+
+// Closure capture by address
+var n = 0
+var g = fn ()|&| { n += 1 }
+g()
+// n is 1
+```
 
 ---
 
@@ -8475,54 +8935,517 @@ URL: https://www.kairolang.org/docs/language/amt/
 
 # AMT (Automatic Memory Tracking)
 
-> [!IMPORTANT]
-> This page is under development. AMT is Kairo's core memory safety mechanism and its documentation
-> will be comprehensive once the implementation is finalized.
-
 AMT is a compile-time analysis pass that tracks pointer lifetimes, determines ownership, and
-automatically promotes pointers to the appropriate smart pointer type. It provides memory safety
-without requiring lifetime annotations from the programmer.
+automatically promotes pointers to the appropriate smart pointer type in debug builds. It provides
+memory safety without requiring lifetime annotations from the programmer.
 
-Key concepts that will be covered on this page:
+AMT operates on safe pointers (`*T`) only. Raw pointers (`unsafe *T`) are not tracked, and stack
+allocations are never promoted AMT only promotes heap-allocated pointers created through
+`std::create<T>()` or equivalent allocator calls. Invalid use of stack pointers (dangling, escaping
+scope) is always a hard compile error in both debug and release builds.
 
-- Full-program analysis model how AMT tracks pointer provenance across function boundaries
-- Smart pointer promotion when and how `*T` is promoted to `std::Unique<*T>`, `std::Shared<*T>`,
-  or `std::Weak<*T>`
-- Compile errors vs automatic fixes when AMT can resolve an issue silently and when it must
-  reject the program
-- Allocator integration `std::create<T>()`, `std::alloc<T>()`, custom allocators, and how AMT
-  interacts with allocation strategies
-- `fn op delete` and automatic destructor insertion
-- Cross-translation-unit analysis via `.ksummary` artifacts
-- Interaction with [unsafe blocks](/docs/language/unsafe) how `unsafe { }` suspends AMT and how
-  `forget!()` drops pointers from tracking
-- Interaction with [C/C++ interop](/docs/language/c-c++) smart pointer mapping between Kairo's
-  AMT types and C++ `std::unique_ptr`, `std::shared_ptr`, `std::weak_ptr`
+> [!WARNING]
+> AMT is not yet implemented. The compiler is currently in the **Stage 1** parsing phase.
+> AMT development begins at **Stage 2**. The roadmap:
+>
+> - **Stage 0** (stable): C++ compiler, transpiles Kairo to C++.
+> - **Stage 1** (current): self-hosted compiler frontend parser, AST, diagnostics.
+> - **Stage 1.5**: Stage 1 migrated to Kairo's standard library, fully self-hosting.
+> - **Stage 2**: compiler rewritten using Kairo's extended feature set. **AMT work begins here.**
+>
+> This page describes the intended design. The semantics are the target, not the current state. Details may change during implementation.
 
-See [Pointers](/docs/language/pointers) for pointer types and
-[Ownership](/docs/language/ownership) for the ownership model that AMT enforces.
+---
 
-`fn op delete (self)` defines custom destruction. If not defined, compiler generates `fn op delete (self) = default`. If any member has a deleted destructor, the whole object requires `unsafe` to use.
+## The Analysis Model
 
-Allocator system:
+AMT performs whole-program analysis. Every translation unit is analyzed and its results are cached
+in a `.amt` file. The final link pass consumes all `.amt` files to resolve cross-TU pointer flows.
 
-```kairo
-class MyAllocator impl std::Allocator {
-    fn allocate(self, size: usize) -> *u8
-    fn deallocate(self, ptr: *u8, size: usize)
-}
+The analysis tracks three properties for every safe pointer:
 
-@set_allocator(MyAllocator)
+- **Provenance**: where the pointer was created and what allocation it points into.
+- **Lifetime**: the scope in which the pointer is live and the scope in which its target is valid.
+- **Aliasing**: whether multiple live pointers refer to the same allocation, and how they relate
+  (exclusive, shared, back-reference).
+
+AMT does not require annotations. It infers all three properties from usage. When the analysis
+can prove a pointer's lifetime, provenance, and aliasing unambiguously, it proceeds silently. When
+it cannot, the behavior depends on the build mode.
+
+### Analysis scope and the limits of inference
+
+Within a single function, AMT tracks pointer flow directly. Across function and TU boundaries, it
+relies on the `.amt` summaries: each function's summary records what it does to every pointer
+parameter (dereferences it, stores it, aliases it, returns it, frees it). When a pointer is passed
+into a function, AMT consumes that function's summary rather than re-walking its body.
+
+This is what makes cross-TU iterator-invalidation and escape detection possible: the summary for
+`Vec::push` records that it may reallocate the backing buffer, so any live `*T` into that buffer is
+flagged at the call site. Where AMT has no summary a pointer stored into an opaque structure it
+cannot trace, or passed through a code path it cannot analyze it does not guess. It emits a hard
+error (see [When AMT cannot decide](#when-amt-cannot-decide)).
+
+---
+
+## Debug vs Release
+
+AMT behaves differently in debug and release builds. The difference is deliberate: debug builds
+are for getting things working, release builds are for getting things right.
+
+### Debug mode
+
+When AMT determines that a heap pointer outlives its original scope or needs ownership semantics,
+it **automatically promotes** the pointer to the appropriate smart pointer type (`std::Unique<*T>`,
+`std::Shared<*T>`, or `std::Weak<*T>`) and emits a **warning** that describes:
+
+- Where the promotion happened and why.
+- What smart pointer type was chosen.
+- What the programmer should annotate to make the code release-ready.
+
+```
+warning[AMT]: pointer 'cfg' promoted to std::Unique<*Config>
+  --> src/server.k:12:16
+  12 |     var cfg = std::create<Config>(8080)
+     |         ^^^ escapes function scope via return on line 15
+  note: AMT promoted this pointer because it has a single owner and no aliases
+  help: annotate explicitly for release builds:
+     12 |     var cfg: std::Unique<*Config> = std::create<Config>(8080)
 ```
 
-`std::create<T>` uses the active allocator. Everything in std that allocates goes through it. `delete x[0]` calls `T`'s `op delete` first, then the allocator's deallocation. Considering future granularity: `@set_allocator_for(T, MyAllocator)`, `@set_collection_allocator(MyAllocator)`, etc. undecided.
+Debug mode also inserts **runtime safety checks** that are not present in release builds:
 
-- `fn op delete (self)` custom destruction, `= default`, `= delete` behavior
-- `std::Allocator` interface with `allocate`/`deallocate`
-- `@set_allocator(MyAllocator)` global allocator override
-- `delete x[0]` explicit deletion calling `T`'s `op delete` then allocator's dealloc
-- `std::create<T>` uses the active allocator
-- Future granularity: `@set_allocator_for(T, ...)`, `@set_collection_allocator(...)` undecided
+- Null dereference checks on safe pointer access.
+- Use-after-free detection via poisoned memory patterns.
+- Double-free detection.
+
+These checks have runtime cost and exist only to catch bugs during development.
+
+### Release mode
+
+AMT does **not** auto-promote in release builds. If a pointer requires promotion, AMT emits a
+**hard compile error** with the same diagnostic information that debug mode would have produced
+as a warning the location, the reason, the suggested smart pointer type, and the fix:
+
+```
+error [AMT]: pointer 'cfg' escapes its scope and requires ownership annotation
+  --> src/server.k:12:16
+  12 |     var cfg = std::create<Config>(8080)
+     |         ^^^ escapes function scope via return on line 15
+  note: in debug mode, AMT would promote to: std::Unique<*Config>
+  help: annotate the type explicitly:
+     12 |     var cfg: std::Unique<*Config> = std::create<Config>(8080)
+  help: or restructure to avoid the escape
+```
+
+This is the "no hidden allocations" guarantee. In a release build, every smart pointer in the
+binary is visible in the source code. The compiler does not silently change pointer types behind
+the programmer's back.
+
+### Summary
+
+| | Debug | Release |
+|---|---|---|
+| Auto-promotion | Yes, with warning | No hard error |
+| Runtime null checks | Yes | No |
+| Use-after-free detection | Yes | No |
+| Double-free detection | Yes | No |
+| Stack escape | Hard error | Hard error |
+| Unprovable safety | Hard error | Hard error |
+
+---
+
+## Promotion Decision
+
+When AMT determines that a heap pointer needs ownership semantics, it selects one of three smart
+pointer types based on the pointer's usage pattern across the entire program.
+
+### `std::Unique<*T>` single owner
+
+The pointer has exactly one owner at any point in its lifetime. No other live pointer refers to
+the same allocation. Ownership may transfer between scopes (via return or assignment), but at
+every point in the program, exactly one binding holds the pointer.
+
+```kairo
+fn make_config() -> *Config {
+    var cfg = std::create<Config>(8080)
+    return cfg
+    // AMT: cfg has one owner, transferred to caller -> Unique
+}
+```
+
+### `std::Shared<*T>` multiple owners
+
+Multiple live pointers refer to the same allocation and AMT cannot prove single ownership. The
+allocation is reference-counted and freed when the last `Shared` pointer is destroyed.
+
+```kairo
+fn share_config(a: *Server, b: *Server) {
+    var cfg = std::create<Config>(8080)
+    a.config = cfg
+    b.config = cfg
+    // AMT: cfg is aliased across a and b -> Shared
+}
+```
+
+### `std::Weak<*T>` back-reference
+
+A pointer that, if promoted to `Shared`, would form a reference cycle (A -> B -> A). `Weak`
+pointers do not contribute to the reference count and do not prevent deallocation. Accessing a
+`Weak` pointer requires checking whether the target is still alive.
+
+```kairo
+class Node {
+    var child: *Node
+    var parent: *Node
+    // AMT: parent points back to the owner of this node -> Weak
+}
+```
+
+### No promotion needed
+
+Most pointers do not need promotion. A pointer that is created, used, and destroyed within a
+single scope or whose lifetime is provably contained within its referent's lifetime remains
+a plain `*T`. No smart pointer overhead is added:
+
+```kairo
+fn process() {
+    var data = std::create<Buffer>(1024)
+    fill(data)
+    consume(data)
+    std::destroy(data)
+    // AMT: data's lifetime is fully contained, no aliases -> plain *T
+}
+```
+
+### When AMT cannot decide
+
+If AMT cannot prove provenance, cannot determine aliasing, or cannot trace the pointer's flow
+(e.g., the pointer is stored in an opaque data structure or passed through a code path AMT
+cannot analyze), it does **not** guess. It emits a hard compile error in both debug and release
+modes:
+
+```
+error [AMT]: cannot determine ownership of pointer 'p'
+  --> src/engine.k:42:12
+  42 |     opaque_container.store(p)
+     |                           ^ pointer escapes into unanalyzable context
+  help: use 'unsafe *T' if this pointer is managed externally
+  help: use 'forget!(p)' in an unsafe block to drop AMT tracking
+```
+
+The distinction: AMT *heuristically promotes* when it has strong evidence (one owner -> Unique,
+multiple owners -> Shared, cycle -> Weak). AMT *hard errors* when it has insufficient evidence to
+make any determination. The heuristic is a best-effort assist in debug mode. The hard error is a
+safety guarantee in both modes.
+
+---
+
+## Stack Pointers
+
+AMT does not promote stack-allocated values. Stack memory is managed by scope variables are
+destroyed at the closing brace in reverse declaration order. Promotion does not apply because
+there is no heap allocation to transfer ownership of.
+
+What AMT does with stack pointers:
+
+- **Tracks lifetime**: ensures no pointer to a stack variable outlives the variable.
+- **Detects escapes**: a pointer to a stack local returned from a function is always a hard error.
+- **Detects dangling**: a pointer used after the referent's scope has ended is always a hard error.
+
+```kairo
+fn bad() -> *i32 {
+    var x = 42
+    return &x
+    // hard error: x is stack-allocated and destroyed at end of bad()
+    // AMT will not promote &x stack escapes are never promotable
+}
+
+fn also_bad() {
+    var p: *i32
+    {
+        var x = 42
+        p = &x
+    }
+    *p = 10
+    // hard error: x is destroyed at the closing brace, p is dangling
+}
+```
+
+These are hard errors in both debug and release. No warning, no promotion, no workaround except
+restructuring the code or using `unsafe *T` with manual lifetime management.
+
+There is no heap allocation behind a stack value, so no smart pointer can rescue an escaping stack
+pointer. This is why `return &local` is a hard error rather than a promotion candidate the rule
+the [Ownership](/docs/language/ownership) page refers to as "stack escape."
+
+---
+
+## Allocator Interaction
+
+AMT is aware of the allocator system. Kairo supports two kinds of allocators:
+
+### Global allocator
+
+The default allocator used by `std::create<T>()` and all standard library heap operations. It can
+be overridden with `@mem::set_allocator(MyAllocator)` at the top of a file.
+
+**Intentional friction**: `@mem::set_allocator` must appear at the top of **every file in the
+dependency graph** that the override affects. If a library sets a global allocator, every file
+that transitively depends on that library must also carry the annotation. This makes global
+allocator overrides visible and discourages libraries from changing the global allocator library
+authors should use scoped allocators instead.
+
+### Scoped allocator
+
+A scoped allocator is an allocator with RAII semantics it frees all memory it allocated when
+it goes out of scope. Set one with `@mem::set_scoped_allocator(MyAllocator)` on a function or
+block.
+
+```kairo
+@mem::set_scoped_allocator(ArenaAllocator)
+fn process_frame() {
+    var a = std::create<Mesh>(vertices)
+    var b = std::create<Texture>(pixels)
+    // a and b are allocated through ArenaAllocator
+    // ArenaAllocator frees everything when process_frame returns
+}
+```
+
+AMT tracks scoped allocator boundaries. A pointer allocated through a scoped allocator that
+escapes the allocator's scope is a **hard error** the allocator will free the memory when the
+scope ends, so the escaped pointer would dangle:
+
+```kairo
+@mem::set_scoped_allocator(ArenaAllocator)
+fn bad() -> *Config {
+    var cfg = std::create<Config>(8080)
+    return cfg
+    // hard error: cfg was allocated by ArenaAllocator, which frees at end of bad()
+    // returning cfg creates a dangling pointer no promotion can fix this
+}
+```
+
+This is not a promotable situation. No smart pointer can rescue a pointer whose backing memory
+is freed by the allocator. The only fix is restructuring: allocate through the global allocator,
+or move the scoped allocator boundary outward.
+
+### Freestanding allocator
+
+A variant of the scoped allocator interface for embedded and bare-metal targets. Freestanding
+allocators conform through `static` functions only no pointer indirection, no vtable. The
+compiler replaces `std::create<T>()` calls with direct static calls:
+
+```kairo
+// Instead of: cur_allocator->alloc(...)
+// Compiler emits: FreestandingAlloc::alloc(sizeof(T) * N) + placement construction
+```
+
+AMT treats freestanding allocators identically to scoped allocators for lifetime tracking
+purposes. The optimization is purely a codegen concern.
+
+---
+
+## Destruction Timing
+
+When AMT promotes a pointer to a smart pointer, the destructor fires at the end of the **lexical
+scope** of the binding that owns the pointer matching the behavior of non-promoted variables.
+
+```kairo
+fn example() {
+    var cfg = std::create<Config>(8080)
+    // ... use cfg ...
+}
+// cfg's destructor runs here, at the closing brace
+// If AMT promoted cfg to Unique, the Unique destructor runs here
+// If AMT promoted cfg to Shared, the refcount decrements here
+```
+
+There is no drop-at-last-use optimization. Destruction is deterministic and tied to lexical scope.
+This means:
+
+- Side effects in destructors (file close, lock release, network disconnect) are predictable.
+- `finally` blocks and destructor ordering compose correctly.
+- The programmer can reason about destruction order by reading the source.
+
+### Unique and stack-bound objects
+
+For `std::Unique<*T>` and non-promoted values, the object destructor runs at the owning binding's
+closing brace, in reverse declaration order relative to other bindings in the same scope.
+
+### Shared objects
+
+`std::Shared<*T>` separates two events:
+
+- **Refcount decrement** happens at each `Shared` binding's own scope boundary, in reverse
+  declaration order like any other binding.
+- **Object destruction** (the pointed-to object's destructor, then deallocation) happens exactly
+  once, when the *last* live `Shared` reference's scope ends and the count reaches zero.
+
+These are not the same guarantee. The per-binding decrement order is lexical and deterministic.
+The object destructor fires at the last owner, which may not be the last-declared binding in any
+single scope. For shared objects, reason about destruction timing as "when the final owner goes
+away," not "in reverse declaration order of the binding I'm looking at."
+
+`std::Weak<*T>` scope exit does not affect the reference count. The `Weak` pointer simply becomes
+invalid if the target has already been freed.
+
+---
+
+## Copy Elision
+
+For COPY types, AMT may emit a move instead of a copy when it proves the source is not used after
+the transfer. AMT does not elide if the move constructor is deleted, and the programmer does not
+opt into or out of this.
+
+Elision is permitted only when it is unobservable. The source binding would be destroyed at its
+own scope exit either way; elision means its destructor runs at the transfer point instead. AMT
+performs the elision **only when the destructor's observable effects do not depend on timing** —
+that is, when the type's destructor is trivial, or its effects (a `free`, a refcount decrement)
+produce the same observable program behavior whether they fire at the transfer or at scope exit.
+
+If the destructor has timing-sensitive side effects a file flush, a lock release, a log line —
+AMT does **not** elide. The copy is preserved and the source is destroyed at its lexical scope
+exit as written. This keeps the language's core promise intact: destructor side effects are
+predictable from reading the source. Elision is a silent optimization precisely because it is only
+applied where it cannot be observed.
+
+---
+
+## C/C++ Interop
+
+AMT's behavior at the FFI boundary depends on the C++ declaration's type signature.
+
+### Smart pointer parameters
+
+C++ functions that use smart pointer types are mapped automatically:
+
+| C++ type             | Kairo AMT type            | Requires `unsafe` |
+|----------------------|---------------------------|-------------------|
+| `std::unique_ptr<T>` | `std::Unique<*T>`         | No                |
+| `std::shared_ptr<T>` | `std::Shared<*T>`         | No                |
+| `std::weak_ptr<T>`   | `std::Weak<*T>`           | No                |
+| `T&`, `const T&`     | `*T`, `*const T`          | No                |
+| `T&&` (move ref)     | `*T` (ownership transfer) | No                |
+
+A mismatch between AMT's promotion and the C++ function's expected type is a compile error.
+
+### Raw pointer parameters
+
+C++ functions that take raw pointers (`T*`, `void*`) require an `unsafe` block. AMT does not
+track the pointer across the FFI boundary the C++ side is opaque. Use `forget!()` to release the
+pointer from tracking before handing it to C++. See [Unsafe](/docs/language/unsafe#forget) for the
+full mechanics of `forget!()` and FFI ownership transfer.
+
+### Shallow C++ analysis
+
+For raw pointer FFI calls, AMT performs a **one-level heuristic analysis** of the C++ function
+body (if the source is visible via the imported header). If the function only dereferences the
+pointer without aliasing, storing, or forwarding it, AMT may classify the call as safe and not
+require an `unsafe` block. This analysis does not recurse AMT will not walk the C++ call graph
+beyond the immediate function.
+
+If the C++ function's body is not visible (forward-declared, in a compiled library), AMT treats
+all raw pointer parameters as opaque and requires `unsafe`.
+
+---
+
+## Generic Code
+
+AMT tracks through generic instantiations. When a generic function is monomorphized, AMT analyzes
+the concrete instantiation with full type information:
+
+```kairo
+fn <T> take_ownership(x: *T) {
+    // AMT knows x is the sole pointer to the allocation after this call
+}
+
+fn caller() {
+    var cfg = std::create<Config>(8080)
+    take_ownership(cfg)
+    // AMT: cfg's ownership transferred into take_ownership
+    // Using cfg after this point is a compile error
+}
+```
+
+AMT understands lifecycle categories. If `T` has a `@move` transfer constructor, AMT tracks
+ownership transfer through the move. If `T` is `@copy`, AMT knows both the source and destination
+are live after the copy.
+
+Generic code is not an opaque boundary AMT analyzes each monomorphization as if it were a
+concrete function.
+
+---
+
+## What AMT Does Not Do
+
+- **Garbage collection**: AMT is a compile-time analysis. There is no runtime garbage collector,
+  no tracing, no mark-and-sweep. Reference counting for `Shared` pointers is the only runtime
+  cost, and it only exists when multiple ownership is required.
+
+- **Runtime borrow checking**: AMT does not insert runtime aliasing checks. All aliasing analysis
+  is done at compile time. If AMT cannot prove aliasing safety statically, it is a compile error.
+
+- **Lifetime annotations**: AMT does not require `'a`-style lifetime parameters. The whole-program
+  analysis infers lifetimes from usage. There is no lifetime polymorphism AMT analyzes concrete
+  lifetimes, not abstract ones.
+
+- **Automatic reference counting everywhere**: AMT promotes to `Shared` (which uses refcounting)
+  only when it determines multiple ownership exists. Single-owner pointers are promoted to
+  `Unique`, which has no refcount overhead. Pointers with fully contained lifetimes are not
+  promoted at all.
+
+- **Cross-language analysis**: AMT does not analyze C++ code beyond the one-level heuristic
+  described in [C/C++ Interop](#cc-interop). C++ code is treated as opaque beyond the immediate
+  function signature and body.
+
+---
+
+## `.amt` Files
+
+Each translation unit produces a `.amt` file alongside its object file. The `.amt` file contains
+a summary of every pointer's provenance, lifetime bounds, and promotion decisions for that TU.
+The link-time pass reads all `.amt` files to resolve cross-TU flows.
+
+`.amt` files are cached and invalidated when the source or any of its dependencies change. They
+do not need to be committed to version control the build system regenerates them.
+
+> [!IMPORTANT]
+> The `.amt` file format and the details of the link-time resolution pass are still being
+> finalized. The information above describes the intended architecture. Specifics may change
+> before 1.0.
+
+---
+
+## Summary
+
+| Type             | Tracked?  | Promoted?                 | Error on escape?                    |
+|------------------|-----------|---------------------------|-------------------------------------|
+| Plain *T (stack) | Yes       | Never                     | Always (hard error)                 |
+| Plain *T (heap)  | Yes       | Debug: yes \| Release: no | Release: hard error (must annotate) |
+| unsafe *T        | No        | Never                     | No (programmer's problem)           |
+| Scoped alloc ptr | Yes       | Never                     | Always (hard error)                 |
+| FFI smart ptr    | Yes       | Mapped 1:1                | Type mismatch = error               |
+| FFI raw ptr      | No        | Never                     | Requires unsafe block               |
+
+```kairo
+// Stack pointer AMT enforces lifetime, no promotion
+var x = 42
+var p: *i32 = &x
+
+// Heap pointer AMT tracks and may promote (debug) or require annotation (release)
+var cfg = std::create<Config>(8080)
+
+// Explicit annotation works in both debug and release
+var cfg: std::Unique<*Config> = std::create<Config>(8080)
+
+// Scoped allocator AMT enforces no escape
+@mem::set_scoped_allocator(ArenaAllocator)
+fn frame() {
+    var mesh = std::create<Mesh>(data)
+    // mesh cannot outlive frame() hard error if it tries
+}
+```
 
 ---
 
@@ -8606,7 +9529,7 @@ See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
 
 ---
 
-## `forget!()`
+## Forget
 
 `forget!()` is a compiler intrinsic that permanently removes a pointer from AMT tracking. It is
 only valid inside an `unsafe` block:
@@ -18161,6 +19084,10 @@ Recent example: empty source files crashed compiler . The debugging session foun
 
 AI is utilized as a second pair of eyes on diagnostic output, not as a code author.
 
+## Doc Comments Within the Compiler Codebase
+
+Github copilot is used to write doc comments within the compiler codebase. Code itself is hand written, but the prose comments that explain what the code is doing are AI-assisted. This will be replaced with human-written comments eventually (ideally stage2), but for now it helps me write more comments than I would otherwise, and makes the code easier to understand for me looking back at it after a long time or for new contributors.
+
 ## Docs
 
 Every page on kairolang.org was a raw technical dump, syntax examples, ABI lowering information, generated C++ output, invariants, edge cases. The kind of notes that make sense to me and nobody else.
@@ -18319,7 +19246,7 @@ No `&T` vs `&mut T`. No `const T&` vs `T&`. One pointer type, one const rule, ap
 
 ## What This Costs
 
-**Whole-program analysis is expensive.** AMT needs to see the entire program to make its safety guarantees. This is more expensive than Rust's function-local borrow checking. Kairo mitigates this with `.ksummary` artifacts, precomputed ownership summaries for each translation unit that AMT can consume without re-analyzing dependencies. But it's still more work than a local analysis.
+**Whole-program analysis is expensive.** AMT needs to see the entire program to make its safety guarantees. This is more expensive than Rust's function-local borrow checking. Kairo mitigates this with `.amt` artifacts, precomputed ownership summaries for each translation unit that AMT can consume without re-analyzing dependencies. But it's still more work than a local analysis.
 
 **No lifetime polymorphism.** Rust's lifetime parameters let you write functions that are generic over lifetimes, the function works regardless of how long the references live, as long as the constraints are satisfied. Kairo doesn't have this. AMT analyzes concrete lifetimes, not abstract ones. In practice, this hasn't been a limitation because AMT's auto-promotion handles the cases where Rust would need lifetime parameters, but it's a theoretical expressiveness gap.
 
@@ -18508,127 +19435,6 @@ No more wondering whether `break` exits the switch or the loop.
 Kairo's general approach is: if the default behavior of a construct causes bugs, change the default. Don't add warnings, attributes, or linter rules to patch over a broken default. Fix it.
 
 `switch` with fall-through is a broken default. `match` with isolated cases, exhaustiveness checking, destructuring, and expression form is the fix.
-
----
-
-## Proposal: New Operator Syntax
-URL: https://www.kairolang.org/blog/new-operator-syntax/
-
-# Proposal: New Operator Syntax
-
-We're proposing a new, cleaner syntax for operator overloading in Kairo. This replaces the previous approach of using `impl std::ops::Add` style trait implementations with a more direct, readable syntax.
-
-## The Problem
-
-The old approach required implementing external interfaces for operator overloading:
-
-```kairo
-impl std::ops::Add for Vector2 {
-    fn add(self, rhs: Vector2) -> Vector2 {
-        return Vector2 {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        };
-    }
-}
-```
-
-This is verbose, requires knowing which interface maps to which operator, and separates the operator implementation from the type definition in a way that can be confusing.
-
-## The Proposal: `fn op <operator>`
-
-We're introducing direct operator function syntax using `fn op`:
-
-```kairo
-struct Vector2 {
-    x: f64,
-    y: f64,
-}
-
-impl Vector2 {
-    // Operator overloading - clean and explicit
-    fn op +(self, rhs: Vector2) -> Vector2 {
-        return Vector2 {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        };
-    }
-
-    fn op -(self, rhs: Vector2) -> Vector2 {
-        return Vector2 {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        };
-    }
-
-    fn op *(self, scalar: f64) -> Vector2 {
-        return Vector2 {
-            x: self.x * scalar,
-            y: self.y * scalar,
-        };
-    }
-
-    fn op ==(self, rhs: Vector2) -> bool {
-        return self.x == rhs.x && self.y == rhs.y;
-    }
-}
-```
-
-## Usage
-
-The syntax is exactly what you'd expect:
-
-```kairo
-fn main() {
-    let a = Vector2 { x: 1.0, y: 2.0 };
-    let b = Vector2 { x: 3.0, y: 4.0 };
-
-    let c = a + b;           // Vector2 { x: 4.0, y: 6.0 }
-    let d = a * 2.0;         // Vector2 { x: 2.0, y: 4.0 }
-    let equal = a == b;      // false
-
-    print(f"c = ({c.x}, {c.y})");
-}
-```
-
-## Supported Operators
-
-The following operators can be overloaded with `fn op`:
-
-| Operator | Description |
-|----------|-------------|
-| `+`  | Addition |
-| `-`  | Subtraction / unary negation |
-| `*`  | Multiplication |
-| `/`  | Division |
-| `%`  | Remainder |
-| `==` | Equality |
-| `!=` | Inequality |
-| `<`  | Less than |
-| `>`  | Greater than |
-| `<=` | Less than or equal |
-| `>=` | Greater than or equal |
-| `[]` | Index |
-| `()` | Call |
-
-## Comparison with Other Languages
-
-- **C++**: `operator+` - similar idea, but buried in C++'s syntax noise
-- **Rust**: `impl Add for T` - trait-based, more flexible but verbose
-- **Zig**: No operator overloading - intentionally excluded
-- **Kairo**: `fn op +` - explicit, readable, lives with the type
-
-## Open Questions
-
-1. Should `fn op` be allowed in `interface` definitions?
-2. How should operator overloading interact with generics?
-3. Should there be restrictions on which operators can return types other than `Self`?
-
-We'd love feedback from the community. Open an issue on [GitHub](https://github.com/kairolang/kairo-lang/issues) or discuss in Discord.
-
-## Timeline
-
-This change is targeted for the `0.2.0-alpha` release. The old `impl std::ops::*` syntax will continue to work for one release cycle before being removed.
 
 ---
 
