@@ -9248,25 +9248,45 @@ purposes. The optimization is purely a codegen concern.
 
 ## Destruction Timing
 
-When AMT promotes a pointer to a smart pointer, the destructor fires at the end of the **lexical
-scope** of the binding that owns the pointer matching the behavior of non-promoted variables.
+When AMT destroys a value, *where* it places the destruction depends on whether the type's
+destructor is observable.
+
+### Trivial destructors
+
+A type whose destructor has no observable side effects (no user-defined `op delete`, no member with
+one. Just memory to reclaim) is destroyed at **last use**. AMT places the `std::destroy` as early
+as the final use permits:
+
+```kairo
+var foo = std::create<SomeClass>()   // SomeClass has a trivial destructor
+use(foo)
+// AMT inserts std::destroy(foo) here foo is never used again
+std::println(10)
+```
+
+This is safe because there is nothing observable to reorder. The only effect is reclaiming the
+backing memory, and reclaiming it after the last use is indistinguishable from reclaiming it at the
+scope brace.
+
+### Non-trivial destructors
+
+A type with a side-effecting destructor (a user-defined `op delete`, or any member with one. File
+close, lock release, flush, network disconnect) is destroyed at the **end of the owning binding's
+lexical scope**, in reverse declaration order. AMT does **not** move these to last use:
 
 ```kairo
 fn example() {
-    var cfg = std::create<Config>(8080)
-    // ... use cfg ...
+    var cfg = std::create<Config>(8080)   // Config has a side-effecting destructor
+    use(cfg)
+    std::println(10)
 }
-// cfg's destructor runs here, at the closing brace
-// If AMT promoted cfg to Unique, the Unique destructor runs here
-// If AMT promoted cfg to Shared, the refcount decrements here
+// cfg's destructor runs here, at the closing brace. Not after use(cfg)
 ```
 
-There is no drop-at-last-use optimization. Destruction is deterministic and tied to lexical scope.
-This means:
-
-- Side effects in destructors (file close, lock release, network disconnect) are predictable.
-- `finally` blocks and destructor ordering compose correctly.
-- The programmer can reason about destruction order by reading the source.
+This is the "predictable from source" guarantee: for any type whose destruction is observable, the
+side effect fires at the scope brace exactly as written. `finally` blocks, lock guards, and
+NON_TRANSFER scope guards all rely on this. Their effects are tied to lexical scope, not to
+whenever the optimizer last touched the value.
 
 ### Unique and stack-bound objects
 
