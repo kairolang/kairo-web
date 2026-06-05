@@ -1,3 +1,10 @@
+---
+title: Language Ref (1 Page)
+description: The complete Kairo language reference, assembled into one page.
+order: 4
+section: Language
+---
+
 # Kairo Language Reference
 
 > The complete Kairo language reference, assembled into one page.
