@@ -8337,7 +8337,7 @@ var r = &a
 p == r    // true: same address
 ```
 
-`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system — null-check with `?` first, then `===` the unwrapped pointers.
+`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system null-check with `?` first, then `===` the unwrapped pointers.
 
 See [Operators](/docs/language/operators#comparison) for the full comparison model.
 
@@ -8495,7 +8495,7 @@ The programmer does not opt into or control copy elision. AMT applies it when sa
 
 ### MOVE types
 
-A type with a `@move` transfer constructor can only be moved. Assignment transfers ownership —
+A type with a `@move` transfer constructor can only be moved. Assignment transfers ownership
 the source is invalidated and cannot be used:
 
 ```kairo
@@ -9320,11 +9320,11 @@ opt into or out of this.
 
 Elision is permitted only when it is unobservable. The source binding would be destroyed at its
 own scope exit either way; elision means its destructor runs at the transfer point instead. AMT
-performs the elision **only when the destructor's observable effects do not depend on timing** —
+performs the elision **only when the destructor's observable effects do not depend on timing**
 that is, when the type's destructor is trivial, or its effects (a `free`, a refcount decrement)
 produce the same observable program behavior whether they fire at the transfer or at scope exit.
 
-If the destructor has timing-sensitive side effects a file flush, a lock release, a log line —
+If the destructor has timing-sensitive side effects a file flush, a lock release, a log line
 AMT does **not** elide. The copy is preserved and the source is destroyed at its lexical scope
 exit as written. This keeps the language's core promise intact: destructor side effects are
 predictable from reading the source. Elision is a silent optimization precisely because it is only

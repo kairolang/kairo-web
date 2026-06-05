@@ -311,7 +311,7 @@ var r = &a
 p == r    // true: same address
 ```
 
-`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system — null-check with `?` first, then `===` the unwrapped pointers.
+`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system null-check with `?` first, then `===` the unwrapped pointers.
 
 See [Operators](/docs/language/operators#comparison) for the full comparison model.
 
