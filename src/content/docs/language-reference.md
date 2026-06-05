@@ -14,33 +14,33 @@ section: Language
 
 ## Contents
 
-- [Primitives](#primitives) — Built-in data types in Kairo integers, floats, booleans, characters, strings, pointers, collections, and their semantics.
-- [Variables & Bindings](#variables-bindings) — Variable declarations, constants, static, type inference, shadowing, destructuring, const semantics, and scope rules in Kairo.
-- [Operators](#operators) — Arithmetic, comparison, logical, bitwise, assignment, range, null-safe access, operator overloading, and precedence rules in Kairo.
-- [Control Flow](#control-flow) — Conditionals, match, loops, labeled breaks, try/catch/finally, panic, assert, jumps, compile-time branching, and branch hints in Kairo.
-- [Functions](#functions) — Function declarations, parameters, return types, overloading, modifiers, generics, variadic functions, and calling conventions in Kairo.
-- [Closures](#closures) — Anonymous functions, capture modes, lambda syntax, and how closures interact with AMT in Kairo.
-- [Classes](#classes) — Class declarations, constructors, destructors, lifecycle categories, inheritance, virtual dispatch, abstract classes, generics, visibility, memory layout, and out-of-line definitions in Kairo.
-- [Structures](#structures) — Struct declarations, aggregate initialization, field visibility, generics, extends, layout control, and how structs differ from classes in Kairo.
-- [Enums](#enums) — Enum declarations, discriminants, underlying types, ADT variants with payloads, generics, extends, and enum semantics in Kairo.
-- [Unions](#unions) — Untagged union declarations, memory overlay semantics, trivial-type restriction, generics, and layout rules in Kairo.
-- [Interfaces](#interfaces) — Interface declarations, structural conformance, generic interfaces, interface inheritance, operator and constructor requirements, and zero-cost contract semantics in Kairo.
-- [Type System](#type-system) — Type aliases, type inference, implicit conversions, subtyping, TypeInfo, typeof, nullable nesting, void and never types, function types, and type identity in Kairo.
-- [Casting](#casting) — Explicit type conversions with as, numeric truncation, pointer casts, downcasting, nullable collapsing, user-defined conversions, and cast safety rules in Kairo.
-- [Requires Clauses](#requires-clauses) — Compile-time constraints on functions, types, and interfaces in Kairo.
-- [Where Clauses](#where-clauses) — Where clauses attach runtime-conditional constraints to declarations. They are evaluated at runtime, and can be used for dispatching on values or types.
-- [Pointers & Raw Pointers](#pointers-raw-pointers) — Safe pointers, unsafe raw pointers, null semantics, pointer arithmetic, smart pointer promotion, void pointers, double pointers, and pointer safety rules in Kairo.
-- [Ownership](#ownership) — Transfer semantics, pointer aliasing, closure captures, and destruction order in Kairo's ownership model.
-- [AMT](#amt) — Automatic Memory Tracking full-program lifetime analysis, smart pointer promotion, allocator integration, and compile-time safety guarantees in Kairo.
-- [Unsafe](#unsafe) — Unsafe blocks, unsafe pointers, unsafe function overloads, AMT suspension, forget, and the safety boundary model in Kairo.
-- [Panic](#panic) — The panic specifier, Panickable return type, try/catch exhaustiveness, panic propagation, error types, and zero-cost codegen in Kairo.
-- [Compile-Time Eval](#compile-time-eval) — Eval variables, eval functions, eval if, eval for, compile-time evaluation rules, restrictions, and interaction with generics in Kairo.
-- [Modules](#modules) — Module system, imports, file-to-module mapping, directories as libraries, namespaces, visibility, module extending, and C++ header imports in Kairo.
-- [Extends](#extends) — Extend blocks for adding methods, operators, static functions, and interface conformance to structs, enums, and classes in Kairo.
-- [Attributes](#attributes) — AST-level code transformations, attribute definitions, arguments, expansion order, overloading, built-in attributes, and the std::AST API in Kairo.
-- [Macros](#macros) — Token-level macros, macro definitions, built-in macros, variadic helpers, source location, diagnostics, code generation, and macro hygiene in Kairo.
-- [Concurrency](#concurrency) — Async/await, spawn, yield, coroutines, atomic types, thread-local storage, and synchronization primitives in Kairo.
-- [C & C++ Interoperability](#c-c-interoperability) — Native bidirectional interop between Kairo and C/C++ FFI declarations, the kcc driver, inline C++, pointer safety, templates, exceptions, and ABI details.
+- [Primitives](#primitives) Built-in data types in Kairo integers, floats, booleans, characters, strings, pointers, collections, and their semantics.
+- [Variables & Bindings](#variables-bindings) Variable declarations, constants, static, type inference, shadowing, destructuring, const semantics, and scope rules in Kairo.
+- [Operators](#operators) Arithmetic, comparison, logical, bitwise, assignment, range, null-safe access, operator overloading, and precedence rules in Kairo.
+- [Control Flow](#control-flow) Conditionals, match, loops, labeled breaks, try/catch/finally, panic, assert, jumps, compile-time branching, and branch hints in Kairo.
+- [Functions](#functions) Function declarations, parameters, return types, overloading, modifiers, generics, variadic functions, and calling conventions in Kairo.
+- [Closures](#closures) Anonymous functions, capture modes, lambda syntax, and how closures interact with AMT in Kairo.
+- [Classes](#classes) Class declarations, constructors, destructors, lifecycle categories, inheritance, virtual dispatch, abstract classes, generics, visibility, memory layout, and out-of-line definitions in Kairo.
+- [Structures](#structures) Struct declarations, aggregate initialization, field visibility, generics, extends, layout control, and how structs differ from classes in Kairo.
+- [Enums](#enums) Enum declarations, discriminants, underlying types, ADT variants with payloads, generics, extends, and enum semantics in Kairo.
+- [Unions](#unions) Untagged union declarations, memory overlay semantics, trivial-type restriction, generics, and layout rules in Kairo.
+- [Interfaces](#interfaces) Interface declarations, structural conformance, generic interfaces, interface inheritance, operator and constructor requirements, and zero-cost contract semantics in Kairo.
+- [Type System](#type-system) Type aliases, type inference, implicit conversions, subtyping, TypeInfo, typeof, nullable nesting, void and never types, function types, and type identity in Kairo.
+- [Casting](#casting) Explicit type conversions with as, numeric truncation, pointer casts, downcasting, nullable collapsing, user-defined conversions, and cast safety rules in Kairo.
+- [Requires Clauses](#requires-clauses) Compile-time constraints on functions, types, and interfaces in Kairo.
+- [Where Clauses](#where-clauses) Where clauses attach runtime-conditional constraints to declarations. They are evaluated at runtime, and can be used for dispatching on values or types.
+- [Pointers & Raw Pointers](#pointers-raw-pointers) Safe pointers, unsafe raw pointers, null semantics, pointer arithmetic, smart pointer promotion, void pointers, double pointers, and pointer safety rules in Kairo.
+- [Ownership](#ownership) Transfer semantics, pointer aliasing, closure captures, and destruction order in Kairo's ownership model.
+- [AMT](#amt) Automatic Memory Tracking full-program lifetime analysis, smart pointer promotion, allocator integration, and compile-time safety guarantees in Kairo.
+- [Unsafe](#unsafe) Unsafe blocks, unsafe pointers, unsafe function overloads, AMT suspension, forget, and the safety boundary model in Kairo.
+- [Panic](#panic) The panic specifier, Panickable return type, try/catch exhaustiveness, panic propagation, error types, and zero-cost codegen in Kairo.
+- [Compile-Time Eval](#compile-time-eval) Eval variables, eval functions, eval if, eval for, compile-time evaluation rules, restrictions, and interaction with generics in Kairo.
+- [Modules](#modules) Module system, imports, file-to-module mapping, directories as libraries, namespaces, visibility, module extending, and C++ header imports in Kairo.
+- [Extends](#extends) Extend blocks for adding methods, operators, static functions, and interface conformance to structs, enums, and classes in Kairo.
+- [Attributes](#attributes) AST-level code transformations, attribute definitions, arguments, expansion order, overloading, built-in attributes, and the std::AST API in Kairo.
+- [Macros](#macros) Token-level macros, macro definitions, built-in macros, variadic helpers, source location, diagnostics, code generation, and macro hygiene in Kairo.
+- [Concurrency](#concurrency) Async/await, spawn, yield, coroutines, atomic types, thread-local storage, and synchronization primitives in Kairo.
+- [C & C++ Interoperability](#c-c-interoperability) Native bidirectional interop between Kairo and C/C++ FFI declarations, the kcc driver, inline C++, pointer safety, templates, exceptions, and ABI details.
 
 ---
 
@@ -7418,7 +7418,7 @@ var r = &a
 p == r    // true: same address
 ```
 
-`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system — null-check with `?` first, then `===` the unwrapped pointers.
+`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system null-check with `?` first, then `===` the unwrapped pointers.
 
 See [Operators](/docs/language/operators#comparison) for the full comparison model.
 
@@ -7577,7 +7577,7 @@ The programmer does not opt into or control copy elision. AMT applies it when sa
 
 #### MOVE types
 
-A type with a `@move` transfer constructor can only be moved. Assignment transfers ownership —
+A type with a `@move` transfer constructor can only be moved. Assignment transfers ownership
 the source is invalidated and cannot be used:
 
 ```kairo
@@ -8403,11 +8403,11 @@ opt into or out of this.
 
 Elision is permitted only when it is unobservable. The source binding would be destroyed at its
 own scope exit either way; elision means its destructor runs at the transfer point instead. AMT
-performs the elision **only when the destructor's observable effects do not depend on timing** —
+performs the elision **only when the destructor's observable effects do not depend on timing**
 that is, when the type's destructor is trivial, or its effects (a `free`, a refcount decrement)
 produce the same observable program behavior whether they fire at the transfer or at scope exit.
 
-If the destructor has timing-sensitive side effects a file flush, a lock release, a log line —
+If the destructor has timing-sensitive side effects a file flush, a lock release, a log line
 AMT does **not** elide. The copy is preserved and the source is destroyed at its lexical scope
 exit as written. This keeps the language's core promise intact: destructor side effects are
 predictable from reading the source. Elision is a silent optimization precisely because it is only

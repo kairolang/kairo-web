@@ -391,11 +391,11 @@ opt into or out of this.
 
 Elision is permitted only when it is unobservable. The source binding would be destroyed at its
 own scope exit either way; elision means its destructor runs at the transfer point instead. AMT
-performs the elision **only when the destructor's observable effects do not depend on timing** —
+performs the elision **only when the destructor's observable effects do not depend on timing**
 that is, when the type's destructor is trivial, or its effects (a `free`, a refcount decrement)
 produce the same observable program behavior whether they fire at the transfer or at scope exit.
 
-If the destructor has timing-sensitive side effects a file flush, a lock release, a log line —
+If the destructor has timing-sensitive side effects a file flush, a lock release, a log line
 AMT does **not** elide. The copy is preserved and the source is destroyed at its lexical scope
 exit as written. This keeps the language's core promise intact: destructor side effects are
 predictable from reading the source. Elision is a silent optimization precisely because it is only

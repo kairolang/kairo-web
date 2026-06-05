@@ -2,7 +2,7 @@
 /**
  * generate-language-reference.mjs
  *
- * Generates /public/language-reference.md — a single, human-readable page
+ * Generates /public/language-reference.md a single, human-readable page
  * containing ONLY the language reference docs (src/content/docs/language/),
  * in LANGUAGE_ORDER, with a table of contents.
  *
@@ -11,7 +11,7 @@
  */
 
 import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, extname, join, relative } from 'node:path';
+import { basename, extname, join } from 'node:path';
 
 // ── Configuration ──────────────────────────────────────────────
 const CONTENT_DIR = 'src/content/docs/language';
@@ -194,7 +194,7 @@ async function main() {
   parts.push('');
   for (const p of pages) {
     const anchor = anchorSlug(p.title);
-    const desc = p.description ? ` — ${p.description}` : '';
+    const desc = p.description ? ` ${p.description}` : '';
     parts.push(`- [${p.title}](#${anchor})${desc}`);
   }
   parts.push('');
