@@ -20,6 +20,16 @@ const breadcrumbs = [
   { name: 'Docs', url: '/docs' },
   { name: title, url: currentPath },
 ];
+
+const EDIT_BASE = 'https://github.com/kairolang/kairo-web/edit/main/src/content/docs';
+
+// Prefer an explicit editPath if a page/route passes one; otherwise derive
+// from the URL. e.g. "/docs/language/ownership/" -> "language/ownership.mdx"
+const derivedPath = currentPath
+  .replace(/^\/docs\/?/, '')   // drop leading /docs/
+  .replace(/\/$/, '');         // drop trailing slash
+const finalPath = (derivedPath ? `${derivedPath}.mdx` : 'index.mdx');
+const editUrl   = `${EDIT_BASE}/${finalPath}`;
 ---
 <BaseLayout
   title={`${title} - Kairo Docs`}
@@ -120,7 +130,7 @@ const breadcrumbs = [
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
           Report an issue
         </a>
-        <a href="https://github.com/kairolang/kairo-web/edit/main/site/src/content/docs" target="_blank" rel="noopener noreferrer" class="docs-footer-link">
+        <a href={editUrl} target="_blank" rel="noopener noreferrer" class="docs-footer-link">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
           Edit this page
         </a>
