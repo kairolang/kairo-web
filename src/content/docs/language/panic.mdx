@@ -172,13 +172,9 @@ Callers of `process` must handle `std::Error::IO`, `std::Error::Runtime`, and
 `try`/`catch` can produce a value. Each branch must return the same type:
 
 ```kairo
-var port = try {
-    parse_port(input)
-} catch e: std::Error::Runtime {
-    8080
-} catch {
-    3000
-}
+var port = try parse_port(input)
+           catch e: std::Error::Runtime { 8080 }
+           catch { 3000 }
 ```
 
 `finally` is not permitted in expression form. See
@@ -196,7 +192,9 @@ try {
     do_work()
 } catch e: std::Error::Runtime {
     handle_error(e)
-} finally {
+}
+
+finally { // identical to standalone `finally`
     release_lock()   // always runs
 }
 ```
@@ -238,10 +236,15 @@ implies an alternative return path (the error), while `!` guarantees no return a
 ```kairo
 fn fatal(msg: string) panic -> ! {
     // compile error: panic and ! are contradictory
+    panic std::Error::Runtime("fatal error") // invalid, panic implies an error return, but ! means no return at all
 }
 
 fn fatal(msg: string) -> ! {
-    loop { }   // ok: never returns
+    loop {
+        crash!(msg) // valid
+    }
+    
+    // ok: never returns
 }
 ```
 
@@ -342,11 +345,8 @@ fn safe_divide(a: i32, b: i32) -> i32 {
 
 // Partial handling propagates unhandled types
 fn partial(a: i32, b: i32) panic -> i32 {
-    try {
-        return complex_operation(a, b)
-    } catch e: std::Error::Runtime {
-        return -1
-    }
+    return try complex_operation(a, b)
+           catch e: std::Error::Runtime { -1 }
     // other error types propagate
 }
 
