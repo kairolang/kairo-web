@@ -31,23 +31,12 @@
         aria-controls="search-result-list"
       />
       <button id="search-close-btn" class="search-close-btn" aria-label="Close search">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 6 6 18M6 6l12 12"/>
-        </svg>
         <span>Esc</span>
       </button>
     </div>
 
     <!-- Results -->
-    <div id="search-result-list" class="search-results" role="listbox">
-      <div class="search-empty" id="search-empty">
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-3);margin-bottom:0.75rem;">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <p>Search across all documentation pages.</p>
-        <p class="search-hint-small">Try "install", "syntax", "memory"...</p>
-      </div>
-    </div>
+    <div id="search-result-list" class="search-results" role="listbox"></div>
 
     <!-- Footer hints -->
     <div class="search-footer">
@@ -60,6 +49,7 @@
       <span class="search-hint-item">
         <kbd>Esc</kbd> close
       </span>
+      <span class="search-count" id="search-count"></span>
     </div>
   </div>
 </div>
@@ -71,16 +61,16 @@
     width: 100%;
     background: var(--bg-3);
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--r-md);
     padding: 8px 12px;
     display: flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
     color: var(--text-3);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.8rem;
-    transition: all 0.15s;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
     text-align: left;
   }
   .search-trigger:hover {
@@ -90,12 +80,12 @@
   .search-trigger-text { flex: 1; }
   .search-kbd {
     background: var(--bg-2);
-    border: 1px solid var(--border-hi);
-    border-radius: 2px;
-    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 6px;
     font-size: 0.65rem;
     color: var(--text-3);
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-sans);
     letter-spacing: 0.05em;
     flex-shrink: 0;
   }
@@ -111,29 +101,29 @@
     padding-top: 12vh;
   }
   .search-modal.open { display: flex; }
+  .search-modal.open .search-panel {
+    animation: fadeUp 0.3s var(--ease-out) both;
+  }
 
   .search-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.72);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .search-panel {
     position: relative;
     z-index: 1;
     width: 100%;
-    max-width: 600px;
+    max-width: 640px;
     margin: 0 1rem;
     background: var(--bg-2);
     border: 1px solid var(--border-hi);
-    border-radius: 2px;
+    border-radius: var(--r-lg);
     overflow: hidden;
-    box-shadow:
-      0 0 0 1px rgba(189,9,32,0.2),
-      0 32px 80px rgba(0,0,0,0.7),
-      0 0 50px var(--red-glow2);
+    box-shadow: var(--shadow-lg);
   }
 
   /* Input row */
@@ -143,7 +133,6 @@
     gap: 10px;
     padding: 14px 16px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-3);
   }
   .search-input-icon { color: var(--text-3); flex-shrink: 0; }
 
@@ -152,10 +141,10 @@
     background: transparent;
     border: none;
     outline: none;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-sans);
     font-size: 1rem;
     color: var(--text);
-    caret-color: var(--red);
+    caret-color: var(--accent);
     min-width: 0;
   }
   .search-input::placeholder { color: var(--text-3); }
@@ -164,142 +153,29 @@
   .search-close-btn {
     display: flex;
     align-items: center;
-    gap: 4px;
     background: transparent;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--r-pill);
     color: var(--text-3);
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.68rem;
-    padding: 3px 8px;
+    padding: 3px 9px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
     flex-shrink: 0;
   }
   .search-close-btn:hover {
-    border-color: var(--red);
-    color: var(--red);
+    border-color: var(--border-hi);
+    color: var(--text);
   }
 
   /* Results */
   .search-results {
-    max-height: 380px;
+    max-height: 420px;
     overflow-y: auto;
     scrollbar-width: thin;
+    padding: 6px 0;
   }
-
-  .search-empty {
-    padding: 2.5rem 1.5rem;
-    text-align: center;
-    color: var(--text-3);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .search-empty p {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.875rem;
-    margin: 0;
-    line-height: 1.5;
-  }
-  .search-hint-small {
-    font-size: 0.78rem !important;
-    opacity: 0.6;
-    margin-top: 0.25rem !important;
-  }
-
-  .result-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 16px;
-    text-decoration: none;
-    border-left: 3px solid transparent;
-    transition: all 0.12s;
-    cursor: pointer;
-  }
-  .result-item:hover,
-  .result-item[aria-selected="true"] {
-    background: rgba(189,9,32,0.06);
-    border-left-color: var(--red);
-  }
-  .result-icon {
-    color: var(--text-3);
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-  .result-item[aria-selected="true"] .result-icon { color: var(--red); }
-
-  .result-body { min-width: 0; flex: 1; }
-  .result-section {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.63rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--red);
-    margin-bottom: 2px;
-  }
-  .result-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .result-desc {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.78rem;
-    color: var(--text-3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-top: 1px;
-  }
-  .result-title mark,
-  .result-desc mark {
-    background: rgba(189,9,32,0.18);
-    color: var(--text);
-    border-radius: 1px;
-    padding: 0 1px;
-    font-style: normal;
-  }
-  .result-arrow {
-    color: var(--text-3);
-    flex-shrink: 0;
-    margin-top: 2px;
-    opacity: 0;
-    transition: opacity 0.12s;
-  }
-  .result-item:hover .result-arrow,
-  .result-item[aria-selected="true"] .result-arrow { opacity: 1; color: var(--red); }
-
-  .no-results {
-    padding: 2rem 1.5rem;
-    text-align: center;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.875rem;
-    color: var(--text-3);
-  }
-  .no-results strong {
-    color: var(--text-2);
-    font-weight: 600;
-  }
-
-  /* Group label */
-  .result-group-label {
-    padding: 8px 16px 4px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    border-top: 1px solid var(--border);
-  }
-  .result-group-label:first-child { border-top: none; }
 
   /* Footer */
   .search-footer {
@@ -314,33 +190,181 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.68rem;
     color: var(--text-3);
   }
   .search-hint-item kbd {
     background: var(--bg-2);
-    border: 1px solid var(--border-hi);
-    border-radius: 2px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
     padding: 1px 5px;
     font-size: 0.65rem;
+    font-family: var(--font-sans);
     color: var(--text-2);
     min-width: 20px;
     text-align: center;
   }
+  .search-count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    color: var(--text-3);
+  }
+</style>
+
+<!-- Result item styles are global because items are rendered from JS -->
+<style is:global>
+  .search-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: var(--text-3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .search-empty svg { color: var(--text-3); margin-bottom: 0.75rem; }
+  .search-empty p {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    margin: 0;
+    line-height: 1.5;
+  }
+  .search-empty .search-hint-small {
+    font-size: 0.78rem;
+    opacity: 0.6;
+    margin-top: 0.25rem;
+  }
+
+  .result-group-label {
+    padding: 12px 18px 4px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .result-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    margin: 1px 8px;
+    border-radius: var(--r-sm);
+    text-decoration: none;
+    transition: background var(--dur-fast) var(--ease);
+    cursor: pointer;
+  }
+  .result-item:hover,
+  .result-item[aria-selected="true"] {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+  .result-icon {
+    color: var(--text-3);
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+  .result-item[aria-selected="true"] .result-icon { color: var(--accent); }
+
+  .result-body { min-width: 0; flex: 1; }
+  .result-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .result-title {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .result-heading {
+    font-family: var(--font-sans);
+    font-size: 0.76rem;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+  }
+  .result-heading::before {
+    content: '# ';
+    color: var(--text-3);
+    opacity: 0.7;
+  }
+  .result-desc {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+  .result-title mark,
+  .result-desc mark,
+  .result-heading mark {
+    background: color-mix(in srgb, var(--red) 22%, transparent);
+    color: var(--text);
+    border-radius: 3px;
+    padding: 0 1px;
+    font-style: normal;
+  }
+  .result-arrow {
+    color: var(--text-3);
+    flex-shrink: 0;
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+  .result-item:hover .result-arrow,
+  .result-item[aria-selected="true"] .result-arrow { opacity: 1; color: var(--accent); }
+
+  .no-results {
+    padding: 2rem 1.5rem;
+    text-align: center;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    color: var(--text-3);
+  }
+  .no-results strong {
+    color: var(--text-2);
+    font-weight: 600;
+  }
+  .no-results a { color: var(--accent); }
 </style>
 
 <script>
+  interface SearchHeading {
+    text: string;
+    slug: string;
+  }
   interface SearchEntry {
     title: string;
     description: string;
     section: string;
     url: string;
+    headings: SearchHeading[];
+    body: string;
+  }
+  interface ScoredResult {
+    entry: SearchEntry;
+    score: number;
+    heading: SearchHeading | null; // best matching heading (deep link target)
+    snippet: string;               // context around the match in the body
   }
 
   let index: SearchEntry[] | null = null;
   let focusIdx = -1;
-  const RESULT_LIMIT = 8;
+  let searchSeq = 0;
+  const RESULT_LIMIT = 10;
 
   async function loadIndex(): Promise<SearchEntry[]> {
     if (index) return index;
@@ -353,127 +377,206 @@
     return index!;
   }
 
-  // ── Scoring: proper ranked search ──
-  function score(entry: SearchEntry, query: string): number {
-    const q = query.toLowerCase();
-    const words = q.split(/\s+/).filter(Boolean);
-    let s = 0;
+  /* ── Ranking ─────────────────────────────────────────────────────
+     AND semantics: every query token must appear somewhere in the
+     entry (title, section, headings, description, or body), otherwise
+     the entry is dropped. Field weights determine ordering. */
+  function scoreEntry(entry: SearchEntry, query: string, tokens: string[]): ScoredResult | null {
+    const title = entry.title.toLowerCase();
+    const section = entry.section.toLowerCase();
+    const desc = entry.description.toLowerCase();
+    const body = entry.body.toLowerCase();
 
-    function scoreField(text: string, weight: number) {
-      const t = text.toLowerCase();
-      // Exact title match: highest
-      if (t === q) return weight * 10;
-      // Starts with query
-      if (t.startsWith(q)) s += weight * 4;
-      // Contains full query
-      if (t.includes(q)) s += weight * 2;
-      // Individual word matches
-      words.forEach(w => {
-        if (t.includes(w)) s += weight;
-        if (t.startsWith(w)) s += weight * 0.5;
-      });
-      return s;
+    let score = 0;
+    let bestHeading: SearchHeading | null = null;
+    let bestHeadingScore = 0;
+
+    // Whole-query bonuses
+    if (title === query) score += 1000;
+    else if (title.startsWith(query)) score += 480;
+    else if (title.includes(query)) score += 260;
+    if (desc.includes(query)) score += 70;
+    if (body.includes(query)) score += 50;
+
+    for (const heading of entry.headings) {
+      const h = heading.text.toLowerCase();
+      let hs = 0;
+      if (h === query) hs = 320;
+      else if (h.startsWith(query)) hs = 220;
+      else if (h.includes(query)) hs = 140;
+      if (hs > bestHeadingScore) {
+        bestHeadingScore = hs;
+        bestHeading = heading;
+      }
+    }
+    score += bestHeadingScore;
+
+    // Per-token: every token must match somewhere
+    for (const t of tokens) {
+      let tokenScore = 0;
+
+      if (title.includes(t)) {
+        // word-prefix matches rank above mid-word hits
+        tokenScore += new RegExp(`(^|[^a-z0-9])${escapeRe(t)}`).test(title) ? 120 : 70;
+      }
+      if (section.includes(t)) tokenScore += 25;
+      if (desc.includes(t)) tokenScore += 30;
+
+      if (tokenScore === 0 || bestHeadingScore === 0) {
+        for (const heading of entry.headings) {
+          if (heading.text.toLowerCase().includes(t)) {
+            tokenScore += 45;
+            if (!bestHeading) bestHeading = heading;
+            break;
+          }
+        }
+      }
+      if (body.includes(t)) tokenScore += 12;
+
+      if (tokenScore === 0) return null; // AND semantics
+      score += tokenScore;
     }
 
-    s += scoreField(entry.title, 6);
-    s += scoreField(entry.section, 3);
-    s += scoreField(entry.description, 1);
-    return s;
+    // Context snippet around the first match in the body
+    let snippet = '';
+    const probe = body.indexOf(query) >= 0 ? query : tokens.find(t => body.includes(t));
+    if (probe) {
+      const at = body.indexOf(probe);
+      const start = Math.max(0, at - 48);
+      const end = Math.min(entry.body.length, at + probe.length + 72);
+      snippet = (start > 0 ? '…' : '') + entry.body.slice(start, end).trim() + (end < entry.body.length ? '…' : '');
+    }
+
+    return { entry, score, heading: bestHeading, snippet };
   }
 
-  function highlight(text: string, query: string): string {
-    if (!text || !query) return text;
-    const words = query.trim().split(/\s+/).filter(w => w.length > 1);
-    if (!words.length) return text;
-    const pattern = new RegExp(`(${words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-    return text.replace(pattern, '<mark>$1</mark>');
+  function escapeRe(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  function renderResults(entries: SearchEntry[], query: string) {
+  function escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function highlight(text: string, tokens: string[]): string {
+    let out = escapeHtml(text);
+    if (!tokens.length) return out;
+    const pattern = new RegExp(`(${tokens.map(escapeRe).join('|')})`, 'gi');
+    return out.replace(pattern, '<mark>$1</mark>');
+  }
+
+  const EMPTY_STATE = `
+    <div class="search-empty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <p>Search across all documentation pages.</p>
+      <p class="search-hint-small">Titles, headings, and page content are indexed.</p>
+    </div>`;
+
+  function setCount(text: string) {
+    const el = document.getElementById('search-count');
+    if (el) el.textContent = text;
+  }
+
+  function renderResults(results: ScoredResult[], query: string, tokens: string[]) {
     const container = document.getElementById('search-result-list');
     if (!container) return;
     focusIdx = -1;
 
-    if (!entries.length) {
+    if (!results.length) {
       container.innerHTML = `
         <div class="no-results">
-          No results for <strong>"${query}"</strong><br>
-          <span style="font-size:0.78rem;opacity:0.7;display:block;margin-top:0.5rem;">Try different keywords or browse the <a href="/docs" style="color:var(--red)">docs</a>.</span>
+          No results for <strong>"${escapeHtml(query)}"</strong><br>
+          <span style="font-size:0.78rem;opacity:0.7;display:block;margin-top:0.5rem;">Try different keywords or browse the <a href="/docs">docs</a>.</span>
         </div>`;
+      setCount('');
       return;
     }
 
-    // Group by section
-    const bySection: Record<string, SearchEntry[]> = {};
-    entries.forEach(e => {
-      if (!bySection[e.section]) bySection[e.section] = [];
-      bySection[e.section].push(e);
-    });
+    // Group by section, preserving overall rank order
+    const groups: Array<{ section: string; items: ScoredResult[] }> = [];
+    for (const r of results) {
+      let g = groups.find(g => g.section === r.entry.section);
+      if (!g) {
+        g = { section: r.entry.section, items: [] };
+        groups.push(g);
+      }
+      g.items.push(r);
+    }
 
     let html = '';
-    let totalIdx = 0;
-    for (const [section, items] of Object.entries(bySection)) {
-      html += `<div class="result-group-label">${section}</div>`;
-      items.forEach(e => {
+    let idx = 0;
+    for (const g of groups) {
+      html += `<div class="result-group-label">${escapeHtml(g.section)}</div>`;
+      for (const r of g.items) {
+        const url = r.heading ? `${r.entry.url}#${r.heading.slug}` : r.entry.url;
+        const sub = r.snippet || r.entry.description;
         html += `
-          <a class="result-item" href="${e.url}" role="option" aria-selected="false" data-idx="${totalIdx++}">
+          <a class="result-item" href="${url}" role="option" aria-selected="false" data-idx="${idx++}">
             <svg class="result-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
             </svg>
             <div class="result-body">
-              <div class="result-title">${highlight(e.title, query)}</div>
-              ${e.description ? `<div class="result-desc">${highlight(e.description, query)}</div>` : ''}
+              <div class="result-title-row">
+                <span class="result-title">${highlight(r.entry.title, tokens)}</span>
+                ${r.heading ? `<span class="result-heading">${highlight(r.heading.text, tokens)}</span>` : ''}
+              </div>
+              ${sub ? `<div class="result-desc">${highlight(sub, tokens)}</div>` : ''}
             </div>
-            <svg class="result-arrow" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <svg class="result-arrow" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
           </a>`;
-      });
+      }
     }
 
     container.innerHTML = html;
+    setFocus(0);
   }
 
   function setFocus(idx: number) {
     const items = document.querySelectorAll<HTMLElement>('.result-item');
     if (!items.length) return;
     items.forEach(el => el.setAttribute('aria-selected', 'false'));
-    const clamped = Math.max(0, Math.min(idx, items.length - 1));
+    const clamped = ((idx % items.length) + items.length) % items.length; // wrap around
     focusIdx = clamped;
     items[clamped]?.setAttribute('aria-selected', 'true');
     items[clamped]?.scrollIntoView({ block: 'nearest' });
   }
 
   async function handleInput(e: Event) {
-    const query = (e.target as HTMLInputElement).value.trim();
+    const raw = (e.target as HTMLInputElement).value;
+    const query = raw.trim().toLowerCase();
+    const seq = ++searchSeq;
     const container = document.getElementById('search-result-list');
     if (!container) return;
 
     if (!query) {
-      container.innerHTML = `
-        <div class="search-empty">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-3);margin-bottom:0.75rem;">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <p>Search across all documentation pages.</p>
-          <p class="search-hint-small">Try "install", "syntax", "memory"...</p>
-        </div>`;
+      container.innerHTML = EMPTY_STATE;
+      setCount('');
       return;
     }
 
     const data = await loadIndex();
-    const scored = data
-      .map(e => ({ entry: e, score: score(e, query) }))
-      .filter(r => r.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, RESULT_LIMIT)
-      .map(r => r.entry);
+    if (seq !== searchSeq) return; // stale async result
 
-    renderResults(scored, query);
+    const tokens = query.split(/\s+/).filter(Boolean);
+    const results: ScoredResult[] = [];
+    for (const entry of data) {
+      const r = scoreEntry(entry, query, tokens);
+      if (r) results.push(r);
+    }
+    results.sort((a, b) => b.score - a.score);
+
+    setCount(`${results.length} result${results.length === 1 ? '' : 's'}`);
+    renderResults(results.slice(0, RESULT_LIMIT), raw.trim(), tokens);
   }
 
   function openModal() {
     const modal = document.getElementById('search-modal');
+    const container = document.getElementById('search-result-list');
+    if (container && !container.innerHTML.trim()) container.innerHTML = EMPTY_STATE;
     modal?.classList.add('open');
     modal?.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -489,16 +592,8 @@
     const input = document.getElementById('search-input') as HTMLInputElement;
     if (input) input.value = '';
     const container = document.getElementById('search-result-list');
-    if (container) {
-      container.innerHTML = `
-        <div class="search-empty">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-3);margin-bottom:0.75rem;">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <p>Search across all documentation pages.</p>
-          <p class="search-hint-small">Try "install", "syntax", "memory"...</p>
-        </div>`;
-    }
+    if (container) container.innerHTML = EMPTY_STATE;
+    setCount('');
     focusIdx = -1;
   }
 
@@ -510,9 +605,13 @@
 
     document.getElementById('search-input')?.addEventListener('keydown', (e) => {
       const items = document.querySelectorAll<HTMLElement>('.result-item');
-      if (e.key === 'ArrowDown') { e.preventDefault(); setFocus(focusIdx < 0 ? 0 : focusIdx + 1); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); setFocus(focusIdx <= 0 ? items.length - 1 : focusIdx - 1); }
-      else if (e.key === 'Enter') { e.preventDefault(); items[focusIdx]?.click(); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setFocus(focusIdx + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setFocus(focusIdx - 1); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        const target = items[focusIdx >= 0 ? focusIdx : 0];
+        if (target) window.location.href = (target as HTMLAnchorElement).href;
+      }
       else if (e.key === 'Escape') { closeModal(); }
     });
 
@@ -521,6 +620,13 @@
         e.preventDefault();
         document.getElementById('search-modal')?.classList.contains('open')
           ? closeModal() : openModal();
+      }
+      if (e.key === '/' && !document.getElementById('search-modal')?.classList.contains('open')) {
+        const tag = (document.activeElement?.tagName || '').toLowerCase();
+        if (tag !== 'input' && tag !== 'textarea') {
+          e.preventDefault();
+          openModal();
+        }
       }
       if (e.key === 'Escape' && document.getElementById('search-modal')?.classList.contains('open')) {
         closeModal();

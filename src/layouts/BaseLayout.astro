@@ -61,15 +61,19 @@ const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
 
     <link rel="icon" href="/kairo-file-icon.svg" type="image/svg+xml" />
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Self-hosted variable fonts -->
+    <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin />
 
     <title>{title}</title>
+
+    <!-- Critical paint: correct background before the stylesheet arrives.
+         Without this the browser may flash its default white (or unstyled
+         dark) for a frame on navigation, depending on cache timing. -->
+    <style is:inline>
+      html { background-color: #08080a; color-scheme: dark; }
+      html[data-theme="light"] { background-color: #fafafa; color-scheme: light; }
+    </style>
 
     <!-- Theme detection - runs before render to avoid flash -->
     <script is:inline>
@@ -86,95 +90,46 @@ const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
     </script>
   </head>
   <body>
-    <!-- Custom cursor orb -->
-    <div id="cursor-orb" aria-hidden="true"></div>
-    <div id="cursor-orb-outer" aria-hidden="true"></div>
     <Header />
-    <!-- Noise/grain overlay -->
-    <div aria-hidden="true" style="
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-      z-index:9999;
-      opacity:0.025;
-      background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/></filter><rect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%221%22/></svg>');
-      background-repeat:repeat;
-      background-size:200px 200px;
-    "></div>
     <slot />
     <Footer />
     <script is:inline>
-      // Custom cursor orb tracking
+      // Scroll reveal observer — handles single reveals and staggered groups
       (function() {
-        var orb = document.getElementById('cursor-orb');
-        var outer = document.getElementById('cursor-orb-outer');
-        if (!orb || !outer) return;
-        var tx = window.innerWidth / 2, ty = window.innerHeight / 2;
-        var cx = tx, cy = ty, ox = tx, oy = ty;
-        var raf;
-        document.addEventListener('mousemove', function(e) {
-          tx = e.clientX; ty = e.clientY;
-        }, { passive: true });
-        document.addEventListener('mousedown', function() {
-          outer.style.width = '20px';
-          outer.style.height = '20px';
-          outer.style.borderColor = 'rgba(189,9,32,0.8)';
-        });
-        document.addEventListener('mouseup', function() {
-          outer.style.width = '32px';
-          outer.style.height = '32px';
-          outer.style.borderColor = 'rgba(189,9,32,0.4)';
-        });
-        // Expand on links/buttons
-        document.querySelectorAll('a,button').forEach(function(el) {
-          el.addEventListener('mouseenter', function() {
-            outer.style.width = '48px';
-            outer.style.height = '48px';
-            outer.style.borderColor = 'rgba(189,9,32,0.7)';
-          });
-          el.addEventListener('mouseleave', function() {
-            outer.style.width = '32px';
-            outer.style.height = '32px';
-            outer.style.borderColor = 'rgba(189,9,32,0.4)';
-          });
-        });
-        function loop() {
-          cx += (tx - cx) * 0.9;
-          cy += (ty - cy) * 0.9;
-          ox += (tx - ox) * 0.12;
-          oy += (ty - oy) * 0.12;
-          orb.style.left = cx + 'px';
-          orb.style.top  = cy + 'px';
-          outer.style.left = ox + 'px';
-          outer.style.top  = oy + 'px';
-          raf = requestAnimationFrame(loop);
-        }
-        loop();
-      })();
-    </script>
-    <script is:inline>
-      // Scroll reveal observer
-      (function() {
-        const observer = new IntersectionObserver(function(entries) {
+        var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        var observer = new IntersectionObserver(function(entries) {
           entries.forEach(function(e) {
-            if (e.isIntersecting) {
-              const delay = e.target.dataset.revealDelay || 0;
-              setTimeout(function() {
-                e.target.classList.add('revealed');
-              }, +delay);
-              observer.unobserve(e.target);
-            }
-          });
-        }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+            if (!e.isIntersecting) return;
+            var el = e.target;
 
-        function scanReveal() {
-          document.querySelectorAll('[data-reveal]:not(.revealed)').forEach(function(el) {
-            observer.observe(el);
+            if (el.hasAttribute('data-reveal-stagger')) {
+              var step = +(el.dataset.staggerStep || 70);
+              Array.prototype.forEach.call(el.children, function(child, i) {
+                child.style.setProperty('--reveal-delay', (i * step) + 'ms');
+              });
+            }
+
+            var delay = el.dataset.revealDelay || 0;
+            if (delay) el.style.setProperty('--reveal-delay', delay + 'ms');
+
+            el.classList.add('revealed');
+            observer.unobserve(el);
           });
+        }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
+
+        function scan() {
+          if (reduced) {
+            document.querySelectorAll('[data-reveal]:not(.revealed), [data-reveal-stagger]:not(.revealed)')
+              .forEach(function(el) { el.classList.add('revealed'); });
+            return;
+          }
+          document.querySelectorAll('[data-reveal]:not(.revealed), [data-reveal-stagger]:not(.revealed)')
+            .forEach(function(el) { observer.observe(el); });
         }
 
-        scanReveal();
-        document.addEventListener('astro:page-load', scanReveal);
+        scan();
+        document.addEventListener('astro:page-load', scan);
       })();
     </script>
   </body>

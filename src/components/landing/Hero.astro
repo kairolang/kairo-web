@@ -37,242 +37,150 @@ test "dot product of two vectors" {
 ---
 
 <section class="hero" id="hero">
-  <!-- Mouse-tracking spotlight -->
-  <div id="hero-spotlight" class="hero-spotlight" aria-hidden="true"></div>
-
-  <!-- Particle canvas -->
-  <canvas id="particle-canvas" class="hero-canvas" aria-hidden="true"></canvas>
-
-  <!-- Animated grid -->
-  <div class="hero-grid"></div>
-
-  <!-- Scan line overlay -->
-  <div class="scan-line"></div>
-
-  <!-- Data stream lines (decorative vertical falling lines) -->
-  <div class="data-streams" aria-hidden="true">
-    <span class="ds ds-1"></span>
-    <span class="ds ds-2"></span>
-    <span class="ds ds-3"></span>
-    <span class="ds ds-4"></span>
-    <span class="ds ds-5"></span>
+  <!-- Backdrop: 3D wireframe scene behind a frosted glass layer -->
+  <div class="hero-backdrop" aria-hidden="true">
+    <canvas id="hero-scene" class="hero-scene"></canvas>
+    <div class="hero-frost"></div>
+    <div class="hero-spot"></div>
+    <div class="hero-grain"></div>
   </div>
 
-  <!-- Floating geometric decorations -->
-  <div class="hero-geo hero-geo-1 float-anim" aria-hidden="true"></div>
-  <div class="hero-geo hero-geo-2 float-anim-delay" aria-hidden="true"></div>
-  <!-- Extra small geo shapes -->
-  <div class="hero-geo hero-geo-3 float-anim-slow" aria-hidden="true"></div>
-  <div class="hero-geo hero-geo-4" aria-hidden="true"></div>
-
-  <!-- Pulsing orbit ring (right side decoration) -->
-  <div class="hero-orbit" aria-hidden="true">
-    <div class="hero-orbit-ring hero-orbit-ring-1"></div>
-    <div class="hero-orbit-ring hero-orbit-ring-2"></div>
-    <div class="hero-orbit-dot"></div>
-  </div>
-
-  <!-- Content -->
   <div class="container hero-inner">
-    <!-- Left: text + CTA -->
-    <div class="hero-text">
-      <div class="hero-badge fade-in-up">
-        <span class="hero-badge-dot"></span>
-        v0.1.0-alpha &nbsp;·&nbsp; Open Source &nbsp;·&nbsp; Systems Language
-      </div>
+    <!-- Badge -->
+    <a href="https://github.com/kairolang/kairo-lang/releases" target="_blank" rel="noopener noreferrer" class="hero-badge fade-up" style="--d: 0ms;">
+      <span class="hero-badge-dot"></span>
+      v0.1.0-alpha
+      <span class="hero-badge-sep"></span>
+      <span class="hero-badge-muted">Open source systems language</span>
+      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+    </a>
 
-      <h1 class="hero-title fade-in-up" id="hero-title-main">
-        <span class="hero-title-line" id="scramble-1">Control</span>
-        <span class="hero-title-line" id="scramble-2">everything.</span>
-        <span class="hero-title-line hero-red neon-text" id="scramble-3">Compromise</span>
-        <span class="hero-title-line" id="scramble-4">nothing.</span>
-      </h1>
+    <!-- Headline -->
+    <h1 class="hero-title display">
+      <span class="mask-line"><span style="--d: 120ms;">Control everything.</span></span>
+      <span class="mask-line"><span class="hero-title-accent" style="--d: 260ms;">Compromise nothing.</span></span>
+    </h1>
 
-      <p class="hero-sub fade-in-up">
-        C++ can #include a .k file. Kairo can call any C++ library with
-        zero bindings. The boundary doesn't exist.
-      </p>
+    <!-- Sub -->
+    <p class="hero-sub fade-up" style="--d: 480ms;">
+      C++ can <code>#include</code> a <code>.k</code> file. Kairo can call any C++ library
+      with zero bindings. The boundary doesn't exist.
+    </p>
 
-      <!-- Status bar (HUD style) -->
-      <div class="hero-hud fade-in-up">
-        <span class="hud-item">
-          <span class="hud-dot"></span> STAGE(1) WRITTEN IN KAIRO IN PROGRESS
-        </span>
-        <span class="hud-sep">|</span>
-        <span class="hud-item">STAGE(0) WRITTEN IN C++</span>
-      </div>
-
-      <div class="fade-in-up hero-actions">
-        <a href="/docs" class="btn-primary border-beam">
-          Get Started
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-        <a href="https://github.com/kairolang/kairo-lang" class="btn-outline" target="_blank" rel="noopener noreferrer">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-          </svg>
-          View on GitHub
-        </a>
-      </div>
+    <!-- Actions -->
+    <div class="hero-actions fade-up" style="--d: 620ms;">
+      <a href="/docs" class="btn-primary hero-btn">
+        Get Started
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="https://github.com/kairolang/kairo-lang" class="btn-outline hero-btn" target="_blank" rel="noopener noreferrer">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+        View on GitHub
+      </a>
     </div>
 
-    <!-- Right: code block -->
-    <div class="hero-code-col fade-in-up hud-card">
-      <div class="hero-code-wrap">
-        <div class="hero-code-header">
-          <div class="hero-code-dots">
-            <span style="background:#ff5f57;"></span>
-            <span style="background:#febc2e;"></span>
-            <span style="background:#28c840;"></span>
+    <!-- Status caption -->
+    <p class="hero-status fade-up" style="--d: 740ms;">
+      <span class="hero-status-dot"></span>
+      stage(0) written in C++ &nbsp;·&nbsp; stage(1) self-hosting in progress
+    </p>
+
+    <!-- Code window -->
+    <div class="hero-stage fade-up" style="--d: 860ms;">
+      <div class="hero-window-wrap" id="hero-window">
+        <div class="code-window hero-window">
+          <div class="code-window-bar">
+            <div class="window-dots"><span></span><span></span><span></span></div>
+            <span class="code-window-title">dot_product.k</span>
+            <span class="code-window-badge">kairo</span>
           </div>
-          <span class="hero-code-filename">dot_product.k</span>
-          <span class="hero-code-badge">kairo</span>
+          <div class="hero-code-body">
+            <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark-default', light: 'github-light-default' }} defaultColor={false} />
+          </div>
         </div>
-        <div class="hero-code-body">
-          <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark-default', light: 'github-light-default' }} defaultColor={false} />
-        </div>
+        <!-- Reflection glow under the window -->
+        <div class="hero-window-glow" aria-hidden="true"></div>
       </div>
     </div>
   </div>
-
-  <div class="hero-fade-bottom"></div>
 </section>
 
 <style>
   .hero {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
     position: relative;
     overflow: hidden;
-    background: var(--bg);
+    padding: clamp(5rem, 12vh, 9rem) 0 0;
   }
 
-  /* Mouse spotlight */
-  .hero-spotlight {
+  /* ── Backdrop layers ── */
+  .hero-backdrop {
     position: absolute;
-    width: 400px; height: 400px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(189,9,32,0.07) 0%, transparent 65%);
+    inset: 0;
     pointer-events: none;
-    z-index: 0;
-    transform: translate(-50%, -50%);
-    transition: opacity 0.3s;
-    opacity: 0;
+    overflow: hidden;
   }
 
-  /* Particle canvas */
-  .hero-canvas {
+  /* 3D wireframe scene (canvas) */
+  .hero-scene {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    z-index: 0;
   }
+  [data-theme="light"] .hero-scene { opacity: 0.5; }
 
-  /* Data streams */
-  .data-streams { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
-  .ds {
-    position: absolute;
-    top: 0;
-    width: 1px;
-    height: 120px;
-    background: linear-gradient(to bottom, transparent, var(--red), transparent);
-    opacity: 0;
-    animation: dataStream linear infinite;
-  }
-  .ds-1 { left: 8%;  animation-duration: 7s;  animation-delay: 0s; }
-  .ds-2 { left: 60%; animation-duration: 11s; animation-delay: 3s; }
-  .ds-3 { left: 88%; animation-duration: 9s;  animation-delay: 6s; }
-  .ds-4 { left: 23%; animation-duration: 14s; animation-delay: 2s; }
-  .ds-5 { left: 76%; animation-duration: 8s;  animation-delay: 9s; }
-
-  /* Floating geometrics */
-  .hero-geo {
-    position: absolute;
-    pointer-events: none;
-    z-index: 1;
-    border: 1px solid rgba(189,9,32,0.2);
-    border-radius: 2px;
-    transform: rotate(45deg);
-  }
-  .hero-geo-1 {
-    width: 60px; height: 60px;
-    right: 12%; top: 20%;
-    border-color: rgba(189,9,32,0.25);
-    box-shadow: 0 0 20px rgba(189,9,32,0.1);
-  }
-  .hero-geo-2 {
-    width: 30px; height: 30px;
-    right: 8%; top: 65%;
-    border-color: rgba(189,9,32,0.15);
-  }
-  .hero-geo-3 {
-    width: 16px; height: 16px;
-    left: 3%; top: 30%;
-    border-color: rgba(189,9,32,0.12);
-  }
-  .hero-geo-4 {
-    width: 8px; height: 8px;
-    left: 6%; top: 55%;
-    border-color: rgba(189,9,32,0.2);
-    animation: glowPulse 3s ease-in-out infinite;
-    background: rgba(189,9,32,0.1);
-  }
-
-  /* Orbit ring decoration */
-  .hero-orbit {
-    position: absolute;
-    right: 3%; top: 50%;
-    transform: translateY(-50%);
-    width: 80px; height: 80px;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .hero-orbit-ring {
+  /* Frosted glass over the scene — shapes become glowing forms */
+  .hero-frost {
     position: absolute;
     inset: 0;
-    border: 1px solid rgba(189,9,32,0.15);
-    border-radius: 50%;
-    animation: hexPulse 3s ease-in-out infinite;
+    -webkit-backdrop-filter: blur(13px) saturate(160%);
+    backdrop-filter: blur(13px) saturate(160%);
+    background: color-mix(in srgb, var(--bg) 18%, transparent);
   }
-  .hero-orbit-ring-2 {
-    inset: 10px;
-    animation-delay: 1s;
-    border-color: rgba(189,9,32,0.2);
-  }
-  .hero-orbit-dot {
+  /* Fade the scene out toward the next section */
+  .hero-backdrop::after {
+    content: '';
     position: absolute;
-    width: 4px; height: 4px;
-    background: var(--red);
-    border-radius: 50%;
-    box-shadow: 0 0 8px var(--red-glow);
-    top: 50%; left: 50%;
-    margin: -2px 0 0 -2px;
-    animation: orbitCW 5s linear infinite;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 30%;
+    background: linear-gradient(to bottom, transparent, var(--bg));
   }
 
-  /* Two-column layout */
+  /* Soft white light cone from above — gives the page depth immediately */
+  .hero-spot {
+    position: absolute;
+    top: -360px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1300px;
+    height: 800px;
+    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 65%);
+  }
+  [data-theme="light"] .hero-spot { display: none; }
+
+  /* Film grain — kills gradient banding, adds texture */
+  .hero-grain {
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 180px 180px;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+  }
+  [data-theme="light"] .hero-grain { opacity: 0.025; }
+
   .hero-inner {
     position: relative;
-    z-index: 2;
-    padding-top: 6rem;
-    padding-bottom: 6rem;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 3rem;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-  }
-  @media (min-width: 1024px) {
-    .hero-inner { grid-template-columns: 1fr 1fr; gap: 4rem; }
-    .hero-geo-1 { display: block; }
-    .hero-geo-2 { display: block; }
-  }
-  @media (max-width: 1023px) {
-    .hero-geo-1, .hero-geo-2, .hero-geo-3, .hero-geo-4 { display: none; }
-    .hero-orbit { display: none; }
-    .ds-2, .ds-3, .ds-4, .ds-5 { display: none; }
+    text-align: center;
   }
 
   /* Badge */
@@ -280,303 +188,362 @@ test "dot product of two vectors" {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: var(--bg-3);
-    border: 1px solid var(--border-hi);
-    color: var(--text-2);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
+    background: color-mix(in srgb, var(--bg-3) 75%, transparent);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
     padding: 6px 14px;
-    border-radius: 2px;
-    margin-bottom: 2rem;
+    border-radius: var(--r-pill);
+    margin-bottom: 2.25rem;
+    text-decoration: none;
+    transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
   }
+  .hero-badge:hover {
+    border-color: var(--border-hi);
+    background: var(--bg-3);
+  }
+  .hero-badge svg { color: var(--text-3); }
   .hero-badge-dot {
     width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--red);
-    box-shadow: 0 0 8px var(--red-glow);
-    animation: glowPulse 2s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--red-glow);
     flex-shrink: 0;
   }
+  .hero-badge-sep {
+    width: 1px;
+    height: 12px;
+    background: var(--border-hi);
+  }
+  .hero-badge-muted { color: var(--text-3); font-weight: 400; }
+  @media (max-width: 480px) {
+    .hero-badge-muted, .hero-badge-sep { display: none; }
+  }
 
-  /* Title */
+  /* Headline */
   .hero-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(2.8rem, 7vw, 6rem);
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.03em;
-    margin-bottom: 1.5rem;
-    display: flex;
-    flex-direction: column;
+    font-size: clamp(2.6rem, 7.2vw, 5.4rem);
+    margin-bottom: 1.75rem;
   }
-  .hero-title-line { display: block; }
-  .hero-red { color: var(--red); text-shadow: 0 0 40px var(--red-glow), 0 0 80px var(--red-glow2); }
+  .hero-title-accent {
+    background: linear-gradient(135deg, var(--red-hi) 0%, var(--red) 45%, var(--red-lo) 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  [data-theme="light"] .hero-title-accent {
+    background: linear-gradient(135deg, #e8102a 0%, #b00820 60%, #7a0513 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
 
-  /* Subtitle */
+  /* Sub */
   .hero-sub {
-    font-family: 'Inter', sans-serif;
-    font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+    font-size: clamp(1rem, 1.6vw, 1.18rem);
     color: var(--text-2);
-    max-width: 480px;
-    line-height: 1.7;
-    margin-bottom: 1.5rem;
+    max-width: 560px;
+    line-height: 1.65;
+    margin-bottom: 2.25rem;
+    text-wrap: balance;
   }
-
-  /* HUD status bar */
-  .hero-hud {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 2rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.65rem;
-    letter-spacing: 0.1em;
-    color: var(--text-3);
-    flex-wrap: wrap;
+  .hero-sub code {
+    font-size: 0.85em;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 6px;
+    color: var(--text);
   }
-  .hud-dot {
-    display: inline-block;
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--red);
-    box-shadow: 0 0 6px var(--red-glow);
-    animation: glowPulse 1.5s ease-in-out infinite;
-    margin-right: 4px;
-  }
-  .hud-sep { color: var(--border-hi); }
 
   /* Actions */
   .hero-actions {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    justify-content: center;
+    gap: 0.85rem;
     flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .hero-btn {
+    font-size: 0.95rem;
+    padding: 12px 28px;
   }
 
-  /* Code block */
-  .hero-code-col { width: 100%; align-self: start; min-width: 0; }
-  .hero-code-wrap {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--red);
-    border-radius: 2px;
-    overflow: hidden;
-    box-shadow: 0 0 60px rgba(0,0,0,0.4), 0 0 30px var(--red-glow2);
-    transition: box-shadow 0.4s, transform 0.4s;
-  }
-  .hero-code-col:hover .hero-code-wrap {
-    box-shadow: 0 0 60px rgba(0,0,0,0.5), 0 0 50px var(--red-glow);
-    transform: translateY(-3px);
-  }
-  .hero-code-header {
-    background: var(--bg-3);
-    padding: 10px 16px;
-    display: flex;
+  /* Status caption */
+  .hero-status {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .hero-code-dots { display: flex; gap: 6px; align-items: center; }
-  .hero-code-dots span { width: 12px; height: 12px; border-radius: 50%; display: block; }
-  .hero-code-filename {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
     color: var(--text-3);
-    letter-spacing: 0.05em;
+    margin-bottom: clamp(3rem, 7vh, 5rem);
   }
-  .hero-code-badge {
-    margin-left: auto;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.65rem; font-weight: 600;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--red);
-    background: rgba(189,9,32,0.1);
-    border: 1px solid rgba(189,9,32,0.2);
-    padding: 2px 8px; border-radius: 2px;
+  .hero-status-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #28c840;
+    box-shadow: 0 0 8px rgba(40, 200, 64, 0.5);
   }
 
+  /* Code window stage */
+  .hero-stage {
+    width: 100%;
+    max-width: 880px;
+    perspective: 1400px;
+  }
+  .hero-window-wrap {
+    position: relative;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .hero-window {
+    text-align: left;
+  }
   .hero-code-body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-
   .hero-code-body :global(pre.astro-code) {
-    margin: 0 !important; border: none !important; border-radius: 0 !important;
-    padding: 1.25rem 1.5rem !important;
-    font-size: 0.82rem !important; line-height: 1.75 !important;
-    font-family: 'JetBrains Mono', monospace !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 1.4rem 1.6rem !important;
+    font-size: 0.84rem !important;
+    line-height: 1.75 !important;
+    font-family: var(--font-mono) !important;
     background: transparent !important;
     min-width: 0;
     width: max-content;
   }
 
-  .hero-fade-bottom {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 160px;
-    background: linear-gradient(to bottom, transparent, var(--bg));
-    pointer-events: none; z-index: 1;
+  .hero-window-glow {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: -36px;
+    height: 80px;
+    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
+    filter: blur(28px);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-window-wrap { transform: none !important; }
   }
 </style>
 
 <script>
-  // ── Particle canvas ──
-  function initParticles() {
-    const canvas = document.getElementById('particle-canvas') as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    let W = canvas.width = window.innerWidth;
-    let H = canvas.height = window.innerHeight;
+  // Scroll-driven "settle" — the code window starts gently tilted back and
+  // straightens as it scrolls into view. transform-only, rAF-throttled.
+  function initHeroWindow() {
+    const wrap = document.getElementById('hero-window');
+    if (!wrap) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    window.addEventListener('resize', () => {
-      W = canvas.width = window.innerWidth;
-      H = canvas.height = window.innerHeight;
-    }, { passive: true });
+    let ticking = false;
 
-    const COUNT = 55;
-    const MAX_DIST = 130;
-    let mouseX = W / 2, mouseY = H / 2;
-    window.addEventListener('mousemove', (e: MouseEvent) => { mouseX = e.clientX; mouseY = e.clientY; }, { passive: true });
+    function update() {
+      ticking = false;
+      const rect = wrap.getBoundingClientRect();
+      const vh = window.innerHeight;
+      // progress: 0 when the window's top enters the viewport bottom,
+      // 1 when its top reaches 45% of the viewport height
+      const raw = (vh - rect.top) / (vh * 0.55);
+      const p = Math.min(1, Math.max(0, raw));
+      const eased = 1 - Math.pow(1 - p, 3);
+      const rx = (1 - eased) * 9;        // rotateX 9deg -> 0
+      const scale = 0.955 + eased * 0.045;
+      const ty = (1 - eased) * 22;
+      wrap.style.transform = `rotateX(${rx}deg) scale(${scale}) translateY(${ty}px)`;
+    }
 
-    const particles = Array.from({ length: COUNT }, () => ({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.35,
-      vy: (Math.random() - 0.5) * 0.35,
-      r: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.35 + 0.08,
-      red: Math.random() < 0.12,
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+  }
+
+  initHeroWindow();
+  document.addEventListener('astro:page-load', initHeroWindow);
+
+  // ── 3D wireframe scene ─────────────────────────────────────────────
+  // A rotating torus knot, a flowing wave lattice, and depth particles,
+  // perspective-projected onto a 2D canvas with additive blending. The
+  // frosted glass layer above turns it into soft glowing structure.
+  function initHeroScene() {
+    const canvas = document.getElementById('hero-scene') as HTMLCanvasElement | null;
+    if (!canvas || canvas.dataset.init) return;
+    canvas.dataset.init = '1';
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    let W = 0, H = 0;
+
+    function resize() {
+      const host = canvas!.parentElement!;
+      W = host.clientWidth;
+      H = host.clientHeight;
+      canvas!.width = W * DPR;
+      canvas!.height = H * DPR;
+      ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
+    }
+    resize();
+    window.addEventListener('resize', () => { resize(); if (reduced) frame(0); }, { passive: true });
+
+    // Palette — brand red, ember, magenta (rgba prefixes, alpha appended)
+    const RED = '232,16,42', EMBER = '255,110,64', MAGENTA = '168,24,110';
+
+    // Torus knot (p=2, q=3) sampled as a polyline
+    const KN = 360;
+    const knot: number[][] = [];
+    for (let i = 0; i <= KN; i++) {
+      const t = (i / KN) * Math.PI * 2;
+      const R = 1, r = 0.45;
+      knot.push([
+        (R + r * Math.cos(3 * t)) * Math.cos(2 * t),
+        (R + r * Math.cos(3 * t)) * Math.sin(2 * t),
+        r * Math.sin(3 * t) * 1.7,
+      ]);
+    }
+
+    // Drifting depth particles
+    const parts = Array.from({ length: 64 }, () => ({
+      x: Math.random() * 2 - 1,
+      y: Math.random() * 2 - 1,
+      z: Math.random() * 2 - 1,
+      v: Math.random() * 0.0009 + 0.0003,
+      s: Math.random(),
     }));
 
+    // Pointer parallax (heavily smoothed)
+    let mx = 0, my = 0, smx = 0, smy = 0;
+    window.addEventListener('mousemove', (e: MouseEvent) => {
+      mx = e.clientX / window.innerWidth - 0.5;
+      my = e.clientY / window.innerHeight - 0.5;
+    }, { passive: true });
+
+    function frame(time: number) {
+      const c = ctx!;
+      c.clearRect(0, 0, W, H);
+      smx += (mx - smx) * 0.03;
+      smy += (my - smy) * 0.03;
+
+      c.globalCompositeOperation = 'lighter';
+      c.lineCap = 'round';
+
+      // ── Torus knot, centered behind the headline ──
+      const cx = W * 0.5, cy = H * 0.38;
+      const scale = Math.min(W, H) * 0.34;
+      const ay = time * 0.00010 + smx * 0.7;
+      const ax = 0.6 + Math.sin(time * 0.00004) * 0.12 + smy * 0.4;
+      const cosY = Math.cos(ay), sinY = Math.sin(ay);
+      const cosX = Math.cos(ax), sinX = Math.sin(ax);
+
+      let px = 0, py = 0, pf = 0;
+      for (let i = 0; i <= KN; i++) {
+        const [x0, y0, z0] = knot[i];
+        // rotate Y then X
+        const x1 = x0 * cosY + z0 * sinY;
+        const z1 = -x0 * sinY + z0 * cosY;
+        const y2 = y0 * cosX - z1 * sinX;
+        const z2 = y0 * sinX + z1 * cosX;
+        // perspective
+        const f = 2.6 / (2.6 + z2);
+        const sx = cx + x1 * scale * f;
+        const sy = cy + y2 * scale * f;
+        if (i > 0) {
+          const depth = (f - 0.62) / 0.55;            // 0 far → 1 near
+          const seg = i / KN;
+          const col = seg < 0.45 ? RED : seg < 0.75 ? MAGENTA : EMBER;
+          c.strokeStyle = `rgba(${col},${(0.28 + depth * 0.5).toFixed(3)})`;
+          c.lineWidth = 1.4 + depth * 3.2;
+          c.beginPath();
+          c.moveTo(px, py);
+          c.lineTo(sx, sy);
+          c.stroke();
+        }
+        px = sx; py = sy; pf = f;
+      }
+
+      // ── Flowing wave lattice across the lower half ──
+      const wy = H * 0.9, wScale = W * 0.62;
+      const ROWS = 7, COLS = 56;
+      for (let r = 0; r < ROWS; r++) {
+        const z = r / (ROWS - 1);                      // 0 near → 1 far
+        const a = 0.34 * (1 - z * 0.7);
+        c.strokeStyle = `rgba(${r === 0 ? EMBER : RED},${a.toFixed(3)})`;
+        c.lineWidth = 1.6 - z * 0.7;
+        c.beginPath();
+        for (let i = 0; i <= COLS; i++) {
+          const x = i / COLS - 0.5;
+          const wave =
+            Math.sin(x * 7 + time * 0.0006 + z * 2.2) * 0.45 +
+            Math.cos(x * 13 - time * 0.0004 + z * 4) * 0.22;
+          const f = 1.6 / (1.6 + z * 2.1);
+          const sx = W * 0.5 + x * wScale * (1 + z * 1.6) * f;
+          const sy = wy - z * H * 0.30 + wave * H * 0.05 * f;
+          i === 0 ? c.moveTo(sx, sy) : c.lineTo(sx, sy);
+        }
+        c.stroke();
+      }
+
+      // ── Depth particles ──
+      for (const pt of parts) {
+        pt.y -= pt.v;
+        if (pt.y < -1.1) { pt.y = 1.1; pt.x = Math.random() * 2 - 1; }
+        const x1 = pt.x * cosY + pt.z * sinY;
+        const z1 = -pt.x * sinY + pt.z * cosY;
+        const f = 2.6 / (2.6 + z1);
+        const sx = W * 0.5 + x1 * W * 0.46 * f;
+        const sy = H * 0.5 + pt.y * H * 0.55 * f;
+        const a = (0.05 + pt.s * 0.3) * f;
+        c.fillStyle = pt.s > 0.86 ? `rgba(${EMBER},${a.toFixed(3)})` : `rgba(255,235,235,${(a * 0.55).toFixed(3)})`;
+        c.beginPath();
+        c.arc(sx, sy, (0.6 + pt.s * 1.6) * f, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      c.globalCompositeOperation = 'source-over';
+    }
+
+    if (reduced) {
+      frame(8000); // single composed frame, no motion
+      return;
+    }
+
     let raf = 0;
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      particles.forEach(p => {
-        const dx = p.x - mouseX, dy = p.y - mouseY;
-        const md = Math.sqrt(dx * dx + dy * dy);
-        if (md < 120) { p.vx += (dx / md) * 0.025; p.vy += (dy / md) * 0.025; }
-        const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-        if (spd > 0.7) { p.vx = p.vx / spd * 0.7; p.vy = p.vy / spd * 0.7; }
-        p.x = (p.x + p.vx + W) % W;
-        p.y = (p.y + p.vy + H) % H;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = p.red
-          ? `rgba(189,9,32,${p.alpha * 2.5})`
-          : `rgba(255,255,255,${p.alpha})`;
-        ctx.fill();
-      });
-      for (let i = 0; i < COUNT - 1; i++) {
-        for (let j = i + 1; j < COUNT; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          if (d < MAX_DIST) {
-            const a = (1 - d / MAX_DIST) * 0.14;
-            const isRed = particles[i].red || particles[j].red;
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = isRed ? `rgba(189,9,32,${a * 2.5})` : `rgba(255,255,255,${a})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-      }
-      raf = requestAnimationFrame(draw);
+    let running = false;
+    function loop(t: number) {
+      frame(t);
+      raf = requestAnimationFrame(loop);
     }
+    function start() { if (!running) { running = true; raf = requestAnimationFrame(loop); } }
+    function stop() { if (running) { running = false; cancelAnimationFrame(raf); } }
 
-    // Only animate when visible
-    const section = document.getElementById('hero');
-    const vis = new IntersectionObserver((entries: IntersectionObserverEntry[]) => {
-      if (entries[0].isIntersecting) { if (!raf) draw(); }
-      else { cancelAnimationFrame(raf); raf = 0; }
-    });
-    section && vis.observe(section);
-    draw();
-  }
-
-  // ── Text scramble ──
-  function scramble(el: HTMLElement, final: string, delay = 0) {
-    // ASCII-only chars so all glyphs share the same metrics - no Cyrillic
-    const CHARS = '!<>-_\\/[]{}=+*^?#@ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let frame = 0;
-
-    setTimeout(() => {
-      // Lock the element's current dimensions so random chars can't cause
-      // any layout reflow that would shift the code block on the right.
-      const lockedH = el.offsetHeight;
-      el.style.height   = lockedH + 'px';
-      el.style.overflow = 'hidden';
-
-      const len = final.length;
-      const queue = Array.from({ length: len }, (_, i) => ({
-        to: final[i],
-        start: Math.floor(i * 1.8),
-        end: Math.floor(i * 1.8) + Math.floor(Math.random() * 12 + 6),
-        char: '',
-      }));
-      let rafId = 0;
-      function step() {
-        let out = '';
-        let done = 0;
-        queue.forEach(q => {
-          if (frame >= q.end) {
-            done++;
-            out += q.to === ' ' ? ' ' : `<span>${q.to}</span>`;
-          } else if (frame >= q.start) {
-            if (!q.char || Math.random() < 0.3) q.char = CHARS[Math.floor(Math.random() * CHARS.length)];
-            out += `<span class="scramble-char">${q.char}</span>`;
-          } else {
-            out += q.to === ' ' ? ' ' : '<span style="opacity:0">X</span>';
-          }
-        });
-        el.innerHTML = out;
-        frame++;
-        if (done < len) {
-          rafId = requestAnimationFrame(step);
-        } else {
-          el.textContent = final;
-          // Release the locked dimensions
-          el.style.height   = '';
-          el.style.overflow = '';
-        }
-      }
-      step();
-    }, delay);
-  }
-
-  function initHero() {
-    initParticles();
-
-    // Hero mouse spotlight
-    const heroEl = document.getElementById('hero');
-    const spotlight = document.getElementById('hero-spotlight');
-    if (heroEl && spotlight) {
-      heroEl.addEventListener('mousemove', (e: MouseEvent) => {
-        const rect = heroEl.getBoundingClientRect();
-        spotlight.style.left = (e.clientX - rect.left) + 'px';
-        spotlight.style.top  = (e.clientY - rect.top)  + 'px';
-        spotlight.style.opacity = '1';
-      }, { passive: true });
-      heroEl.addEventListener('mouseleave', () => {
-        spotlight.style.opacity = '0';
-      });
+    const hero = document.getElementById('hero');
+    if (hero) {
+      new IntersectionObserver(entries => {
+        entries[0].isIntersecting ? start() : stop();
+      }, { threshold: 0.01 }).observe(hero);
     }
-
-    // Scramble headline after initial fade-in
-    const lines = [
-      { id: 'scramble-1', text: 'Control',     delay: 500 },
-      { id: 'scramble-2', text: 'everything.', delay: 700 },
-      { id: 'scramble-3', text: 'Compromise',  delay: 900 },
-      { id: 'scramble-4', text: 'nothing.',    delay: 1100 },
-    ];
-    lines.forEach(({ id, text, delay }) => {
-      const el = document.getElementById(id);
-      if (el) scramble(el, text, delay);
-    });
+    start();
   }
 
-  initHero();
-  document.addEventListener('astro:page-load', initHero);
+  initHeroScene();
+  document.addEventListener('astro:page-load', initHeroScene);
 </script>

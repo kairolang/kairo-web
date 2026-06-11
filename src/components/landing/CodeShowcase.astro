@@ -37,7 +37,7 @@ std::print(f"Ran {count} times.")`,
     },
   },
   {
-    id: 'using c++ in kairo interop',
+    id: 'cpp-in-kairo',
     label: 'C++ in Kairo',
     filename: 'ffi.k',
     code: ` // Call C++ code directly from Kairo with perfect ABI compatibility.
@@ -49,16 +49,16 @@ std::print(f"Ran {count} times.")`,
  //
  // C++ namespaces map directly to Kairo module syntax.
  // Functions with no namespace are callable without qualification.
- 
+
  ffi "c++" import "my_cpp_lib.hpp"  // import a C++ header directly as a module.
                                     // no wrapper generation, no binding step.
- 
+
  const sum      = my_cpp_lib::add(3, 4)  // direct call, zero overhead.
  var   greeting = my_cpp_lib::greet("Kairo")
- 
+
  greeting += " Welcome to seamless interop!"  // C++ std::string, manipulated
                                               // directly in Kairo, no conversion.
- 
+
  std::print(greeting)  // Hello, Kairo! Welcome to seamless interop!`,
     blurb: {
       heading: 'Drop in, not rewrite',
@@ -70,7 +70,7 @@ std::print(f"Ran {count} times.")`,
     },
   },
   {
-    id: 'using kairo in c++ interop',
+    id: 'kairo-in-cpp',
     label: 'Kairo in C++',
     filename: 'kairo_ffi.cpp',
     code: `// Call Kairo functions directly from C++ with full ABI compatibility.
@@ -112,29 +112,29 @@ int main() {
     label: 'Memory Safety',
     filename: 'memory.k',
     code: ` import std
- 
+
  struct Buffer {
      const size:  usize
      var   data: *u8  // safe pointer, bounds checked automatically
                       // unless you explicitly opt out.
- 
+
      fn op new (self, size: usize) {
          self.data = std::Memory::alloc(size)
          self.size = size  // only the constructor can set size.
      }
- 
+
      fn op delete (self) { // required since we own an allocation.
          std::Memory::free(self.data)
      }
  }
- 
+
  var buf = Buffer(1024)  // 1KB on the heap.
                          // destructor runs automatically when buf goes out of scope.
- 
+
  buf.data[0] = 42  // bounds checked; panics at runtime if out of range.
                    // we can also set up the compiler to make out-of-bounds
                    // do a no-op or return a default value instead of panicking.
- 
+
  try {
      buf.data[buf.size] = 99  // out of bounds
  } catch std::Error::OutOfBounds {
@@ -176,7 +176,7 @@ fn parse_config(path: string) panic -> Config {
 
     raw = read_file(path)
     return json_parse(raw)
-    
+
     catch Fs::Error::NotFound {
         std::print(f"Config file not found: {path}")
         return Config { host: "localhost", port: 8080 }  // recover with a default.
@@ -215,75 +215,70 @@ fn start_server(path: string) -> Config {
 ];
 ---
 
-<section style="padding:7rem 0;background:var(--bg-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;overflow:hidden;">
-  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(45deg,rgba(189,9,32,0.015) 0,rgba(189,9,32,0.015) 1px,transparent 0,transparent 50%);background-size:30px 30px;pointer-events:none;"></div>
-  <div class="container" style="position:relative;z-index:1;">
+<section class="showcase-section">
+  <div class="container">
 
-    <!-- Mobile-only heading -->
-    <div class="showcase-heading-mobile">
+    <!-- Heading -->
+    <div class="showcase-head" data-reveal>
       <div class="section-label">Code</div>
-      <h2 class="showcase-h2">
-        See it in action. <br>
-        <span style="color:var(--text-2);font-weight:400;">Clean syntax.<br>No magic.</span>
+      <h2 class="display showcase-h2">
+        See it in action.
+        <span class="dim">Clean syntax. No magic.</span>
       </h2>
     </div>
 
-    <div class="showcase-grid">
+    <!-- Segmented control -->
+    <div class="showcase-tabs-row" data-reveal data-reveal-delay="100">
+      <div class="segmented" id="code-tabs" role="tablist" aria-label="Code examples">
+        <div class="segmented-thumb" id="code-tabs-thumb"></div>
+        {examples.map((ex, i) => (
+          <button
+            class={`segmented-btn ${i === 0 ? 'active' : ''}`}
+            data-tab={ex.id}
+            role="tab"
+            aria-selected={i === 0 ? 'true' : 'false'}
+          >{ex.label}</button>
+        ))}
+      </div>
+    </div>
 
-      <!-- LEFT: tabs + code -->
-      <div class="showcase-right" data-reveal>
-        <div class="code-tabs-bar" id="code-tabs">
-          {examples.map((ex, i) => (
-            <button
-              class={`tab-btn ${i === 0 ? 'active' : ''}`}
-              data-tab={ex.id}
-            >{ex.label}</button>
-          ))}
-        </div>
+    <div class="showcase-grid" data-reveal data-reveal-delay="180">
 
+      <!-- LEFT: code -->
+      <div class="showcase-code">
         {examples.map((ex, i) => {
           const ext = ex.filename.split('.').pop() ?? 'txt';
-          const lang = ext === 'kro' ? kairoLang : ext;
+          const lang = ext === 'k' || ext === 'kro' ? kairoLang : ext;
           return (
             <div
-              class="code-panel"
+              class={`code-panel ${i === 0 ? 'is-active' : ''}`}
               data-panel={ex.id}
               style={i !== 0 ? 'display:none;' : ''}
             >
-              <div class="showcase-header">
-                <div class="showcase-dots">
-                  <span style="background:#ff5f57;"></span>
-                  <span style="background:#febc2e;"></span>
-                  <span style="background:#28c840;"></span>
+              <div class="code-window">
+                <div class="code-window-bar">
+                  <div class="window-dots"><span></span><span></span><span></span></div>
+                  <span class="code-window-title">{ex.filename}</span>
+                  <span class="code-window-badge">{ext}</span>
                 </div>
-                <span class="showcase-filename">{ex.filename}</span>
-                <span class="showcase-badge">{ext}</span>
-              </div>
-              <div class="showcase-body">
-                <Code
-                  code={ex.code}
-                  lang={lang}
-                  themes={{ dark: 'github-dark-default', light: 'github-light-default' }}
-                  defaultColor={false}
-                />
+                <div class="showcase-body">
+                  <Code
+                    code={ex.code}
+                    lang={lang}
+                    themes={{ dark: 'github-dark-default', light: 'github-light-default' }}
+                    defaultColor={false}
+                  />
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      <!-- RIGHT: heading (desktop only) + blurb -->
-      <div class="showcase-left" data-reveal data-reveal-delay="100">
-        <div class="showcase-heading-desktop">
-          <div class="section-label">Code</div>
-          <h2 class="showcase-h2">
-            See it in action. <br>
-            <span style="color:var(--text-2);font-weight:400;">Clean syntax.<br>No magic.</span>
-          </h2>
-        </div>
-
+      <!-- RIGHT: blurb -->
+      <div class="showcase-blurbs">
         {examples.map((ex, i) => (
-          <div class="blurb-panel" data-blurb={ex.id} style={i !== 0 ? 'display:none;' : ''}>
+          <div class={`blurb-panel ${i === 0 ? 'is-active' : ''}`} data-blurb={ex.id} style={i !== 0 ? 'display:none;' : ''}>
             <p class="blurb-heading">{ex.blurb.heading}</p>
             <ul class="blurb-list">
               {ex.blurb.points.map(pt => (
@@ -302,133 +297,76 @@ fn start_server(path: string) -> Config {
 </section>
 
 <style>
-  .showcase-h2 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(1.75rem, 3vw, 2.75rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    color: var(--text);
+  .showcase-section {
+    padding: clamp(5rem, 12vh, 9rem) 0;
+    position: relative;
+  }
+
+  .showcase-head {
+    text-align: center;
     margin-bottom: 2.5rem;
+  }
+  .showcase-h2 {
+    font-size: clamp(1.9rem, 4vw, 3rem);
+  }
+  .showcase-h2 .dim {
+    display: block;
+    font-weight: 500;
+  }
+
+  .showcase-tabs-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2.5rem;
+    max-width: 100%;
   }
 
   .showcase-grid {
     display: grid;
-    grid-template-columns: 1.6fr 1fr;
-    gap: 4rem;
+    grid-template-columns: 1.55fr 1fr;
+    gap: 3rem;
     align-items: start;
   }
-
-  .showcase-left {
-    align-self: start;
-  }
-
-  .showcase-right {
-    min-width: 0;
-  }
-
-  /* Mobile */
-  .showcase-heading-mobile {
-    display: none;
-  }
+  .showcase-code { min-width: 0; }
 
   @media (max-width: 900px) {
-    .showcase-heading-mobile {
-      display: block;
-      margin-bottom: 2rem;
-    }
-    .showcase-heading-desktop {
-      display: none;
-    }
     .showcase-grid {
       grid-template-columns: 1fr;
-      gap: 2.5rem;
+      gap: 2rem;
     }
+    .showcase-head { text-align: left; }
+    .showcase-tabs-row { justify-content: flex-start; }
   }
 
-  /* Tabs bar */
-  .code-tabs-bar {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+  /* Panel transitions */
+  .code-panel,
+  .blurb-panel {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  .code-tabs-bar::-webkit-scrollbar {
-    display: none;
-  }
-  .code-tabs-bar .tab-btn {
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  /* Code panel */
-  .code-panel {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--red);
-    border-top: none;
-    border-radius: 0 0 2px 2px;
-    overflow: hidden;
-    box-shadow: 0 0 30px rgba(0,0,0,0.2), 0 0 16px var(--red-glow2);
-    transition: opacity 0.15s;
-  }
-  .code-panel.glitch-in {
-    animation: glitchText 0.12s steps(1) 1;
-  }
-
-  .showcase-header {
-    background: var(--bg-3);
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .showcase-dots {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-  .showcase-dots span {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    display: block;
-  }
-  .showcase-filename {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
-    color: var(--text-3);
-    letter-spacing: 0.05em;
-    flex: 1;
-  }
-  .showcase-badge {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--red);
-    background: rgba(189,9,32,0.1);
-    border: 1px solid rgba(189,9,32,0.2);
-    padding: 2px 8px;
-    border-radius: 2px;
+  .code-panel.is-active,
+  .blurb-panel.is-active {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--dur-med) var(--ease),
+      transform var(--dur-med) var(--ease);
   }
 
   .showcase-body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    max-height: 560px;
+    overflow-y: auto;
   }
   .showcase-body :global(pre.astro-code) {
     margin: 0 !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 1.5rem !important;
-    font-size: 0.85rem !important;
+    padding: 1.4rem 1.6rem !important;
+    font-size: 0.84rem !important;
     line-height: 1.75 !important;
-    font-family: 'JetBrains Mono', monospace !important;
+    font-family: var(--font-mono) !important;
     background: transparent !important;
     min-width: 0;
     width: max-content;
@@ -436,13 +374,11 @@ fn start_server(path: string) -> Config {
 
   /* Blurb */
   .blurb-heading {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--red);
-    margin: 0 0 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--text);
+    margin: 0 0 1.5rem;
   }
   .blurb-list {
     list-style: none;
@@ -450,78 +386,105 @@ fn start_server(path: string) -> Config {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1.4rem;
   }
   .blurb-list li {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    padding-left: 1rem;
+    gap: 0.3rem;
+    padding-left: 1.1rem;
     border-left: 2px solid var(--border);
-    transition: border-color 0.2s;
+    transition: border-color var(--dur-med) var(--ease);
   }
   .blurb-list li:hover {
-    border-color: var(--red);
+    border-color: var(--accent);
   }
   .blurb-label {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.82rem;
+    font-size: 0.88rem;
     font-weight: 600;
     color: var(--text);
-    letter-spacing: 0.01em;
+    letter-spacing: -0.01em;
   }
   .blurb-body {
-    font-size: 0.82rem;
+    font-size: 0.86rem;
     color: var(--text-2);
-    line-height: 1.6;
+    line-height: 1.65;
   }
   .blurb-body :global(code) {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    color: var(--red);
-    background: rgba(189,9,32,0.08);
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: var(--text);
+    background: var(--bg-3);
+    border: 1px solid var(--border);
     padding: 1px 5px;
-    border-radius: 2px;
-  }
-  .blurb-panel {
-    transition: opacity 0.15s;
+    border-radius: 5px;
   }
 </style>
 
 <script>
   function initCodeTabs() {
     const tabsContainer = document.getElementById('code-tabs');
-    if (!tabsContainer) return;
+    const thumb = document.getElementById('code-tabs-thumb');
+    if (!tabsContainer || !thumb) return;
 
-    const buttons = tabsContainer.querySelectorAll('.tab-btn');
-    const panels = document.querySelectorAll('.code-panel');
-    const blurbs = document.querySelectorAll('.blurb-panel');
+    const buttons = Array.from(tabsContainer.querySelectorAll<HTMLElement>('.segmented-btn'));
+    const panels = document.querySelectorAll<HTMLElement>('.code-panel');
+    const blurbs = document.querySelectorAll<HTMLElement>('.blurb-panel');
+
+    function moveThumb(btn: HTMLElement, animate = true) {
+      if (!thumb) return;
+      if (!animate) thumb.style.transition = 'none';
+      thumb.style.width = btn.offsetWidth + 'px';
+      thumb.style.transform = `translateX(${btn.offsetLeft - 3}px)`;
+      if (!animate) {
+        void thumb.offsetWidth;
+        thumb.style.transition = '';
+      }
+    }
+
+    function show(els: NodeListOf<HTMLElement>, attr: string, target: string | undefined) {
+      els.forEach(el => {
+        const isTarget = el.dataset[attr] === target;
+        if (isTarget) {
+          el.style.display = 'block';
+          el.classList.remove('is-active');
+          void el.offsetWidth;
+          el.classList.add('is-active');
+        } else {
+          el.style.display = 'none';
+          el.classList.remove('is-active');
+        }
+      });
+    }
 
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
-        const target = (btn as HTMLElement).dataset.tab;
-
-        buttons.forEach(b => b.classList.remove('active'));
+        const target = btn.dataset.tab;
+        buttons.forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
         btn.classList.add('active');
-
-        panels.forEach(panel => {
-          const p = panel as HTMLElement;
-          const isTarget = p.dataset.panel === target;
-          p.style.display = isTarget ? 'block' : 'none';
-          if (isTarget) {
-            p.classList.remove('glitch-in');
-            void p.offsetWidth;
-            p.classList.add('glitch-in');
-            p.addEventListener('animationend', () => p.classList.remove('glitch-in'), { once: true });
-          }
-        });
-
-        blurbs.forEach(blurb => {
-          const b = blurb as HTMLElement;
-          b.style.display = b.dataset.blurb === target ? 'block' : 'none';
-        });
+        btn.setAttribute('aria-selected', 'true');
+        btn.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+        moveThumb(btn);
+        show(panels, 'panel', target);
+        show(blurbs, 'blurb', target);
       });
     });
+
+    // Position thumb on the initial active tab (after fonts settle)
+    const active = buttons.find(b => b.classList.contains('active')) || buttons[0];
+    if (active) {
+      moveThumb(active, false);
+      if ('fonts' in document) {
+        (document as any).fonts.ready.then(() => moveThumb(active, false));
+      }
+    }
+    window.addEventListener('resize', () => {
+      const a = buttons.find(b => b.classList.contains('active'));
+      if (a) moveThumb(a, false);
+    }, { passive: true });
   }
 
   initCodeTabs();
