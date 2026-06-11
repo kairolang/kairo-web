@@ -33,9 +33,9 @@ const toc = headings.filter(h => h.depth === 2 || h.depth === 3);
     border-left: 1px solid var(--border);
   }
   .toc-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.68rem;
-    font-weight: 700;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--text-3);
@@ -52,27 +52,28 @@ const toc = headings.filter(h => h.depth === 2 || h.depth === 3);
   }
   .toc-link {
     display: block;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.8rem;
+    font-weight: 450; /* constant weight: active state must not reflow/wrap */
     color: var(--text-3);
     text-decoration: none;
-    padding: 5px 0 5px 10px;
+    padding: 5px 0 5px 11px;
     border-left: 2px solid transparent;
-    margin-left: -1px;
-    transition: all 0.15s;
+    margin-left: calc(-1.25rem - 1px);
+    padding-left: calc(1.25rem + 11px);
+    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
     line-height: 1.4;
   }
   .toc-link:hover {
-    color: var(--text-2);
+    color: var(--text);
     border-left-color: var(--border-hi);
   }
   .toc-link.active {
-    color: var(--red);
-    border-left-color: var(--red);
-    font-weight: 500;
+    color: var(--accent);
+    border-left-color: var(--accent);
   }
   .toc-h3 {
-    padding-left: 22px;
+    padding-left: calc(1.25rem + 24px);
     font-size: 0.76rem;
   }
 </style>

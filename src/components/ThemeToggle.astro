@@ -2,33 +2,47 @@
 ---
 <button
   id="theme-toggle"
+  class="theme-toggle"
   aria-label="Toggle theme"
   title="Toggle dark/light mode"
-  style="
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-2);
-    width: 36px;
-    height: 36px;
-    border-radius: 2px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    flex-shrink: 0;
-  "
 >
   <!-- Sun icon (shown in dark mode) -->
-  <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="4"/>
     <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
   </svg>
   <!-- Moon icon (shown in light mode) -->
-  <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+  <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none">
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
   </svg>
 </button>
+
+<style>
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-pill);
+    color: var(--text-2);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  }
+  .theme-toggle:hover {
+    color: var(--text);
+    background: color-mix(in srgb, var(--text) 7%, transparent);
+  }
+  .theme-toggle svg {
+    transition: transform var(--dur-med) var(--ease-spring);
+  }
+  .theme-toggle:active svg {
+    transform: rotate(40deg) scale(0.9);
+  }
+</style>
 
 <script>
   function initThemeToggle() {
@@ -55,21 +69,6 @@
         localStorage.setItem('theme', 'light');
       }
       updateIcons();
-    });
-
-    btn?.addEventListener('mouseenter', () => {
-      if (btn) {
-        btn.style.borderColor = 'var(--red)';
-        btn.style.color = 'var(--red)';
-        btn.style.boxShadow = '0 0 12px var(--red-glow2)';
-      }
-    });
-    btn?.addEventListener('mouseleave', () => {
-      if (btn) {
-        btn.style.borderColor = 'var(--border)';
-        btn.style.color = 'var(--text-2)';
-        btn.style.boxShadow = 'none';
-      }
     });
   }
 

@@ -40,17 +40,17 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   <!-- Mobile top bar -->
   <div class="docs-mobile-bar" id="docs-mobile-bar">
     <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Open navigation">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
         <line x1="3" y1="6" x2="21" y2="6"/>
         <line x1="3" y1="12" x2="15" y2="12"/>
         <line x1="3" y1="18" x2="18" y2="18"/>
       </svg>
-      <span>Navigation</span>
+      <span>Menu</span>
     </button>
     <span class="docs-mobile-title">{title}</span>
     {headings.filter(h => h.depth <= 3).length > 0 && (
       <button id="toc-toggle" class="sidebar-toggle-btn" aria-label="On this page" style="margin-left:auto;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <line x1="8" y1="6" x2="21" y2="6"/>
           <line x1="8" y1="12" x2="21" y2="12"/>
           <line x1="8" y1="18" x2="21" y2="18"/>
@@ -72,7 +72,7 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
       <div class="docs-sidebar-inner">
         <!-- Close button (mobile only) -->
         <button id="sidebar-close" class="sidebar-close-btn" aria-label="Close navigation">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M18 6 6 18M6 6l12 12"/>
           </svg>
         </button>
@@ -80,16 +80,27 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
         <DocsSidebar currentPath={currentPath} />
       </div>
     </aside>
+    <!-- Restore sidebar scroll synchronously, before first paint, so the
+         sidebar never visibly jumps when navigating between docs pages. -->
+    <script is:inline>
+      (function () {
+        try {
+          var col = document.getElementById('docs-sidebar-col');
+          var saved = sessionStorage.getItem('docs-sidebar-scroll');
+          if (col && saved !== null) col.scrollTop = parseInt(saved, 10);
+        } catch (_) {}
+      })();
+    </script>
 
     <!-- Center: main content -->
     <main class="docs-content">
       <!-- Breadcrumb -->
       <nav class="docs-breadcrumb" aria-label="Breadcrumb">
         <a href="/" class="breadcrumb-link">Home</a>
-        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
         <a href="/docs" class="breadcrumb-link">Docs</a>
-        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        <span style="color:var(--text-2);">{title}</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+        <span class="breadcrumb-current">{title}</span>
       </nav>
 
       <!-- Article -->
@@ -104,7 +115,7 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
             {prev && (
               <a href={prev.href} class="docs-nav-card">
                 <span class="nav-card-label">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                   Previous
                 </span>
                 <span class="nav-card-title">{prev.title}</span>
@@ -113,10 +124,10 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
           </div>
           <div>
             {next && (
-              <a href={next.href} class="docs-nav-card" style="text-align:right;">
-                <span class="nav-card-label" style="justify-content:flex-end;">
+              <a href={next.href} class="docs-nav-card nav-card-next">
+                <span class="nav-card-label">
                   Next
-                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </span>
                 <span class="nav-card-title">{next.title}</span>
               </a>
@@ -127,11 +138,11 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
 
       <footer class="docs-footer">
         <a href="https://github.com/kairolang/kairo-lang/issues" target="_blank" rel="noopener noreferrer" class="docs-footer-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
           Report an issue
         </a>
         <a href={editUrl} target="_blank" rel="noopener noreferrer" class="docs-footer-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
           Edit this page
         </a>
       </footer>
@@ -159,36 +170,39 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
     display: none;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 1rem;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-2);
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
     position: sticky;
-    top: 64px;
+    top: 60px;
     z-index: 40;
   }
   .sidebar-toggle-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: transparent;
+    background: var(--bg-3);
     border: 1px solid var(--border);
     color: var(--text-2);
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.78rem;
-    padding: 6px 10px;
-    border-radius: 2px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: var(--r-pill);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
     white-space: nowrap;
     flex-shrink: 0;
   }
   .sidebar-toggle-btn:hover {
-    border-color: var(--red);
-    color: var(--red);
+    border-color: var(--border-hi);
+    color: var(--text);
   }
   .docs-mobile-title {
-    font-family: 'Space Grotesk', sans-serif;
     font-size: 0.8rem;
+    font-weight: 500;
     color: var(--text-3);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -211,16 +225,17 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.65);
+    background: rgba(0,0,0,0.55);
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 99;
   }
 
   /* ── Docs layout grid ── */
   .docs-layout {
     display: grid;
-    grid-template-columns: 272px minmax(0, 1fr) 220px;
-    min-height: calc(100vh - 64px);
+    grid-template-columns: 276px minmax(0, 1fr) 224px;
+    min-height: calc(100vh - 60px);
     align-items: start;
     max-width: 1600px;
     margin: 0 auto;
@@ -229,11 +244,10 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   /* ── Left sidebar ── */
   .docs-sidebar-col {
     position: sticky;
-    top: 64px;
-    height: calc(100vh - 64px);
+    top: 60px;
+    height: calc(100vh - 60px);
     overflow-y: auto;
     border-right: 1px solid var(--border);
-    background: var(--bg);
     scrollbar-width: thin;
   }
   .docs-sidebar-inner {
@@ -250,23 +264,21 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   /* ── Right TOC ── */
   .docs-toc-col {
     position: sticky;
-    top: 64px;
-    height: calc(100vh - 64px);
+    top: 60px;
+    height: calc(100vh - 60px);
     overflow-y: auto;
-    border-left: 1px solid var(--border);
     scrollbar-width: thin;
   }
   .docs-toc-inner {
-    padding: 2rem 1.5rem 2rem 0;
+    padding: 2.5rem 1.5rem 2rem 0;
   }
 
   /* ── Breadcrumb ── */
   .docs-breadcrumb {
     display: flex;
     align-items: center;
-    gap: 5px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
+    gap: 6px;
+    font-size: 0.78rem;
     color: var(--text-3);
     margin-bottom: 2rem;
     flex-wrap: wrap;
@@ -274,9 +286,10 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   .breadcrumb-link {
     color: var(--text-3);
     text-decoration: none;
-    transition: color 0.15s;
+    transition: color var(--dur-fast) var(--ease);
   }
-  .breadcrumb-link:hover { color: var(--red); }
+  .breadcrumb-link:hover { color: var(--text); }
+  .breadcrumb-current { color: var(--text-2); font-weight: 500; }
 
   /* ── Prev/Next ── */
   .docs-nav-grid {
@@ -290,32 +303,38 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   .docs-nav-card {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
     background: var(--bg-2);
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--r-md);
     padding: 16px 20px;
     text-decoration: none;
-    transition: all 0.2s;
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      transform var(--dur-fast) var(--ease),
+      box-shadow var(--dur-med) var(--ease);
   }
   .docs-nav-card:hover {
-    border-color: var(--red);
-    box-shadow: 0 0 16px var(--red-glow2);
+    border-color: var(--border-hi);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
   }
+  .nav-card-next { text-align: right; }
+  .nav-card-next .nav-card-label { justify-content: flex-end; }
   .nav-card-label {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
     color: var(--text-3);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
   }
   .nav-card-title {
-    font-family: 'Space Grotesk', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
+    letter-spacing: -0.01em;
     color: var(--text);
   }
 
@@ -332,13 +351,12 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-family: 'Inter', sans-serif;
     font-size: 0.78rem;
     color: var(--text-3);
     text-decoration: none;
-    transition: color 0.15s;
+    transition: color var(--dur-fast) var(--ease);
   }
-  .docs-footer-link:hover { color: var(--red); }
+  .docs-footer-link:hover { color: var(--text); }
 
   /* ── Mobile TOC drawer ── */
   .toc-drawer {
@@ -347,13 +365,14 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
     bottom: 0; left: 0; right: 0;
     background: var(--bg-2);
     border-top: 1px solid var(--border);
-    border-left: 3px solid var(--red);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
     padding: 1.5rem;
     z-index: 200;
     max-height: 50vh;
     overflow-y: auto;
     transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-med) var(--ease);
+    box-shadow: var(--shadow-lg);
   }
   .toc-drawer.open {
     transform: translateY(0);
@@ -362,7 +381,7 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   /* ── Hide TOC on medium screens ── */
   @media (max-width: 1280px) {
     .docs-layout {
-      grid-template-columns: 272px minmax(0, 1fr);
+      grid-template-columns: 276px minmax(0, 1fr);
     }
     .docs-toc-col { display: none; }
     .toc-drawer { display: block; }
@@ -382,11 +401,11 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
       top: 0;
       left: 0;
       width: min(300px, 85vw);
-      height: 100vh;
+      height: 100dvh;
       z-index: 100;
       background: var(--bg-2);
       transform: translateX(-100%);
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform var(--dur-med) var(--ease);
       border-right: 1px solid var(--border);
     }
     .docs-sidebar-col.open {
@@ -442,6 +461,38 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
     tocDrawer?.querySelectorAll('a').forEach(a => {
       a.addEventListener('click', () => tocDrawer.classList.remove('open'));
     });
+
+    // ── Sidebar scroll persistence ──
+    // Restore the sidebar's own scroll position across page navigations so it
+    // doesn't jump back to the top. Only the sidebar container is scrolled —
+    // never the page. If there's no saved position, center the active link.
+    if (sidebarCol) {
+      const KEY = 'docs-sidebar-scroll';
+      const saved = sessionStorage.getItem(KEY);
+      if (saved !== null) {
+        sidebarCol.scrollTop = parseInt(saved, 10);
+      } else {
+        const activeLink = sidebarCol.querySelector<HTMLElement>('.sidebar-link.active, .sidebar-grouplabel-link.active');
+        if (activeLink) {
+          const linkRect = activeLink.getBoundingClientRect();
+          const colRect = sidebarCol.getBoundingClientRect();
+          sidebarCol.scrollTop += linkRect.top - colRect.top - sidebarCol.clientHeight / 2;
+        }
+      }
+      // If the active link ended up outside the restored view (e.g. user
+      // searched and jumped somewhere far away), bring it into view gently.
+      const activeLink = sidebarCol.querySelector<HTMLElement>('.sidebar-link.active');
+      if (activeLink) {
+        const linkRect = activeLink.getBoundingClientRect();
+        const colRect = sidebarCol.getBoundingClientRect();
+        if (linkRect.top < colRect.top + 40 || linkRect.bottom > colRect.bottom - 40) {
+          sidebarCol.scrollTop += linkRect.top - colRect.top - sidebarCol.clientHeight / 2;
+        }
+      }
+      sidebarCol.addEventListener('scroll', () => {
+        sessionStorage.setItem(KEY, String(sidebarCol.scrollTop));
+      }, { passive: true });
+    }
   }
 
   initDocs();

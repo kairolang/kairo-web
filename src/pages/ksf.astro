@@ -1,80 +1,74 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const funding = [
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    title: 'Individual Donations',
+    desc: 'Community members who believe in the mission and want to support open source systems programming.',
+  },
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
+    title: 'Grants',
+    desc: 'Research and open source grants from foundations dedicated to advancing programming language technology.',
+  },
+  {
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    title: 'Sponsorships',
+    desc: 'Companies and organizations that rely on or contribute to the Kairo ecosystem sponsor development efforts.',
+  },
+];
+
+const involve = [
+  {
+    number: '01',
+    title: 'Contribute',
+    desc: 'Contribute to the compiler, documentation, standard library, or tooling. All skill levels welcome.',
+    link: 'https://github.com/kairolang/kairo-lang',
+    linkLabel: 'View GitHub',
+  },
+  {
+    number: '02',
+    title: 'Donate',
+    desc: 'Financial contributions go directly toward development, infrastructure, and contributor grants.',
+    link: 'mailto:donations@kairolang.org',
+    linkLabel: 'Get in Touch',
+  },
+  {
+    number: '03',
+    title: 'Spread the Word',
+    desc: 'Star the repo, write blog posts, give talks, and help grow the Kairo community.',
+    link: 'https://github.com/kairolang/kairo-lang',
+    linkLabel: 'Star on GitHub',
+  },
+];
 ---
 <BaseLayout
   title="Kairo Software Foundation - KSF"
   description="A nonprofit dedicated to the development and sustainability of the Kairo programming language ecosystem."
 >
   <!-- Hero -->
-  <section style="
-    padding:7rem 0 5rem;
-    background:var(--bg);
-    border-bottom:1px solid var(--border);
-    position:relative;
-    overflow:hidden;
-  ">
-    <div class="hero-grid" style="opacity:0.5;"></div>
-    <div class="container" style="position:relative;z-index:1;max-width:800px;">
-      <!-- Badge -->
-      <div style="
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-        background:rgba(189,9,32,0.08);
-        border:1px solid rgba(189,9,32,0.2);
-        color:var(--red);
-        font-family:'Space Grotesk',sans-serif;
-        font-size:0.75rem;
-        font-weight:700;
-        letter-spacing:0.15em;
-        text-transform:uppercase;
-        padding:6px 14px;
-        border-radius:2px;
-        margin-bottom:1.5rem;
-      ">
-        <span style="width:6px;height:6px;border-radius:50%;background:var(--red);animation:glowPulse 2s ease-in-out infinite;display:inline-block;"></span>
+  <section class="ksf-hero">
+    <div class="ambient ksf-ambient" aria-hidden="true"></div>
+    <div class="container ksf-hero-inner">
+      <div class="ksf-badge fade-up" style="--d: 0ms;">
+        <span class="ksf-badge-dot"></span>
         KSF
       </div>
 
-      <h1 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:clamp(2rem,5vw,3.5rem);
-        font-weight:700;
-        letter-spacing:-0.03em;
-        line-height:1.1;
-        color:var(--text);
-        margin-bottom:1.25rem;
-      ">Kairo Software Foundation</h1>
+      <h1 class="display ksf-title">
+        <span class="mask-line"><span style="--d: 100ms;">Kairo Software</span></span>
+        <span class="mask-line"><span style="--d: 220ms;">Foundation</span></span>
+      </h1>
 
-      <p style="
-        font-family:'Inter',sans-serif;
-        font-size:1.1rem;
-        color:var(--text-2);
-        line-height:1.7;
-        max-width:600px;
-        margin-bottom:2rem;
-      ">
+      <p class="ksf-sub fade-up" style="--d: 400ms;">
         A nonprofit dedicated to the development and sustainability of the
         Kairo programming language ecosystem.
       </p>
 
-      <!-- Notice -->
-      <div style="
-        background:rgba(189,9,32,0.05);
-        border:1px solid rgba(189,9,32,0.15);
-        border-left:3px solid var(--red);
-        padding:1rem 1.25rem;
-        border-radius:2px;
-        max-width:600px;
-      ">
-        <p style="
-          font-family:'Inter',sans-serif;
-          font-size:0.875rem;
-          color:var(--text-2);
-          line-height:1.65;
-          margin:0;
-        ">
-          <strong style="color:var(--text);font-family:'Space Grotesk',sans-serif;">Note:</strong>
+      <div class="ksf-notice fade-up" style="--d: 520ms;">
+        <p>
+          <strong>Note:</strong>
           The Kairo Software Foundation (formerly Helix Software Foundation) is in the process
           of registering as a 501(c)(3) nonprofit organization.
         </p>
@@ -83,42 +77,20 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   </section>
 
   <!-- Mission -->
-  <section style="padding:6rem 0;background:var(--bg);">
-    <div class="container" style="max-width:1100px;">
-      <div style="
-        display:grid;
-        grid-template-columns:1fr 2fr;
-        gap:4rem;
-        align-items:start;
-      " class="ksf-mission-grid">
-        <div>
+  <section class="ksf-section">
+    <div class="container ksf-container">
+      <div class="ksf-mission-grid">
+        <div data-reveal>
           <div class="section-label">Mission</div>
-          <h2 style="
-            font-family:'Space Grotesk',sans-serif;
-            font-size:1.75rem;
-            font-weight:700;
-            letter-spacing:-0.02em;
-            color:var(--text);
-          ">Our Mission</h2>
+          <h2 class="display ksf-h2">Our Mission</h2>
         </div>
-        <div>
-          <p style="
-            font-family:'Inter',sans-serif;
-            font-size:1.05rem;
-            color:var(--text-2);
-            line-height:1.8;
-            margin-bottom:1.5rem;
-          ">
+        <div data-reveal data-reveal-delay="120">
+          <p class="ksf-mission-p">
             The KSF funds core language development, documentation, community events,
             and contributor grants. We believe in an open, transparent,
             community-driven approach to language development.
           </p>
-          <p style="
-            font-family:'Inter',sans-serif;
-            font-size:1.05rem;
-            color:var(--text-2);
-            line-height:1.8;
-          ">
+          <p class="ksf-mission-p">
             Kairo should be a language that serves its users - not a corporate
             product, not a research toy. Every decision is made with the community
             in mind, through open RFCs and public discussion.
@@ -129,64 +101,21 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   </section>
 
   <!-- How We're Funded -->
-  <section style="padding:6rem 0;background:var(--bg-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-    <div class="container" style="max-width:1100px;">
-      <div style="margin-bottom:3rem;">
+  <section class="ksf-section ksf-section-line">
+    <div class="container ksf-container">
+      <div class="ksf-section-head" data-reveal>
         <div class="section-label">Funding</div>
-        <h2 style="
-          font-family:'Space Grotesk',sans-serif;
-          font-size:2rem;
-          font-weight:700;
-          letter-spacing:-0.02em;
-          color:var(--text);
-        ">How We're Funded</h2>
+        <h2 class="display ksf-h2">How We're Funded</h2>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;" class="ksf-funding-grid">
-        {[
-          {
-            icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
-            title: 'Individual Donations',
-            desc: 'Community members who believe in the mission and want to support open source systems programming.'
-          },
-          {
-            icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
-            title: 'Grants',
-            desc: 'Research and open source grants from foundations dedicated to advancing programming language technology.'
-          },
-          {
-            icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-            title: 'Sponsorships',
-            desc: 'Companies and organizations that rely on or contribute to the Kairo ecosystem sponsor development efforts.'
-          },
-        ].map(item => (
-          <div class="ksf-card">
-            <div style="
-              width:48px;height:48px;
-              background:rgba(189,9,32,0.08);
-              border:1px solid rgba(189,9,32,0.15);
-              border-radius:2px;
-              display:flex;
-              align-items:center;
-              justify-content:center;
-              color:var(--red);
-              margin-bottom:1.25rem;
-            ">
+      <div class="ksf-grid" data-reveal-stagger data-stagger-step="100">
+        {funding.map(item => (
+          <div class="card ksf-card">
+            <div class="ksf-card-icon">
               <Fragment set:html={item.icon} />
             </div>
-            <h3 style="
-              font-family:'Space Grotesk',sans-serif;
-              font-weight:600;
-              font-size:1rem;
-              color:var(--text);
-              margin-bottom:0.75rem;
-            ">{item.title}</h3>
-            <p style="
-              font-family:'Inter',sans-serif;
-              font-size:0.875rem;
-              color:var(--text-2);
-              line-height:1.65;
-            ">{item.desc}</p>
+            <h3 class="ksf-card-title">{item.title}</h3>
+            <p class="ksf-card-desc">{item.desc}</p>
           </div>
         ))}
       </div>
@@ -194,89 +123,23 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   </section>
 
   <!-- Get Involved -->
-  <section style="padding:6rem 0;background:var(--bg);">
-    <div class="container" style="max-width:1100px;">
-      <div style="margin-bottom:3rem;">
+  <section class="ksf-section ksf-section-line">
+    <div class="container ksf-container">
+      <div class="ksf-section-head" data-reveal>
         <div class="section-label">Community</div>
-        <h2 style="
-          font-family:'Space Grotesk',sans-serif;
-          font-size:2rem;
-          font-weight:700;
-          letter-spacing:-0.02em;
-          color:var(--text);
-        ">Get Involved</h2>
+        <h2 class="display ksf-h2">Get Involved</h2>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;" class="ksf-involve-grid">
-        {[
-          {
-            number: '01',
-            title: 'Contribute',
-            desc: 'Contribute to the compiler, documentation, standard library, or tooling. All skill levels welcome.',
-            link: 'https://github.com/kairolang/kairo-lang',
-            linkLabel: 'View GitHub ->',
-          },
-          {
-            number: '02',
-            title: 'Donate',
-            desc: 'Financial contributions go directly toward development, infrastructure, and contributor grants.',
-            link: 'mailto:donations@kairolang.org',
-            linkLabel: 'Get in Touch ->',
-          },
-          {
-            number: '03',
-            title: 'Spread the Word',
-            desc: 'Star the repo, write blog posts, give talks, and help grow the Kairo community.',
-            link: 'https://github.com/kairolang/kairo-lang',
-            linkLabel: 'Star on GitHub ->',
-          },
-        ].map(item => (
-          <div style="
-            background:var(--bg-2);
-            border:1px solid var(--border);
-            border-radius:2px;
-            padding:2rem;
-            transition:all 0.25s;
-          " class="glow-card">
-            <div style="
-              font-family:'Space Grotesk',sans-serif;
-              font-size:2.5rem;
-              font-weight:700;
-              color:var(--border-hi);
-              letter-spacing:-0.04em;
-              line-height:1;
-              margin-bottom:1.25rem;
-            ">{item.number}</div>
-            <h3 style="
-              font-family:'Space Grotesk',sans-serif;
-              font-weight:600;
-              font-size:1.1rem;
-              color:var(--text);
-              margin-bottom:0.75rem;
-            ">{item.title}</h3>
-            <p style="
-              font-family:'Inter',sans-serif;
-              font-size:0.875rem;
-              color:var(--text-2);
-              line-height:1.65;
-              margin-bottom:1.25rem;
-            ">{item.desc}</p>
-            <a
-              href={item.link}
-              style="
-                font-family:'Space Grotesk',sans-serif;
-                font-size:0.875rem;
-                font-weight:600;
-                color:var(--red);
-                text-decoration:none;
-                transition:color 0.2s;
-                display:inline-flex;
-                align-items:center;
-                gap:4px;
-              "
-              onmouseenter="this.style.color='var(--red-hi)'"
-              onmouseleave="this.style.color='var(--red)'"
-            >{item.linkLabel}</a>
+      <div class="ksf-grid" data-reveal-stagger data-stagger-step="100">
+        {involve.map(item => (
+          <div class="card ksf-card">
+            <div class="ksf-card-number">{item.number}</div>
+            <h3 class="ksf-card-title">{item.title}</h3>
+            <p class="ksf-card-desc">{item.desc}</p>
+            <a href={item.link} class="link-arrow ksf-card-link">
+              {item.linkLabel}
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
           </div>
         ))}
       </div>
@@ -284,53 +147,220 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   </section>
 
   <!-- Donate CTA -->
-  <section style="padding:6rem 0;background:var(--bg-2);border-top:1px solid var(--border);">
-    <div class="container" style="max-width:700px;text-align:center;">
-      <div style="display:flex;justify-content:center;margin-bottom:1.5rem;">
-        <div class="section-label">Support Us</div>
-      </div>
-      <h2 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:2.25rem;
-        font-weight:700;
-        letter-spacing:-0.03em;
-        color:var(--text);
-        margin-bottom:1.25rem;
-      ">Support Kairo's Development</h2>
-      <p style="
-        font-family:'Inter',sans-serif;
-        font-size:1rem;
-        color:var(--text-2);
-        line-height:1.7;
-        margin-bottom:2rem;
-      ">
+  <section class="ksf-cta">
+    <div class="ambient ksf-cta-ambient" aria-hidden="true"></div>
+    <div class="container ksf-cta-inner">
+      <div class="section-label" data-reveal>Support Us</div>
+      <h2 class="display ksf-cta-title" data-reveal data-reveal-delay="80">Support Kairo's Development</h2>
+      <p class="ksf-cta-sub" data-reveal data-reveal-delay="160">
         Every contribution, big or small, helps us build a better language for everyone.
         Reach out to discuss sponsorship opportunities or one-time donations.
       </p>
-      <a
-        href="mailto:donations@kairolang.org"
-        class="btn-primary"
-        style="font-size:1rem;padding:14px 36px;text-decoration:none;display:inline-flex;"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-          <polyline points="22,6 12,13 2,6"/>
-        </svg>
-        donations@kairolang.org
-      </a>
+      <div data-reveal data-reveal-delay="240">
+        <a href="mailto:donations@kairolang.org" class="btn-primary ksf-cta-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          donations@kairolang.org
+        </a>
+      </div>
     </div>
   </section>
 </BaseLayout>
 
 <style>
+  /* ── Hero ── */
+  .ksf-hero {
+    padding: clamp(5rem, 12vh, 8rem) 0 5rem;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .ksf-ambient {
+    width: 600px;
+    height: 400px;
+    top: -200px;
+    left: 5%;
+    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
+  }
+  .ksf-hero-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+  }
+
+  .ksf-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: color-mix(in srgb, var(--red) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--red) 22%, transparent);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: var(--r-pill);
+    margin-bottom: 1.75rem;
+  }
+  .ksf-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red-glow);
+  }
+
+  .ksf-title {
+    font-size: clamp(2.2rem, 5.5vw, 3.8rem);
+    margin-bottom: 1.4rem;
+  }
+
+  .ksf-sub {
+    font-size: 1.12rem;
+    color: var(--text-2);
+    line-height: 1.7;
+    max-width: 580px;
+    margin-bottom: 2rem;
+  }
+
+  .ksf-notice {
+    background: color-mix(in srgb, var(--red) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--red) 15%, transparent);
+    padding: 1rem 1.25rem;
+    border-radius: var(--r-md);
+    max-width: 600px;
+  }
+  .ksf-notice p {
+    font-size: 0.875rem;
+    color: var(--text-2);
+    line-height: 1.65;
+    margin: 0;
+  }
+  .ksf-notice strong { color: var(--text); font-weight: 600; }
+
+  /* ── Sections ── */
+  .ksf-section {
+    padding: clamp(4rem, 9vh, 6.5rem) 0;
+  }
+  .ksf-section-line { border-top: 1px solid var(--border); }
+  .ksf-container { max-width: 1100px; }
+
+  .ksf-h2 {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+  }
+  .ksf-section-head { margin-bottom: 3rem; }
+
+  .ksf-mission-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 4rem;
+    align-items: start;
+  }
+  .ksf-mission-p {
+    font-size: 1.05rem;
+    color: var(--text-2);
+    line-height: 1.8;
+    margin-bottom: 1.5rem;
+  }
+  .ksf-mission-p:last-child { margin-bottom: 0; }
+
+  .ksf-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+
+  .ksf-card {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ksf-card-icon {
+    width: 46px;
+    height: 46px;
+    background: color-mix(in srgb, var(--red) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--red) 16%, transparent);
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+  }
+  .ksf-card-number {
+    font-family: var(--font-mono);
+    font-size: 2.2rem;
+    font-weight: 300;
+    color: var(--text-3);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-bottom: 1.25rem;
+  }
+  .ksf-card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--text);
+    margin-bottom: 0.6rem;
+  }
+  .ksf-card-desc {
+    font-size: 0.875rem;
+    color: var(--text-2);
+    line-height: 1.65;
+  }
+  .ksf-card-link { margin-top: 1.25rem; }
+
+  /* ── Donate CTA ── */
+  .ksf-cta {
+    padding: clamp(5rem, 11vh, 8rem) 0;
+    border-top: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .ksf-cta-ambient {
+    width: 640px;
+    height: 400px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
+  }
+  .ksf-cta-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .ksf-cta-title {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    margin-bottom: 1.25rem;
+  }
+  .ksf-cta-sub {
+    font-size: 1rem;
+    color: var(--text-2);
+    line-height: 1.7;
+    margin-bottom: 2.25rem;
+    text-wrap: balance;
+  }
+  .ksf-cta-btn {
+    font-size: 0.98rem;
+    padding: 13px 30px;
+    text-decoration: none;
+  }
+
   @media (max-width: 900px) {
-    .ksf-mission-grid,
-    .ksf-funding-grid,
-    .ksf-involve-grid {
-      grid-template-columns: 1fr !important;
-    }
     .ksf-mission-grid {
-      gap: 2rem !important;
+      grid-template-columns: 1fr;
+      gap: 2rem;
     }
+    .ksf-grid { grid-template-columns: 1fr; }
   }
 </style>

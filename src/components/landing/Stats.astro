@@ -37,10 +37,10 @@ const stats = [
 
 <section class="stats-section">
   <div class="container">
-    <div class="stats-row" id="stats-grid" data-reveal>
-      {stats.map((stat, i) => (
+    <div class="stats-row" id="stats-grid" data-reveal-stagger data-stagger-step="90">
+      {stats.map(stat => (
         <div class="stats-item">
-          <div class="stats-number" data-target={stat.value} data-suffix={stat.suffix}>
+          <div class="stats-number tabular" data-target={stat.value} data-suffix={stat.suffix}>
             0{stat.suffix}
           </div>
           <div class="stats-label">{stat.label}</div>
@@ -55,52 +55,60 @@ const stats = [
 
 <style>
   .stats-section {
-    padding: 5rem 0;
-    background: var(--bg-2);
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    padding: clamp(5rem, 10vh, 8rem) 0 5rem;
+    position: relative;
   }
 
   .stats-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 2rem;
   }
 
   .stats-item {
     text-align: center;
+    padding: 0.5rem 1rem;
+    position: relative;
+  }
+  .stats-item + .stats-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 1px;
+    background: var(--border);
   }
 
   .stats-number {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(2.5rem, 5vw, 4rem);
-    font-weight: 700;
+    font-size: clamp(2.4rem, 4.6vw, 3.6rem);
+    font-weight: 550;
     letter-spacing: -0.04em;
     color: var(--text);
-    line-height: 1;
-    margin-bottom: 0.5rem;
+    line-height: 1.05;
+    margin-bottom: 0.6rem;
   }
 
   .stats-label {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
     color: var(--text-3);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
   .stats-footer {
     text-align: center;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
     color: var(--text-3);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin-top: 3rem;
+    margin-top: 3.5rem;
   }
 
-  @media (max-width: 600px) {
-    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 2.5rem; }
+  @media (max-width: 640px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); row-gap: 2.5rem; }
+    .stats-item:nth-child(3)::before { display: none; }
   }
 </style>
 
@@ -111,12 +119,12 @@ const stats = [
     const numbers = grid.querySelectorAll('.stats-number');
     let animated = false;
 
-    function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
+    function easeOut(t: number) { return 1 - Math.pow(1 - t, 4); }
 
     function animateCount(el: Element) {
       const target = parseInt((el as HTMLElement).dataset.target || '0');
       const suffix = (el as HTMLElement).dataset.suffix || '';
-      const duration = 1400;
+      const duration = 1600;
       const start = performance.now();
       function step(now: number) {
         const progress = Math.min((now - start) / duration, 1);
@@ -126,12 +134,13 @@ const stats = [
       requestAnimationFrame(step);
     }
 
-    new IntersectionObserver(entries => {
+    new IntersectionObserver((entries, obs) => {
       if (entries[0].isIntersecting && !animated) {
         animated = true;
         numbers.forEach((el, i) => {
-          setTimeout(() => animateCount(el), i * 120);
+          setTimeout(() => animateCount(el), i * 110);
         });
+        obs.disconnect();
       }
     }, { threshold: 0.3 }).observe(grid);
   }

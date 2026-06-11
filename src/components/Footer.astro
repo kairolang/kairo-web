@@ -1,173 +1,239 @@
 ---
+const languageLinks = [
+  { href: '/docs', label: 'Documentation' },
+  { href: '/docs/install', label: 'Installation' },
+  { href: '/llms.txt', label: 'LLM Context', hidden: true },
+  { href: '/llms-full.txt', label: 'LLM Full Docs', hidden: true },
+  { href: '/blog', label: 'Blog' },
+  { href: 'https://github.com/kairolang/kairo-lang/releases', label: 'Changelog', external: true },
+];
+
+const communityLinks = [
+  { href: 'https://github.com/kairolang/kairo-lang', label: 'GitHub', external: true },
+  { href: '/ksf', label: 'KSF' },
+  { href: 'https://discord.gg/kairo', label: 'Discord', external: true },
+  { href: 'https://x.com/kairolang', label: 'Twitter/X', external: true },
+];
+
+const year = new Date().getFullYear();
 ---
-<footer style="
-  background:var(--bg-2);
-  border-top:1px solid var(--border);
-  padding:4rem 0 2rem;
-  margin-top:auto;
-">
+<footer class="site-footer">
   <div class="container">
-    <!-- 3-column grid -->
-    <div style="
-      display:grid;
-      grid-template-columns:2fr 1fr 1fr;
-      gap:3rem;
-      padding-bottom:3rem;
-      border-bottom:1px solid var(--border);
-    " class="footer-grid">
+    <div class="footer-grid">
       <!-- Column 1: Logo + tagline -->
-      <div>
-        <a href="/" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;margin-bottom:1rem;">
-          <img src="/kairo-logo.svg" alt="Kairo" width="24" height="24" />
-          <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1rem;color:var(--text);">kairo</span>
+      <div class="footer-brand">
+        <a href="/" class="footer-logo">
+          <img src="/kairo-file-icon.svg" alt="" width="24" height="24" />
+          <span class="footer-wordmark">kairo</span>
         </a>
-        <p style="
-          font-family:'Inter',sans-serif;
-          font-size:0.875rem;
-          color:var(--text-3);
-          line-height:1.6;
-          max-width:280px;
-          margin-bottom:1rem;
-        ">
+        <p class="footer-tagline">
           Control everything. Compromise nothing.<br>
           Compiled systems language. Two-way C++ interop.
         </p>
-        <p style="
-          font-size:0.75rem;
-          color:var(--text-3);
-          font-family:'Space Grotesk',sans-serif;
-          letter-spacing:0.02em;
-        ">
-          Built by the
-          <a href="/ksf" style="color:var(--red);text-decoration:none;border-bottom:1px solid transparent;transition:border-color 0.2s;" onmouseenter="this.style.borderColor='var(--red)'" onmouseleave="this.style.borderColor='transparent'">
-            Kairo Software Foundation
-          </a>
+        <p class="footer-byline">
+          Built by the <a href="/ksf">Kairo Software Foundation</a>
         </p>
       </div>
 
-      <!-- Column 2: Language links -->
+      <!-- Column 2: Language -->
       <div>
-        <p style="
-            font-family:'Space Grotesk',sans-serif;
-            font-size:0.7rem;
-            font-weight:700;
-            letter-spacing:0.12em;
-            text-transform:uppercase;
-            color:var(--text-3);
-            margin-bottom:1rem;
-        ">Language</p>
-        <div style="display:flex;flex-direction:column;gap:0.6rem;">
-            {[
-            { href: '/docs', label: 'Documentation' },
-            { href: '/docs/install', label: 'Installation' },
-            { href: '/llms.txt', label: 'LLM Context', dont_show: true },
-            { href: '/llms-full.txt', label: 'LLM Full Docs', dont_show: true },
-            { href: '/blog', label: 'Blog' },
-            { href: 'https://github.com/kairolang/kairo-lang/releases', label: 'Changelog ↗', external: true },
-            ].map(link => (
-            <a
-                href={link.href}
-                target={link.external ? '_blank' : undefined}
-                rel={link.external ? 'noopener noreferrer' : undefined}
-                style={link.dont_show ? `
-                position: absolute;
-                width: 1px;
-                height: 1px;
-                padding: 0;
-                margin: -1px;
-                overflow: hidden;
-                clip: rect(0, 0, 0, 0);
-                white-space: nowrap;
-                border: 0;
-                ` : `
-                font-family:'Inter',sans-serif;
-                font-size:0.875rem;
-                color:var(--text-2);
-                text-decoration:none;
-                transition:color 0.2s;
-                `}
-                onmouseenter={!link.dont_show ? "this.style.color='var(--text)'" : undefined}
-                onmouseleave={!link.dont_show ? "this.style.color='var(--text-2)'" : undefined}
-            >{link.label}</a>
-            ))}
-        </div>
-        </div>
-
-      <!-- Column 3: Community links -->
-      <div>
-        <p style="
-          font-family:'Space Grotesk',sans-serif;
-          font-size:0.7rem;
-          font-weight:700;
-          letter-spacing:0.12em;
-          text-transform:uppercase;
-          color:var(--text-3);
-          margin-bottom:1rem;
-        ">Community</p>
-        <div style="display:flex;flex-direction:column;gap:0.6rem;">
-          {[
-            { href: 'https://github.com/kairolang/kairo-lang', label: 'GitHub ↗', external: true },
-            { href: '/ksf', label: 'KSF' },
-            { href: 'https://discord.gg/kairo', label: 'Discord ↗', external: true },
-            { href: 'https://x.com/kairolang', label: 'Twitter/X ↗', external: true },
-          ].map(link => (
+        <p class="footer-col-title">Language</p>
+        <div class="footer-links">
+          {languageLinks.map(link => (
             <a
               href={link.href}
               target={link.external ? '_blank' : undefined}
               rel={link.external ? 'noopener noreferrer' : undefined}
-              style="
-                font-family:'Inter',sans-serif;
-                font-size:0.875rem;
-                color:var(--text-2);
-                text-decoration:none;
-                transition:color 0.2s;
-              "
-              onmouseenter="this.style.color='var(--text)'"
-              onmouseleave="this.style.color='var(--text-2)'"
-            >{link.label}</a>
+              class={link.hidden ? 'sr-only-link' : 'footer-link'}
+            >
+              {link.label}
+              {link.external && !link.hidden && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg>
+              )}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <!-- Column 3: Community -->
+      <div>
+        <p class="footer-col-title">Community</p>
+        <div class="footer-links">
+          {communityLinks.map(link => (
+            <a
+              href={link.href}
+              target={link.external ? '_blank' : undefined}
+              rel={link.external ? 'noopener noreferrer' : undefined}
+              class="footer-link"
+            >
+              {link.label}
+              {link.external && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg>
+              )}
+            </a>
           ))}
         </div>
       </div>
     </div>
 
     <!-- Bottom bar -->
-    <div style="
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding-top:1.5rem;
-      flex-wrap:wrap;
-      gap:1rem;
-    ">
-      <p style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:0.75rem;
-        color:var(--text-3);
-        letter-spacing:0.02em;
-      ">
-        &copy; {new Date().getFullYear()} Kairo Software Foundation. Open source under the
+    <div class="footer-bottom">
+      <p class="footer-legal">
+        &copy; {year} Kairo Software Foundation. Open source under the
         <a
           href="https://github.com/kairolang/kairo-lang/blob/main/LICENSE"
           target="_blank"
           rel="noopener noreferrer"
-          style="color:var(--text-3);text-decoration:none;border-bottom:1px solid var(--border);"
-          onmouseenter="this.style.color='var(--red)';this.style.borderColor='var(--red)'"
-          onmouseleave="this.style.color='var(--text-3)';this.style.borderColor='var(--border)'"
         >Apache 2.0 License (with Runtime Exception)</a>.
       </p>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red-glow);display:inline-block;"></span>
-        <span style="font-family:'Space Grotesk',sans-serif;font-size:0.7rem;color:var(--text-3);letter-spacing:0.08em;text-transform:uppercase;">v0.1.0-alpha</span>
+      <div class="footer-version">
+        <span class="footer-version-dot"></span>
+        v0.1.0-alpha
       </div>
     </div>
   </div>
 </footer>
 
 <style>
+  .site-footer {
+    border-top: 1px solid var(--border);
+    padding: 4.5rem 0 2rem;
+    margin-top: auto;
+    background: var(--bg);
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 3rem;
+    padding-bottom: 3rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    text-decoration: none;
+    margin-bottom: 1.1rem;
+  }
+  .footer-wordmark {
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .footer-tagline {
+    font-size: 0.875rem;
+    color: var(--text-3);
+    line-height: 1.7;
+    max-width: 300px;
+    margin-bottom: 1rem;
+  }
+
+  .footer-byline {
+    font-size: 0.78rem;
+    color: var(--text-3);
+  }
+  .footer-byline a {
+    color: var(--text-2);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  }
+  .footer-byline a:hover {
+    color: var(--text);
+    border-bottom-color: var(--border-hi);
+  }
+
+  .footer-col-title {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 1.1rem;
+  }
+
+  .footer-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.875rem;
+    color: var(--text-2);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease);
+    width: fit-content;
+  }
+  .footer-link:hover { color: var(--text); }
+  .footer-link svg { color: var(--text-3); }
+
+  .sr-only-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1.75rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .footer-legal {
+    font-size: 0.76rem;
+    color: var(--text-3);
+  }
+  .footer-legal a {
+    color: var(--text-3);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  }
+  .footer-legal a:hover {
+    color: var(--text-2);
+    border-bottom-color: var(--border-hi);
+  }
+
+  .footer-version {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .footer-version-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red-glow);
+  }
+
   @media (max-width: 768px) {
     .footer-grid {
-      grid-template-columns: 1fr !important;
-      gap: 2rem !important;
+      grid-template-columns: 1fr;
+      gap: 2.25rem;
     }
   }
 </style>

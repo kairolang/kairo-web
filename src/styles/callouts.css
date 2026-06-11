@@ -7,7 +7,7 @@
 .callout {
   border: 1px solid var(--border);
   border-left: 3px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--r-md);
   background: var(--bg-2);
   padding: 0;
   margin: 1.5rem 0;
@@ -19,10 +19,10 @@
   align-items: center;
   gap: 8px;
   padding: 0.6rem 1rem;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-sans);
   font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.005em;
   border-bottom: 1px solid var(--border);
 }
 
@@ -50,7 +50,7 @@
 }
 
 .callout-content a {
-  color: var(--red);
+  color: var(--accent);
   text-decoration: none;
 }
 

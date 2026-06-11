@@ -1,48 +1,25 @@
 ---
----
-<section class="capabilities-section" style="border-top:1px solid var(--border);">
-  <!-- Diagonal red accent -->
-  <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:0.4;pointer-events:none;animation:beamMove 6s linear infinite;"></div>
-  <!-- Animated diagonal striping -->
-  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(135deg,rgba(189,9,32,0.02) 0,rgba(189,9,32,0.02) 1px,transparent 0,transparent 50%);background-size:24px 24px;pointer-events:none;"></div>
-
-  <div class="container">
-    <div style="margin-bottom:4rem;" data-reveal>
-      <div class="section-label">How it works</div>
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:var(--text);max-width:500px;">
-        The compiler,<br>
-        <span style="color:var(--text-2);font-weight:400;">in practice.</span>
-      </h2>
-    </div>
-
-    <div class="capabilities-list">
-
-      <!-- Block 1 -->
-      <div class="cap-block" data-reveal>
-        <div class="cap-number">01</div>
-        <div class="cap-content">
-          <h3 class="cap-title">Include a .k file from C++</h3>
-          <p class="cap-desc">Kairo compiles to Clang tokens, not object files. Your C++ build includes Kairo files the same way it includes headers no FFI boundary, no ABI negotiation, templates and inlining work as normal.</p>
-          <pre class="cap-code"><code class="cap-code-inner">// main.cpp
+const blocks = [
+  {
+    number: '01',
+    title: 'Include a .k file from C++',
+    desc: 'Kairo compiles to Clang tokens, not object files. Your C++ build includes Kairo files the same way it includes headers no FFI boundary, no ABI negotiation, templates and inlining work as normal.',
+    filename: 'main.cpp',
+    code: `// main.cpp
 #include "renderer.k"
 
-int main() &#123;
+int main() {
     auto scene = renderer::Scene::new();
     scene.add_mesh(renderer::Mesh::load("model.obj"));
     scene.render();  // Kairo function, called directly
-&#125;</code></pre>
-        </div>
-      </div>
-
-      <div class="cap-divider"></div>
-
-      <!-- Block 2 -->
-      <div class="cap-block" data-reveal>
-        <div class="cap-number">02</div>
-        <div class="cap-content">
-          <h3 class="cap-title">Use any C++ library directly</h3>
-          <p class="cap-desc"><code class="cap-inline">ffi "c++"</code> import gives you the full C++ symbol table classes, templates, operator overloads, everything. No bindings to write, no generated glue code, no runtime overhead.</p>
-          <pre class="cap-code"><code class="cap-code-inner">ffi "c++" import "llvm/IR/Module.h"
+}`,
+  },
+  {
+    number: '02',
+    title: 'Use any C++ library directly',
+    desc: 'ffi "c++" import gives you the full C++ symbol table classes, templates, operator overloads, everything. No bindings to write, no generated glue code, no runtime overhead.',
+    filename: 'codegen.k',
+    code: `ffi "c++" import "llvm/IR/Module.h"
 ffi "c++" import "llvm/IR/IRBuilder.h"
 
 var ctx     = llvm::LLVMContext()
@@ -51,127 +28,141 @@ var builder = llvm::IRBuilder(ctx)
 
 // Full C++ API, no wrappers
 var fn_type = llvm::FunctionType::get(builder.getInt32Ty(), false)
-var fn      = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, "main", mod)</code></pre>
-        </div>
-      </div>
-
-      <div class="cap-divider"></div>
-
-      <!-- Block 3 -->
-      <div class="cap-block" data-reveal>
-        <div class="cap-number">03</div>
-        <div class="cap-content">
-          <h3 class="cap-title">Safety without rewriting</h3>
-          <p class="cap-desc">The BCIR borrow checker analyzes ownership across your Kairo and C++ code together. Invalid borrows lower to smart pointers automatically the code still compiles, you get a report of what was fixed.</p>
-          <pre class="cap-code"><code class="cap-code-inner">fn process(data: *u8, len: usize) &#123;
+var fn      = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, "main", mod)`,
+  },
+  {
+    number: '03',
+    title: 'Safety without rewriting',
+    desc: 'The BCIR borrow checker analyzes ownership across your Kairo and C++ code together. Invalid borrows lower to smart pointers automatically the code still compiles, you get a report of what was fixed.',
+    filename: 'process.k',
+    code: `fn process(data: *u8, len: usize) {
     var ptr = data
     std::Memory::free(data)
     ptr[0] = 1  // note[BCIR]: use after free
-                // lowered to UniquePtr&lt;u8&gt; automatically
+                // lowered to UniquePtr<u8> automatically
                 // recompile with --bcir-report for full ownership graph
-&#125;</code></pre>
-        </div>
-      </div>
+}`,
+  },
+];
+---
 
+<section class="cap-section">
+  <div class="container">
+    <div class="cap-head" data-reveal>
+      <div class="section-label">How it works</div>
+      <h2 class="display cap-h2">
+        The compiler,
+        <span class="dim">in practice.</span>
+      </h2>
+    </div>
+
+    <div class="cap-list">
+      {blocks.map((block, i) => (
+        <div class={`cap-block ${i % 2 === 1 ? 'cap-flip' : ''}`} data-reveal>
+          <div class="cap-text">
+            <span class="cap-number">{block.number}</span>
+            <h3 class="cap-title">{block.title}</h3>
+            <p class="cap-desc">{block.desc}</p>
+          </div>
+          <div class="code-window cap-window">
+            <div class="code-window-bar">
+              <div class="window-dots"><span></span><span></span><span></span></div>
+              <span class="code-window-title">{block.filename}</span>
+            </div>
+            <pre class="cap-code"><code>{block.code}</code></pre>
+          </div>
+        </div>
+      ))}
     </div>
   </div>
 </section>
 
 <style>
-  .capabilities-section {
-    padding: 7rem 0;
-    background: var(--bg);
+  .cap-section {
+    padding: clamp(5rem, 12vh, 9rem) 0;
+    border-top: 1px solid var(--border);
     position: relative;
-    overflow: hidden;
   }
 
-  .capabilities-list {
+  .cap-head {
+    margin-bottom: clamp(3rem, 7vh, 5rem);
+  }
+  .cap-h2 {
+    font-size: clamp(1.9rem, 4vw, 3rem);
+    max-width: 540px;
+  }
+  .cap-h2 .dim { display: block; font-weight: 500; }
+
+  .cap-list {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: clamp(3.5rem, 8vh, 6rem);
   }
 
   .cap-block {
     display: grid;
-    grid-template-columns: 3rem 1fr;
-    gap: 2.5rem;
-    padding: 3rem 0;
-    align-items: start;
+    grid-template-columns: 1fr 1.4fr;
+    gap: clamp(2rem, 5vw, 4.5rem);
+    align-items: center;
   }
+  .cap-block.cap-flip .cap-text { order: 2; }
+  .cap-block.cap-flip .cap-window { order: 1; }
 
-  @media (max-width: 640px) {
-    .cap-block {
-      grid-template-columns: 1fr;
-      gap: 1.25rem;
-      padding: 2rem 0;
-    }
+  .cap-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
   }
 
   .cap-number {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.65rem;
-    letter-spacing: 0.12em;
-    color: var(--red);
-    padding-top: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--accent);
     user-select: none;
   }
 
-  .cap-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
   .cap-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.15rem;
+    font-size: clamp(1.25rem, 2.2vw, 1.6rem);
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     color: var(--text);
     margin: 0;
+    line-height: 1.2;
   }
 
   .cap-desc {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: var(--text-2);
     line-height: 1.7;
-    max-width: 660px;
     margin: 0;
+    max-width: 420px;
   }
 
-  .cap-inline {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85em;
-    color: var(--text);
-    background: var(--bg-3);
-    border: 1px solid var(--border);
-    padding: 1px 5px;
-    border-radius: 2px;
-  }
+  .cap-window { min-width: 0; }
 
   .cap-code {
     margin: 0;
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-left: 2px solid rgba(189,9,32,0.35);
-    border-radius: 2px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .cap-code-inner {
-    display: block;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.8rem;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    font-size: 0.82rem;
     line-height: 1.75;
     color: var(--text-2);
-    padding: 1.1rem 1.4rem;
+    padding: 1.3rem 1.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     white-space: pre;
   }
 
-  .cap-divider {
-    height: 1px;
-    background: var(--border);
+  @media (max-width: 820px) {
+    .cap-block {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .cap-block.cap-flip .cap-text { order: 1; }
+    .cap-block.cap-flip .cap-window { order: 2; }
   }
 </style>
