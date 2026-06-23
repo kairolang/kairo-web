@@ -272,16 +272,14 @@ If a C++ header defines names in the `std` namespace, those names collide with K
 module. The C++ standard library is accessible through the `libcxx` module:
 
 ```kairo
-import std                          // Kairo standard library
-import libcxx::vector               // C++ std::vector
-import libcxx::iostream::{cout, endl}
+import std                            // Kairo standard library
+import libcxx::vector                 // C++ std::vector
+import libcxx::iostream::{cout, endl} // kairo module based wrappers arround C++ std
+ffi "c++" import "iostream" // gets impoted into the libcxx namespace instead of std::
 
 std::println("Kairo's println")
 cout << "C++ cout" << endl
 ```
-
-Inside `inline "c++"` blocks, `std::` resolves to Kairo's standard library (the block emits inside
-`namespace kairo`). Use `libcxx::` imports for C++ standard library types.
 
 See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
 

@@ -175,20 +175,19 @@ var result = b & mask   // ok: bitwise AND
 |---|---|---|---|
 | `string` | 32 bytes | UTF-8 | `std::string` |
 
-Strings are UTF-8 encoded byte sequences. The `string` type uses small string optimization (SSO) strings up
-to 23 bytes are stored inline without a heap allocation. Longer strings are heap-allocated.
+Strings are UTF-8 encoded byte sequences. The `string` type uses small string optimization (SSO); short strings are stored inline without a heap allocation (exact threshold subject to change until the standard library is finalized). Longer strings are heap-allocated.
 
 ```kairo
 var greeting = "Hello, Kairo! 📣"   // 18 UTF-8 bytes fits in SSO
-var name = "Dhruvan"                 // 7 bytes SSO
+var name     = "Name"               // 7 bytes SSO
 ```
 
-Because UTF-8 is a variable-width encoding, indexing by codepoint (`s[i]`) is O(1) amortized (since it looks up the nearest codepoint boundary and decodes from there), while indexing by byte (`s.bytes[i]`) is O(1) always, but returns raw bytes, not characters.
+Because UTF-8 is a variable-width encoding, indexing by codepoint (`s[i]`) complexity depends on how the string was constructed. For string literals, the compiler pre-populates a breadcrumb cache at codegen time mapping codepoint positions to byte offsets, making indexing O(1) with zero runtime cost. For strings constructed at runtime from a raw pointer, no cache is available and indexing is O(n). Indexing by byte (`s.bytes[i]`) is always O(1) but returns raw `u8` bytes, not characters.
 
 ```kairo
 var s = "Hello 📣"
 s.bytes[0]    // byte: 0x48 ('H') O(1)
-s[6]          // char: '📣' codepoint indexing, O(1) **amortized**
+s[6]          // char: '📣' codepoint indexing, O(1) for literals (compiler cache), O(n) for runtime-constructed strings
 
 for ch in s {
     // ch is char decoded codepoint, yielded sequentially
@@ -338,7 +337,7 @@ var g = 3.14f32         // f32
 // Bool, char, string
 var h = true            // bool
 var i = '📣'            // char (4 bytes, Unicode scalar)
-var j = "Hello, Kairo!" // string (UTF-8, SSO up to 23 bytes)
+var j = "Hello, Kairo!" // string (UTF-8, SSO threshold TBD)
 
 // Byte
 var k: byte = 0xFF      // raw byte, no arithmetic

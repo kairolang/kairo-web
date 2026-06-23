@@ -82,20 +82,6 @@ fn <T impl Addable> add(a: T, b: T) -> T {
 
 Try doing this with `bindgen`. You can't, you'd need to manually instantiate every template specialization and generate separate bindings for each one.
 
-### Inline C++ for the edge cases
-
-When you need a few lines of C++ without a separate header:
-
-```kairo
-import libcxx::iostream::{cout, endl};
-
-fn main() {
-    inline "c++" {
-        cout << "Hello from C++!" << endl;
-    }
-}
-```
-
 ## Pointer Safety Across the Boundary
 
 Kairo doesn't pretend the interop boundary is safe. Any pointer or reference passed to C/C++ requires an explicit `unsafe` block, because the compiler can't enforce safety guarantees on the C++ side:

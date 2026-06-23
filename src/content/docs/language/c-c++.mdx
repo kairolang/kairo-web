@@ -37,7 +37,7 @@ The table below summarizes which C and C++ features Kairo can consume and expose
 | Exceptions | C++ -> Kairo | Kairo -> C++ is on the roadmap |
 | Macros | C++ -> Kairo | Preprocessor macros are expanded before Kairo sees them |
 | Preprocessor Directives | C++ -> Kairo | |
-| Inline Assembly | Kairo -> C++ | Via `inline "c++"` blocks |
+| Inline Assembly | Kairo -> C++ | Via `inline "asm"` blocks |
 | Coroutines | Bidirectional | |
 | Named Modules (`import std;`) | Not yet | See [Modules note](#a-note-on-c-modules) |
 
@@ -196,30 +196,46 @@ on the target.
 
 ---
 
-## Inline C++
+## Inline ASM
 
-For small amounts of C++ that don't warrant a separate header, use `inline "c++"` blocks directly in Kairo
-source.
+For cases where you need to embed hardware-specific instructions, use `inline "asm"` blocks. Kairo uses the extended assembly syntax (outputs, inputs, and clobbers) to allow safe interaction between assembly and Kairo variables.
 
 ```kairo
-import libcxx::iostream::{cout, endl};
+fn get_timestamp() -> u64 {
+    var low: u32
+    var high: u32
 
-fn main() {
-    inline "c++" {
-        // std:: here refers to Kairo's standard library, not libstdc++
-        std::println("Hello from inline C++!");
+    // The syntax follows: "instruction" : outputs : inputs : clobbers
+    unsafe {
+        inline "asm" {
+            "rdtsc"
+            : "=a"(low), "=d"(high)
+            :
+            :
+        }
 
-        // C++ standard library types use the libcxx:: prefix
-        cout << "Hello from libcxx!" << endl;
+    return (high as u64 << 32) | (low as u64)
+}
+
+fn syscall_example(fd: i32, buf: *u8, len: usize) -> isize {
+    var ret: isize
+    unsafe {
+        inline "asm" volatile {
+            "syscall"
+            : "=a"(ret)
+            : "a"(1), "D"(fd), "S"(buf), "d"(len)
+            : "rcx", "r11", "memory"
+        }
     }
+    return ret
 }
 ```
 
-> [!WARNING]
-> Inside `inline "c++"` blocks, `std::` resolves to the **Kairo** standard library
-> (the block emits inside `namespace kairo`). Access the C++ standard library through the `libcxx` module,
-> importing the specific header you need (e.g., `import libcxx::vector;`). See [Modules](/docs/modules) for
-> more on imports.
+### Constraints and Safety
+
+- **Volatile**: Use `inline "asm" volatile` if the assembly has side effects that the optimizer might otherwise remove (like a syscall or hardware port I/O).
+- **Clobbers**: Always list registers modified by the assembly (like `memory` or specific registers) to prevent the AMT analysis and LLVM from making incorrect assumptions about the state of the machine.
+- **Unsafe**: Assembly code is inherently unsafe and should be wrapped in an `unsafe` block to indicate that the programmer is responsible for ensuring the correctness of the assembly.
 
 ---
 
