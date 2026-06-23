@@ -14,7 +14,7 @@ const examples = [
     id: 'syntax',
     label: 'Printing to the console',
     filename: 'hello.k',
-    code: `import std  // import only what you need, nothing more
+    code: `import std  // import only what you need
 
 // No main() required top-level code runs immediately
 // or is callable when imported as a module.
@@ -26,9 +26,9 @@ for i in 0..5 {
     count++
 }
 
-std::print(f"Ran {count} times.")`,
+std::println(f"Ran {count} times.")`,
     blurb: {
-      heading: 'Readable from day one',
+      heading: 'Simple, clean syntax',
       points: [
         { label: 'Type inference', body: 'Write `var count = 0` the compiler knows it\'s an integer. Annotate when you want to, not because you have to.' },
         { label: 'String interpolation', body: '`f""` strings let you embed expressions directly. No concatenation, no format specifiers.' },
@@ -42,8 +42,9 @@ std::print(f"Ran {count} times.")`,
     filename: 'ffi.k',
     code: ` // Call C++ code directly from Kairo with perfect ABI compatibility.
  // my_cpp_lib.hpp contains:
+ //
+ // int add(int a, int b) { return a + b; }
  // namespace my_cpp_lib {
- //     int add(int a, int b) { return a + b; }
  //     std::string greet(std::string name) { return "Hello, " + name + "!"; }
  // }
  //
@@ -53,13 +54,13 @@ std::print(f"Ran {count} times.")`,
  ffi "c++" import "my_cpp_lib.hpp"  // import a C++ header directly as a module.
                                     // no wrapper generation, no binding step.
 
- const sum      = my_cpp_lib::add(3, 4)  // direct call, zero overhead.
+ const sum      = add(3, 4)  // direct call, zero overhead.
  var   greeting = my_cpp_lib::greet("Kairo")
 
  greeting += " Welcome to seamless interop!"  // C++ std::string, manipulated
                                               // directly in Kairo, no conversion.
 
- std::print(greeting)  // Hello, Kairo! Welcome to seamless interop!`,
+ std::println(greeting)  // Hello, Kairo! Welcome to seamless interop!`,
     blurb: {
       heading: 'Drop in, not rewrite',
       points: [
@@ -99,7 +100,7 @@ int main() {
     return 0;
 }`,
     blurb: {
-      heading: 'Adopt Kairo without touching your C++ codebase',
+      heading: 'Adopt Kairo incrementally',
       points: [
         { label: 'Include like any header', body: 'With `kairo -cc`, your Kairo module is includable directly from C++. No build system changes, no extra steps.' },
         { label: 'Full ABI compatibility', body: 'Kairo functions are callable from C++ with perfect type fidelity. The module is exposed under its filename as a C++ namespace, no surprises.' },
@@ -114,38 +115,44 @@ int main() {
     code: ` import std
 
  struct Buffer {
-     const size:  usize
-     var   data: *u8  // safe pointer, bounds checked automatically
-                      // unless you explicitly opt out.
+     const size: usize
+     var   data: *byte  // safe pointer to a heap allocation
 
      fn op new (self, size: usize) {
          self.data = std::Memory::alloc(size)
-         self.size = size  // only the constructor can set size.
+         self.size = size // only the constructor can set size.
      }
 
-     fn op delete (self) { // required since we own an allocation.
+     fn op delete (self) {
          std::Memory::free(self.data)
+         // compiler hard errors, if we do not free the memory.
+         // Even though the compiler proves and has enough information
+         // to add the free automatically, it does not, for explicitness
+         // and code clarity.
+     }
+
+     fn op [](self, i: usize) panic -> *u8 {
+         if i >= self.size {
+             var x = 0
+             return &x // since this is a stack pointer, in debug builds,
+                       // AMT changes the decl of x to a unique or shared
+                       // pointer, so theres no undefined behavior.
+                       // In release builds, hard error with a fix:
+                       // var *x = std::Unique<u8>(0)
+         }
+         return self.data + i
      }
  }
 
  var buf = Buffer(1024)  // 1KB on the heap.
                          // destructor runs automatically when buf goes out of scope.
-
- buf.data[0] = 42  // bounds checked; panics at runtime if out of range.
-                   // we can also set up the compiler to make out-of-bounds
-                   // do a no-op or return a default value instead of panicking.
-
- try {
-     buf.data[buf.size] = 99  // out of bounds
- } catch std::Error::OutOfBounds {
-     std::print("Caught out of bounds access!")
- }`,
+ buf[0] = 42
+ `,
     blurb: {
       heading: 'Control without the footguns',
       points: [
         { label: 'Manual allocation', body: 'You decide what goes on the heap. No GC, no hidden allocations, no surprises at runtime.' },
         { label: 'Automatic cleanup', body: 'Kairo tracks ownership and places the destructor exactly where `buf` goes out of scope, or earlier if the function returns or panics. No leaks, no double frees, no annotations required.' },
-        { label: 'Bounds checking by default', body: 'Pointer accesses are checked at runtime under default settings. Out-of-range writes panic with a catchable error instead of silently corrupting memory.' },
         { label: 'Opt out when you need to', body: 'Safety features can be disabled per-module or per-type. When you need raw performance or bare-metal access, you\'re not fighting the language to get it.' },
       ],
     },
@@ -159,9 +166,9 @@ import json // imagine this is a complex JSON library
 
 @json::Serializable
 struct Config {
-    host:    string,
-    port:    u16,
-    workers: u32 = 4,
+    var host:    string;
+    var port:    u16;
+    var workers: u32 = 4;
 }
 
 fn <T impl json::Serializable> json_parse(raw: string) panic -> T;
@@ -177,11 +184,11 @@ fn parse_config(path: string) panic -> Config {
     raw = read_file(path)
     return json_parse(raw)
 
-    catch Fs::Error::NotFound {
-        std::print(f"Config file not found: {path}")
+    catch _: Fs::Error::NotFound {
+        std::println(f"Config file not found: {path}")
         return Config { host: "localhost", port: 8080 }  // recover with a default.
-    } catch Json::Error::Parse as e {
-        std::print(f"Failed to parse config with error: {e}")
+    } catch e: Json::Error::Parse {
+        std::println(f"Failed to parse config with error: {e}")
         return Config { host: "localhost", port: 8080 }  // recover with a default.
     } catch e { // We don't care about Fs::Error::PermissionDenied thats the
                 // caller\'s problem, if we don't catch all possible panics,
@@ -195,10 +202,10 @@ fn start_server(path: string) -> Config {
         const config = parse_config(path)
         // parse_config is marked \`panic\`, so we must catch its errors that
         // can reach this scope (in this case, Fs::Error::PermissionDenied).
-        std::print(f"Starting {config.host}:{config.port} {config.workers}workers...")
+        std::println(f"Starting {config.host}:{config.port} {config.workers}workers...")
         return config
-    } catch Fs::Error::PermissionDenied {
-        std::print(f"Permission denied when reading config file: {path}")
+    } catch _: Fs::Error::PermissionDenied {
+        std::println(f"Permission denied when reading config file: {path}")
         return Config { host: "localhost", port: 8080 }  // recover with a default.
     } // every reachable panic is handled, no panic is needed in this function.
 }     // callers of start_server need no error handling at all.`,

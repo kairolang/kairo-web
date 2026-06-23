@@ -201,7 +201,7 @@ caller with the `unsafe` keyword and do not participate in `where`-based dispatc
 ```kairo
 // Safe dispatch: where selects between these
 fn access(data: [i32], index: i32) -> i32
-  where index >= 0 && index < data.len() {
+  where index >= 0 && index < data.length() {
     return data[index]
 }
 
@@ -236,7 +236,7 @@ class <T> Buffer
 // compile error: where on an interface method interfaces are zero-cost, use requires
 interface Validator {
     fn validate(self, input: string) -> bool
-      where input.len() > 0
+      where input.length() > 0
 }
 ```
 
@@ -259,7 +259,7 @@ fn classify(temp: f64) -> string                     { return "frozen" }
 
 // Where with panic
 fn parse_positive(input: string) panic -> i32
-  where input.len() > 0 {
+  where input.length() > 0 {
     var n = std::parse<i32>(input)
     if n <= 0 { panic std::Error::Runtime("not positive") }
     return n

@@ -22,7 +22,7 @@ Add `panic` after the parameter list to indicate a function may produce an error
 
 ```kairo
 fn parse_port(input: string) panic -> i32 {
-    if input.len() == 0 {
+    if input.length() == 0 {
         panic std::Error::Runtime("empty input")
     }
 
@@ -150,7 +150,7 @@ fn process(path: string) panic -> Data {
 
     var content = read_file(path)
 
-    if content.len() == 0 {
+    if content.length() == 0 {
         panic std::Error::Runtime("empty file")
     }
 
@@ -307,7 +307,7 @@ class ParseError {
 }
 
 fn parse(input: string) panic -> Ast {
-    if input.len() == 0 {
+    if input.length() == 0 {
         panic ParseError("unexpected end of input", 0)
     }
     // ...

@@ -110,14 +110,14 @@ pub class ParseError {
 pub fn parse_request(raw: string) panic -> Request {
     var lines = raw.split("\r\n")
 
-    if lines.len() == 0 {
+    if lines.length() == 0 {
         panic ParseError("empty request", 0)
     }
 
     // Parse request line: "GET /path HTTP/1.1"
     var parts = lines[0].split(" ")
 
-    if parts.len() < 3 {
+    if parts.length() < 3 {
         panic ParseError("malformed request line", 0)
     }
 
@@ -128,7 +128,7 @@ pub fn parse_request(raw: string) panic -> Request {
 
     // Parse headers
     var i = 1
-    while i < lines.len() && lines[i].len() > 0 {
+    while i < lines.length() && lines[i].length() > 0 {
         var colon = lines[i].index_of(":")
         if colon < 0 {
             panic ParseError("malformed header", i)
@@ -143,7 +143,7 @@ pub fn parse_request(raw: string) panic -> Request {
     }
 
     // Remaining lines are the body
-    if i + 1 < lines.len() {
+    if i + 1 < lines.length() {
         req.body = lines[i + 1]
     }
 
@@ -230,7 +230,7 @@ pub class Response {
             line = line + f"{name}: {value}\r\n"
         }
 
-        line = line + f"Content-Length: {self.body.len()}\r\n"
+        line = line + f"Content-Length: {self.body.length()}\r\n"
         line = line + "\r\n"
         line = line + self.body
 

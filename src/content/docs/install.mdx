@@ -15,7 +15,7 @@ Kairo ships as two compilers:
 - **Stage 0** the current compiler, written in C++. It transpiles Kairo to C++ and does **not**
   require LLVM. This is what almost everyone wants.
 - **Stage 1** the self-hosted compiler, written in Kairo (work in progress). Building it requires
-  a working Stage 0 compiler **and** the LLVM submodule.
+  a working Stage 0 compiler **and** the patched LLVM submodule.
 
 Unless you are developing Kairo itself, install Stage 0 and stop there.
 
@@ -70,7 +70,7 @@ Stage 0 requires:
 - **xmake** the build system
 - **git**
 
-Stage 1 additionally requires the LLVM submodule (see [below](#stage-1-optional)). The VSCode
+Stage 1 additionally requires the patched LLVM submodule (see [below](#stage-1-self-hosted-in-development)). The VSCode
 extension additionally requires **Node.js** and **npm**.
 
 ### 1. Install dependencies
@@ -88,8 +88,10 @@ sudo pacman -S git clang libc++ libc++abi lld cmake ninja xmake
 
 #### Linux Ubuntu / Debian
 
-The distro Clang is often older than 18 or defaults to libstdc++, so install from LLVM's apt repo
-(18 is the minimum; newer is fine):
+Clang 18 is the minimum; newer is fine. Run `clang++ --version` if it reports 18 or higher,
+skip the apt.llvm.org step below and just ensure `libc++` and `libc++abi` are installed.
+Otherwise, install Clang 18 from LLVM's apt repo (the distro Clang is often older than 18 or
+defaults to libstdc++):
 
 ```bash
 wget https://apt.llvm.org/llvm.sh
@@ -104,7 +106,7 @@ sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 
 #### Linux Fedora / RHEL
 
 Ensure `clang --version` reports 18+. Older RHEL ships an older toolchain you may need a newer
-LLVM module to meet the minimum.
+LLVM module (`sudo dnf module install llvm-toolset:latest`) to meet the minimum.
 
 ```bash
 sudo dnf install -y clang libcxx-devel libcxxabi-devel git cmake ninja-build
@@ -118,18 +120,14 @@ curl -fsSL https://xmake.io/shget.text | bash
 
 #### macOS
 
-Install the LLVM toolchain and xmake with Homebrew, then put Homebrew's Clang on your `PATH`:
+Install the LLVM toolchain and xmake with Homebrew, then put Homebrew's Clang on your `PATH`.
+Apple's bundled Clang works too, but Homebrew LLVM is recommended for libc++ feature support:
 
 ```bash
 brew install llvm xmake
 echo 'export PATH="'"$(brew --prefix llvm)"'/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
 ```
-
-> [!NOTE]
-> Apple's bundled Clang reports its own version numbers that do not map to upstream LLVM
-> releases, and may not satisfy the Clang 18+ / C++23 / libc++ requirements. Use the Homebrew
-> LLVM toolchain.
 
 #### Windows
 
@@ -212,16 +210,23 @@ kairo test.k
 
 ---
 
-## Stage 1 (optional)
+## Stage 1 (self-hosted, in development)
 
-Stage 1 is the self-hosted compiler, still in development. It requires a working Stage 0 build
-(above) plus the LLVM submodule.
+Stage 1 is the self-hosted compiler, written in Kairo. Building it is optional only do this if
+you're developing Kairo itself. It requires a working Stage 0 build (above) plus the patched LLVM
+submodule. LLVM is a hard requirement for Stage 1; there is no LLVM-free path.
+
+Kairo carries a **minor fork of LLVM** vendored as a submodule. Use it as-is do not substitute a
+system or upstream LLVM, the patches are required.
 
 ```bash
 git checkout canary
-git submodule update --init --recursive   # pulls LLVM this time large download
+git submodule update --init --recursive   # pulls the patched LLVM large download
 kbld                                       # must be on PATH, or use ./build/release/<platform>/bin/kbld
 ```
+
+The first `kbld` builds the patched LLVM before building Stage 1. This is a long, one-time compile
+it has not hung. Subsequent builds reuse it.
 
 You can run test files whose entry point is `fn Test() -> i32 { ... }`:
 
@@ -231,7 +236,7 @@ kbld test Compiler/Lexer/Lexer.k
 
 > [!WARNING]
 > Re-run `git submodule update --init --recursive` after switching to `canary`. That branch
-> adds the LLVM submodule, which the Stage 0 clone deliberately skips to stay small.
+> adds the patched LLVM submodule, which the Stage 0 clone deliberately skips to stay small.
 
 ---
 
@@ -248,7 +253,7 @@ Pick whichever is easiest:
 - **Marketplace** install from the
   [Kairo extension page](https://marketplace.visualstudio.com/items?itemName=KSF.kairo).
 - **Prebuilt VSIX** download the latest `.vsix` from
-  [kairo-lsp](https://github.com/kairolang/kairo-lsp/), then in VSCode:
+  [kairo-lsp](https://github.com/kairolang/kairo-lsp/) (e.g. `kairo-0.5.5.vsix`), then in VSCode:
   **Extensions** -> **⋯** -> **Install from VSIX…**
 - **Build from source:**
 
@@ -279,3 +284,20 @@ Both work with `fn main()` or `fn Test()` entry points.
 > With `fn Test()`, VSCode redirects to a temporary file during debugging. Breakpoints work, but
 > **edits are not saved back to your original file** re-running the debugger resets everything.
 > Use `fn main()` for active development.
+
+---
+
+## Troubleshooting
+
+**macOS: "cannot verify this app is free of malware" when running a downloaded release binary.**
+Release binaries are not yet notarized. Clear the quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine ./kairo
+```
+
+This does not affect source builds only binaries downloaded from the release page.
+
+**Build fails with `libstdc++` / `use of undeclared identifier 'requires'` / constexpr errors.**
+Your Clang is defaulting to libstdc++ or an older C++ standard. Confirm `clang++ --version`
+reports 18+ and that libc++ is installed. Kairo requires Clang with libc++ and C++23.

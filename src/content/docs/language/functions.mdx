@@ -254,14 +254,16 @@ var y = unsafe add(10, 20)   // calls the unsafe overload
 
 ### `const` overloading restriction
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist. They live in the same
-scope use distinct names like `get()` and `get_mut()` instead:
+`const` and non-`const` methods with the same name and parameter types cannot coexist — use distinct names like `get()` and `get_mut()`. This restriction applies to named methods only. **Operators are exempt**, because they cannot be renamed: a place-returning operator may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#subscript).
 
 ```kairo
 class Foo {
     fn bar(const self) -> i32 { return 42 }
     fn bar(self) -> i32 { return 24 }               // compile error: cannot overload const
     fn bar(const self, a: i32) -> i32 { return a }  // ok: different parameter list ok
+
+    fn op [](const self, index: i32) -> i32 { return 42 }   // ok: operator overload
+    fn op [](self, index: i32) -> i32 { return 24 }         // ok: const-ness dispatch
 }
 ```
 

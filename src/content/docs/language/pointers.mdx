@@ -126,7 +126,7 @@ var ptr: *const i32 = &x
 *ptr = 10    // compile error
 ptr = &y     // ok
 
-const ptr: *const i32 = &x
+const ptr: *const i32 = &x // also remember this is semantically identical to `var ptr: const *const i32 = &x`, but the parser would error on this since this goes against readability and is not idiomatic Kairo.
 // both const
 *ptr = 10    // compile error
 ptr = &y     // compile error

@@ -50,7 +50,7 @@ Multiple conditions are combined with boolean operators in a single expression:
 
 ```kairo
 fn safe_index(arr: [i32], i: i32) -> i32
-  requires i >= 0 && i < arr.len() {
+  requires i >= 0 && i < arr.length() {
     return arr[i]
 }
 ```
@@ -209,7 +209,7 @@ processing:
 
 ```kairo
 fn parse_port(input: string) panic -> i32
-  requires input.len() > 0 {
+  requires input.length() > 0 {
     var port = std::parse<i32>(input)
     if port < 0 || port > 65535 {
         panic std::Error::Runtime("port out of range")
@@ -248,7 +248,7 @@ class <T> InlineBuffer
 // Requires on an interface method
 interface Validator {
     fn validate(self, input: string) -> bool
-      requires input.len() > 0
+      requires input.length() > 0
 }
 
 // Requires with eval function

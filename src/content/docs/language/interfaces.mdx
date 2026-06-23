@@ -51,7 +51,7 @@ class Document impl Serializable {
     }
 
     fn byte_size(self) const -> i32 {
-        return self.content.len()
+        return self.content.length()
     }
 }
 ```
@@ -128,7 +128,7 @@ class IntBuffer impl Container<i32> {
     }
 
     fn size(self) const -> i32 {
-        return self.data.len()
+        return self.data.length()
     }
 }
 ```

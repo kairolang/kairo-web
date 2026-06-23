@@ -274,7 +274,7 @@ fn write_register(addr: usize, value: u32) {
 
 ```kairo
 fn bounds_check(arr: [i32], index: i32) -> i32 {
-    assert index >= 0 && index < arr.len(), "out of bounds"
+    assert index >= 0 && index < arr.length(), "out of bounds"
     return arr[index]
 }
 

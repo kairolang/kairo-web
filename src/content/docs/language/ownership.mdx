@@ -45,7 +45,7 @@ class Buffer {
 var a = Buffer()
 var b = a          // copy: a and b are independent
 b.data.push(42)
-a.data.len()       // 0 a is unaffected
+a.data.length()       // 0 a is unaffected
 ```
 
 AMT may **elide a copy into a move** when it proves the source is not used after the transfer and
@@ -140,7 +140,7 @@ fn inspect(buf: Buffer) {
 
 var b = Buffer()
 inspect(b)
-b.data.len()   // ok: b is still live, inspect got a copy
+b.data.length()   // ok: b is still live, inspect got a copy
 ```
 
 ### Last-use move optimization
@@ -332,7 +332,7 @@ var closure = fn ()|=| {
     file.close()         // operates on the moved-in file
 }
 
-buf.data.len()           // ok: buf was copied, original is still live
+buf.data.length()           // ok: buf was copied, original is still live
 file.handle              // compile error: file was moved into the closure
 ```
 

@@ -6,10 +6,10 @@ let forks = 12;
 
 try {
   const [repoRes, contribRes] = await Promise.all([
-    fetch('https://api.github.com/repos/kairolang/kairo-lang', {
+    fetch('https://api.github.com/repos/kairolang/kairo', {
       headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'kairo-web' },
     }),
-    fetch('https://api.github.com/repos/kairolang/kairo-lang/contributors?per_page=100', {
+    fetch('https://api.github.com/repos/kairolang/kairo/contributors?per_page=100', {
       headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'kairo-web' },
     }),
   ]);
