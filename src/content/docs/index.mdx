@@ -78,7 +78,7 @@ enum <T> ParseResult {
 fn try_parse_point(input: string) -> ParseResult<Point> {
     var parts = input.split(",")
 
-    if parts.len() != 2 {
+    if parts.length() != 2 {
         return ParseResult::Error { message: f"expected 'x,y', got '{input}'" }
     }
 
@@ -91,7 +91,7 @@ fn try_parse_point(input: string) -> ParseResult<Point> {
 fn load_config(path: string) panic -> Point {
     var content = std::read_file(path)
 
-    if content.len() == 0 {
+    if content.length() == 0 {
         panic std::Error::IO("config file is empty")
     }
 
@@ -130,8 +130,6 @@ that transpiles Kairo to C++. Stage 1 (self-hosted compiler written in Kairo) is
 
 Language syntax and standard library APIs may change before 1.0. The documentation on this site
 reflects the current language design.
-
-Built by the [Kairo Software Foundation](/ksf).
 
 ---
 

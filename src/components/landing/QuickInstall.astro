@@ -6,7 +6,7 @@ const platforms = [
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
     commands: [
       { label: 'Quick install', cmd: 'curl -fsSL https://kairolang.org/install.sh | bash' },
-      { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo-lang.git && cd kairo-lang && xmake build -j8' },
+      { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo.git && cd kairo-lang && xmake build -j8' },
     ],
   },
   {
@@ -15,7 +15,7 @@ const platforms = [
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>`,
     commands: [
       { label: 'PowerShell', cmd: 'irm https://kairolang.org/install.ps1 | iex' },
-      { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo-lang.git\ncd kairo-lang && xmake build -j8' },
+      { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo.git\ncd kairo-lang && xmake build -j8' },
     ],
   },
   {
@@ -23,7 +23,7 @@ const platforms = [
     label: 'From Source',
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
     commands: [
-      { label: 'Clone', cmd: 'git clone https://github.com/kairolang/kairo-lang.git' },
+      { label: 'Clone', cmd: 'git clone https://github.com/kairolang/kairo.git' },
       { label: 'Build', cmd: 'cd kairo-lang && xmake build -j8 -v' },
       { label: 'Test', cmd: 'xmake run tests' },
     ],
@@ -39,12 +39,12 @@ const platforms = [
       <div class="install-copy" data-reveal>
         <div class="section-label">Install</div>
         <h2 class="display install-title">
-          Get Kairo<br>in seconds.
+          Install Kairo
         </h2>
-        <p class="install-sub">
+        <!-- <p class="install-sub">
           One command gets you the compiler, formatter, LSP, and package manager.
           No separate installs, no configuration.
-        </p>
+        </p> -->
         <div class="install-alpha">
           <span class="install-alpha-tag">Alpha</span>
           <span class="install-alpha-text">Written in C++, being rewritten in Kairo. APIs may change.</span>
@@ -58,8 +58,7 @@ const platforms = [
       </div>
 
       <!-- Right: Terminal -->
-      <div class="install-panel-col" data-reveal data-reveal-delay="120">
-        <!-- Platform segmented control -->
+      <!-- <div class="install-panel-col" data-reveal data-reveal-delay="120">
         <div class="segmented install-segmented" id="install-tabs" role="tablist" aria-label="Platform">
           <div class="segmented-thumb" id="install-tabs-thumb"></div>
           {platforms.map((p, i) => (
@@ -73,9 +72,9 @@ const platforms = [
               {p.label}
             </button>
           ))}
-        </div>
+        </div> -->
 
-        {platforms.map((p, i) => (
+        <!-- {platforms.map((p, i) => (
           <div data-panel={p.id} class={`install-panel ${i === 0 ? 'is-active' : ''}`} style={i !== 0 ? 'display:none;' : ''}>
             {p.commands.map(cmd => (
               <div class="code-window cmd-block">
@@ -93,7 +92,7 @@ const platforms = [
               </div>
             ))}
           </div>
-        ))}
+        ))} -->
       </div>
     </div>
   </div>

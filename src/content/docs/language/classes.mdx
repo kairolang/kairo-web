@@ -658,7 +658,7 @@ class <T> Stack {
     }
 
     fn pop(self) panic -> T {
-        if self.items.len() == 0 {
+        if self.items.length() == 0 {
             panic std::Error::Runtime("stack underflow")
         }
         return self.items.pop()
@@ -773,8 +773,7 @@ sensor->value()        // ok: const method
 // sensor->calibrate(1.0)  // compile error: not const
 ```
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist use distinct
-names like `get()` and `get_mut()`. See [Variables](/docs/language/variables#the-const-binding-rule).
+`const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables#the-const-binding-rule).
 
 ### `mutable` members
 
