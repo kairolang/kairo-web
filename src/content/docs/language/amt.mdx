@@ -131,7 +131,7 @@ the programmer's back.
 When AMT determines that a heap pointer needs ownership semantics, it selects one of three smart
 pointer types based on the pointer's usage pattern across the entire program.
 
-### `std::Unique<*T>` single owner
+### `std::Unique<*T>` single owner - Unique Pointers
 
 The pointer has exactly one owner at any point in its lifetime. No other live pointer refers to
 the same allocation. Ownership may transfer between scopes (via return or assignment), but at
@@ -145,7 +145,7 @@ fn make_config() -> *Config {
 }
 ```
 
-### `std::Shared<*T>` multiple owners
+### `std::Shared<*T>` multiple owners - Shared Pointers
 
 Multiple live pointers refer to the same allocation and AMT cannot prove single ownership. The
 allocation is reference-counted and freed when the last `Shared` pointer is destroyed.
@@ -159,7 +159,7 @@ fn share_config(a: *Server, b: *Server) {
 }
 ```
 
-### `std::Weak<*T>` back-reference
+### `std::Weak<*T>` back-reference - Weak Pointers
 
 A pointer that, if promoted to `Shared`, would form a reference cycle (A -> B -> A). `Weak`
 pointers do not contribute to the reference count and do not prevent deallocation. Accessing a

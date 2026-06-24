@@ -206,8 +206,8 @@ for ch in s {
 |---|---|---|
 | `void` | 0 bytes | `void` |
 
-`void` indicates the absence of a value. It can be used as a function return type and as the target of an
-`unsafe` pointer (`unsafe *void`), but it cannot be used as a type parameter or variable type.
+`void` indicates the absence of a value. It can be used as a normal type and as the target of an
+`unsafe` pointer (`unsafe *void`), using `void` as a normal type denotes a unit type.
 
 ```kairo
 fn log(msg: string) -> void {
@@ -215,6 +215,7 @@ fn log(msg: string) -> void {
 }
 
 var opaque: unsafe *void = get_handle()  // raw, untyped pointer
+var void_t: MyObj<void> = MyObj<void>()  // void is valid here
 ```
 
 ---

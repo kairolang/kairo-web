@@ -149,7 +149,7 @@ var p = Point(1.0, 2.0)
 Constructors support all the features of regular functions default parameters, named arguments,
 overloading by parameter types, generic type parameters. See [Functions](/docs/language/functions).
 
-### `const` members in constructors
+### Const members in constructors
 
 Class-level `const` members can be initialized in the constructor body. They get exactly one assignment;
 after construction, they are frozen:
@@ -573,7 +573,7 @@ var c = Circle(5.0)  // ok: all pure virtuals overridden
 `= virtual` implies vtable participation no `virtual` prefix is needed on the declaration. A class with
 any `= virtual` method cannot be instantiated directly.
 
-### `final`
+### Final
 
 `final` prevents further overriding of a method or derivation from a class:
 
@@ -748,7 +748,7 @@ at program startup. Static methods do not take `self` and cannot access instance
 
 ---
 
-## `const` Methods
+## Const Methods
 
 A method that takes `const self` promises not to modify the object (except `mutable` members). Only
 `const` methods can be called through a `*const T` pointer or on a `const` binding:
@@ -775,7 +775,7 @@ sensor->value()        // ok: const method
 
 `const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables#the-const-binding-rule).
 
-### `mutable` members
+### Mutable members
 
 The `mutable` qualifier allows a member to be modified even through a `const` reference or in a `const`
 method:

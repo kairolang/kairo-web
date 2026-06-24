@@ -167,7 +167,7 @@ Callers of `process` must handle `std::Error::IO`, `std::Error::Runtime`, and
 
 ---
 
-## `try`/`catch` as an Expression
+## Try/Catch as an Expression
 
 `try`/`catch` can produce a value. Each branch must return the same type:
 
@@ -182,7 +182,7 @@ var port = try parse_port(input)
 
 ---
 
-## `finally`
+## Finally
 
 `finally` defines cleanup code that runs regardless of whether the `try` body succeeds or panics:
 
