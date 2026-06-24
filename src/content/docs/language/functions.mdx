@@ -196,7 +196,7 @@ fn promote(x: i32) -> i64 = x as i64        // would otherwise infer i32
 
 ---
 
-## `return`
+## Function Return
 
 `return` exits the current function with a value. For `void` functions, `return` takes no operand.
 
@@ -252,7 +252,7 @@ var y = unsafe add(10, 20)   // calls the unsafe overload
 > signals that the function may not uphold other invariants that the safe version does. See
 > [Unsafe](/docs/language/unsafe) for the full unsafe model.
 
-### `const` overloading restriction
+### Const overloading restriction
 
 `const` and non-`const` methods with the same name and parameter types cannot coexist — use distinct names like `get()` and `get_mut()`. This restriction applies to named methods only. **Operators are exempt**, because they cannot be renamed: a place-returning operator may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#subscript).
 
@@ -334,7 +334,7 @@ fn <T derives Serializable> serialize(value: T) -> [byte] {
 > subclass of the specified class. See [Interfaces](/docs/language/interfaces) and
 > [Bounds](/docs/language/bounds) for details.
 
-### `where` clauses
+### Where Clauses
 
 For constraints beyond type parameter bounds, use a `where` clause:
 

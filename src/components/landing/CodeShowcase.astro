@@ -75,9 +75,9 @@ std::println(f"Ran {count} times.")`,
     label: 'Kairo in C++',
     filename: 'kairo_ffi.cpp',
     code: `// Call Kairo functions directly from C++ with full ABI compatibility.
-// Compile the Kairo module with \`kairo -cc --kro-impl-emit kairo_ffi.cpp\`
-//     to expose it to C++.
-// Without -cc, use \`kairo --emit-bindings\` to generate C++ or C headers
+// KCC (Kairo C++ Compiler) is the tool that allows you to include Kairo modules directly in C++.
+//   \`kcc kairo_ffi.cpp\` - kcc is a clang++ driver that supports including Kairo files.
+// Without -cc, use \`kairo kairo_ffi.k -c -o kairo_ffi -xc++ -header kairo_ffi.hh\` to generate C++ or C headers
 // for shipping a Kairo library to C++ consumers.
 //
 // kairo_ffi.k:
@@ -102,9 +102,9 @@ int main() {
     blurb: {
       heading: 'Adopt Kairo incrementally',
       points: [
-        { label: 'Include like any header', body: 'With `kairo -cc`, your Kairo module is includable directly from C++. No build system changes, no extra steps.' },
+        { label: 'Include like any header', body: 'With `kcc`, your Kairo module is includable directly from C++. Only one change to your build systems default c++ compiler.' },
         { label: 'Full ABI compatibility', body: 'Kairo functions are callable from C++ with perfect type fidelity. The module is exposed under its filename as a C++ namespace, no surprises.' },
-        { label: 'Ship Kairo as a C++ library', body: 'Without `-cc`, use `--emit-bindings` to generate clean C++ or C headers. Consumers see a normal library. They never need to know it\'s Kairo.' },
+        { label: 'Ship Kairo as a C++ library', body: 'Use `kairo -c` to compile into a lib and `kairo -xc++ -header` to generate C++ headers. Consumers see a normal library.' },
       ],
     },
   },

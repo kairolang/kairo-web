@@ -21,7 +21,7 @@ entry file forms a library:
 project/
   main.k
   math/
-    math.k        <- library entry for "math"
+    module.k    <-- library entry for "math"
     vector.k
     matrix.k
     internal/
@@ -31,11 +31,17 @@ project/
 ```kairo
 // main.k
 import math              // imports the math library (math/math.k)
-import math::vector      // imports math/vector.k specifically
-import math::matrix      // imports math/matrix.k specifically
+import math::vector      // looks for vector qualification in math/module.k
+import math::matrix      // looks for matrix qualification in math/module.k
 ```
 
-The library entry file (`math/math.k`) controls what the library exports. Files in the directory
+```kairo
+// math/module.k
+pub import vector // these are relative to the module
+pub import matrix // re-exports matrix
+```
+
+The library entry file (`math/module.k`) controls what the library exports. Files in the directory
 are accessible via `libraryname::filename`.
 
 ---
@@ -65,7 +71,7 @@ import math::{Vector3 as Vec3, Matrix4 as Mat4}
 import module math
 ```
 
-### `import module`
+### Explicit Source File Imports
 
 `import module` restricts the import to source files only it will not resolve library entry
 files. Use this when you need a specific file and want to avoid ambiguity with a library of the

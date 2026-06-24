@@ -146,7 +146,7 @@ var y: f64 = x       // ok: f32 to f64
 
 Narrowing conversions require an explicit `as` cast. See [Casting](/docs/language/casting).
 
-### `T` to `T?`
+### `T` to `T?` - Non-nullable to Nullable
 
 A non-nullable value is implicitly convertible to its nullable counterpart:
 
@@ -232,20 +232,19 @@ See [Functions](/docs/language/functions#no-return) for no-return function seman
 
 ---
 
-## `void`
+## Void - The Absence of a Value - Unit Types
 
 `void` represents the absence of a value. It is the default return type for functions with no explicit
 return type.
 
-`void` cannot be used as a variable type or type parameter. It can appear in pointer types for
-opaque, untyped pointers:
+`void` can be used as a type parameter, but can not be used as a variable type:
 
 ```kairo
 var handle: unsafe *void = get_opaque_handle()
-var safe_handle: *void = get_tracked_handle()
+var safe_handle:   *void = get_tracked_handle()
 
-// var x: void       // compile error
-// var y: Foo<void>  // compile error
+var y: Foo<void>  // valid - ok
+var x: void       // compile error
 ```
 
 See [Primitives](/docs/language/primitives#void) for details.
@@ -371,7 +370,7 @@ See [Eval](/docs/language/eval) for compile-time evaluation rules.
 
 ---
 
-## `typeof`
+## Typeof Identity Semantics
 
 `typeof` has dual behavior depending on whether it appears in a type position or an expression position:
 
@@ -396,7 +395,7 @@ info.get_size()          // 4
 info.get_align()         // 4
 ```
 
-### `TypeInfo`
+### TypeInfo
 
 `TypeInfo` is a built-in class that describes a type at runtime:
 
@@ -448,7 +447,7 @@ See [Eval](/docs/language/eval) for compile-time evaluation and
 
 ---
 
-## `Self`
+## Self
 
 `Self` is a type alias that resolves to the enclosing type. It is available in:
 

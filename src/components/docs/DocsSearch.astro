@@ -1,471 +1,977 @@
 ---
+
 ---
+
 <div class="search-wrap">
-  <button id="search-trigger" class="search-trigger" aria-label="Search docs (Ctrl+K)">
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-    </svg>
-    <span class="search-trigger-text">Search docs...</span>
-    <kbd class="search-kbd">⌘K</kbd>
-  </button>
+	<button id="search-trigger" class="search-trigger" aria-label="Search docs (Ctrl+K)">
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="14"
+			height="14"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+		>
+			<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+		</svg>
+		<span class="search-trigger-text">Search docs...</span>
+		<kbd class="search-kbd">⌘K</kbd>
+	</button>
 </div>
 
 <!-- Portal: search modal -->
-<div id="search-modal" class="search-modal" role="dialog" aria-label="Search" aria-modal="true" aria-hidden="true">
-  <div class="search-backdrop" id="search-backdrop"></div>
-  <div class="search-panel">
+<div
+	id="search-modal"
+	class="search-modal"
+	role="dialog"
+	aria-label="Search"
+	aria-modal="true"
+	aria-hidden="true"
+>
+	<div class="search-backdrop" id="search-backdrop"></div>
+	<div class="search-panel">
+		<!-- Input row -->
+		<div class="search-input-row">
+			<svg
+				class="search-input-icon"
+				xmlns="http://www.w3.org/2000/svg"
+				width="17"
+				height="17"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+			</svg>
+			<input
+				id="search-input"
+				class="search-input"
+				type="search"
+				placeholder="Search documentation..."
+				autocomplete="off"
+				spellcheck="false"
+				aria-autocomplete="list"
+				aria-controls="search-result-list"
+			/>
 
-    <!-- Input row -->
-    <div class="search-input-row">
-      <svg class="search-input-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-      </svg>
-      <input
-        id="search-input"
-        class="search-input"
-        type="search"
-        placeholder="Search documentation..."
-        autocomplete="off"
-        spellcheck="false"
-        aria-autocomplete="list"
-        aria-controls="search-result-list"
-      />
-      <button id="search-close-btn" class="search-close-btn" aria-label="Close search">
-        <span>Esc</span>
-      </button>
-    </div>
+			<!-- Syntax help -->
+			<div class="search-help-wrap">
+				<button
+					id="search-help-btn"
+					class="search-help-btn"
+					aria-label="Search syntax help"
+					aria-expanded="false"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="15"
+						height="15"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<circle cx="12" cy="12" r="10"></circle><path
+							d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line
+							x1="12"
+							y1="17"
+							x2="12.01"
+							y2="17"></line>
+					</svg>
+				</button>
+				<div
+					id="search-help-popover"
+					class="search-help-popover"
+					role="tooltip"
+					aria-hidden="true"
+				>
+					<div class="help-title">Search syntax</div>
+					<div class="help-row">
+						<code>"exact match"</code><span>whole words, in order</span>
+					</div>
+					<div class="help-row">
+						<code>const -deprecated</code><span>exclude a term</span>
+					</div>
+					<div class="help-row">
+						<code>section:language</code><span>limit to a section</span>
+					</div>
+					<div class="help-row">
+						<code>-section:library</code><span>exclude a section</span>
+					</div>
+					<div class="help-row"><code>in:title</code><span>match titles only</span></div>
+					<div class="help-row"><code>no:function</code><span>hide a category</span></div>
+					<div class="help-row">
+						<code>is:deprecated</code><span>only that category</span>
+					</div>
+				</div>
+			</div>
 
-    <!-- Results -->
-    <div id="search-result-list" class="search-results" role="listbox"></div>
+			<button id="search-close-btn" class="search-close-btn" aria-label="Close search">
+				<span>Esc</span>
+			</button>
+		</div>
 
-    <!-- Footer hints -->
-    <div class="search-footer">
-      <span class="search-hint-item">
-        <kbd>↑</kbd><kbd>↓</kbd> navigate
-      </span>
-      <span class="search-hint-item">
-        <kbd>↵</kbd> open
-      </span>
-      <span class="search-hint-item">
-        <kbd>Esc</kbd> close
-      </span>
-      <span class="search-count" id="search-count"></span>
-    </div>
-  </div>
+		<!-- Correction / parse notice -->
+		<div id="search-notice" class="search-notice" hidden></div>
+
+		<!-- Results -->
+		<div id="search-result-list" class="search-results" role="listbox"></div>
+
+		<!-- Footer hints -->
+		<div class="search-footer">
+			<span class="search-hint-item">
+				<kbd>↑</kbd><kbd>↓</kbd> navigate
+			</span>
+			<span class="search-hint-item">
+				<kbd>↵</kbd> open
+			</span>
+			<span class="search-hint-item">
+				<kbd>Esc</kbd> close
+			</span>
+			<span class="search-count" id="search-count"></span>
+		</div>
+	</div>
 </div>
 
 <style>
-  .search-wrap { padding: 0 1.25rem 1.25rem; }
+	.search-wrap {
+		padding: 0 1.25rem 1.25rem;
+	}
 
-  .search-trigger {
-    width: 100%;
-    background: var(--bg-3);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    color: var(--text-3);
-    font-family: var(--font-sans);
-    font-size: 0.82rem;
-    transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-    text-align: left;
-  }
-  .search-trigger:hover {
-    border-color: var(--border-hi);
-    color: var(--text-2);
-  }
-  .search-trigger-text { flex: 1; }
-  .search-kbd {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 1px 6px;
-    font-size: 0.65rem;
-    color: var(--text-3);
-    font-family: var(--font-sans);
-    letter-spacing: 0.05em;
-    flex-shrink: 0;
-  }
+	.search-trigger {
+		width: 100%;
+		background: var(--bg-3);
+		border: 1px solid var(--border);
+		border-radius: var(--r-md);
+		padding: 8px 12px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		cursor: pointer;
+		color: var(--text-3);
+		font-family: var(--font-sans);
+		font-size: 0.82rem;
+		transition:
+			border-color var(--dur-fast) var(--ease),
+			color var(--dur-fast) var(--ease);
+		text-align: left;
+	}
+	.search-trigger:hover {
+		border-color: var(--border-hi);
+		color: var(--text-2);
+	}
+	.search-trigger-text {
+		flex: 1;
+	}
+	.search-kbd {
+		background: var(--bg-2);
+		border: 1px solid var(--border);
+		border-radius: 5px;
+		padding: 1px 6px;
+		font-size: 0.65rem;
+		color: var(--text-3);
+		font-family: var(--font-sans);
+		letter-spacing: 0.05em;
+		flex-shrink: 0;
+	}
 
-  /* Modal */
-  .search-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 12vh;
-  }
-  .search-modal.open { display: flex; }
-  .search-modal.open .search-panel {
-    animation: fadeUp 0.3s var(--ease-out) both;
-  }
+	/* Modal */
+	.search-modal {
+		display: none;
+		position: fixed;
+		inset: 0;
+		z-index: 1000;
+		align-items: flex-start;
+		justify-content: center;
+		padding-top: 12vh;
+	}
+	.search-modal.open {
+		display: flex;
+	}
+	.search-modal.open .search-panel {
+		animation: fadeUp 0.3s var(--ease-out) both;
+	}
 
-  .search-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
+	.search-backdrop {
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.55);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+	}
 
-  .search-panel {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    max-width: 640px;
-    margin: 0 1rem;
-    background: var(--bg-2);
-    border: 1px solid var(--border-hi);
-    border-radius: var(--r-lg);
-    overflow: hidden;
-    box-shadow: var(--shadow-lg);
-  }
+	.search-panel {
+		position: relative;
+		z-index: 1;
+		width: 100%;
+		max-width: 640px;
+		margin: 0 1rem;
+		background: var(--bg-2);
+		border: 1px solid var(--border-hi);
+		border-radius: var(--r-lg);
+		overflow: visible;
+		box-shadow: var(--shadow-lg);
+	}
 
-  /* Input row */
-  .search-input-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .search-input-icon { color: var(--text-3); flex-shrink: 0; }
+	/* Input row */
+	.search-input-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 14px 16px;
+		border-bottom: 1px solid var(--border);
+		position: relative;
+	}
+	.search-input-icon {
+		color: var(--text-3);
+		flex-shrink: 0;
+	}
 
-  .search-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    font-family: var(--font-sans);
-    font-size: 1rem;
-    color: var(--text);
-    caret-color: var(--accent);
-    min-width: 0;
-  }
-  .search-input::placeholder { color: var(--text-3); }
-  .search-input::-webkit-search-cancel-button { display: none; }
+	.search-input {
+		flex: 1;
+		background: transparent;
+		border: none;
+		outline: none;
+		font-family: var(--font-sans);
+		font-size: 1rem;
+		color: var(--text);
+		caret-color: var(--accent);
+		min-width: 0;
+	}
+	.search-input::placeholder {
+		color: var(--text-3);
+	}
+	.search-input::-webkit-search-cancel-button {
+		display: none;
+	}
 
-  .search-close-btn {
-    display: flex;
-    align-items: center;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--r-pill);
-    color: var(--text-3);
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    padding: 3px 9px;
-    cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-    flex-shrink: 0;
-  }
-  .search-close-btn:hover {
-    border-color: var(--border-hi);
-    color: var(--text);
-  }
+	/* Help affordance */
+	.search-help-wrap {
+		position: relative;
+		flex-shrink: 0;
+		display: flex;
+	}
+	.search-help-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: none;
+		color: var(--text-3);
+		cursor: pointer;
+		padding: 2px;
+		border-radius: var(--r-sm);
+		transition: color var(--dur-fast) var(--ease);
+	}
+	.search-help-btn:hover,
+	.search-help-btn[aria-expanded="true"] {
+		color: var(--accent);
+	}
 
-  /* Results */
-  .search-results {
-    max-height: 420px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    padding: 6px 0;
-  }
+	.search-help-popover {
+		position: absolute;
+		top: calc(100% + 10px);
+		right: 0;
+		z-index: 10;
+		width: 280px;
+		background: var(--bg-2);
+		border: 1px solid var(--border-hi);
+		border-radius: var(--r-md);
+		box-shadow: var(--shadow-lg);
+		padding: 10px 6px 8px;
+		display: none;
+		animation: fadeUp 0.18s var(--ease-out) both;
+	}
+	.search-help-popover.open {
+		display: block;
+	}
+	.help-title {
+		font-family: var(--font-mono);
+		font-size: 0.6rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--text-3);
+		padding: 2px 10px 8px;
+	}
+	.help-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 5px 10px;
+	}
+	.help-row code {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		background: var(--bg-3);
+		border: 1px solid var(--border);
+		border-radius: 5px;
+		padding: 2px 7px;
+		color: var(--text);
+		white-space: nowrap;
+		flex-shrink: 0;
+		min-width: 132px;
+	}
+	.help-row span {
+		font-family: var(--font-sans);
+		font-size: 0.74rem;
+		color: var(--text-3);
+	}
 
-  /* Footer */
-  .search-footer {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    padding: 10px 16px;
-    border-top: 1px solid var(--border);
-    background: var(--bg-3);
-  }
-  .search-hint-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    color: var(--text-3);
-  }
-  .search-hint-item kbd {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 1px 5px;
-    font-size: 0.65rem;
-    font-family: var(--font-sans);
-    color: var(--text-2);
-    min-width: 20px;
-    text-align: center;
-  }
-  .search-count {
-    margin-left: auto;
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    color: var(--text-3);
-  }
+	.search-close-btn {
+		display: flex;
+		align-items: center;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: var(--r-pill);
+		color: var(--text-3);
+		font-family: var(--font-sans);
+		font-size: 0.68rem;
+		padding: 3px 9px;
+		cursor: pointer;
+		transition:
+			border-color var(--dur-fast) var(--ease),
+			color var(--dur-fast) var(--ease);
+		flex-shrink: 0;
+	}
+	.search-close-btn:hover {
+		border-color: var(--border-hi);
+		color: var(--text);
+	}
+
+	/* Correction notice */
+	.search-notice {
+		padding: 9px 16px;
+		border-bottom: 1px solid var(--border);
+		font-family: var(--font-sans);
+		font-size: 0.78rem;
+		color: var(--text-2);
+		background: var(--bg-3);
+	}
+	.search-notice strong {
+		color: var(--text);
+		font-weight: 600;
+	}
+	.search-notice a {
+		color: var(--accent);
+		cursor: pointer;
+		text-decoration: none;
+	}
+	.search-notice a:hover {
+		text-decoration: underline;
+	}
+	.search-notice .notice-chip {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		background: var(--bg-2);
+		border: 1px solid var(--border);
+		border-radius: 5px;
+		padding: 1px 6px;
+		color: var(--text);
+	}
+
+	/* Results */
+	.search-results {
+		max-height: 420px;
+		overflow-y: auto;
+		scrollbar-width: thin;
+		padding: 6px 0;
+	}
+
+	/* Footer */
+	.search-footer {
+		display: flex;
+		align-items: center;
+		gap: 1.25rem;
+		padding: 10px 16px;
+		border-top: 1px solid var(--border);
+		background: var(--bg-3);
+	}
+	.search-hint-item {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-family: var(--font-sans);
+		font-size: 0.68rem;
+		color: var(--text-3);
+	}
+	.search-hint-item kbd {
+		background: var(--bg-2);
+		border: 1px solid var(--border);
+		border-radius: 5px;
+		padding: 1px 5px;
+		font-size: 0.65rem;
+		font-family: var(--font-sans);
+		color: var(--text-2);
+		min-width: 20px;
+		text-align: center;
+	}
+	.search-count {
+		margin-left: auto;
+		font-family: var(--font-mono);
+		font-size: 0.66rem;
+		color: var(--text-3);
+	}
 </style>
 
 <!-- Result item styles are global because items are rendered from JS -->
 <style is:global>
-  .search-empty {
-    padding: 2.5rem 1.5rem;
-    text-align: center;
-    color: var(--text-3);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .search-empty svg { color: var(--text-3); margin-bottom: 0.75rem; }
-  .search-empty p {
-    font-family: var(--font-sans);
-    font-size: 0.875rem;
-    margin: 0;
-    line-height: 1.5;
-  }
-  .search-empty .search-hint-small {
-    font-size: 0.78rem;
-    opacity: 0.6;
-    margin-top: 0.25rem;
-  }
+	.search-empty {
+		padding: 2.5rem 1.5rem;
+		text-align: center;
+		color: var(--text-3);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+	.search-empty svg {
+		color: var(--text-3);
+		margin-bottom: 0.75rem;
+	}
+	.search-empty p {
+		font-family: var(--font-sans);
+		font-size: 0.875rem;
+		margin: 0;
+		line-height: 1.5;
+	}
+	.search-empty .search-hint-small {
+		font-size: 0.78rem;
+		opacity: 0.6;
+		margin-top: 0.25rem;
+	}
 
-  .result-group-label {
-    padding: 12px 18px 4px;
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    font-weight: 500;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-3);
-  }
+	.result-group-label {
+		padding: 12px 18px 4px;
+		font-family: var(--font-mono);
+		font-size: 0.62rem;
+		font-weight: 500;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--text-3);
+	}
 
-  .result-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 10px 14px;
-    margin: 1px 8px;
-    border-radius: var(--r-sm);
-    text-decoration: none;
-    transition: background var(--dur-fast) var(--ease);
-    cursor: pointer;
-  }
-  .result-item:hover,
-  .result-item[aria-selected="true"] {
-    background: color-mix(in srgb, var(--text) 6%, transparent);
-  }
-  .result-icon {
-    color: var(--text-3);
-    flex-shrink: 0;
-    margin-top: 3px;
-  }
-  .result-item[aria-selected="true"] .result-icon { color: var(--accent); }
+	.result-item {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 10px 14px;
+		margin: 1px 8px;
+		border-radius: var(--r-sm);
+		text-decoration: none;
+		transition: background var(--dur-fast) var(--ease);
+		cursor: pointer;
+	}
+	.result-item:hover,
+	.result-item[aria-selected="true"] {
+		background: color-mix(in srgb, var(--text) 6%, transparent);
+	}
+	.result-icon {
+		color: var(--text-3);
+		flex-shrink: 0;
+		margin-top: 3px;
+	}
+	.result-item[aria-selected="true"] .result-icon {
+		color: var(--accent);
+	}
 
-  .result-body { min-width: 0; flex: 1; }
-  .result-title-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
-  }
-  .result-title {
-    font-family: var(--font-sans);
-    font-size: 0.9rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .result-heading {
-    font-family: var(--font-sans);
-    font-size: 0.76rem;
-    color: var(--text-3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 1;
-  }
-  .result-heading::before {
-    content: '# ';
-    color: var(--text-3);
-    opacity: 0.7;
-  }
-  .result-desc {
-    font-family: var(--font-sans);
-    font-size: 0.78rem;
-    color: var(--text-3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-top: 2px;
-  }
-  .result-title mark,
-  .result-desc mark,
-  .result-heading mark {
-    background: color-mix(in srgb, var(--red) 22%, transparent);
-    color: var(--text);
-    border-radius: 3px;
-    padding: 0 1px;
-    font-style: normal;
-  }
-  .result-arrow {
-    color: var(--text-3);
-    flex-shrink: 0;
-    margin-top: 4px;
-    opacity: 0;
-    transition: opacity var(--dur-fast) var(--ease);
-  }
-  .result-item:hover .result-arrow,
-  .result-item[aria-selected="true"] .result-arrow { opacity: 1; color: var(--accent); }
+	.result-body {
+		min-width: 0;
+		flex: 1;
+	}
+	.result-title-row {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		min-width: 0;
+	}
+	.result-title {
+		font-family: var(--font-sans);
+		font-size: 0.9rem;
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		color: var(--text);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.result-heading {
+		font-family: var(--font-sans);
+		font-size: 0.76rem;
+		color: var(--text-3);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		flex-shrink: 1;
+	}
+	.result-heading::before {
+		content: "# ";
+		color: var(--text-3);
+		opacity: 0.7;
+	}
+	.result-desc {
+		font-family: var(--font-sans);
+		font-size: 0.78rem;
+		color: var(--text-3);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		margin-top: 2px;
+	}
+	.result-title mark,
+	.result-desc mark,
+	.result-heading mark {
+		background: color-mix(in srgb, var(--red) 22%, transparent);
+		color: var(--text);
+		border-radius: 3px;
+		padding: 0 1px;
+		font-style: normal;
+	}
+	.result-arrow {
+		color: var(--text-3);
+		flex-shrink: 0;
+		margin-top: 4px;
+		opacity: 0;
+		transition: opacity var(--dur-fast) var(--ease);
+	}
+	.result-item:hover .result-arrow,
+	.result-item[aria-selected="true"] .result-arrow {
+		opacity: 1;
+		color: var(--accent);
+	}
 
-  .no-results {
-    padding: 2rem 1.5rem;
-    text-align: center;
-    font-family: var(--font-sans);
-    font-size: 0.875rem;
-    color: var(--text-3);
-  }
-  .no-results strong {
-    color: var(--text-2);
-    font-weight: 600;
-  }
-  .no-results a { color: var(--accent); }
+	.no-results {
+		padding: 2rem 1.5rem;
+		text-align: center;
+		font-family: var(--font-sans);
+		font-size: 0.875rem;
+		color: var(--text-3);
+	}
+	.no-results strong {
+		color: var(--text-2);
+		font-weight: 600;
+	}
+	.no-results a {
+		color: var(--accent);
+	}
 </style>
 
 <script>
-  interface SearchHeading {
-    text: string;
-    slug: string;
-  }
-  interface SearchEntry {
-    title: string;
-    description: string;
-    section: string;
-    url: string;
-    headings: SearchHeading[];
-    body: string;
-  }
-  interface ScoredResult {
-    entry: SearchEntry;
-    score: number;
-    heading: SearchHeading | null; // best matching heading (deep link target)
-    snippet: string;               // context around the match in the body
-  }
+	interface SearchHeading {
+		text: string;
+		slug: string;
+	}
+	interface SearchEntry {
+		title: string;
+		description: string;
+		section: string;
+		url: string;
+		headings: SearchHeading[];
+		body: string;
+		/* Optional category metadata. If present in search.json, no:/is:/category
+       filtering uses it directly. If absent, we approximate against
+       section + heading text. */
+		tags?: string[];
+		kind?: string;
+	}
+	interface ScoredResult {
+		entry: SearchEntry;
+		score: number;
+		heading: SearchHeading | null;
+		snippet: string;
+	}
 
-  let index: SearchEntry[] | null = null;
-  let focusIdx = -1;
-  let searchSeq = 0;
-  const RESULT_LIMIT = 10;
+	/* Parsed query model */
+	interface ParsedQuery {
+		phrases: string[];
+		positive: string[];
+		negative: string[];
+		sections: string[];
+		exclSections: string[];
+		fields: string[]; // restrict scoring to these fields; empty = all
+		no: string[];
+		is: string[];
+		raw: string; // remaining free text (for the "did you mean" link)
+	}
 
-  async function loadIndex(): Promise<SearchEntry[]> {
-    if (index) return index;
-    try {
-      const res = await fetch('/search.json');
-      index = await res.json();
-    } catch {
-      index = [];
-    }
-    return index!;
-  }
+	let index: SearchEntry[] | null = null;
+	let vocab: string[] | null = null; // known terms for fuzzy fallback
+	let sectionVocab: string[] | null = null;
+	let focusIdx = -1;
+	let searchSeq = 0;
+	const RESULT_LIMIT = 10;
+	const LANG_RESERVED = 4;
 
-  /* ── Ranking ─────────────────────────────────────────────────────
-     AND semantics: every query token must appear somewhere in the
-     entry (title, section, headings, description, or body), otherwise
-     the entry is dropped. Field weights determine ordering. */
-  function scoreEntry(entry: SearchEntry, query: string, tokens: string[]): ScoredResult | null {
-    const title = entry.title.toLowerCase();
-    const section = entry.section.toLowerCase();
-    const desc = entry.description.toLowerCase();
-    const body = entry.body.toLowerCase();
+	const LANG_PREFIX = "language";
 
-    let score = 0;
-    let bestHeading: SearchHeading | null = null;
-    let bestHeadingScore = 0;
+	async function loadIndex(): Promise<SearchEntry[]> {
+		if (index) return index;
+		try {
+			const res = await fetch("/search.json");
+			index = await res.json();
+		} catch {
+			index = [];
+		}
+		buildVocab(index!);
+		return index!;
+	}
 
-    // Whole-query bonuses
-    if (title === query) score += 1000;
-    else if (title.startsWith(query)) score += 480;
-    else if (title.includes(query)) score += 260;
-    if (desc.includes(query)) score += 70;
-    if (body.includes(query)) score += 50;
+	/* Build a vocabulary of real terms for bounded fuzzy correction.
+     Titles, headings, and section names — never raw body text, so we
+     never fuzzy-match against incidental words. */
+	function buildVocab(entries: SearchEntry[]) {
+		if (vocab) return;
+		const terms = new Set<string>();
+		const sections = new Set<string>();
+		for (const e of entries) {
+			for (const w of e.title.toLowerCase().split(/[^a-z0-9]+/)) {
+				if (w.length >= 3) terms.add(w);
+			}
+			for (const h of e.headings) {
+				for (const w of h.text.toLowerCase().split(/[^a-z0-9]+/)) {
+					if (w.length >= 3) terms.add(w);
+				}
+			}
+			if (e.section) sections.add(e.section.toLowerCase());
+		}
+		vocab = [...terms];
+		sectionVocab = [...sections];
+	}
 
-    for (const heading of entry.headings) {
-      const h = heading.text.toLowerCase();
-      let hs = 0;
-      if (h === query) hs = 320;
-      else if (h.startsWith(query)) hs = 220;
-      else if (h.includes(query)) hs = 140;
-      if (hs > bestHeadingScore) {
-        bestHeadingScore = hs;
-        bestHeading = heading;
-      }
-    }
-    score += bestHeadingScore;
+	/* ── Query parser ────────────────────────────────────────────────
+     GitHub-style qualifier grammar. Single pass with a tokenizer that
+     respects quoted phrases. */
+	function parseQuery(raw: string): ParsedQuery {
+		const q: ParsedQuery = {
+			phrases: [],
+			positive: [],
+			negative: [],
+			sections: [],
+			exclSections: [],
+			fields: [],
+			no: [],
+			is: [],
+			raw: "",
+		};
+		const freeBits: string[] = [];
 
-    // Per-token: every token must match somewhere
-    for (const t of tokens) {
-      let tokenScore = 0;
+		// Tokenize: quoted runs stay intact, everything else splits on space.
+		const re = /(-?)(?:"([^"]*)"?|(\S+))/g;
+		let m: RegExpExecArray | null;
+		while ((m = re.exec(raw)) !== null) {
+			const neg = m[1] === "-";
+			const phrase = m[2];
+			const word = m[3];
 
-      if (title.includes(t)) {
-        // word-prefix matches rank above mid-word hits
-        tokenScore += new RegExp(`(^|[^a-z0-9])${escapeRe(t)}`).test(title) ? 120 : 70;
-      }
-      if (section.includes(t)) tokenScore += 25;
-      if (desc.includes(t)) tokenScore += 30;
+			if (phrase !== undefined) {
+				const p = phrase.trim().toLowerCase();
+				if (p) {
+					if (neg) q.negative.push(p);
+					else {
+						q.phrases.push(p);
+						freeBits.push(p);
+					}
+				}
+				continue;
+			}
+			if (word === undefined) continue;
 
-      if (tokenScore === 0 || bestHeadingScore === 0) {
-        for (const heading of entry.headings) {
-          if (heading.text.toLowerCase().includes(t)) {
-            tokenScore += 45;
-            if (!bestHeading) bestHeading = heading;
-            break;
-          }
-        }
-      }
-      if (body.includes(t)) tokenScore += 12;
+			// qualifier?  key:value
+			const qm = /^([a-z]+):(.+)$/i.exec(word);
+			if (qm) {
+				const key = qm[1].toLowerCase();
+				let val = qm[2].toLowerCase();
+				const valNeg = val.startsWith("!");
+				if (valNeg) val = val.slice(1);
 
-      if (tokenScore === 0) return null; // AND semantics
-      score += tokenScore;
-    }
+				switch (key) {
+					case "section":
+						if (neg || valNeg) q.exclSections.push(val);
+						else q.sections.push(val);
+						continue;
+					case "in":
+						if (
+							[
+								"title",
+								"heading",
+								"headings",
+								"body",
+								"desc",
+								"description",
+							].includes(val)
+						) {
+							q.fields.push(
+								val === "headings"
+									? "heading"
+									: val === "description"
+										? "desc"
+										: val,
+							);
+						}
+						continue;
+					case "no":
+						q.no.push(val);
+						continue;
+					case "is":
+						if (neg) q.no.push(val);
+						else q.is.push(val);
+						continue;
+					default:
+						// unknown qualifier -> treat as plain text
+						break;
+				}
+			}
 
-    // Context snippet around the first match in the body
-    let snippet = '';
-    const probe = body.indexOf(query) >= 0 ? query : tokens.find(t => body.includes(t));
-    if (probe) {
-      const at = body.indexOf(probe);
-      const start = Math.max(0, at - 48);
-      const end = Math.min(entry.body.length, at + probe.length + 72);
-      snippet = (start > 0 ? '…' : '') + entry.body.slice(start, end).trim() + (end < entry.body.length ? '…' : '');
-    }
+			const w = word.toLowerCase();
+			if (neg) q.negative.push(w);
+			else {
+				q.positive.push(w);
+				freeBits.push(w);
+			}
+		}
 
-    return { entry, score, heading: bestHeading, snippet };
-  }
+		q.raw = freeBits.join(" ").trim();
+		return q;
+	}
 
-  function escapeRe(s: string): string {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
+	/* ── Fuzzy fallback (bounded Levenshtein) ────────────────────────── */
+	function editDistance(a: string, b: string, max: number): number {
+		if (Math.abs(a.length - b.length) > max) return max + 1;
+		const prev = new Array(b.length + 1);
+		const curr = new Array(b.length + 1);
+		for (let j = 0; j <= b.length; j++) prev[j] = j;
+		for (let i = 1; i <= a.length; i++) {
+			curr[0] = i;
+			let rowMin = curr[0];
+			for (let j = 1; j <= b.length; j++) {
+				const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+				curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+				if (curr[j] < rowMin) rowMin = curr[j];
+			}
+			if (rowMin > max) return max + 1; // early bail
+			for (let j = 0; j <= b.length; j++) prev[j] = curr[j];
+		}
+		return prev[b.length];
+	}
 
-  function escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+	function fuzzyCorrect(token: string, dict: string[]): string | null {
+		const max = token.length >= 5 ? 2 : 1;
+		let best: string | null = null;
+		let bestD = max + 1;
+		for (const term of dict) {
+			if (Math.abs(term.length - token.length) > max) continue;
+			const d = editDistance(token, term, max);
+			if (d < bestD) {
+				bestD = d;
+				best = term;
+				if (d === 0) break;
+			}
+		}
+		return bestD <= max ? best : null;
+	}
 
-  function highlight(text: string, tokens: string[]): string {
-    let out = escapeHtml(text);
-    if (!tokens.length) return out;
-    const pattern = new RegExp(`(${tokens.map(escapeRe).join('|')})`, 'gi');
-    return out.replace(pattern, '<mark>$1</mark>');
-  }
+	/* Does an entry belong to a category? Prefers real tags/kind metadata,
+     falls back to section + heading text when absent. */
+	function entryHasCategory(entry: SearchEntry, cat: string): boolean {
+		if (entry.tags && entry.tags.some((t) => t.toLowerCase().includes(cat))) return true;
+		if (entry.kind && entry.kind.toLowerCase().includes(cat)) return true;
+		// fallback: section or any heading mentions the category
+		if (entry.section.toLowerCase().includes(cat)) return true;
+		return entry.headings.some((h) => h.text.toLowerCase().includes(cat));
+	}
 
-  const EMPTY_STATE = `
+	function escapeRe(s: string): string {
+		return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	}
+	function escapeHtml(s: string): string {
+		return s
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;");
+	}
+
+	/* ── Scoring ─────────────────────────────────────────────────────── */
+	function scoreEntry(entry: SearchEntry, q: ParsedQuery): ScoredResult | null {
+		const section = entry.section.toLowerCase();
+
+		// ── Hard gates (applied before scoring) ──
+		if (q.sections.length && !q.sections.some((s) => section.includes(s))) return null;
+		if (q.exclSections.some((s) => section.includes(s))) return null;
+		if (q.no.some((c) => entryHasCategory(entry, c))) return null;
+		if (q.is.length && !q.is.every((c) => entryHasCategory(entry, c))) return null;
+
+		const title = entry.title.toLowerCase();
+		const desc = entry.description.toLowerCase();
+		const body = entry.body.toLowerCase();
+		const headingText = entry.headings.map((h) => h.text.toLowerCase());
+
+		// Field restriction (in:title etc.)
+		const useTitle = !q.fields.length || q.fields.includes("title");
+		const useHeading = !q.fields.length || q.fields.includes("heading");
+		const useBody = !q.fields.length || q.fields.includes("body");
+		const useDesc = !q.fields.length || q.fields.includes("desc");
+
+		// ── Negative bare tokens: drop if present anywhere visible ──
+		for (const n of q.negative) {
+			if (
+				title.includes(n) ||
+				desc.includes(n) ||
+				body.includes(n) ||
+				headingText.some((h) => h.includes(n))
+			)
+				return null;
+		}
+
+		// ── Phrases: every phrase must appear contiguously in a used field ──
+		for (const p of q.phrases) {
+			const re = new RegExp(`(^|[^a-z0-9])${escapeRe(p)}([^a-z0-9]|$)`);
+			const hit =
+				(useTitle && re.test(title)) ||
+				(useDesc && re.test(desc)) ||
+				(useBody && re.test(body)) ||
+				(useHeading && headingText.some((h) => re.test(h)));
+			if (!hit) return null;
+		}
+
+		const allTokens = [...q.positive, ...q.phrases];
+		const fullText = allTokens.join(" ");
+
+		let score = 0;
+		let bestHeading: SearchHeading | null = null;
+		let bestHeadingScore = 0;
+
+		// Whole-query bonuses (positives + phrases as one string)
+		if (useTitle) {
+			if (title === fullText) score += 1000;
+			else if (title.startsWith(fullText + " "))
+				score += 480; // prefix of a multi-word title, e.g. "const qualifier"
+			else if (
+				fullText &&
+				new RegExp(`(^|[^a-z0-9])${escapeRe(fullText)}([^a-z0-9]|$)`).test(title)
+			)
+				score += 300; // whole-word appearance
+			else if (fullText && title.includes(fullText)) score += 120; // mid-word substring (constructors) — demoted hard
+		}
+		if (useDesc && fullText && desc.includes(fullText)) score += 70;
+		if (useBody && fullText && body.includes(fullText)) score += 50;
+
+		if (useHeading) {
+			for (const heading of entry.headings) {
+				const h = heading.text.toLowerCase();
+				let hs = 0;
+				if (h === fullText)
+					hs = 320; // "const"
+				else if (fullText && h.startsWith(fullText + " "))
+					hs = 240; // "const pointers", "const methods" — whole word, leading
+				else if (
+					fullText &&
+					new RegExp(`(^|[^a-z0-9])${escapeRe(fullText)}([^a-z0-9]|$)`).test(h)
+				)
+					hs = 180; // whole word, anywhere
+				else if (fullText && h.includes(fullText)) hs = 60; // "constructors" — prefix/substring, demoted hard
+				if (hs > bestHeadingScore) {
+					bestHeadingScore = hs;
+					bestHeading = heading;
+				}
+			}
+			score += bestHeadingScore;
+		}
+
+		// Per-token (AND): every positive token must match somewhere used
+		for (const t of allTokens) {
+			let tokenScore = 0;
+
+			if (useTitle && title.includes(t)) {
+				const whole = new RegExp(`(^|[^a-z0-9])${escapeRe(t)}([^a-z0-9]|$)`).test(title);
+				const prefix = new RegExp(`(^|[^a-z0-9])${escapeRe(t)}`).test(title);
+				tokenScore += whole ? 200 : prefix ? 90 : 70;
+			}
+			if (section.includes(t)) tokenScore += 25;
+			if (useDesc && desc.includes(t)) tokenScore += 30;
+
+			if (useHeading && (tokenScore === 0 || bestHeadingScore === 0)) {
+				for (const heading of entry.headings) {
+					const h = heading.text.toLowerCase();
+					if (h.includes(t)) {
+						const whole = new RegExp(`(^|[^a-z0-9])${escapeRe(t)}([^a-z0-9]|$)`).test(
+							h,
+						);
+						tokenScore += whole ? 80 : 15;
+						if (!bestHeading) bestHeading = heading;
+						break;
+					}
+				}
+			}
+			if (useBody && body.includes(t)) tokenScore += 12;
+
+			if (tokenScore === 0) return null; // AND semantics
+			score += tokenScore;
+		}
+
+		// ── Language/ authority boost ──
+		if (section.startsWith(LANG_PREFIX)) {
+			if (title === fullText || bestHeadingScore >= 220) score += 600;
+			else score += 180;
+		}
+
+		// ── Context snippet ──
+		let snippet = "";
+		const probe =
+			useBody && fullText && body.indexOf(fullText) >= 0
+				? fullText
+				: allTokens.find((t) => body.includes(t));
+		if (probe) {
+			const at = body.indexOf(probe);
+			const start = Math.max(0, at - 48);
+			const end = Math.min(entry.body.length, at + probe.length + 72);
+			snippet =
+				(start > 0 ? "…" : "") +
+				entry.body.slice(start, end).trim() +
+				(end < entry.body.length ? "…" : "");
+		}
+
+		return { entry, score, heading: bestHeading, snippet };
+	}
+
+	/* Run scoring across the corpus for a parsed query. */
+	function runSearch(data: SearchEntry[], q: ParsedQuery): ScoredResult[] {
+		const out: ScoredResult[] = [];
+		for (const entry of data) {
+			const r = scoreEntry(entry, q);
+			if (r) out.push(r);
+		}
+		out.sort((a, b) => b.score - a.score);
+		return out;
+	}
+
+	/* Group-then-slice with reserved Language slots so Language pages
+     can never be sliced out by a flood of incidental matches. */
+	function applyReservation(results: ScoredResult[]): ScoredResult[] {
+		const lang = results.filter((r) => r.entry.section.toLowerCase().startsWith(LANG_PREFIX));
+		const merged = [...lang.slice(0, LANG_RESERVED), ...results];
+		const seen = new Set<string>();
+		const final: ScoredResult[] = [];
+		for (const r of merged) {
+			if (seen.has(r.entry.url)) continue;
+			seen.add(r.entry.url);
+			final.push(r);
+			if (final.length >= RESULT_LIMIT) break;
+		}
+		return final;
+	}
+
+	function highlightTokens(q: ParsedQuery): string[] {
+		return [...q.positive, ...q.phrases].filter(Boolean);
+	}
+	function highlight(text: string, tokens: string[]): string {
+		let out = escapeHtml(text);
+		if (!tokens.length) return out;
+		const pattern = new RegExp(`(${tokens.map(escapeRe).join("|")})`, "gi");
+		return out.replace(pattern, "<mark>$1</mark>");
+	}
+
+	const EMPTY_STATE = `
     <div class="search-empty">
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -474,45 +980,56 @@
       <p class="search-hint-small">Titles, headings, and page content are indexed.</p>
     </div>`;
 
-  function setCount(text: string) {
-    const el = document.getElementById('search-count');
-    if (el) el.textContent = text;
-  }
+	function setCount(text: string) {
+		const el = document.getElementById("search-count");
+		if (el) el.textContent = text;
+	}
 
-  function renderResults(results: ScoredResult[], query: string, tokens: string[]) {
-    const container = document.getElementById('search-result-list');
-    if (!container) return;
-    focusIdx = -1;
+	function showNotice(html: string | null) {
+		const el = document.getElementById("search-notice");
+		if (!el) return;
+		if (!html) {
+			el.hidden = true;
+			el.innerHTML = "";
+			return;
+		}
+		el.hidden = false;
+		el.innerHTML = html;
+	}
 
-    if (!results.length) {
-      container.innerHTML = `
+	function renderResults(results: ScoredResult[], query: string, tokens: string[]) {
+		const container = document.getElementById("search-result-list");
+		if (!container) return;
+		focusIdx = -1;
+
+		if (!results.length) {
+			container.innerHTML = `
         <div class="no-results">
           No results for <strong>"${escapeHtml(query)}"</strong><br>
           <span style="font-size:0.78rem;opacity:0.7;display:block;margin-top:0.5rem;">Try different keywords or browse the <a href="/docs">docs</a>.</span>
         </div>`;
-      setCount('');
-      return;
-    }
+			setCount("");
+			return;
+		}
 
-    // Group by section, preserving overall rank order
-    const groups: Array<{ section: string; items: ScoredResult[] }> = [];
-    for (const r of results) {
-      let g = groups.find(g => g.section === r.entry.section);
-      if (!g) {
-        g = { section: r.entry.section, items: [] };
-        groups.push(g);
-      }
-      g.items.push(r);
-    }
+		const groups: Array<{ section: string; items: ScoredResult[] }> = [];
+		for (const r of results) {
+			let g = groups.find((g) => g.section === r.entry.section);
+			if (!g) {
+				g = { section: r.entry.section, items: [] };
+				groups.push(g);
+			}
+			g.items.push(r);
+		}
 
-    let html = '';
-    let idx = 0;
-    for (const g of groups) {
-      html += `<div class="result-group-label">${escapeHtml(g.section)}</div>`;
-      for (const r of g.items) {
-        const url = r.heading ? `${r.entry.url}#${r.heading.slug}` : r.entry.url;
-        const sub = r.snippet || r.entry.description;
-        html += `
+		let html = "";
+		let idx = 0;
+		for (const g of groups) {
+			html += `<div class="result-group-label">${escapeHtml(g.section)}</div>`;
+			for (const r of g.items) {
+				const url = r.heading ? `${r.entry.url}#${r.heading.slug}` : r.entry.url;
+				const sub = r.snippet || r.entry.description;
+				html += `
           <a class="result-item" href="${url}" role="option" aria-selected="false" data-idx="${idx++}">
             <svg class="result-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -520,120 +1037,227 @@
             <div class="result-body">
               <div class="result-title-row">
                 <span class="result-title">${highlight(r.entry.title, tokens)}</span>
-                ${r.heading ? `<span class="result-heading">${highlight(r.heading.text, tokens)}</span>` : ''}
+                ${r.heading ? `<span class="result-heading">${highlight(r.heading.text, tokens)}</span>` : ""}
               </div>
-              ${sub ? `<div class="result-desc">${highlight(sub, tokens)}</div>` : ''}
+              ${sub ? `<div class="result-desc">${highlight(sub, tokens)}</div>` : ""}
             </div>
             <svg class="result-arrow" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
           </a>`;
-      }
-    }
+			}
+		}
 
-    container.innerHTML = html;
-    setFocus(0);
-  }
+		container.innerHTML = html;
+		setFocus(0);
+	}
 
-  function setFocus(idx: number) {
-    const items = document.querySelectorAll<HTMLElement>('.result-item');
-    if (!items.length) return;
-    items.forEach(el => el.setAttribute('aria-selected', 'false'));
-    const clamped = ((idx % items.length) + items.length) % items.length; // wrap around
-    focusIdx = clamped;
-    items[clamped]?.setAttribute('aria-selected', 'true');
-    items[clamped]?.scrollIntoView({ block: 'nearest' });
-  }
+	function setFocus(idx: number) {
+		const items = document.querySelectorAll<HTMLElement>(".result-item");
+		if (!items.length) return;
+		items.forEach((el) => el.setAttribute("aria-selected", "false"));
+		const clamped = ((idx % items.length) + items.length) % items.length;
+		focusIdx = clamped;
+		items[clamped]?.setAttribute("aria-selected", "true");
+		items[clamped]?.scrollIntoView({ block: "nearest" });
+	}
 
-  async function handleInput(e: Event) {
-    const raw = (e.target as HTMLInputElement).value;
-    const query = raw.trim().toLowerCase();
-    const seq = ++searchSeq;
-    const container = document.getElementById('search-result-list');
-    if (!container) return;
+	let lastForcedRaw: string | null = null; // for "search instead for" override
 
-    if (!query) {
-      container.innerHTML = EMPTY_STATE;
-      setCount('');
-      return;
-    }
+	async function executeSearch(raw: string, allowFuzzy = true) {
+		const seq = ++searchSeq;
+		const container = document.getElementById("search-result-list");
+		if (!container) return;
 
-    const data = await loadIndex();
-    if (seq !== searchSeq) return; // stale async result
+		const trimmed = raw.trim();
+		if (!trimmed) {
+			container.innerHTML = EMPTY_STATE;
+			setCount("");
+			showNotice(null);
+			return;
+		}
 
-    const tokens = query.split(/\s+/).filter(Boolean);
-    const results: ScoredResult[] = [];
-    for (const entry of data) {
-      const r = scoreEntry(entry, query, tokens);
-      if (r) results.push(r);
-    }
-    results.sort((a, b) => b.score - a.score);
+		const data = await loadIndex();
+		if (seq !== searchSeq) return;
 
-    setCount(`${results.length} result${results.length === 1 ? '' : 's'}`);
-    renderResults(results.slice(0, RESULT_LIMIT), raw.trim(), tokens);
-  }
+		const q = parseQuery(trimmed);
 
-  function openModal() {
-    const modal = document.getElementById('search-modal');
-    const container = document.getElementById('search-result-list');
-    if (container && !container.innerHTML.trim()) container.innerHTML = EMPTY_STATE;
-    modal?.classList.add('open');
-    modal?.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => (document.getElementById('search-input') as HTMLInputElement)?.focus(), 30);
-    loadIndex();
-  }
+		// Correct section-qualifier typos against the small section vocab.
+		let sectionCorrected = false;
+		if (sectionVocab) {
+			q.sections = q.sections.map((s) => {
+				if (sectionVocab!.some((v) => v.includes(s))) return s;
+				const fix = fuzzyCorrect(s, sectionVocab!);
+				if (fix) {
+					sectionCorrected = true;
+					return fix;
+				}
+				return s;
+			});
+		}
 
-  function closeModal() {
-    const modal = document.getElementById('search-modal');
-    modal?.classList.remove('open');
-    modal?.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    const input = document.getElementById('search-input') as HTMLInputElement;
-    if (input) input.value = '';
-    const container = document.getElementById('search-result-list');
-    if (container) container.innerHTML = EMPTY_STATE;
-    setCount('');
-    focusIdx = -1;
-  }
+		let results = runSearch(data, q);
+		let noticeHtml: string | null = null;
 
-  function init() {
-    document.getElementById('search-trigger')?.addEventListener('click', openModal);
-    document.getElementById('search-backdrop')?.addEventListener('click', closeModal);
-    document.getElementById('search-close-btn')?.addEventListener('click', closeModal);
-    document.getElementById('search-input')?.addEventListener('input', handleInput);
+		// Fuzzy fallback: only when exact search found nothing AND we have
+		// positive tokens to correct (phrases/qualifiers are left alone).
+		if (allowFuzzy && !results.length && q.positive.length && vocab) {
+			const corrections: Array<[string, string]> = [];
+			const corrected = q.positive.map((t) => {
+				if (vocab!.some((v) => v.includes(t))) return t; // substring exists, keep
+				const fix = fuzzyCorrect(t, vocab!);
+				if (fix && fix !== t) {
+					corrections.push([t, fix]);
+					return fix;
+				}
+				return t;
+			});
 
-    document.getElementById('search-input')?.addEventListener('keydown', (e) => {
-      const items = document.querySelectorAll<HTMLElement>('.result-item');
-      if (e.key === 'ArrowDown') { e.preventDefault(); setFocus(focusIdx + 1); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); setFocus(focusIdx - 1); }
-      else if (e.key === 'Enter') {
-        e.preventDefault();
-        const target = items[focusIdx >= 0 ? focusIdx : 0];
-        if (target) window.location.href = (target as HTMLAnchorElement).href;
-      }
-      else if (e.key === 'Escape') { closeModal(); }
-    });
+			if (corrections.length) {
+				const cq: ParsedQuery = { ...q, positive: corrected };
+				const cResults = runSearch(data, cq);
+				if (cResults.length) {
+					results = cResults;
+					q.positive = corrected; // so highlighting matches what we found
+					const shown = corrections
+						.map(([, to]) => `<strong>${escapeHtml(to)}</strong>`)
+						.join(", ");
+					noticeHtml =
+						`Showing results for ${shown} &nbsp;` +
+						`<a data-force="${escapeHtml(trimmed)}">Search instead for "${escapeHtml(trimmed)}"</a>`;
+				}
+			}
+		}
 
-    document.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        document.getElementById('search-modal')?.classList.contains('open')
-          ? closeModal() : openModal();
-      }
-      if (e.key === '/' && !document.getElementById('search-modal')?.classList.contains('open')) {
-        const tag = (document.activeElement?.tagName || '').toLowerCase();
-        if (tag !== 'input' && tag !== 'textarea') {
-          e.preventDefault();
-          openModal();
-        }
-      }
-      if (e.key === 'Escape' && document.getElementById('search-modal')?.classList.contains('open')) {
-        closeModal();
-      }
-    });
-  }
+		if (sectionCorrected && !noticeHtml) {
+			noticeHtml = `Corrected section to <span class="notice-chip">${escapeHtml(q.sections.join(", "))}</span>`;
+		}
 
-  init();
-  document.addEventListener('astro:page-load', init);
+		showNotice(noticeHtml);
+
+		const final = applyReservation(results);
+		setCount(`${results.length} result${results.length === 1 ? "" : "s"}`);
+		renderResults(final, trimmed, highlightTokens(q));
+	}
+
+	function handleInput(e: Event) {
+		const raw = (e.target as HTMLInputElement).value;
+		lastForcedRaw = null;
+		executeSearch(raw, true);
+	}
+
+	/* Help popover */
+	function toggleHelp(force?: boolean) {
+		const pop = document.getElementById("search-help-popover");
+		const btn = document.getElementById("search-help-btn");
+		if (!pop || !btn) return;
+		const open = force ?? !pop.classList.contains("open");
+		pop.classList.toggle("open", open);
+		pop.setAttribute("aria-hidden", String(!open));
+		btn.setAttribute("aria-expanded", String(open));
+	}
+
+	function openModal() {
+		const modal = document.getElementById("search-modal");
+		const container = document.getElementById("search-result-list");
+		if (container && !container.innerHTML.trim()) container.innerHTML = EMPTY_STATE;
+		modal?.classList.add("open");
+		modal?.setAttribute("aria-hidden", "false");
+		document.body.style.overflow = "hidden";
+		setTimeout(
+			() => (document.getElementById("search-input") as HTMLInputElement)?.focus(),
+			30,
+		);
+		loadIndex();
+	}
+
+	function closeModal() {
+		const modal = document.getElementById("search-modal");
+		modal?.classList.remove("open");
+		modal?.setAttribute("aria-hidden", "true");
+		document.body.style.overflow = "";
+		const input = document.getElementById("search-input") as HTMLInputElement;
+		if (input) input.value = "";
+		const container = document.getElementById("search-result-list");
+		if (container) container.innerHTML = EMPTY_STATE;
+		showNotice(null);
+		toggleHelp(false);
+		setCount("");
+		focusIdx = -1;
+	}
+
+	function init() {
+		document.getElementById("search-trigger")?.addEventListener("click", openModal);
+		document.getElementById("search-backdrop")?.addEventListener("click", closeModal);
+		document.getElementById("search-close-btn")?.addEventListener("click", closeModal);
+		document.getElementById("search-input")?.addEventListener("input", handleInput);
+
+		document.getElementById("search-help-btn")?.addEventListener("click", (e) => {
+			e.stopPropagation();
+			toggleHelp();
+		});
+		document
+			.getElementById("search-help-popover")
+			?.addEventListener("click", (e) => e.stopPropagation());
+
+		// "Search instead for" override (skip fuzzy)
+		document.getElementById("search-notice")?.addEventListener("click", (e) => {
+			const a = (e.target as HTMLElement).closest("a[data-force]") as HTMLElement | null;
+			if (!a) return;
+			e.preventDefault();
+			const forced = a.getAttribute("data-force") || "";
+			lastForcedRaw = forced;
+			executeSearch(forced, false);
+		});
+
+		document.getElementById("search-input")?.addEventListener("keydown", (e) => {
+			const items = document.querySelectorAll<HTMLElement>(".result-item");
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				setFocus(focusIdx + 1);
+			} else if (e.key === "ArrowUp") {
+				e.preventDefault();
+				setFocus(focusIdx - 1);
+			} else if (e.key === "Enter") {
+				e.preventDefault();
+				const target = items[focusIdx >= 0 ? focusIdx : 0];
+				if (target) window.location.href = (target as HTMLAnchorElement).href;
+			} else if (e.key === "Escape") {
+				if (document.getElementById("search-help-popover")?.classList.contains("open"))
+					toggleHelp(false);
+				else closeModal();
+			}
+		});
+
+		document.addEventListener("keydown", (e) => {
+			if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+				e.preventDefault();
+				document.getElementById("search-modal")?.classList.contains("open")
+					? closeModal()
+					: openModal();
+			}
+			if (
+				e.key === "/" &&
+				!document.getElementById("search-modal")?.classList.contains("open")
+			) {
+				const tag = (document.activeElement?.tagName || "").toLowerCase();
+				if (tag !== "input" && tag !== "textarea") {
+					e.preventDefault();
+					openModal();
+				}
+			}
+			if (
+				e.key === "Escape" &&
+				document.getElementById("search-modal")?.classList.contains("open")
+			) {
+				closeModal();
+			}
+		});
+
+		// Close help popover on outside click
+		document.addEventListener("click", () => toggleHelp(false));
+	}
+
+	init();
+	document.addEventListener("astro:page-load", init);
 </script>
