@@ -229,7 +229,7 @@ See [Unsafe](/docs/language/unsafe) for the unsafe overload model.
 ```kairo
 // compile error: where on a type use requires instead
 class <T> Buffer
-  where sizeof(T) <= 128 {
+  where sizeof T <= 128 {
     var data: [T; 16]
 }
 

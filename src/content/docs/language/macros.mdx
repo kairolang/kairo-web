@@ -269,7 +269,7 @@ eval ICON = embed!("icon.png")
 var n = count!(a, b, c, d)   // 4
 
 // Diagnostics
-eval if sizeof(usize) < 8 {
+eval if sizeof usize < 8 {
     error!("64-bit platform required")
 }
 

@@ -34,7 +34,8 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 - [Unsafe](https://www.kairolang.org/docs/language/unsafe/): Unsafe blocks, unsafe pointers, unsafe function overloads, AMT suspension, `forget!()`, and the safety boundary model.
 - [Panic](https://www.kairolang.org/docs/language/panic/): The `panic` specifier, `Panickable` return type, `try`/`catch` exhaustiveness, panic propagation, error types, and zero-cost codegen.
 - [Compile-Time Eval](https://www.kairolang.org/docs/language/eval/): Eval variables, eval functions, eval if/for, compile-time evaluation rules, restrictions, and interaction with generics.
-- [Modules](https://www.kairolang.org/docs/language/modules/): Module system, imports, file-to-module mapping, directories as libraries, namespaces, visibility, module extending, and C++ header imports.
+- [Modules](https://www.kairolang.org/docs/language/modules/): Module system, file-to-module mapping, directories as libraries, namespaces, visibility, module extending, and C++ header imports.
+- [Imports](https://www.kairolang.org/docs/language/imports/): Import statements, visibility, and module resolution.
 - [Extends](https://www.kairolang.org/docs/language/extends/): Extend blocks for adding methods, operators, static functions, and interface conformance to structs, enums, and classes.
 - [Attributes](https://www.kairolang.org/docs/language/attributes/): AST-level code transformations, attribute definitions, arguments, expansion order, overloading, built-in attributes, and the `std::AST` API.
 - [Macros](https://www.kairolang.org/docs/language/macros/): Token-level macros, macro definitions, built-in macros, variadic helpers, source location, diagnostics, code generation, and macro hygiene.

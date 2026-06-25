@@ -48,7 +48,7 @@ conjunction of independent clauses. The access is sound if and only if every cla
 deref(p: *T) is sound  ⟺
     epoch(prov(p)) = live_epoch(alloc(prov(p)))            (C1) provenance / use-after-free
   ∧ 0 ≤ byte_offset(p)                                      (C2) no underflow
-  ∧ byte_offset(p) + sizeof(T) ≤ size(alloc(prov(p)))       (C3) no overflow / bounds
+  ∧ byte_offset(p) + sizeof T) ≤ size(alloc(prov(p)))       (C3 no overflow / bounds
   ∧ p ≠ null                                                (C4) nullability
   ∧ (¬shared(alloc(prov(p))) ∨ readonly_extent ∨ synced)    (C5) data-race freedom
   ∧ (¬tainted(prov(p)) ∨ laundered(p))                      (C6) provenance integrity
@@ -61,7 +61,7 @@ Where:
 - `alloc(prov(p))` is the originating allocation; `size(...)` is its byte size; `live_epoch(...)`
   is its current generation (see [Provenance and Epochs](#provenance-and-epochs)).
 - `byte_offset(p)` is the offset of `p` from the allocation base, in bytes. Stated in bytes so the
-  `sizeof(T)` scaling in C3 is explicit and the element-count-times-size multiply cannot silently
+  `sizeof T` scaling in C3 is explicit and the element-count-times-size multiply cannot silently
   overflow.
 
 Each clause is a distinct **proof domain** with its own analysis. AMT discharges as many clauses as
@@ -245,11 +245,11 @@ assert((0 <= i) && (i < 120));
 mov [rdi + i*4], 19
 ```
 
-Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof(T) <= size`, and AMT emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by a `i >= 0` guard). For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
+Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof T) <= size`, and AMT emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by a `i >= 0` guard. For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
 
 The check is on the **offset**, computed before the pointer is formed never on the resulting
 pointer address. Checking `result_ptr < end` after forming the pointer is the bypassable version:
-if `i * sizeof(T)` overflowed the address width, the formed pointer can wrap below `end` and pass a
+if `i * sizeof T` overflowed the address width, the formed pointer can wrap below `end` and pass a
 post-hoc check. AMT checks the offset in a width that cannot wrap for any in-allocation offset
 (the valid offset range is bounded by `size`, which is known), then forms the pointer.
 

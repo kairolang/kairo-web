@@ -63,8 +63,8 @@ Any expression the compiler can evaluate statically is valid in a `requires` cla
 
 | Expression | Example |
 |---|---|
-| `sizeof(T)` | `requires sizeof(T) <= 64` |
-| `alignof(T)` | `requires alignof(T) >= 16` |
+| `sizeof T)` | `requires sizeof(T <= 64` |
+| `alignof T)` | `requires alignof(T >= 16` |
 | Arithmetic and comparisons | `requires N > 0 && N <= 1024` |
 | `eval` variables and functions | `requires is_power_of_two(N)` |
 | Type trait checks | `requires T impl Comparable` |
@@ -105,20 +105,20 @@ compile error at the point of use:
 
 ```kairo
 class <T> SmallBuffer
-  requires sizeof(T) <= 128 {
+  requires sizeof T <= 128 {
     var data: [T; 16]
 }
 
-SmallBuffer<i32>()         // ok: sizeof(i32) == 4
-SmallBuffer<[u8; 256]>()   // compile error: sizeof([u8; 256]) == 256, exceeds 128
+SmallBuffer<i32>()         // ok: sizeof i32 == 4
+SmallBuffer<[u8; 256]>()   // compile error: sizeof [u8; 256] == 256, exceeds 128
 
 struct <T> Aligned16
-  requires alignof(T) >= 16 {
+  requires alignof T >= 16 {
     var value: T
 }
 
 enum <T> Compact
-  requires sizeof(T) <= 8 {
+  requires sizeof T <= 8 {
     Some { value: T },
     None,
 }
@@ -167,7 +167,7 @@ methods:
 
 ```kairo
 interface <T> SmallStorable
-  requires sizeof(T) <= 64 {
+  requires sizeof T <= 64 {
     fn store(self) -> [byte]
     fn load(data: [byte]) -> T
 }
@@ -229,7 +229,7 @@ non-empty string that isn't a valid port.
 ```kairo
 // Compile-time size constraint on a generic
 fn <T> stack_alloc() -> T
-  requires sizeof(T) <= 4096 {
+  requires sizeof T <= 4096 {
     // ...
 }
 
@@ -241,7 +241,7 @@ fn <T, U> transform(input: T) -> U
 
 // Requires on a class
 class <T> InlineBuffer
-  requires sizeof(T) <= 64 {
+  requires sizeof T <= 64 {
     var data: [T; 8]
 }
 
@@ -255,7 +255,7 @@ interface Validator {
 eval fn fits_in_cache_line(n: i32) -> bool = n <= 64
 
 struct <T> CacheAligned
-  requires fits_in_cache_line(sizeof(T)) {
+  requires fits_in_cache_line(sizeof T) {
     var value: T
 }
 ```
