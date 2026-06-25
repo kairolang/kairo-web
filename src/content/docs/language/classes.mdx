@@ -194,7 +194,7 @@ See [Variables](/docs/language/variables#default-initialization) for default ini
 
 ---
 
-## Destructors
+## Destructors - Delete Operators
 
 Destructors use the `op delete` operator syntax:
 
@@ -219,7 +219,33 @@ fn op delete(self) = default   // compiler-generated, memberwise destroy in reve
 fn op delete(self) = delete    // prevent destruction (and therefore stack allocation)
 ```
 
-Destructors run at the end of the enclosing scope in reverse declaration order.
+Destructors automatically run at the end of the enclosing scope in reverse declaration order. The delete operator can also be called explicitly to clean up a resource before the end of the scope - the recommended design pattern is to make the delete operator idempotent and safe to call multiple times:
+
+```kairo
+class Resource {
+    var handle: unsafe *void
+
+    fn Resource(self, h: unsafe *void) {
+        self.handle = h
+    }
+
+    fn set_new_handle(self, h: unsafe *void) {
+        self.handle = h
+    }
+
+    fn op delete(self) {
+        if self.handle != &null {
+            release_handle(self.handle)
+            self.handle = &null
+        }
+    }
+}
+
+var r = Resource(open_handle())
+delete r   // explicit cleanup
+r.set_new_handle(open_handle())   // safe: previous handle was released
+delete r   // safe: idempotent delete operator
+```
 
 ---
 
