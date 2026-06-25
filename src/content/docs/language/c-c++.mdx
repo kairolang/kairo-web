@@ -286,8 +286,7 @@ fn main() {
 
 > [!WARNING]
 > `std::create<T>` uses Kairo's global allocator, which is compatible with
-> C++'s `new`/`delete` by default. If you supply a custom allocator, C++ code **must not** free the resulting
-> pointer with `delete` doing so is undefined behavior. See [AMT](/docs/amt) for allocator details.
+> C++'s `new`/`delete` by default. If you supply a custom allocator, C++ code **must not** free the resulting pointer with `delete` doing so is undefined behavior. See [AMT](/docs/amt) for allocator details.
 
 > [!WARNING]
 > `unsafe *T` pointers can be null. Dereferencing a null `unsafe *T` is undefined
