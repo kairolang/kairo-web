@@ -470,9 +470,9 @@ fn example() {
 
 For smart pointers promoted by AMT:
 
-- `std::Unique<*T>`: the object destructor runs at the end of the owning binding's lexical scope,
+- `std::Unique<T>`: the object destructor runs at the end of the owning binding's lexical scope,
   in reverse declaration order.
-- `std::Shared<*T>`: each binding decrements the reference count at its own scope boundary in
+- `std::Shared<T>`: each binding decrements the reference count at its own scope boundary in
   reverse declaration order; the *object* destructor and deallocation run once, when the last
   `Shared` reference's scope ends. The decrement order is lexical and deterministic; the object
   destructor fires at the final owner, which is not necessarily the last-declared binding in any

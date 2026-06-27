@@ -467,7 +467,7 @@ test "dot product of two vectors" {
         const sx = cx + x1 * scale * f;
         const sy = cy + y2 * scale * f;
         if (i > 0) {
-          const depth = (f - 0.62) / 0.55;            // 0 far → 1 near
+          const depth = (f - 0.62) / 0.55;            // 0 far -> 1 near
           const seg = i / KN;
           const col = seg < 0.45 ? RED : seg < 0.75 ? MAGENTA : EMBER;
           c.strokeStyle = `rgba(${col},${(0.28 + depth * 0.5).toFixed(3)})`;
@@ -484,7 +484,7 @@ test "dot product of two vectors" {
       const wy = H * 0.9, wScale = W * 0.62;
       const ROWS = 7, COLS = 56;
       for (let r = 0; r < ROWS; r++) {
-        const z = r / (ROWS - 1);                      // 0 near → 1 far
+        const z = r / (ROWS - 1);                      // 0 near -> 1 far
         const a = 0.34 * (1 - z * 0.7);
         c.strokeStyle = `rgba(${r === 0 ? EMBER : RED},${a.toFixed(3)})`;
         c.lineWidth = 1.6 - z * 0.7;
