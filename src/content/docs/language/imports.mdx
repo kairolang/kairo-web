@@ -37,7 +37,7 @@ The `module` modifier overrides this: `import module Foo` skips step 1 and resol
 
 `import Foo::bar` applies the same file-first rule to `Foo`:
 
-1. Resolve `Foo` → `Foo.k` (or `Foo/module.k` if no `Foo.k`).
+1. Resolve `Foo` -> `Foo.k` (or `Foo/module.k` if no `Foo.k`).
 2. Look for symbol `bar` inside the resolved module.
 
 The `::` does not change the resolution strategy. If you want `bar` to resolve as a **library submodule** (`Foo/bar/module.k`), use `import module Foo::bar`.

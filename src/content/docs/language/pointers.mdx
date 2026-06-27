@@ -239,8 +239,8 @@ library:
 
 | Type | Description |
 |---|---|
-| `std::Unique<*T>` | Single-owner, exclusive access, freed on drop |
-| `std::Shared<*T>` | Reference-counted, multiple owners, freed when count reaches zero |
+| `std::Unique<T>` | Single-owner, exclusive access, freed on drop |
+| `std::Shared<T>` | Reference-counted, multiple owners, freed when count reaches zero |
 | `std::Weak<*T>` | Non-owning reference to a `Shared` allocation, does not prevent deallocation |
 
 AMT decides which smart pointer type to use based on how the pointer is used across the program. The
@@ -260,8 +260,8 @@ Smart pointer types can be used explicitly to override AMT's decision or to vali
 behavior:
 
 ```kairo
-var ptr: std::Unique<*Config> = std::create<Config>(8080)
-var shared: std::Shared<*Config> = std::create<Config>(8080)
+var ptr: std::Unique<Config> = std::create<Config>(8080)
+var shared: std::Shared<Config> = std::create<Config>(8080)
 ```
 
 See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
@@ -396,7 +396,7 @@ var p: *i32 = &arr[0]
 var heap = std::create<Config>(8080)
 
 // Smart pointer (explicit)
-var unique: std::Unique<*Config> = std::create<Config>(8080)
+var unique: std::Unique<Config> = std::create<Config>(8080)
 
 // Void pointer
 var opaque: unsafe *void = get_handle()

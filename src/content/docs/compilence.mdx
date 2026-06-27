@@ -296,8 +296,8 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   lowers method calls on C++ objects directly to Clang, which handles vtable
   dispatch normally.
 - C++ smart pointers (`std::unique_ptr<T>`, `std::shared_ptr<T>`,
-  `std::weak_ptr<T>`) map to Kairo's AMT-tracked equivalents (`std::Unique<*T>`,
-  `std::Shared<*T>`, `std::Weak<*T>`) automatically. No `unsafe` block is
+  `std::weak_ptr<T>`) map to Kairo's AMT-tracked equivalents (`std::Unique<T>`,
+  `std::Shared<T>`, `std::Weak<*T>`) automatically. No `unsafe` block is
   required for FFI calls using smart pointers, references, move references, or
   value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe`
   block.

@@ -72,8 +72,8 @@ Calling C/C++ functions that use safe parameter types does not require an `unsaf
 | Raw pointers (`T*`, `void*`) | Yes |
 
 The FFI layer reads C++ declaration signatures and maps C++ smart pointers to Kairo's
-AMT-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Unique<*T>`,
-`std::shared_ptr<T>` maps to `std::Shared<*T>`, `std::weak_ptr<T>` maps to `std::Weak<*T>`.
+AMT-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Unique<T>`,
+`std::shared_ptr<T>` maps to `std::Shared<T>`, `std::weak_ptr<T>` maps to `std::Weak<*T>`.
 A mismatch between AMT's promotion and the C++ function's expected smart pointer type is a
 compile error.
 

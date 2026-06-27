@@ -924,8 +924,8 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   lowers method calls on C++ objects directly to Clang, which handles vtable
   dispatch normally.
 - C++ smart pointers (`std::unique_ptr<T>`, `std::shared_ptr<T>`,
-  `std::weak_ptr<T>`) map to Kairo's AMT-tracked equivalents (`std::Unique<*T>`,
-  `std::Shared<*T>`, `std::Weak<*T>`) automatically. No `unsafe` block is
+  `std::weak_ptr<T>`) map to Kairo's AMT-tracked equivalents (`std::Unique<T>`,
+  `std::Shared<T>`, `std::Weak<*T>`) automatically. No `unsafe` block is
   required for FFI calls using smart pointers, references, move references, or
   value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe`
   block.
@@ -8455,8 +8455,8 @@ library:
 
 | Type | Description |
 |---|---|
-| `std::Unique<*T>` | Single-owner, exclusive access, freed on drop |
-| `std::Shared<*T>` | Reference-counted, multiple owners, freed when count reaches zero |
+| `std::Unique<T>` | Single-owner, exclusive access, freed on drop |
+| `std::Shared<T>` | Reference-counted, multiple owners, freed when count reaches zero |
 | `std::Weak<*T>` | Non-owning reference to a `Shared` allocation, does not prevent deallocation |
 
 AMT decides which smart pointer type to use based on how the pointer is used across the program. The
@@ -8476,8 +8476,8 @@ Smart pointer types can be used explicitly to override AMT's decision or to vali
 behavior:
 
 ```kairo
-var ptr: std::Unique<*Config> = std::create<Config>(8080)
-var shared: std::Shared<*Config> = std::create<Config>(8080)
+var ptr: std::Unique<Config> = std::create<Config>(8080)
+var shared: std::Shared<Config> = std::create<Config>(8080)
 ```
 
 See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
@@ -8612,7 +8612,7 @@ var p: *i32 = &arr[0]
 var heap = std::create<Config>(8080)
 
 // Smart pointer (explicit)
-var unique: std::Unique<*Config> = std::create<Config>(8080)
+var unique: std::Unique<Config> = std::create<Config>(8080)
 
 // Void pointer
 var opaque: unsafe *void = get_handle()
@@ -9098,9 +9098,9 @@ fn example() {
 
 For smart pointers promoted by AMT:
 
-- `std::Unique<*T>`: the object destructor runs at the end of the owning binding's lexical scope,
+- `std::Unique<T>`: the object destructor runs at the end of the owning binding's lexical scope,
   in reverse declaration order.
-- `std::Shared<*T>`: each binding decrements the reference count at its own scope boundary in
+- `std::Shared<T>`: each binding decrements the reference count at its own scope boundary in
   reverse declaration order; the *object* destructor and deallocation run once, when the last
   `Shared` reference's scope ends. The decrement order is lexical and deterministic; the object
   destructor fires at the final owner, which is not necessarily the last-declared binding in any
@@ -9409,7 +9409,7 @@ var a: *i32 = std::create<i32>(120)
 
 At this dereference AMT knows the allocation base, element type (`i32`), element size (4 bytes), and
 element count (120). The offset 10 is a compile-time constant. C3 reduces to `10 < 120`, proven
-statically. C1, C2, C4, C5, C6 are all proven. Residual set is empty → `PROVEN_STATIC`:
+statically. C1, C2, C4, C5, C6 are all proven. Residual set is empty -> `PROVEN_STATIC`:
 
 ```
 mov [rdi + 40], 19
@@ -9425,7 +9425,7 @@ var i = std::input<i32>()
 ```
 
 Now C3 cannot be proven (the offset is runtime data) and C2 cannot be proven (`i` is signed and may
-be negative). Every other clause holds. Residual set is `{bounds}`, not hoistable → `REQUIRES_DYNAMIC`:
+be negative). Every other clause holds. Residual set is `{bounds}`, not hoistable -> `REQUIRES_DYNAMIC`:
 
 ```asm
 assert((0 <= i) && (i < 120));
@@ -9448,7 +9448,7 @@ for i in 0..<120
 ```
 
 AMT proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure. The
-bounds clause is `HoistableResidual` if it is the only residual → `PROVEN_RANGE`. The per-iteration
+bounds clause is `HoistableResidual` if it is the only residual -> `PROVEN_RANGE`. The per-iteration
 check is lifted to a single check before the loop:
 
 ```asm
@@ -9552,7 +9552,7 @@ When AMT determines that a heap pointer needs ownership semantics, it selects a 
 from the pointer's whole-program usage. In **debug** it performs the promotion and warns; in
 **release** it emits a hard error naming the type to annotate.
 
-### `std::Unique<*T>` single owner
+### `std::Unique<T>` single owner
 
 Exactly one live binding holds the pointer at any point. Ownership may transfer between scopes; the
 count of live owners is always one.
@@ -9561,12 +9561,12 @@ count of live owners is always one.
 fn make_config() -> *Config {
     var cfg = std::create<Config>(8080)
     return cfg
-    // debug: promote cfg -> std::Unique<*Config>
+    // debug: promote cfg -> std::Unique<Config>
     // release: error, annotate the return type
 }
 ```
 
-### `std::Shared<*T>` multiple owners
+### `std::Shared<T>` multiple owners
 
 Multiple live bindings refer to the same allocation and single ownership cannot be proven. The
 allocation is reference-counted; the object is destroyed when the last `Shared` reference's scope
@@ -9577,7 +9577,7 @@ fn share_config(a: *Server, b: *Server) {
     var cfg = std::create<Config>(8080)
     a.config = cfg
     b.config = cfg
-    // debug: promote cfg -> std::Shared<*Config>
+    // debug: promote cfg -> std::Shared<Config>
 }
 ```
 
@@ -9596,7 +9596,7 @@ return cfg               // single owner at the escape -> Unique
 
 ### `std::Weak<*T>` back-reference
 
-A pointer that, promoted to `Shared`, would close a reference cycle (A → B → A). `Weak` does not
+A pointer that, promoted to `Shared`, would close a reference cycle (A -> B -> A). `Weak` does not
 contribute to the count and does not keep the target alive; access requires a liveness check.
 
 ```kairo
@@ -9917,8 +9917,8 @@ C++ functions using smart-pointer or reference types map automatically and requi
 
 | C++ type             | Kairo AMT type            | Requires `unsafe` |
 |----------------------|---------------------------|-------------------|
-| `std::unique_ptr<T>` | `std::Unique<*T>`         | No                |
-| `std::shared_ptr<T>` | `std::Shared<*T>`         | No                |
+| `std::unique_ptr<T>` | `std::Unique<T>`         | No                |
+| `std::shared_ptr<T>` | `std::Shared<T>`         | No                |
 | `std::weak_ptr<T>`   | `std::Weak<*T>`           | No                |
 | `T&`, `const T&`     | `*T`, `*const T`          | No                |
 | `T&&` (move ref)     | `*T` (ownership transfer) | No                |
@@ -10161,8 +10161,8 @@ Calling C/C++ functions that use safe parameter types does not require an `unsaf
 | Raw pointers (`T*`, `void*`) | Yes |
 
 The FFI layer reads C++ declaration signatures and maps C++ smart pointers to Kairo's
-AMT-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Unique<*T>`,
-`std::shared_ptr<T>` maps to `std::Shared<*T>`, `std::weak_ptr<T>` maps to `std::Weak<*T>`.
+AMT-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Unique<T>`,
+`std::shared_ptr<T>` maps to `std::Shared<T>`, `std::weak_ptr<T>` maps to `std::Weak<*T>`.
 A mismatch between AMT's promotion and the C++ function's expected smart pointer type is a
 compile error.
 
@@ -12885,7 +12885,7 @@ The `module` modifier overrides this: `import module Foo` skips step 1 and resol
 
 `import Foo::bar` applies the same file-first rule to `Foo`:
 
-1. Resolve `Foo` → `Foo.k` (or `Foo/module.k` if no `Foo.k`).
+1. Resolve `Foo` -> `Foo.k` (or `Foo/module.k` if no `Foo.k`).
 2. Look for symbol `bar` inside the resolved module.
 
 The `::` does not change the resolution strategy. If you want `bar` to resolve as a **library submodule** (`Foo/bar/module.k`), use `import module Foo::bar`.
@@ -19937,7 +19937,7 @@ Because AMT sees the whole program, it doesn't need the programmer to annotate l
 
 ## AMT Auto-Promotion: Debug vs Release
 
-AMT can automatically promote a `*T` to a smart pointer (`std::Unique<*T>`, `std::Shared<*T>`, or `std::Weak<*T>`) when it determines the pointer needs to outlive its original scope:
+AMT can automatically promote a `*T` to a smart pointer (`std::Unique<T>`, `std::Shared<T>`, or `std::Weak<*T>`) when it determines the pointer needs to outlive its original scope:
 
 ```kairo
 fn make_config() -> *Config {
@@ -19955,8 +19955,8 @@ error[AMT]: pointer 'cfg' escapes its scope and requires ownership annotation
   --> src/config.k:3:12
  3 |     return cfg
    |            ^^^ escapes function scope
-   note: AMT would promote to: std::Unique<*Config>
-     2 |     var cfg: std::Unique<*Config> = std::create<Config>(8080)
+   note: AMT would promote to: std::Unique<Config>
+     2 |     var cfg: std::Unique<Config> = std::create<Config>(8080)
    fix: annotate the type explicitly
 ```
 

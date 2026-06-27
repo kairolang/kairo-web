@@ -222,7 +222,7 @@ var a: *i32 = std::create<i32>(120)
 
 At this dereference AMT knows the allocation base, element type (`i32`), element size (4 bytes), and
 element count (120). The offset 10 is a compile-time constant. C3 reduces to `10 < 120`, proven
-statically. C1, C2, C4, C5, C6 are all proven. Residual set is empty → `PROVEN_STATIC`:
+statically. C1, C2, C4, C5, C6 are all proven. Residual set is empty -> `PROVEN_STATIC`:
 
 ```
 mov [rdi + 40], 19
@@ -238,7 +238,7 @@ var i = std::input<i32>()
 ```
 
 Now C3 cannot be proven (the offset is runtime data) and C2 cannot be proven (`i` is signed and may
-be negative). Every other clause holds. Residual set is `{bounds}`, not hoistable → `REQUIRES_DYNAMIC`:
+be negative). Every other clause holds. Residual set is `{bounds}`, not hoistable -> `REQUIRES_DYNAMIC`:
 
 ```asm
 assert((0 <= i) && (i < 120));
@@ -261,7 +261,7 @@ for i in 0..<120
 ```
 
 AMT proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure. The
-bounds clause is `HoistableResidual` if it is the only residual → `PROVEN_RANGE`. The per-iteration
+bounds clause is `HoistableResidual` if it is the only residual -> `PROVEN_RANGE`. The per-iteration
 check is lifted to a single check before the loop:
 
 ```asm
@@ -365,7 +365,7 @@ When AMT determines that a heap pointer needs ownership semantics, it selects a 
 from the pointer's whole-program usage. In **debug** it performs the promotion and warns; in
 **release** it emits a hard error naming the type to annotate.
 
-### `std::Unique<*T>` single owner
+### `std::Unique<T>` single owner
 
 Exactly one live binding holds the pointer at any point. Ownership may transfer between scopes; the
 count of live owners is always one.
@@ -374,12 +374,12 @@ count of live owners is always one.
 fn make_config() -> *Config {
     var cfg = std::create<Config>(8080)
     return cfg
-    // debug: promote cfg -> std::Unique<*Config>
+    // debug: promote cfg -> std::Unique<Config>
     // release: error, annotate the return type
 }
 ```
 
-### `std::Shared<*T>` multiple owners
+### `std::Shared<T>` multiple owners
 
 Multiple live bindings refer to the same allocation and single ownership cannot be proven. The
 allocation is reference-counted; the object is destroyed when the last `Shared` reference's scope
@@ -390,7 +390,7 @@ fn share_config(a: *Server, b: *Server) {
     var cfg = std::create<Config>(8080)
     a.config = cfg
     b.config = cfg
-    // debug: promote cfg -> std::Shared<*Config>
+    // debug: promote cfg -> std::Shared<Config>
 }
 ```
 
@@ -409,7 +409,7 @@ return cfg               // single owner at the escape -> Unique
 
 ### `std::Weak<*T>` back-reference
 
-A pointer that, promoted to `Shared`, would close a reference cycle (A → B → A). `Weak` does not
+A pointer that, promoted to `Shared`, would close a reference cycle (A -> B -> A). `Weak` does not
 contribute to the count and does not keep the target alive; access requires a liveness check.
 
 ```kairo
@@ -730,8 +730,8 @@ C++ functions using smart-pointer or reference types map automatically and requi
 
 | C++ type             | Kairo AMT type            | Requires `unsafe` |
 |----------------------|---------------------------|-------------------|
-| `std::unique_ptr<T>` | `std::Unique<*T>`         | No                |
-| `std::shared_ptr<T>` | `std::Shared<*T>`         | No                |
+| `std::unique_ptr<T>` | `std::Unique<T>`         | No                |
+| `std::shared_ptr<T>` | `std::Shared<T>`         | No                |
 | `std::weak_ptr<T>`   | `std::Weak<*T>`           | No                |
 | `T&`, `const T&`     | `*T`, `*const T`          | No                |
 | `T&&` (move ref)     | `*T` (ownership transfer) | No                |

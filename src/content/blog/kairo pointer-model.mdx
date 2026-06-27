@@ -38,7 +38,7 @@ Because AMT sees the whole program, it doesn't need the programmer to annotate l
 
 ## AMT Auto-Promotion: Debug vs Release
 
-AMT can automatically promote a `*T` to a smart pointer (`std::Unique<*T>`, `std::Shared<*T>`, or `std::Weak<*T>`) when it determines the pointer needs to outlive its original scope:
+AMT can automatically promote a `*T` to a smart pointer (`std::Unique<T>`, `std::Shared<T>`, or `std::Weak<*T>`) when it determines the pointer needs to outlive its original scope:
 
 ```kairo
 fn make_config() -> *Config {
@@ -56,8 +56,8 @@ error[AMT]: pointer 'cfg' escapes its scope and requires ownership annotation
   --> src/config.k:3:12
  3 |     return cfg
    |            ^^^ escapes function scope
-   note: AMT would promote to: std::Unique<*Config>
-     2 |     var cfg: std::Unique<*Config> = std::create<Config>(8080)
+   note: AMT would promote to: std::Unique<Config>
+     2 |     var cfg: std::Unique<Config> = std::create<Config>(8080)
    fix: annotate the type explicitly
 ```
 
