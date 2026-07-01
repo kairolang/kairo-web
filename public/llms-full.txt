@@ -1439,8 +1439,8 @@ When the type is fully determined by the initializer, the `*` or `unsafe *` qual
 variable name instead of writing out the full type annotation:
 
 ```kairo
-var *ptr = std::create<i32>(10)
-// equivalent to: var ptr: *i32 = std::create<i32>(10)
+var *ptr = @create i32(10)
+// equivalent to: var ptr: *i32 = @create i32(10)
 
 var unsafe *raw = unsafe std::alloc<i32>(sizeof i32 * 1)
 // equivalent to: var raw: unsafe *i32 = unsafe std::alloc<i32>(sizeof i32 * 1)
@@ -5103,11 +5103,11 @@ A plain `var` declaration allocates on the stack:
 var obj = Foo(42)   // stack-allocated
 ```
 
-Heap allocation uses `std::create<T>()`, which returns a pointer. [AMT](/docs/language/amt) determines
+Heap allocation uses `@create T()`, which returns a pointer. [AMT](/docs/language/amt) determines
 whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
-var ptr = std::create<Foo>(42)
+var ptr = @create Foo(42)
 ```
 
 See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt).
@@ -5527,11 +5527,11 @@ struct Aligned {
 ```
 
 Structs are always value types. A plain `var` declaration allocates on the stack. Heap allocation uses
-`std::create<T>()`:
+`@create T()`:
 
 ```kairo
 var local = Point { x: 1.0, y: 2.0 }           // stack
-var *heap = std::create<Point>(Point { x: 1.0, y: 2.0 })  // heap
+var *heap = @create Point{ x: 1.0, y: 2.0 }    // heap
 ```
 
 See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt) for allocation and pointer semantics.
@@ -8464,7 +8464,7 @@ programmer does not need to annotate or choose AMT handles it automatically:
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     return cfg   // AMT determines ownership: likely Unique or Shared
 }
 ```
@@ -8476,8 +8476,8 @@ Smart pointer types can be used explicitly to override AMT's decision or to vali
 behavior:
 
 ```kairo
-var ptr: std::Unique<Config> = std::create<Config>(8080)
-var shared: std::Shared<Config> = std::create<Config>(8080)
+var ptr: std::Unique<Config> = @create Config(8080)
+var shared: std::Shared<Config> = @create Config(8080)
 ```
 
 See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
@@ -8487,11 +8487,11 @@ See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
 
 ## Heap Allocation
 
-Stack allocation is the default. Heap allocation uses `std::create<T>()`:
+Stack allocation is the default. Heap allocation uses `@create T()`:
 
 ```kairo
 var stack_val = Config(8080)                    // stack-allocated
-var heap_ptr = std::create<Config>(8080)        // heap-allocated, AMT chooses pointer type
+var heap_ptr = @create Config(8080)        // heap-allocated, AMT chooses pointer type
 ```
 
 For raw heap allocation without AMT tracking:
@@ -8609,10 +8609,10 @@ var p: *i32 = &arr[0]
 *(p + 2)   // 30
 
 // Heap allocation
-var heap = std::create<Config>(8080)
+var heap = @create Config(8080)
 
 // Smart pointer (explicit)
-var unique: std::Unique<Config> = std::create<Config>(8080)
+var unique: std::Unique<Config> = @create Config(8080)
 
 // Void pointer
 var opaque: unsafe *void = get_handle()
@@ -8954,14 +8954,14 @@ naming the type to annotate AMT does not silently change pointer types in a rele
 
 ```kairo
 // Single owner, no aliasing -> Unique
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 return cfg
 // AMT: cfg has one owner -> Unique
 ```
 
 ```kairo
 // Aliased, both pointers escape -> Shared
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 server_a.config = cfg
 server_b.config = cfg
 // AMT: cfg is aliased across two live bindings -> Shared
@@ -8969,7 +8969,7 @@ server_b.config = cfg
 
 ```kairo
 // Aliased, but the alias dies before escape -> Unique
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 {
     var tmp: *Config = cfg
     validate(tmp)
@@ -9403,7 +9403,7 @@ Kairo permits pointer arithmetic on safe pointers. This is a deliberate departur
 subset, and AMT is what makes it sound.
 
 ```kairo
-var a: *i32 = std::create<i32>(120)
+var a: *i32 = @create i32(120)
 *(a + 10) = 19
 ```
 
@@ -9460,7 +9460,7 @@ And when the loop bound and the allocation size derive from the same value:
 
 ```kairo
 var n = std::input<i32>()
-var a: *i32 = std::create<i32>(n)
+var a: *i32 = @create i32(n)
 for i in 0..<n
     *(a + i) = 0
 ```
@@ -9512,7 +9512,7 @@ and it is discharged by the same lattice machinery as bounds.
 Every allocation carries a **generation** (an epoch) in its provenance fact. Any operation that can
 free or relocate the allocation increments its epoch:
 
-- explicit `std::destroy`
+- explicit `@destroy`
 - scope exit of the owning binding
 - ownership transfer (move) out of the owning binding
 - reallocation (e.g. a `Vec` growing its backing buffer)
@@ -9525,7 +9525,7 @@ provably equal there is no intervening freeing operation between derivation and 
 some path), C1 is residual:
 
 ```kairo
-var buf: *i32 = std::create<i32>(64)
+var buf: *i32 = @create i32(64)
 var p = buf + 5
 realloc(buf)        // increments buf's epoch
 *p = 1              // C1 residual: p was derived at the old epoch
@@ -9559,7 +9559,7 @@ count of live owners is always one.
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     return cfg
     // debug: promote cfg -> std::Unique<Config>
     // release: error, annotate the return type
@@ -9574,7 +9574,7 @@ ends.
 
 ```kairo
 fn share_config(a: *Server, b: *Server) {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     a.config = cfg
     b.config = cfg
     // debug: promote cfg -> std::Shared<Config>
@@ -9586,7 +9586,7 @@ not "multiple pointers exist" but "multiple pointers are *live* at a point where
 required for safety."
 
 ```kairo
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 {
     var tmp: *Config = cfg
     validate(tmp)
@@ -9613,10 +9613,10 @@ plain `*T` with no overhead:
 
 ```kairo
 fn process() {
-    var data = std::create<Buffer>(1024)
+    var data = @create Buffer(1024)
     fill(data)
     consume(data)
-    std::destroy(data)    // fully contained -> plain *T
+    @destroy data    // fully contained -> plain *T
 }
 ```
 
@@ -9645,7 +9645,7 @@ the value's type can be heap-allocated:
 fn make() -> *i32 {
     var x = 42
     return &x
-    // debug: rewrite `var x = 42` into `var x = std::create<i32>(); *x = 42`,
+    // debug: rewrite `var x = 42` into `var x = @create i32(); *x = 42`,
     //        then promote the escaping pointer (Unique)
     // release: hard error, heap-allocate explicitly or restructure
 }
@@ -9660,7 +9660,7 @@ error[AMT]: address of stack local 'x' escapes its scope
   --> src/m.k:3:12
    3 |     return &x
      |            ^^ 'x' is stack-allocated and destroyed at end of make()
-  note: in debug, AMT would heap-promote: var x = std::create<i32>()
+  note: in debug, AMT would heap-promote: var x = @create i32()
   help: allocate on the heap explicitly, or restructure to avoid the escape
 ```
 
@@ -9801,7 +9801,7 @@ the single-writer and reader/writer rules are its consequences.
 
 ### Global allocator
 
-The default for `std::create<T>()` and all standard-library heap operations. Overridable with
+The default for `@create T()` and all standard-library heap operations. Overridable with
 `@mem::set_allocator(MyAllocator)` at the top of a file.
 
 **Intentional friction**: the override must appear at the top of *every file in the dependency graph* it affects. A library that sets a global allocator forces the annotation onto every transitive dependent. This keeps global-allocator changes visible and pushes library authors toward scoped allocators.
@@ -9814,8 +9814,8 @@ An allocator with RAII semantics it frees everything it allocated when it leaves
 ```kairo
 @mem::set_scoped_allocator(ArenaAllocator)
 fn process_frame() {
-    var a = std::create<Mesh>(vertices)
-    var b = std::create<Texture>(pixels)
+    var a = @create Mesh(vertices)
+    var b = @create Texture(pixels)
     // freed wholesale when process_frame returns
 }
 ```
@@ -9824,7 +9824,7 @@ A pointer allocated through a scoped allocator that escapes the allocator's scop
 
 ### Freestanding allocator
 
-A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `std::create<T>()` with a direct static call plus placement construction. AMT treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
+A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. AMT treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
 
 ---
 
@@ -9832,12 +9832,12 @@ A scoped-allocator variant for embedded and bare-metal targets, conforming throu
 
 Where AMT places a value's destruction depends on whether the destructor is observable.
 
-**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. AMT places the `std::destroy` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
+**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. AMT places the `@destroy` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
 
 ```kairo
-var foo = std::create<SomeClass>()    // trivial destructor
+var foo = @create SomeClass()    // trivial destructor
 use(foo)
-// std::destroy(foo) inserted here
+// @destroy foo inserted here
 std::println(10)
 ```
 
@@ -9845,7 +9845,7 @@ std::println(10)
 
 ```kairo
 fn example() {
-    var cfg = std::create<Config>(8080)    // side-effecting destructor
+    var cfg = @create Config(8080)    // side-effecting destructor
     use(cfg)
     std::println(10)
 }
@@ -9872,7 +9872,7 @@ class MyClass {
 
     fn op delete(self) {
         if (data != null) {
-            std::destroy(data)
+            @destroy data
             data = null
         }
     }
@@ -9941,7 +9941,7 @@ fn <T> take_ownership(x: *T) {
 }
 
 fn caller() {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     take_ownership(cfg)
     // ownership transferred; using cfg after this is a compile error
 }
@@ -10119,7 +10119,7 @@ Inside an unsafe block:
 - `unsafe &x` can create raw pointers from safe bindings
 
 ```kairo
-var x = std::create<i32>(42)   // AMT-tracked safe pointer
+var x = @create i32(42)   // AMT-tracked safe pointer
 
 unsafe {
     forget!(x)                  // drop x from AMT tracking
@@ -10137,7 +10137,7 @@ An `unsafe` block is required when calling a C/C++ function that takes or return
 ffi "c++" import "native.hh";
 
 fn main() {
-    var data = std::create<i32>(100)
+    var data = @create i32(100)
 
     unsafe {
         forget!(data)
@@ -10176,7 +10176,7 @@ See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
 only valid inside an `unsafe` block:
 
 ```kairo
-var ptr = std::create<Config>(8080)
+var ptr = @create Config(8080)
 
 unsafe {
     forget!(ptr)   // AMT stops tracking ptr
@@ -10192,7 +10192,7 @@ The primary use case is transferring ownership to C++ code that will manage the 
 ffi "c++" import "engine.hh";
 
 fn init_engine() {
-    var cfg = std::create<EngineConfig>(defaults())
+    var cfg = @create EngineConfig(defaults())
 
     unsafe {
         forget!(cfg)
@@ -10332,7 +10332,7 @@ fn foo() unsafe     Yes             Yes             Compiler (AMT)
 ffi "c++" import "lib.hh";
 
 fn send_to_native(data: Config) {
-    var ptr = std::create<Config>(data)
+    var ptr = @create Config(data)
 
     unsafe {
         forget!(ptr)
@@ -10379,7 +10379,7 @@ fn bounds_check(arr: [i32], index: i32) unsafe -> i32 {
 
 ```kairo
 // Unsafe block suspends AMT
-var ptr = std::create<i32>(42)
+var ptr = @create i32(42)
 unsafe {
     forget!(ptr)
     c_function(ptr as unsafe *i32)
@@ -10397,7 +10397,7 @@ var precise = compute(3.14)
 var fast = unsafe compute(3.14)
 
 // forget!() drop pointer from AMT
-var data = std::create<Buffer>(1024)
+var data = @create Buffer(1024)
 unsafe {
     forget!(data)
     // data is no longer tracked manual management required
@@ -11838,7 +11838,7 @@ Attributes must preserve the node type. An attribute attached to a function decl
 class or a variable. This ensures the expansion process is deterministic and the AST remains
 structurally consistent.
 
-To add new nodes, create them with `std::create<AST::NodeType>()` and attach them to the existing
+To add new nodes, create them with `@create AST::NodeType()` and attach them to the existing
 node (e.g., appending statements to a function body, adding members to a class).
 
 ---
@@ -11850,7 +11850,7 @@ Attributes can take additional arguments beyond the implicit node parameter:
 ```kairo
 macro @repeat(block: *AST::Block, times: i32) {
     var original = block->clone()
-    var expanded = std::create<AST::Block>()
+    var expanded = @create AST::Block()
 
     for i in 0..times {
         expanded->body.append(original.clone())
@@ -12014,7 +12014,7 @@ Key operations available on AST nodes:
 | `node->body.prepend(stmt)` | Add a statement to the beginning |
 | `node->clone()` | Deep-copy the node |
 | `AST::parse!(code)` | Parse a code fragment into an AST node |
-| `std::create<AST::T>()` | Create a new AST node of type T |
+| `@create AST::T()` | Create a new AST node of type T |
 
 ---
 
@@ -12722,7 +12722,7 @@ If the value will be passed to C/C++ repeatedly, allocate it as a raw pointer up
 ffi "c++" import "my_code.hh";
 
 fn main() {
-    var x: unsafe *i32 = std::create<i32>(41)
+    var x: unsafe *i32 = @create i32(41)
     add_one(x)  // already unsafe no block needed
     std::println(f"x = {*x}")  // x = 42
 }
@@ -19941,7 +19941,7 @@ AMT can automatically promote a `*T` to a smart pointer (`std::Unique<T>`, `std:
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     return cfg
 }
 ```
@@ -19956,7 +19956,7 @@ error[AMT]: pointer 'cfg' escapes its scope and requires ownership annotation
  3 |     return cfg
    |            ^^^ escapes function scope
    note: AMT would promote to: std::Unique<Config>
-     2 |     var cfg: std::Unique<Config> = std::create<Config>(8080)
+     2 |     var cfg: std::Unique<Config> = @create Config(8080)
    fix: annotate the type explicitly
 ```
 

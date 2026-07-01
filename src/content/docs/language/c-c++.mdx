@@ -278,7 +278,7 @@ If the value will be passed to C/C++ repeatedly, allocate it as a raw pointer up
 ffi "c++" import "my_code.hh";
 
 fn main() {
-    var x: unsafe *i32 = std::create<i32>(41)
+    var x: unsafe *i32 = @create i32(41)
     add_one(x)  // already unsafe no block needed
     std::println(f"x = {*x}")  // x = 42
 }

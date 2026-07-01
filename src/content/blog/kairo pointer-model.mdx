@@ -42,7 +42,7 @@ AMT can automatically promote a `*T` to a smart pointer (`std::Unique<T>`, `std:
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     return cfg
 }
 ```
@@ -57,7 +57,7 @@ error[AMT]: pointer 'cfg' escapes its scope and requires ownership annotation
  3 |     return cfg
    |            ^^^ escapes function scope
    note: AMT would promote to: std::Unique<Config>
-     2 |     var cfg: std::Unique<Config> = std::create<Config>(8080)
+     2 |     var cfg: std::Unique<Config> = @create Config(8080)
    fix: annotate the type explicitly
 ```
 

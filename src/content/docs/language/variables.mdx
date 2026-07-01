@@ -63,8 +63,8 @@ When the type is fully determined by the initializer, the `*` or `unsafe *` qual
 variable name instead of writing out the full type annotation:
 
 ```kairo
-var *ptr = std::create<i32>(10)
-// equivalent to: var ptr: *i32 = std::create<i32>(10)
+var *ptr = @create i32(10)
+// equivalent to: var ptr: *i32 = @create i32(10)
 
 var unsafe *raw = unsafe std::alloc<i32>(sizeof i32 * 1)
 // equivalent to: var raw: unsafe *i32 = unsafe std::alloc<i32>(sizeof i32 * 1)
