@@ -248,7 +248,7 @@ programmer does not need to annotate or choose AMT handles it automatically:
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     return cfg   // AMT determines ownership: likely Unique or Shared
 }
 ```
@@ -260,8 +260,8 @@ Smart pointer types can be used explicitly to override AMT's decision or to vali
 behavior:
 
 ```kairo
-var ptr: std::Unique<Config> = std::create<Config>(8080)
-var shared: std::Shared<Config> = std::create<Config>(8080)
+var ptr: std::Unique<Config> = @create Config(8080)
+var shared: std::Shared<Config> = @create Config(8080)
 ```
 
 See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
@@ -271,11 +271,11 @@ See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
 
 ## Heap Allocation
 
-Stack allocation is the default. Heap allocation uses `std::create<T>()`:
+Stack allocation is the default. Heap allocation uses `@create T()`:
 
 ```kairo
 var stack_val = Config(8080)                    // stack-allocated
-var heap_ptr = std::create<Config>(8080)        // heap-allocated, AMT chooses pointer type
+var heap_ptr = @create Config(8080)        // heap-allocated, AMT chooses pointer type
 ```
 
 For raw heap allocation without AMT tracking:
@@ -393,10 +393,10 @@ var p: *i32 = &arr[0]
 *(p + 2)   // 30
 
 // Heap allocation
-var heap = std::create<Config>(8080)
+var heap = @create Config(8080)
 
 // Smart pointer (explicit)
-var unique: std::Unique<Config> = std::create<Config>(8080)
+var unique: std::Unique<Config> = @create Config(8080)
 
 // Void pointer
 var opaque: unsafe *void = get_handle()

@@ -30,7 +30,7 @@ Inside an unsafe block:
 - `unsafe &x` can create raw pointers from safe bindings
 
 ```kairo
-var x = std::create<i32>(42)   // AMT-tracked safe pointer
+var x = @create i32(42)   // AMT-tracked safe pointer
 
 unsafe {
     forget!(x)                  // drop x from AMT tracking
@@ -48,7 +48,7 @@ An `unsafe` block is required when calling a C/C++ function that takes or return
 ffi "c++" import "native.hh";
 
 fn main() {
-    var data = std::create<i32>(100)
+    var data = @create i32(100)
 
     unsafe {
         forget!(data)
@@ -87,7 +87,7 @@ See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
 only valid inside an `unsafe` block:
 
 ```kairo
-var ptr = std::create<Config>(8080)
+var ptr = @create Config(8080)
 
 unsafe {
     forget!(ptr)   // AMT stops tracking ptr
@@ -103,7 +103,7 @@ The primary use case is transferring ownership to C++ code that will manage the 
 ffi "c++" import "engine.hh";
 
 fn init_engine() {
-    var cfg = std::create<EngineConfig>(defaults())
+    var cfg = @create EngineConfig(defaults())
 
     unsafe {
         forget!(cfg)
@@ -243,7 +243,7 @@ fn foo() unsafe     Yes             Yes             Compiler (AMT)
 ffi "c++" import "lib.hh";
 
 fn send_to_native(data: Config) {
-    var ptr = std::create<Config>(data)
+    var ptr = @create Config(data)
 
     unsafe {
         forget!(ptr)
@@ -290,7 +290,7 @@ fn bounds_check(arr: [i32], index: i32) unsafe -> i32 {
 
 ```kairo
 // Unsafe block suspends AMT
-var ptr = std::create<i32>(42)
+var ptr = @create i32(42)
 unsafe {
     forget!(ptr)
     c_function(ptr as unsafe *i32)
@@ -308,7 +308,7 @@ var precise = compute(3.14)
 var fast = unsafe compute(3.14)
 
 // forget!() drop pointer from AMT
-var data = std::create<Buffer>(1024)
+var data = @create Buffer(1024)
 unsafe {
     forget!(data)
     // data is no longer tracked manual management required

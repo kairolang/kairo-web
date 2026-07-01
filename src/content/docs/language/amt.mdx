@@ -216,7 +216,7 @@ Kairo permits pointer arithmetic on safe pointers. This is a deliberate departur
 subset, and AMT is what makes it sound.
 
 ```kairo
-var a: *i32 = std::create<i32>(120)
+var a: *i32 = @create i32(120)
 *(a + 10) = 19
 ```
 
@@ -273,7 +273,7 @@ And when the loop bound and the allocation size derive from the same value:
 
 ```kairo
 var n = std::input<i32>()
-var a: *i32 = std::create<i32>(n)
+var a: *i32 = @create i32(n)
 for i in 0..<n
     *(a + i) = 0
 ```
@@ -325,7 +325,7 @@ and it is discharged by the same lattice machinery as bounds.
 Every allocation carries a **generation** (an epoch) in its provenance fact. Any operation that can
 free or relocate the allocation increments its epoch:
 
-- explicit `std::destroy`
+- explicit `@destroy` or `@free`
 - scope exit of the owning binding
 - ownership transfer (move) out of the owning binding
 - reallocation (e.g. a `Vec` growing its backing buffer)
@@ -338,7 +338,7 @@ provably equal there is no intervening freeing operation between derivation and 
 some path), C1 is residual:
 
 ```kairo
-var buf: *i32 = std::create<i32>(64)
+var buf: *i32 = @create i32(64)
 var p = buf + 5
 realloc(buf)        // increments buf's epoch
 *p = 1              // C1 residual: p was derived at the old epoch
@@ -372,7 +372,7 @@ count of live owners is always one.
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     return cfg
     // debug: promote cfg -> std::Unique<Config>
     // release: error, annotate the return type
@@ -387,7 +387,7 @@ ends.
 
 ```kairo
 fn share_config(a: *Server, b: *Server) {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     a.config = cfg
     b.config = cfg
     // debug: promote cfg -> std::Shared<Config>
@@ -399,7 +399,7 @@ not "multiple pointers exist" but "multiple pointers are *live* at a point where
 required for safety."
 
 ```kairo
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 {
     var tmp: *Config = cfg
     validate(tmp)
@@ -426,10 +426,10 @@ plain `*T` with no overhead:
 
 ```kairo
 fn process() {
-    var data = std::create<Buffer>(1024)
+    var data = @create Buffer(1024)
     fill(data)
     consume(data)
-    std::destroy(data)    // fully contained -> plain *T
+    @destroy data    // fully contained -> plain *T
 }
 ```
 
@@ -458,7 +458,7 @@ the value's type can be heap-allocated:
 fn make() -> *i32 {
     var x = 42
     return &x
-    // debug: rewrite `var x = 42` into `var x = std::create<i32>(); *x = 42`,
+    // debug: rewrite `var x = 42` into `var x = @create i32(); *x = 42`,
     //        then promote the escaping pointer (Unique)
     // release: hard error, heap-allocate explicitly or restructure
 }
@@ -473,7 +473,7 @@ error[AMT]: address of stack local 'x' escapes its scope
   --> src/m.k:3:12
    3 |     return &x
      |            ^^ 'x' is stack-allocated and destroyed at end of make()
-  note: in debug, AMT would heap-promote: var x = std::create<i32>()
+  note: in debug, AMT would heap-promote: var x = @create i32()
   help: allocate on the heap explicitly, or restructure to avoid the escape
 ```
 
@@ -614,7 +614,7 @@ the single-writer and reader/writer rules are its consequences.
 
 ### Global allocator
 
-The default for `std::create<T>()` and all standard-library heap operations. Overridable with
+The default for `@create T()` and all standard-library heap operations. Overridable with
 `@mem::set_allocator(MyAllocator)` at the top of a file.
 
 **Intentional friction**: the override must appear at the top of *every file in the dependency graph* it affects. A library that sets a global allocator forces the annotation onto every transitive dependent. This keeps global-allocator changes visible and pushes library authors toward scoped allocators.
@@ -627,8 +627,8 @@ An allocator with RAII semantics it frees everything it allocated when it leaves
 ```kairo
 @mem::set_scoped_allocator(ArenaAllocator)
 fn process_frame() {
-    var a = std::create<Mesh>(vertices)
-    var b = std::create<Texture>(pixels)
+    var a = @create Mesh(vertices)
+    var b = @create Texture(pixels)
     // freed wholesale when process_frame returns
 }
 ```
@@ -637,7 +637,7 @@ A pointer allocated through a scoped allocator that escapes the allocator's scop
 
 ### Freestanding allocator
 
-A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `std::create<T>()` with a direct static call plus placement construction. AMT treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
+A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. AMT treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
 
 ---
 
@@ -645,12 +645,12 @@ A scoped-allocator variant for embedded and bare-metal targets, conforming throu
 
 Where AMT places a value's destruction depends on whether the destructor is observable.
 
-**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. AMT places the `std::destroy` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
+**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. AMT places the `@destroy`/`@free` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
 
 ```kairo
-var foo = std::create<SomeClass>()    // trivial destructor
+var foo = @create SomeClass()    // trivial destructor
 use(foo)
-// std::destroy(foo) inserted here
+// @destroy foo inserted here
 std::println(10)
 ```
 
@@ -658,7 +658,7 @@ std::println(10)
 
 ```kairo
 fn example() {
-    var cfg = std::create<Config>(8080)    // side-effecting destructor
+    var cfg = @create Config(8080)    // side-effecting destructor
     use(cfg)
     std::println(10)
 }
@@ -685,7 +685,7 @@ class MyClass {
 
     fn op delete(self) {
         if (data != null) {
-            std::destroy(data)
+            @destroy data
             data = null
         }
     }
@@ -754,7 +754,7 @@ fn <T> take_ownership(x: *T) {
 }
 
 fn caller() {
-    var cfg = std::create<Config>(8080)
+    var cfg = @create Config(8080)
     take_ownership(cfg)
     // ownership transferred; using cfg after this is a compile error
 }

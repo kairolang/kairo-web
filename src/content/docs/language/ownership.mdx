@@ -326,14 +326,14 @@ naming the type to annotate AMT does not silently change pointer types in a rele
 
 ```kairo
 // Single owner, no aliasing -> Unique
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 return cfg
 // AMT: cfg has one owner -> Unique
 ```
 
 ```kairo
 // Aliased, both pointers escape -> Shared
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 server_a.config = cfg
 server_b.config = cfg
 // AMT: cfg is aliased across two live bindings -> Shared
@@ -341,7 +341,7 @@ server_b.config = cfg
 
 ```kairo
 // Aliased, but the alias dies before escape -> Unique
-var cfg = std::create<Config>(8080)
+var cfg = @create Config(8080)
 {
     var tmp: *Config = cfg
     validate(tmp)

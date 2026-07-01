@@ -324,11 +324,11 @@ struct Aligned {
 ```
 
 Structs are always value types. A plain `var` declaration allocates on the stack. Heap allocation uses
-`std::create<T>()`:
+`@create T()`:
 
 ```kairo
 var local = Point { x: 1.0, y: 2.0 }           // stack
-var *heap = std::create<Point>(Point { x: 1.0, y: 2.0 })  // heap
+var *heap = @create Point{ x: 1.0, y: 2.0 }    // heap
 ```
 
 See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt) for allocation and pointer semantics.

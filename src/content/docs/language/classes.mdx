@@ -1052,11 +1052,11 @@ A plain `var` declaration allocates on the stack:
 var obj = Foo(42)   // stack-allocated
 ```
 
-Heap allocation uses `std::create<T>()`, which returns a pointer. [AMT](/docs/language/amt) determines
+Heap allocation uses `@create T()`, which returns a pointer. [AMT](/docs/language/amt) determines
 whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
-var ptr = std::create<Foo>(42)
+var ptr = @create Foo(42)
 ```
 
 See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt).
