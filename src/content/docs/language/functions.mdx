@@ -24,14 +24,15 @@ The full grammar:
 
 ```bnf
 function_declaration ::= visibility? abi_mod? "fn" generics? identifier
-                         "(" parameter_list? ")" function_mods? "->" return_type? bounds? block
+                         "(" parameter_list? ")" function_mods? ("->" return_type)? constraint? body
 
-visibility   ::= "pub" | "priv" | "prot"
-abi_mod      ::= ("ffi" string_literal) | "static" | "virtual" | "override"
-generics     ::= "<" generic_param_list ">"
-function_mods ::= "const" | "volatile" | "unsafe" | "eval" | "async" | "final" | "panic" | "inline"
-bounds       ::= "where" expression
-return_type  ::= type | "!"
+visibility    ::= "pub" | "priv" | "prot"
+abi_mod       ::= ("ffi" string_literal) | "static" | "virtual" | "override"
+generics      ::= "<" generic_param_list ">"
+function_mods ::= ("const" | "volatile" | "unsafe" | "eval" | "async" | "final" | "panic" | "inline")*
+constraint    ::= "requires" expression
+return_type   ::= type | "!"
+body          ::= block | "=" expression | ε        ; ε = forward declaration
 ```
 
 All parts except `fn`, the name, and the parenthesized parameter list are optional. When the return type is
@@ -304,6 +305,20 @@ print_all(42, "hello", true)   // prints each on a new line
 The parameter is a tuple of heterogeneous types. Each element in the pack must satisfy the constraints used
 in the function body in the example above, every `T` must be convertible to `string` via `as`.
 
+### Pack expansion and forwarding
+
+A pack expands with a **postfix** `...` in expression position — declaration is prefix (`...args`),
+use is postfix (`args...`). The most common case is forwarding a pack to another call:
+
+```kairo
+fn <...T> log_all(...args: T) {
+    print_all(args...)         // forwards every element as a separate argument
+}
+```
+
+The same postfix form appears in type position for pack-typed signatures. The split mirrors the
+token-macro splat: `...` before a name declares a pack, `...` after an expression expands one.
+
 ---
 
 ## Generic Functions
@@ -332,21 +347,22 @@ fn <T derives Serializable> serialize(value: T) -> [byte] {
 > `impl` checks structural conformance the type satisfies the interface's required method signatures
 > without needing an explicit `impl` declaration. `derives` checks polymorphic inheritance the type is a
 > subclass of the specified class. See [Interfaces](/docs/language/interfaces) and
-> [Bounds](/docs/language/bounds) for details.
+> [Requires Clauses](/docs/language/requires) for details.
 
-### Where Clauses
+### Requires Clauses
 
-For constraints beyond type parameter bounds, use a `where` clause:
+For constraints beyond type parameter bounds, attach a `requires` clause after the return type:
 
 ```kairo
-fn <T impl ToString> print_value(value: T) where T.value == "MyThing" {
+fn <T impl ToString> print_value(value: T) requires sizeof T <= 64 {
     std::println(value as string)
 }
 ```
 
-`where` conditions are evaluated at compile time when possible the branch is eliminated entirely. When the
-condition depends on runtime values, the function becomes conditionally callable and the compiler inserts a
-check at the call site. See [Bounds](/docs/language/bounds) for the full constraint system.
+`requires` is a compile-time gate: the condition must hold at compile time or the program does not
+compile — no runtime fallback, no dispatch. See [Requires Clauses](/docs/language/requires) for the
+full constraint system and [Where Clauses](/docs/language/where) for runtime-conditional overload
+dispatch.
 
 ---
 
