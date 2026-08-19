@@ -207,7 +207,7 @@ enum <T> ParseResult {
 // ParseResult::Success { ... } as u32   // compile error: ADT enums cannot be cast to integers
 
 extend <T> ParseResult<T> {
-    fn tag(self) const -> u32 {
+    fn tag(const self) -> u32 {
         match self {
             case .Success { 0 }
             case .Error   { 1 }

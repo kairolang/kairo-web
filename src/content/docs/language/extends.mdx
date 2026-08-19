@@ -21,7 +21,7 @@ struct Point {
 }
 
 extend Point {
-    fn length(self) const -> f64 {
+    fn length(const self) -> f64 {
         return std::sqrt(self.x * self.x + self.y * self.y)
     }
 
@@ -107,11 +107,11 @@ separating interface conformance or adding functionality in a different section 
 
 ```kairo
 interface Drawable {
-    fn draw(self) const -> string
+    fn draw(const self) -> string
 }
 
 extend Point impl Drawable {
-    fn draw(self) const -> string {
+    fn draw(const self) -> string {
         return f"({self.x}, {self.y})"
     }
 }
@@ -124,12 +124,12 @@ A type can conform to multiple interfaces through separate `extend` blocks:
 
 ```kairo
 extend Point impl Drawable {
-    fn draw(self) const -> string { ... }
+    fn draw(const self) -> string { ... }
 }
 
 extend Point impl Serializable {
-    fn serialize(self) const -> [byte] { ... }
-    fn byte_size(self) const -> i32 { ... }
+    fn serialize(const self) -> [byte] { ... }
+    fn byte_size(const self) -> i32 { ... }
 }
 ```
 
@@ -159,7 +159,7 @@ added via `impl`, `derives`, or `where` clauses:
 
 ```kairo
 extend <T impl Comparable> Pair<T> {
-    fn max(self) const -> T {
+    fn max(const self) -> T {
         return if self.first > self.second { self.first } else { self.second }
     }
 }
@@ -172,14 +172,14 @@ This `max` method is only available on `Pair<T>` when `T` satisfies `Comparable`
 
 ```kairo
 interface <T> Container {
-    fn size(self) const -> i32
-    fn get(self, index: i32) const -> T
+    fn size(const self) -> i32
+    fn get(const self, index: i32) -> T
 }
 
 extend <T> Pair<T> impl Container<T> {
-    fn size(self) const -> i32 { return 2 }
+    fn size(const self) -> i32 { return 2 }
 
-    fn get(self, index: i32) const -> T {
+    fn get(const self, index: i32) -> T {
         return if index == 0 { self.first } else { self.second }
     }
 }
@@ -195,11 +195,11 @@ Extended methods can have `pub`, `prot`, or `priv` visibility:
 
 ```kairo
 extend Point {
-    pub fn distance(self, other: Point) const -> f64 {
+    pub fn distance(const self, other: Point) -> f64 {
         return (self - other).length()
     }
 
-    priv fn validate(self) const -> bool {
+    priv fn validate(const self) -> bool {
         return self.x >= 0.0 && self.y >= 0.0
     }
 }
@@ -216,7 +216,7 @@ enum extensions, `pub` for class method extensions.
 
 ```kairo
 extend <T> Pair<T> {
-    fn duplicate(self) const -> Self {
+    fn duplicate(const self) -> Self {
         // Self resolves to Pair<T>
         return Pair<T> { first: self.first, second: self.second }
     }
@@ -234,7 +234,7 @@ A plain `extend` block must be in the same file as the type definition:
 struct Point { var x: f64; var y: f64 }
 
 extend Point {
-    fn length(self) const -> f64 { ... }   // ok: same file as Point
+    fn length(const self) -> f64 { ... }   // ok: same file as Point
 }
 ```
 
@@ -253,13 +253,13 @@ interface must be defined in the same file as the `extend` block:
 import point::Point
 
 interface Drawable {
-    fn draw(self) const -> string
+    fn draw(const self) -> string
 }
 
 // This is legal even though Point is defined in point.k,
 // because Drawable is defined here:
 extend Point impl Drawable {
-    fn draw(self) const -> string {
+    fn draw(const self) -> string {
         return f"({self.x}, {self.y})"
     }
 }
@@ -295,13 +295,13 @@ extend Color {
 
 // Serialization
 extend Color impl Serializable {
-    fn serialize(self) const -> [byte] { ... }
-    fn byte_size(self) const -> i32 { return 3 }
+    fn serialize(const self) -> [byte] { ... }
+    fn byte_size(const self) -> i32 { return 3 }
 }
 
 // Display
 extend Color impl Drawable {
-    fn draw(self) const -> string {
+    fn draw(const self) -> string {
         return f"rgb({self.r}, {self.g}, {self.b})"
     }
 }
@@ -327,7 +327,7 @@ class Server {
 
 // Interface conformance separated
 extend Server impl Loggable {
-    fn to_log_string(self) const -> string {
+    fn to_log_string(const self) -> string {
         return f"Server(:{self.port})"
     }
 }
@@ -342,7 +342,7 @@ extend Server impl Loggable {
 struct Vec2 { var x: f64; var y: f64 }
 
 extend Vec2 {
-    fn length(self) const -> f64 = std::sqrt(self.x * self.x + self.y * self.y)
+    fn length(const self) -> f64 = std::sqrt(self.x * self.x + self.y * self.y)
     fn op +(self, other: Vec2) -> Vec2 = Vec2 { x: self.x + other.x, y: self.y + other.y }
     static fn zero() -> Vec2 = Vec2 { x: 0.0, y: 0.0 }
 }
@@ -361,11 +361,11 @@ extend Direction {
 
 // Interface conformance
 extend Vec2 impl Drawable {
-    fn draw(self) const -> string = f"({self.x}, {self.y})"
+    fn draw(const self) -> string = f"({self.x}, {self.y})"
 }
 
 // Generic extend with constraints
 extend <T impl Comparable> Pair<T> {
-    fn max(self) const -> T = if self.first > self.second { self.first } else { self.second }
+    fn max(const self) -> T = if self.first > self.second { self.first } else { self.second }
 }
 ```

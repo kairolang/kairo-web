@@ -400,7 +400,7 @@ for x in s {                 // calls the yield variant
 `op delete` defines custom destruction logic. If not defined, the compiler generates a default destructor. If any member has a deleted destructor (`fn op delete() = delete`), the containing type's destructor is also deleted and instances must be managed in an [unsafe](/docs/language/unsafe) context.
 
 > [!NOTE]
-> The `op delete` operator is **not** the same as C++'s `delete` operator. Kairo's `op delete` is simply a cleanup hook that can either be explicitly called or automatically invoked when a value goes out of scope. It is not used to free memory allocated with `std::create<T>`.
+> The `op delete` operator is **not** the same as C++'s `delete` operator. Kairo's `op delete` is simply a cleanup hook that can either be explicitly called or automatically invoked when a value goes out of scope. It is not used to free memory allocated with `@create T()`.
 
 ```kairo
 class FileHandle {
@@ -475,6 +475,6 @@ For C++ developers the following C++ operators have no equivalent in Kairo:
 |---|---|
 | `? :` (ternary) | `if`/`else` expressions |
 | `,` (comma operator) | Not supported use separate statements |
-| `new` / `delete` | `std::create<T>` / automatic via AMT, or `op delete` for custom destructors |
+| `new` / `delete` | `@create T()` / automatic via AMT, or `op delete` for custom destructors |
 | `typeid` | `typeof expr` returns `TypeInfo` |
 | `const_cast` / `reinterpret_cast` / `static_cast` / `dynamic_cast` | `as` for safe casts; see [Casting](/docs/language/casting) |

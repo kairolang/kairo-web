@@ -401,12 +401,12 @@ info.get_align()         // 4
 
 ```kairo
 class TypeInfo {
-    fn get_name(self) const -> string        // mangled ABI name
-    fn get_pretty_name(self) const -> string  // human-readable (e.g. "HashMap<string, i32>")
-    fn get_size(self) const -> usize
-    fn get_align(self) const -> usize
-    fn get_abi_format(self) const -> string   // ABI format string for interop
-    fn get_kind(self) const -> TypeKind
+    fn get_name(const self) -> string        // mangled ABI name
+    fn get_pretty_name(const self) -> string  // human-readable (e.g. "HashMap<string, i32>")
+    fn get_size(const self) -> usize
+    fn get_align(const self) -> usize
+    fn get_abi_format(const self) -> string   // ABI format string for interop
+    fn get_kind(const self) -> TypeKind
 }
 
 enum TypeKind {

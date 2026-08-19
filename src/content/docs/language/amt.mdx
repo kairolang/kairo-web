@@ -449,7 +449,7 @@ special-cased; they reuse the epoch machinery.
 
 A stack value has no heap allocation behind it, so it cannot be promoted to a smart pointer. But the
 (B) model splits stack escape into two cases by whether the value is **heap-promotable** that is,
-whether AMT can mechanically rewrite the stack allocation into a `std::create` call.
+whether AMT can mechanically rewrite the stack allocation into a `@create` call.
 
 **Heap-promotable escape Tier P.** A plain local whose address escapes via return or store, where
 the value's type can be heap-allocated:
