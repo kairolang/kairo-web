@@ -112,7 +112,7 @@ Eval bodies must be deterministic and free of side effects. The following are no
 
 | Not allowed | Reason |
 |---|---|
-| Heap allocation (`std::create`, `[T]` growth) | No runtime allocator at compile time |
+| Heap allocation (`@create`, `[T]` growth) | No runtime allocator at compile time |
 | IO operations (file, network, console) | Side effects |
 | Pointer operations (`*T`, `unsafe *T`) | No addressable memory at compile time |
 | `async` / `await` / `spawn` | No runtime scheduler at compile time |

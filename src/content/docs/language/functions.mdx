@@ -372,7 +372,7 @@ Modifiers appear after the parameter list and before the return type arrow. Mult
 combined, subject to the compatibility rules below.
 
 ```kairo
-fn compute(x: i32) const inline -> i32 { return x * x }
+fn compute(x: i32) inline -> i32       { return x * x }
 fn dangerous() unsafe -> void          { /* ... */ }
 fn compile_time() eval -> i32          { return 42 }
 fn may_fail() panic -> i32             { /* ... */ }
@@ -446,13 +446,13 @@ of them.
 
 ```kairo
 class Shape {
-    virtual fn area(self) const -> f64 { return 0.0 }
+    virtual fn area(const self) -> f64 { return 0.0 }
 }
 
 class Circle : Shape {
     var radius: f64
 
-    override fn area(self) const -> f64 {
+    override fn area(const self) -> f64 {
         return 3.14159 * self.radius * self.radius
     }
 }
@@ -559,7 +559,7 @@ Forward declarations are used when the definition lives elsewhere:
     class Parser {
         var pos: usize
         fn advance(self)    -> Token
-        fn peek(self) const -> Token
+        fn peek(const self) -> Token
     }
 
     fn Parser::advance(self) -> Token {
@@ -568,7 +568,7 @@ Forward declarations are used when the definition lives elsewhere:
         return t
     }
 
-    fn Parser::peek(self) const -> Token = self.tokens[self.pos]
+    fn Parser::peek(const self) -> Token = self.tokens[self.pos]
     ```
 
     See [Classes](/docs/language/classes#out-of-line-definitions) for the full rules.
@@ -616,7 +616,7 @@ fn process(x: i32) unsafe -> i32 { /* ... */ }
 // Method with modifiers
 class Server {
     pub fn start(self) async panic { /* ... */ }
-    pub fn status(self) const -> string { /* ... */ }
+    pub fn status(const self) -> string { /* ... */ }
     pub static fn default_port() -> i32 = 8080
 }
 

@@ -150,7 +150,7 @@ struct Vec2 {
 }
 
 extend Vec2 {
-    fn length(self) const -> f64 {
+    fn length(const self) -> f64 {
         return std::sqrt(self.x * self.x + self.y * self.y)
     }
 
@@ -158,7 +158,7 @@ extend Vec2 {
         return Vec2 { x: self.x + other.x, y: self.y + other.y }
     }
 
-    fn op ==(self, other: Vec2) const -> bool {
+    fn op ==(const  self, other: Vec2) -> bool {
         return self.x == other.x && self.y == other.y
     }
 }
@@ -392,7 +392,7 @@ struct <T> Pair {
 
 // Extend with methods and operators
 extend Point {
-    fn length(self) const -> f64 {
+    fn length(const self) -> f64 {
         return std::sqrt(self.x * self.x + self.y * self.y)
     }
 
