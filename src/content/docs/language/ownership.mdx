@@ -157,6 +157,9 @@ inspect(b)
 b.data.length()   // ok: b is still live, inspect got a copy
 ```
 
+To let a callee write to the caller's object, or to take ownership of a generic argument, use the
+`@inout` and `@move` parameter modes. See [Parameter passing modes](/docs/language/functions#parameter-passing-modes).
+
 ### Last-use move optimization
 
 For MOVE types, AMT detects when a value is passed to a function and never used again. In this

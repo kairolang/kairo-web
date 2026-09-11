@@ -447,6 +447,9 @@ Kairo's [pointer model](/docs/pointers) distinguishes safe pointers (`*T`, non-n
 pointers (`unsafe *T`, no tracking). Passing any pointer or reference across the FFI boundary requires explicit
 `unsafe` context because the compiler cannot enforce safety guarantees on the C/C++ side.
 
+C++ reference *parameters* (`T&`, `const T&`, `T&&`) are not pointers. They map to Kairo's parameter modes
+(`@inout x: T`, `x: T`, `@move x: T`). See [Parameter passing modes](/docs/language/functions#parameter-passing-modes).
+
 ### Safe variable, unsafe pass
 
 ```kairo
