@@ -180,7 +180,7 @@ pub enum StatusCode derives u16 {
 }
 
 extend StatusCode {
-    fn reason(self) const -> string {
+    fn reason(const self) -> string {
         match self {
             case .Ok              { return "OK" }
             case .Created         { return "Created" }

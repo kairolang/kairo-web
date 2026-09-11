@@ -45,6 +45,49 @@ with `fn` and take `self` as the first parameter for instance methods. Omitting 
 access fields and `self` to pass the object to other functions. `self` is not a pointer; you cannot
 perform pointer arithmetic on it or reassign it.
 
+### Members always need a qualifier
+
+Unlike C++, Kairo has no implicit `this->`. Inside a function body a member of the enclosing type is not in
+unqualified scope: an instance member is reached through `self`, a static member through `Self::` (or the
+type's own name). A bare name is a local, a parameter, or something from an enclosing scope, and never a
+member:
+
+```kairo
+class Counter {
+    var hits: i32
+    static total: i32 = 0
+
+    fn Counter(self) { self.hits = 0 }
+
+    fn bump(self) {
+        self.hits += 1        // ok
+        Self::total += 1      // ok (`Counter::total` works too)
+        // hits += 1          // error: use of member 'hits' requires an explicit qualifier
+        // total += 1         // error: use of static member 'total' requires an explicit qualifier
+    }
+}
+```
+
+The one exception is a name that denotes a **scope** rather than a value nested types, type aliases, and
+nested modules. Naming a type is not an access through an object, so it needs no qualifier:
+
+```kairo
+class Tree {
+    struct Node { var value: i32 }
+    type Depth = i32
+
+    fn root(self) -> Depth {
+        var n = Node { value: 0 }   // ok: `Node` means `Self::Node`
+        var d: Depth = 0            // ok: alias, same rule
+        return d
+    }
+}
+```
+
+The rule does not depend on where a method is written. It is identical in a `class`, `struct`, `union` or
+`interface` body, in an [`extend`](/docs/language/extends) block, in an out-of-line `fn Type::method`
+definition, and inside a closure in any of those.
+
 `Self` (capitalized) is a type alias for the enclosing class. In a generic class `class <T> Foo`, `Self`
 resolves to `Foo<T>`. Use `Self` in parameter types, return types, and anywhere you need the class's own
 type without spelling out generic arguments:

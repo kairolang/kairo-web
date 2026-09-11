@@ -98,8 +98,10 @@ var raw: unsafe *i32 = unsafe &x
 // From heap allocation
 var raw: unsafe *i32 = unsafe std::alloc<i32>(sizeof i32)
 
-// From an integer address
-var raw = 0x7FFE_0000_1000 as unsafe *i32
+// From an integer address (requires an unsafe block: fabricates provenance)
+unsafe {
+    var raw = 0x7FFE_0000_1000 as unsafe *i32
+}
 
 // Null
 var raw: unsafe *i32 = &null

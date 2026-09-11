@@ -47,6 +47,45 @@ var b: MyString = MyString(a) // explicit construction required
 b = a                         // compile error: type mismatch
 ```
 
+### Aliases cannot widen visibility
+
+An alias introduces a second *name* for a type, not a second type. It may not be more visible than
+the type it names an alias that published a `priv` type under a `pub` name would hand callers a
+type its author never exported:
+
+```kairo
+priv struct Base1 {
+    var x: i32
+}
+
+pub type Base2 = Base1      // compile error: pub alias names a priv type
+pub type Base3 = *Base1     // so does this
+priv type Base4 = Base1     // ok: no wider than its target
+```
+
+Every name the alias mentions counts, not only the outermost one. A pointer, nullable, vector, set,
+tuple, array, map, function-pointer parameter or return, and a generic argument all publish their
+target just as directly, and so does a private module used as a path segment:
+
+```kairo
+priv module M {
+    pub struct T { var a: i32 }
+}
+
+pub type Leak = M::T        // compile error: reaches T through a priv module
+```
+
+The rule applies through chains, since an alias of an alias is still a name for the same type:
+
+```kairo
+priv type Inner = Config
+pub  type Outer = Inner     // compile error: Inner is priv
+```
+
+The error is reported at the alias, not at each use of it. To expose a restricted view of a private
+type rather than the type itself, declare a wrapper with the members you mean to publish an alias
+cannot narrow what it names.
+
 ### Restrictions
 
 Type aliases must reference existing named types. Inline anonymous type definitions are not permitted:
@@ -58,6 +97,9 @@ type Pair = (i32, i32)                // ok: aliases a tuple type
 
 If you need a named struct, declare a struct. Type aliases are for giving new names to existing types,
 not for defining new ones.
+
+A chain of aliases may be at most 64 links deep before the compiler stops following it. Raise the
+limit with `--cmax-type-alias-depth=<n>` if a generated or re-exported chain legitimately needs more.
 
 ---
 
