@@ -90,9 +90,44 @@ const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
     </script>
   </head>
   <body>
+    <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
     <Header />
     <slot />
     <Footer />
+    <script is:inline>
+      // Cursor-following red glow on every button
+      (function() {
+        var SEL = 'button, [role="button"], .btn-primary, .btn-outline, [class*="-btn"], .sidebar-link, .toc-link, .docs-nav-card, .breadcrumb-link, .docs-footer-link, .nav-link';
+        document.addEventListener('pointermove', function(e) {
+          var el = e.target.closest && e.target.closest(SEL);
+          if (!el) return;
+          var r = el.getBoundingClientRect();
+          el.style.setProperty('--glow-x', (e.clientX - r.left) + 'px');
+          el.style.setProperty('--glow-y', (e.clientY - r.top) + 'px');
+          el.classList.add('cursor-glow');
+        }, { passive: true });
+      })();
+    </script>
+    <script is:inline>
+      // Scroll progress bar: scales 0 → 1 across the page scroll
+      (function() {
+        var bar = document.getElementById('scroll-progress');
+        if (!bar) return;
+        var ticking = false;
+        function update() {
+          var max = document.documentElement.scrollHeight - window.innerHeight;
+          var p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+          bar.style.transform = 'scaleX(' + p + ')';
+          ticking = false;
+        }
+        function request() {
+          if (!ticking) { ticking = true; requestAnimationFrame(update); }
+        }
+        window.addEventListener('scroll', request, { passive: true });
+        window.addEventListener('resize', request);
+        update();
+      })();
+    </script>
     <script is:inline>
       // Scroll reveal observer — handles single reveals and staggered groups
       (function() {
