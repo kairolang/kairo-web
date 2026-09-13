@@ -37,6 +37,8 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   type="docs"
   breadcrumbs={breadcrumbs}
 >
+  <div class="docs-bg-glow" hidden></div>
+
   <!-- Mobile top bar -->
   <div class="docs-mobile-bar" id="docs-mobile-bar">
     <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Open navigation">
@@ -232,7 +234,32 @@ const editUrl   = `${EDIT_BASE}/${finalPath}`;
   }
 
   /* ── Docs layout grid ── */
+  /* Subtle red wash at the top of docs pages, drifting slowly */
+  /* Painted on the root (not a div) so it also shows behind the
+     transparent scrollbar track. The .docs-bg-glow marker scopes it to docs. */
+  :global(html:has(.docs-bg-glow) body) { background-color: transparent; }
+  :global(html:has(.docs-bg-glow)) {
+    background-image:
+      /* red glow top-left, maroon glow top-right, fading into the black below.
+         Maroon is dark, so it needs more alpha to read on black. */
+      radial-gradient(45% 100% at 15% 0%, rgba(232, 16, 42, 0.12), transparent 70%),
+      radial-gradient(45% 100% at 85% 0%, rgba(128, 0, 32, 0.24), transparent 70%);
+    background-size: 130% 38vh, 130% 38vh;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    animation: docs-glow-drift 40s ease-in-out infinite alternate;
+  }
+  @keyframes docs-glow-drift {
+    0%   { background-position: 0% 0, 100% 0; }
+    50%  { background-position: 50% 0, 60% 0; }
+    100% { background-position: 100% 0, 20% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(html:has(.docs-bg-glow)) { animation: none; }
+  }
+
   .docs-layout {
+    position: relative;
     display: grid;
     grid-template-columns: 276px minmax(0, 1fr) 224px;
     min-height: calc(100vh - 60px);

@@ -285,6 +285,47 @@ button {
 }
 .display .dim { color: var(--text-3); }
 
+/* ─── Scroll progress bar (full width, top of viewport) ─────────── */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 1000;
+  pointer-events: none;
+  /* maroon → red → bright red: brightens as you near the end */
+  background: linear-gradient(90deg, #5c0a14, #a3112a 50%, #e8102a);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+/* ─── Cursor glow (applied to any button by BaseLayout script) ───── */
+/* zero specificity so buttons with their own positioning keep it */
+:where(.cursor-glow) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.cursor-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    circle 80px at var(--glow-x, 50%) var(--glow-y, 50%),
+    rgba(180, 12, 32, 0.28),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-med) var(--ease);
+  z-index: 1;
+}
+.cursor-glow:hover::after { opacity: 1; }
+:root[data-theme="light"] .cursor-glow::after { mix-blend-mode: normal; opacity: 0; }
+:root[data-theme="light"] .cursor-glow:hover::after { opacity: 0.35; }
+
 /* ─── Buttons ────────────────────────────────────────────────────── */
 .btn-primary,
 .btn-outline {
