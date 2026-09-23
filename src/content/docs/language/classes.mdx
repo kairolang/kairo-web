@@ -339,6 +339,8 @@ class Bad {
 }
 ```
 
+The one exception is both being `= delete`, which is the **NON_TRANSFER** form.
+
 ### The four categories
 
 | Category | Trigger | Semantics |
@@ -512,6 +514,29 @@ class Derived derives Base {
     }
 }
 ```
+
+### Destructors and inheritance
+
+A class with a non-trivial destructor — its own `op delete`, or any field or base that has one — may only
+derive from a class whose destructor is `virtual`. Otherwise deleting the derived object through a `*Base`
+runs only the base's destructor and leaks the rest. This is a compile error at the derived class.
+
+```kairo
+class Base { fn op delete(self) { } }
+class Derived derives Base {          // error: 'Base' has no virtual destructor
+    fn op delete(self) { }
+}
+```
+
+```kairo
+class Base { virtual fn op delete(self) { } }
+class Derived derives Base {          // ok
+    override fn op delete(self) { }
+}
+```
+
+A destructor is virtual when declared `virtual` or `override`, or when any base's is — as with any other
+method, virtualness is inherited. A derived class with a trivial destructor is exempt.
 
 ### Diamond and virtual inheritance
 
@@ -1117,7 +1142,7 @@ Structs and classes are distinct types:
 | Aggregate initialization | No (must use constructor) | Yes (`Foo { field: value }`) |
 | Inheritance | `derives` | Not supported |
 | Virtual dispatch | Yes | No |
-| Lifecycle categories | Yes | N/A (always trivially copyable) |
+| Lifecycle categories | Yes | N/A (no transfer constructors; copyable whenever every field is) |
 
 See [Structures](/docs/language/structures).
 

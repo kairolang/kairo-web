@@ -28,6 +28,14 @@ project/
 
 Nested files create nested module names via `::`. A file at `utils/io.k` is accessible as the module `utils::io`.
 
+### Module paths are C++ namespaces
+
+A module's path is exactly its C++ namespace. `utils/strings.k` under a root named `utils` is `utils::strings` in Kairo and `namespace utils::strings` in the emitted C++; a `module codec { }` block inside it is `utils::strings::codec`. The mapping is fixed by the file's location in its root — not by how any importer spelled the import, not by an alias, and not by the directory the root happens to be checked out in — so the C++ name of a declaration is the same in every build of the same tree.
+
+The entry file is the exception: it has no module path. Its declarations live in an unnamed C++ namespace (internal linkage), except `main`. Nothing can import the entry file, so nothing can name them from outside.
+
+Two files under one root that both open `module codec` reopen one namespace, as in C++. Reopening never crosses a root.
+
 ## Library Entry Files
 
 A directory with a `module.k` file is a **library**. The entry file controls what the library exports publicly:
