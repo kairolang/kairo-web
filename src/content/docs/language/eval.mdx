@@ -196,15 +196,14 @@ of control flow.
 evaluable:
 
 ```kairo
-eval fn build_lookup_table() -> [i32; 16] {
-    var table: [i32; 16]
+eval fn fill_squares(@inout table: [i32; 16]) {
     eval for i in 0..16 {
         table[i] = i * i
     }
-    return table
 }
 
-eval SQUARES = build_lookup_table()
+var squares: [i32; 16]
+fill_squares(&squares)
 ```
 
 If the loop body or bounds depend on runtime values, the compiler emits an error.

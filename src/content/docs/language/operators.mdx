@@ -458,12 +458,29 @@ improves readability.
 
 ## Evaluation Order
 
-Evaluation order of subexpressions is **undefined** in Kairo. Given `f(a(), b())`, there is no guarantee
-that `a()` executes before `b()`. This is inherited from C++ semantics.
+Function and method arguments, including the receiver, are evaluated **left to right**. Given
+`f(a(), b())`, `a()` runs before `b()`; given `x.m(a())`, `x` is evaluated before `a()`.
+
+```kairo
+fn g(@inout n: i32) -> i32 { n += 1; return n * 10 }
+
+var n = 0
+f(g(&n), g(&n))     // always f(10, 20)
+```
+
+`&&` and `||` are also left to right, with short-circuiting. See
+[Control Flow](/docs/language/control-flow).
+
+Two cases still follow C++, where the order is unspecified:
+
+- A call whose result is a C++ reference or a class object. The order of that call's arguments is not
+  guaranteed.
+- A primitive operator such as `a + b` where **both** operands have side effects. Either operand may be
+  evaluated first.
 
 > [!WARNING]
-> Do not rely on evaluation order for correctness. Expressions with multiple side effects on the same variable
-> in a single statement are undefined behavior.
+> In those two cases, do not rely on evaluation order for correctness. Split the side effects into separate
+> statements.
 
 ---
 

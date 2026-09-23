@@ -87,6 +87,9 @@ consistency guarantee the whole interop story rests on:
 
 The trade-off is that Kairo does not use whatever compiler is installed on the machine. That is deliberate.
 
+The same applies to the C++ standard library. A program that uses libc++ must link against the toolchain's own
+libc++, not a copy installed on the system.
+
 ### Cross-compilation
 
 Both `kairo` and `kcc` are full native cross-compilers. Targets are selected by triple, and system libraries come
@@ -417,8 +420,10 @@ fn example() {
 }
 ```
 
-Emitted Kairo code lands inside `namespace kairo`, which is why a C++ translation unit sees Kairo's library under
-`kairo::` and its own under the unqualified `std::` it already uses. Nothing is renamed on the C++ side.
+Kairo's standard library lands inside `namespace kairo`, which is why a C++ translation unit sees Kairo's library
+under `kairo::` and its own under the unqualified `std::` it already uses. Nothing is renamed on the C++ side.
+Your own code lands in its module's namespace, or, for an entry file, in a namespace named after the file's stem.
+See [Modules](/docs/language/modules#module-paths-are-c-namespaces).
 
 > [!NOTE]
 > `inline "c++"` blocks are not supported from Stage 1 onward. Use `ffi "c++"` to import declarations and call
@@ -484,6 +489,26 @@ pointers (`unsafe *T`, no tracking). Passing any pointer or reference across the
 C++ reference *parameters* (`T&`, `const T&`, `T&&`) are not pointers. They map to Kairo's parameter modes
 (`@inout x: T`, `x: T`, `@move x: T`). See [Parameter passing modes](/docs/language/functions#parameter-passing-modes).
 
+### Calls that return a reference
+
+A call that returns a C++ reference, such as `v.at(i)`, `*p`, or `cout << x`, is usable directly as an operand
+and as the target of an assignment:
+
+```kairo
+ffi "c++" import <vector>;
+
+fn main() {
+    var v: cxx::vector<i32>
+    v.push_back(1)
+
+    v.at(0) = 3             // assign through int&
+    v.at(0) += 2            // compound assignment
+    var x = v.at(0) + 1     // operand
+}
+```
+
+See [Reference returns from C++](/docs/language/functions#reference-returns-from-c) for how these calls are typed.
+
 ### Safe variable, unsafe pass
 
 ```kairo
@@ -526,6 +551,13 @@ fn main() {
 > [!WARNING]
 > `unsafe *T` pointers can be null. Dereferencing a null `unsafe *T` is undefined behavior — the compiler will
 > not insert a null check.
+
+### Strings and `const char*`
+
+A Kairo `string` cannot yet be passed to a C `const char*` parameter. The underlying pointer is `*u8`, and
+`*u8` to `*i8` is neither an implicit nor a safe cast. A `string.c_str()` method is planned. Until it lands,
+use `cxx::std::string` on the Kairo side, or add a small C++ helper that takes a `std::string` and makes the
+C call.
 
 ---
 

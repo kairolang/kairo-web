@@ -46,7 +46,7 @@ const LANGUAGE_ORDER = [
   'attributes',
   'macros',
   'concurrency',
-  'c-c++',
+  'c-cpp',
 ];
 
 // ── Helpers ────────────────────────────────────────────────────

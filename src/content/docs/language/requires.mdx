@@ -188,13 +188,15 @@ eval fn is_power_of_two(n: i32) -> bool {
     return n > 0 && (n & (n - 1)) == 0
 }
 
-fn <const N: i32> aligned_buffer() -> [u8; N]
+fn <const N: i32> clear_aligned(@inout buf: [u8; N])
   requires is_power_of_two(N) {
-    return [0; N]
+    for i in 0..N { buf[i] = 0 }
 }
 
-aligned_buffer<256>()   // ok: 256 is a power of two
-aligned_buffer<300>()   // compile error: 300 is not a power of two
+var a: [u8; 256]
+var b: [u8; 300]
+clear_aligned<256>(&a)  // ok: 256 is a power of two
+clear_aligned<300>(&b)  // compile error: 300 is not a power of two
 ```
 
 See [Eval](/docs/language/eval) for compile-time evaluation rules.

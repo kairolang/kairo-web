@@ -85,7 +85,7 @@ var p: unsafe *i32 = unsafe &x   // create raw pointer from safe binding
 
 Dereferencing a null `unsafe *T` is undefined behavior. The compiler will not insert a check.
 
-Raw pointers are required for [C/C++ interop](/docs/language/c-c++), custom allocators, hardware
+Raw pointers are required for [C/C++ interop](/docs/language/c-cpp), custom allocators, hardware
 register access, and any scenario where AMT tracking is not possible or not desired.
 
 ### Creating raw pointers

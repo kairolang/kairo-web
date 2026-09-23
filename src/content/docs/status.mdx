@@ -1,0 +1,49 @@
+---
+title: Implementation Status
+description: What the current Kairo compiler does not do yet, and what to use in the meantime.
+order: 3
+---
+
+# Implementation Status
+
+The language reference describes Kairo as designed. This page lists where the current compiler falls short of
+it. Each entry is removed when the gap closes.
+
+---
+
+## Not Compiled Yet
+
+| Feature | Status | Meanwhile |
+|---|---|---|
+| Vector literals (`var v: [i32] = [1, 2, 3]`) | Type-check and compile, but do not link: the built-in vector constructors are not implemented yet | Use an array `[T; N]` or a slice `[T;]` |
+| Set literals `{a, b}` | Not compiled | — |
+| Map literals `{k: v}` | Not compiled | — |
+| File-scope `var` | Not compiled | Move the variable into a function, or use `eval` for constants |
+| Initializing a `const` field in a constructor | Not supported | — |
+
+---
+
+## Checked by C++, Not by Kairo
+
+Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo
+diagnostic. This covers `priv` constructors and writes to `const` fields.
+
+---
+
+## Not Diagnosed
+
+Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with
+the statement, so the stored slice dangles. This becomes an error when [AMT](/docs/language/amt) lands; until
+then, pass a `var` or a `[T]` to any function that keeps what it is given. See
+[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+
+---
+
+## Language Gaps
+
+- An array variable does not convert to a slice implicitly. Build the slice explicitly.
+- A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See
+  [C & C++ Interoperability](/docs/language/c-cpp#strings-and-const-char).
+- Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object
+  and for primitive operators whose two operands both have side effects. See
+  [Operators](/docs/language/operators#evaluation-order).
