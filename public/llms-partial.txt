@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-09-11T18:32:39.238Z
+> Generated: 2026-09-23T03:56:42.877Z
 
 ---
 
@@ -17,7 +17,7 @@ SECTION: GETTING STARTED
 URL: https://www.kairolang.org/docs/
 
 > [!WARNING]
-> The language reference describes Stage 1 Kairo. Not the Stage 0 compiler. Stage 1 is still under development and the syntax and standard library may change before 1.0. The Stage 0 compiler is stable and can be used to build Kairo programs, but it does not yet support all Stage 1 features.
+> The language reference describes Stage 1 Kairo. Not the Stage 0 compiler. Stage 1 is still under development and the syntax and standard library may change before 1.0. The Stage 0 compiler is stable and can be used to build Kairo programs, but it does not yet support all Stage 1 features. See [Implementation Status](/docs/status) for what is not compiled yet.
 
 
 # Kairo
@@ -148,7 +148,7 @@ reflects the current language design.
 - [Philosophy](/docs/philosophy) understand the design principles
 - [Primitives](/docs/language/primitives) start with the type system
 - [Classes](/docs/language/classes) objects, inheritance, virtual dispatch
-- [C/C++ Interop](/docs/language/c-c++) calling C++ from Kairo and back
+- [C/C++ Interop](/docs/language/c-cpp) calling C++ from Kairo and back
 - [Example: HTTP Server](/docs/examples/http-server) a complete project walkthrough
 
 ---
@@ -765,7 +765,7 @@ Kairo primitives, conversions to C++ string types are implicit:
 | `as libcxx::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
 | C `const char*` | Null-terminated UTF-8 `u8` pointer | Implicit conversion; no `unsafe` block required |
 
-See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
 
 ### What Kairo Does Not Do
 
@@ -930,7 +930,7 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe`
   block.
 
-See [C/C++ Interop](/docs/language/c-c++) and [Unsafe](/docs/language/unsafe)
+See [C/C++ Interop](/docs/language/c-cpp) and [Unsafe](/docs/language/unsafe)
 for the full FFI safety model.
 
 ---
@@ -1008,6 +1008,55 @@ depending on whether the optimizer's heuristics fire).
 | ELF | System V gABI + platform psABI |
 | Mach-O | 64-bit Mach-O |
 | PE/COFF | Microsoft PE32+ |
+
+---
+
+## Implementation Status
+URL: https://www.kairolang.org/docs/status/
+
+# Implementation Status
+
+The language reference describes Kairo as designed. This page lists where the current compiler falls short of
+it. Each entry is removed when the gap closes.
+
+---
+
+## Not Compiled Yet
+
+| Feature | Status | Meanwhile |
+|---|---|---|
+| Vector literals (`var v: [i32] = [1, 2, 3]`) | Type-check and compile, but do not link: the built-in vector constructors are not implemented yet | Use an array `[T; N]` or a slice `[T;]` |
+| Set literals `{a, b}` | Not compiled | — |
+| Map literals `{k: v}` | Not compiled | — |
+| File-scope `var` | Not compiled | Move the variable into a function, or use `eval` for constants |
+| Initializing a `const` field in a constructor | Not supported | — |
+
+---
+
+## Checked by C++, Not by Kairo
+
+Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo
+diagnostic. This covers `priv` constructors and writes to `const` fields.
+
+---
+
+## Not Diagnosed
+
+Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with
+the statement, so the stored slice dangles. This becomes an error when [AMT](/docs/language/amt) lands; until
+then, pass a `var` or a `[T]` to any function that keeps what it is given. See
+[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+
+---
+
+## Language Gaps
+
+- An array variable does not convert to a slice implicitly. Build the slice explicitly.
+- A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See
+  [C & C++ Interoperability](/docs/language/c-cpp#strings-and-const-char).
+- Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object
+  and for primitive operators whose two operands both have side effects. See
+  [Operators](/docs/language/operators#evaluation-order).
 
 ---
 
@@ -1246,7 +1295,7 @@ var void_t: MyObj<void> = MyObj<void>()  // void is valid here
 
 `unsafe *T` is a raw C-style pointer with no compiler tracking. It can be null, and dereferencing a null
 
-`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-c++), custom allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers) and [Unsafe](/docs/language/unsafe) for full details.
+`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-cpp), custom allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers) and [Unsafe](/docs/language/unsafe) for full details.
 
 ```kairo
 var x = 42
@@ -1258,11 +1307,72 @@ var q: unsafe *i32 = unsafe &x  // raw pointer, no tracking
 
 ## Collections
 
-Collections are built-in generic types with literal syntax. All are heap-allocated except fixed-size arrays.
+Collections are built-in generic types with literal syntax. There are three sequence types, which differ in
+who owns the elements:
+
+| Type | Name | Owns its elements | Storage |
+|---|---|---|---|
+| `[T; N]` | Array | yes | `N` elements inline, where the array is |
+| `[T;]` | Slice | no | pointer + length over storage owned by something else |
+| `[T]` | Vector | yes | a heap copy of its elements |
+
+Maps and sets are heap-allocated.
+
+### Arrays `[T; N]`
+
+A contiguous block of `N` elements stored inline (in the local, the enclosing struct, or the enclosing array).
+`N` must be a compile-time constant.
+
+```kairo
+var rgb: [u8; 3] = [255, 128, 0]
+rgb[0] = 10
+// rgb.push(42)  // compile error: fixed size
+```
+
+An array is **not a value type**. It cannot be copied, assigned, passed by value, or returned. It can be a
+local, a field, or an element of another array; it can be viewed by a slice, pointed to, and passed as a
+`const` or `@inout` parameter. Each of the following is a compile error, and each diagnostic names the fix:
+
+```kairo
+var a = [1, 2, 3]              // [i32; 3]
+
+var b = a                      // compile error: an array is not copyable
+b = a                          // compile error: an array is not assignable
+fn f(xs: [i32; 3]) { }         // compile error: takes an array by value
+fn g() -> [i32; 3] { }         // compile error: returns an array
+```
+
+- To copy, copy the elements, or view the source through a slice or a pointer.
+- To assign, assign the elements, or go through a slice.
+- To take an array, write `const xs: [i32; 3]` or `@inout xs: [i32; 3]` (both pass by reference), or take a
+  slice `[i32;]`.
+- To produce one, return a `[T]`, or fill an `@inout` parameter.
+
+```kairo
+fn sum(const xs: [i32; 3]) -> i32 { return xs[0] + xs[1] + xs[2] }
+fn zero(@inout xs: [i32; 3]) { xs[0] = 0; xs[1] = 0; xs[2] = 0 }
+
+var a = [1, 2, 3]
+sum(a)       // 6
+zero(&a)     // a is now [0, 0, 0]
+```
+
+### Slices `[T;]`
+
+A view over contiguous elements: a pointer and a length. A slice does not own the storage it points into and
+never frees it.
+
+```kairo
+var s: [i32;] = [1, 2, 3]      // the storage lives as long as s
+s[0]                           // 1
+```
+
+An array variable does not convert to a slice implicitly yet. Build the slice explicitly from the array.
 
 ### Vectors `[T]`
 
-A growable, owning, contiguous array. Layout: `ptr + len + cap` (24 bytes).
+A growable, owning, contiguous array. Layout: `ptr + len + cap` (24 bytes). A vector owns a heap copy of
+its elements.
 
 ```kairo
 var nums: [i32] = [1, 2, 3]
@@ -1270,17 +1380,92 @@ nums.push(4)
 nums[0]    // 1 bounds-checked
 ```
 
-When borrowed as `const [T]`, a vector acts as a non-owning view with `cap` set to zero no growth permitted,
-no deallocation on drop. See [Ownership](/docs/language/ownership) for borrowing semantics.
-
-### Arrays `[T; N]`
-
-A fixed-size array allocated inline (stack or struct). `N` must be a compile-time constant.
+A slice never becomes a vector implicitly, because that allocates. Write the conversion:
 
 ```kairo
-var rgb: [u8; 3] = [255, 128, 0]
-// rgb.push(42)  // compile error: fixed size
+var s: [i32;] = [1, 2, 3]
+var v = s as [i32]             // copies the elements into a new vector
 ```
+
+### List literals
+
+`[a, b, c]` is an array, `[T; 3]`, unless the context asks for a slice or a vector:
+
+```kairo
+var a = [1, 2, 3]              // [i32; 3]
+var s: [i32;] = [1, 2, 3]      // slice over storage that lives as long as s
+var v: [i32]  = [1, 2, 3]      // vector, owns a copy
+f([1, 2, 3])                   // takes the parameter's type: array, slice, or vector
+```
+
+The element type is the target's element type. With no target, it is the join of the element types.
+
+An empty `[]` has no element type to infer. Annotate the target as `[T;]` or `[T]`:
+
+```kairo
+var e = []                     // compile error: cannot infer the type of an empty list here
+var f: [i32] = []              // ok
+```
+
+A literal whose element count does not match `[T; N]` is an error. It never falls back to a slice:
+
+```kairo
+var x: [i32; 4] = [1, 2, 3]    // compile error: array literal has 3 elements, but '[i32; 4]' needs 4
+```
+
+#### How long a slice literal's storage lives
+
+A list literal that becomes a slice is a view of a temporary array. That array lives:
+
+- for the **statement**, when the literal is a function argument;
+- for the **enclosing scope**, when the literal directly initializes a `var`.
+
+So a slice literal is an error anywhere the view would outlive its storage:
+
+```kairo
+fn make() -> [i32;] {
+    return [1, 2]              // compile error: returned from a function
+}
+
+var s: [i32;] = [1]
+s = [1, 2]                     // compile error: assigned to a slice
+
+struct S {
+    var xs: [i32;] = [1]       // compile error: used as a field default
+}
+
+var t = S{ xs: [1, 2] }        // compile error: stored in a field
+```
+
+The fix is the same in every case: use `[T]` so the elements are owned, or bind the literal to a `var` first
+and use that.
+
+> [!WARNING]
+> One case is not caught: passing a slice literal to a function that **stores** the slice. The literal's
+> storage ends with the statement, and the stored slice then points at nothing. Until [AMT](/docs/language/amt)
+> checks this, it is the programmer's responsibility.
+
+#### Slices in fields
+
+A `[T;]` field is a borrowed view; the type holding it does not own the data. A type that keeps its data
+declares `[T]` or `[T; N]`:
+
+```kairo
+struct Packet {
+    var header: [u8; 4]        // owned, inline
+    var payload: [u8]          // owned, heap
+    var source: [u8;]          // borrowed, must outlive the Packet
+}
+```
+
+#### Conversions between the three
+
+| From | To | How |
+|---|---|---|
+| list literal | `[T; N]`, `[T;]`, `[T]` | implicit, when the target asks for it |
+| slice `[T;]` | vector `[T]` | explicit only: `s as [T]` (allocates) |
+| array variable `[T; N]` | slice `[T;]` | not implicit yet; build the slice explicitly |
+| array `[T; N]` | array `[T; N]` | never: arrays are not copyable |
 
 ### Maps `{K: V}`
 
@@ -1365,6 +1550,7 @@ var q: unsafe *i32 = unsafe &x
 
 // Collections
 var nums: [i32] = [1, 2, 3]                           // vector
+var view: [i32;] = [1, 2, 3]                          // slice
 var rgb: [u8; 3] = [255, 128, 0]                      // array
 var ages: {string: i32} = {"Alice": 30, "Bob": 25}    // map
 var primes: {i32} = {2, 3, 5, 7}                      // set
@@ -1618,6 +1804,38 @@ Write that as a differential test: compile the whole suite both ways, diff the
 `--dump-type-info` output, and assert every difference is `resolved → error` and never
 `resolved(A) → resolved(B)`. If that assertion ever fires you have introduced a ranking
 somewhere, and you want to know the day it happens.
+
+### List literal arguments
+
+A list literal argument uses the same two ranks:
+
+- A `[T; N]` parameter, where `N` equals the literal's element count, is **Exact** when every element is
+  exact for `T`.
+- A `[T;]` or a `[T]` parameter is **Converted**. The two are unordered against each other, like any other
+  pair of rank-2 candidates.
+
+```kairo
+fn f(const xs: [i32; 3]) { }
+fn f(xs: [i32;]) { }
+fn f(xs: [i32]) { }
+
+f([1, 2, 3])            // picks [i32; 3]: Exact beats Converted
+```
+
+With only the slice and vector overloads, both are Converted and the call is ambiguous. Annotate the
+argument to choose:
+
+```kairo
+fn g(xs: [i32;]) { }
+fn g(xs: [i32]) { }
+
+g([1, 2, 3])            // compile error: call to 'g' is ambiguous
+g([1, 2, 3] as [i32])   // ok: vector overload
+var s: [i32;] = [1, 2, 3]
+g(s)                    // ok: slice overload
+```
+
+Literals other than list literals are unaffected.
 
 ---
 
@@ -2617,12 +2835,29 @@ improves readability.
 
 ## Evaluation Order
 
-Evaluation order of subexpressions is **undefined** in Kairo. Given `f(a(), b())`, there is no guarantee
-that `a()` executes before `b()`. This is inherited from C++ semantics.
+Function and method arguments, including the receiver, are evaluated **left to right**. Given
+`f(a(), b())`, `a()` runs before `b()`; given `x.m(a())`, `x` is evaluated before `a()`.
+
+```kairo
+fn g(@inout n: i32) -> i32 { n += 1; return n * 10 }
+
+var n = 0
+f(g(&n), g(&n))     // always f(10, 20)
+```
+
+`&&` and `||` are also left to right, with short-circuiting. See
+[Control Flow](/docs/language/control-flow).
+
+Two cases still follow C++, where the order is unspecified:
+
+- A call whose result is a C++ reference or a class object. The order of that call's arguments is not
+  guaranteed.
+- A primitive operator such as `a + b` where **both** operands have side effects. Either operand may be
+  evaluated first.
 
 > [!WARNING]
-> Do not rely on evaluation order for correctness. Expressions with multiple side effects on the same variable
-> in a single statement are undefined behavior.
+> In those two cases, do not rely on evaluation order for correctness. Split the side effects into separate
+> statements.
 
 ---
 
@@ -3531,6 +3766,17 @@ separate mode for `const T&`.
 For a function declared in an imported C++ header, the compiler doesn't choose. The parameter is passed
 exactly as the header declares it.
 
+A fixed array `[T; N]` is the exception: it is not a value type, so a plain `xs: [T; N]` parameter is an
+error. Take it as `const` or `@inout`, both of which pass by reference, or take a slice:
+
+```kairo
+fn f(xs: [i32; 3]) { }          // compile error: parameter 'xs' takes an array by value;
+                                //   write 'const', '@inout', or take a slice
+fn f(const xs: [i32; 3]) { }    // ok: read-only, by reference
+fn f(@inout xs: [i32; 3]) { }   // ok: read-write, by reference
+fn f(xs: [i32;]) { }            // ok: a view of any length
+```
+
 #### Call-site syntax
 
 | Parameter     | Call     |
@@ -3655,9 +3901,21 @@ pointer, and the value category keeps the reference's meaning:
 Because a `T&&` return is an xvalue, `f(g())` where `g` returns `T&&` selects `f`'s `@move` overload, as it
 does in C++.
 
-Unlike `v[0]`, which dereferences implicitly because `[]` is a
-[place-returning operator](/docs/language/operators#subscript), a named method returning `T&` yields a `*T`
-that you dereference yourself.
+The call itself is usable as the referenced value, the same way `v[0]` is: as an operand, and as the target
+of an assignment or compound assignment.
+
+```kairo
+ffi "c++" import <vector>;
+
+var v: cxx::vector<i32>
+v.push_back(1)
+
+v.at(0) = 3                 // assigns through the returned int&
+v.at(0) += 2                // 5
+var x = v.at(0) + 1         // 6
+```
+
+The same holds for `*p` and for operators that return a reference, such as `cout << x`.
 
 #### `@move` is checked
 
@@ -3709,6 +3967,22 @@ fn log_explicit(msg: string) -> void {   // equivalent
     std::println(msg)
 }
 ```
+
+### Arrays are not returned
+
+A function cannot return a fixed array `[T; N]` by value. Return a vector `[T]`, or fill an `@inout`
+parameter:
+
+```kairo
+fn make() -> [i32; 3] { ... }           // compile error: 'make' returns an array
+fn make() -> [i32] { return [1, 2, 3] } // ok: the caller owns a vector
+fn make(@inout out: [i32; 3]) {         // ok: the caller owns the array
+    out[0] = 1; out[1] = 2; out[2] = 3
+}
+```
+
+Returning a slice literal is also an error, because the literal's storage ends with the function. See
+[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
 
 ### No-return `!`
 
@@ -3828,6 +4102,26 @@ fn add(a: string, b: string) -> string = a + b
 ```
 
 Parameter modes also participate in overloading. See [Overloading on mode](#overloading-on-mode).
+
+A candidate either matches an argument exactly or through a conversion, and there is no ordering among
+conversions: if two candidates both need one, the call is ambiguous (`call to 'f' is ambiguous: more than
+one candidate matches at the same rank`). For a list literal argument, a `[T; N]` parameter with the same
+element count is an exact match, while `[T;]` and `[T]` parameters both need a conversion:
+
+```kairo
+fn f(const xs: [i32; 3]) { }
+fn f(xs: [i32;]) { }
+fn f(xs: [i32]) { }
+f([1, 2, 3])                // [i32; 3]
+
+fn g(xs: [i32;]) { }
+fn g(xs: [i32]) { }
+g([1, 2, 3])                // compile error: call to 'g' is ambiguous
+g([1, 2, 3] as [i32])       // ok
+```
+
+See [Primitives](/docs/language/primitives#list-literal-arguments)
+for the ranking rules.
 
 ### Unsafe overloads
 
@@ -4034,8 +4328,8 @@ ABI modifiers control name mangling, dispatch mechanism, and symbol visibility a
 
 | Modifier | Description |
 |---|---|
-| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-c++) |
-| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-c++) |
+| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-cpp) |
+| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-cpp) |
 | `static` | Internal linkage; no vtable dispatch. Cannot be `virtual` or `override` |
 | `virtual` | Dynamic dispatch via vtable. See [Classes](/docs/language/classes) |
 | `override` | Overrides a `virtual` method from a base class; implies `virtual` |
@@ -4149,7 +4443,7 @@ fn is_odd(n: u32) -> bool  = if n == 0 { false } else { is_even(n - 1) }
 Forward declarations are used when the definition lives elsewhere:
 
 - **FFI imports** the body is provided by a C or C++ library. See
-  [C/C++ Interop](/docs/language/c-c++).
+  [C/C++ Interop](/docs/language/c-cpp).
 - **Separate translation units** the declaration is visible to callers; the
   definition is linked in from another `.kro` file.
 - **Out-of-line class methods** declared in the class body, defined outside it using the `Class::method` qualified-name syntax:
@@ -4915,6 +5209,8 @@ class Bad {
 }
 ```
 
+The one exception is both being `= delete`, which is the **NON_TRANSFER** form.
+
 ### The four categories
 
 | Category | Trigger | Semantics |
@@ -5088,6 +5384,29 @@ class Derived derives Base {
     }
 }
 ```
+
+### Destructors and inheritance
+
+A class with a non-trivial destructor — its own `op delete`, or any field or base that has one — may only
+derive from a class whose destructor is `virtual`. Otherwise deleting the derived object through a `*Base`
+runs only the base's destructor and leaks the rest. This is a compile error at the derived class.
+
+```kairo
+class Base { fn op delete(self) { } }
+class Derived derives Base {          // error: 'Base' has no virtual destructor
+    fn op delete(self) { }
+}
+```
+
+```kairo
+class Base { virtual fn op delete(self) { } }
+class Derived derives Base {          // ok
+    override fn op delete(self) { }
+}
+```
+
+A destructor is virtual when declared `virtual` or `override`, or when any base's is — as with any other
+method, virtualness is inherited. A derived class with a trivial destructor is exempt.
 
 ### Diamond and virtual inheritance
 
@@ -5693,7 +6012,7 @@ Structs and classes are distinct types:
 | Aggregate initialization | No (must use constructor) | Yes (`Foo { field: value }`) |
 | Inheritance | `derives` | Not supported |
 | Virtual dispatch | Yes | No |
-| Lifecycle categories | Yes | N/A (always trivially copyable) |
+| Lifecycle categories | Yes | N/A (no transfer constructors; copyable whenever every field is) |
 
 See [Structures](/docs/language/structures).
 
@@ -7446,7 +7765,7 @@ pub type Base3 = *Base1     // so does this
 priv type Base4 = Base1     // ok: no wider than its target
 ```
 
-Every name the alias mentions counts, not only the outermost one. A pointer, nullable, vector, set,
+Every name the alias mentions counts, not only the outermost one. A pointer, nullable, vector, slice, set,
 tuple, array, map, function-pointer parameter or return, and a generic argument all publish their
 target just as directly, and so does a private module used as a path segment:
 
@@ -7602,6 +7921,20 @@ feed(&dog)   // *Dog implicitly converts to *Animal
 This is always safe the base subobject is at a known offset. The reverse (base-to-derived) requires
 an explicit cast because it can fail at runtime. See [Casting](/docs/language/casting).
 
+### List literal to a container
+
+A list literal takes the type its target asks for: an array `[T; N]` with a matching element count, a slice
+`[T;]`, or a vector `[T]`. With no target it is an array.
+
+```kairo
+fn total(xs: [i32;]) -> i32 { ... }
+
+total([1, 2, 3])               // the literal becomes a slice for this call
+var v: [i32] = [1, 2, 3]       // the literal becomes a vector
+```
+
+This applies to the literal only. A slice or array *variable* does not convert to anything implicitly.
+
 ### No other implicit conversions
 
 The following conversions are all explicit (require `as`):
@@ -7611,6 +7944,9 @@ The following conversions are all explicit (require `as`):
 - Base-to-derived pointer (downcast)
 - Any pointer to a different pointer type
 - Integer narrowing or float-to-integer
+- Slice to vector (`s as [T]`; it allocates)
+
+An array variable does not convert to a slice implicitly yet; build the slice explicitly.
 
 ---
 
@@ -7763,8 +8099,9 @@ Collection literal syntax maps to built-in types:
 
 | Syntax | Type | Description |
 |---|---|---|
-| `[T]` | Vector | Growable contiguous array (ptr + len + cap) |
-| `[T; N]` | Array | Fixed-size, stack-allocated, `N` must be compile-time |
+| `[T]` | Vector | Growable contiguous array that owns a heap copy of its elements (ptr + len + cap) |
+| `[T;]` | Slice | Non-owning view over contiguous elements (ptr + len) |
+| `[T; N]` | Array | Fixed-size, stored inline, `N` must be compile-time; not copyable or assignable |
 | `{K: V}` | Map | Hash map |
 | `{T}` | Set | Hash set |
 
@@ -7780,6 +8117,11 @@ type <T> HashSet = {T}
 ```
 
 The literal syntax and the aliased names are interchangeable.
+
+A list literal `[a, b, c]` is an array `[T; 3]` unless its target is a slice or a vector. Arrays are not
+value types: they cannot be copied, assigned, passed by value, or returned. See
+[Primitives](/docs/language/primitives#collections) for the full rules on arrays, slices, vectors, and list
+literals.
 
 `N` in `[T; N]` must be a compile-time evaluable expression. Runtime-dependent array sizes are not
 supported use `[T]` (vector) for dynamically sized collections:
@@ -7955,6 +8297,7 @@ var g: fn(i32) panic -> i32 = risky_fn
 
 // Collections
 var vec: [i32] = [1, 2, 3]
+var view: [i32;] = [1, 2, 3]
 var arr: [u8; 4] = [0, 0, 0, 0]
 var map: {string: i32} = {"a": 1}
 var set: {i32} = {1, 2, 3}
@@ -8297,6 +8640,31 @@ the target type.
 See [Operators](/docs/language/operators#special-operators) for the full operator overloading
 reference.
 
+## Conversion Through a Constructor
+
+`x as T` is also a conversion when `T` declares a constructor with one parameter that accepts `x`'s type. The
+cast calls that constructor:
+
+```kairo
+class Celsius {
+    var value: f64
+
+    fn Celsius(self, v: f64) { self.value = v }
+}
+
+var c = 21.5 as Celsius     // calls Celsius(21.5)
+```
+
+The standing example is slice to vector. A vector has a constructor that takes a slice, so the cast copies the
+elements into a new vector:
+
+```kairo
+var s: [i32;] = [1, 2, 3]
+var v = s as [i32]          // allocates and copies
+```
+
+If the source type declares `op as` for `T` and `T` also has a matching constructor, `op as` wins.
+
 ---
 
 ## Cast Summary
@@ -8319,6 +8687,8 @@ reference.
 | Int to plain enum | `n as Direction` | UB if no match | No runtime check |
 | ADT enum to int | N/A | Compile error | Use `extend` method |
 | User-defined | `x as TargetType` | Depends on `op as` | Calls user code |
+| Through a constructor | `x as T` | Depends on the constructor | Calls `T`'s one-parameter constructor |
+| Slice to vector | `s as [T]` | Safe | Allocates and copies |
 | `T` to `T?` | Implicit | Safe | N/A |
 | `T?` to `T` | Not a cast | Compile error | Use `??` or `unwrap!()` |
 
@@ -8522,13 +8892,15 @@ eval fn is_power_of_two(n: i32) -> bool {
     return n > 0 && (n & (n - 1)) == 0
 }
 
-fn <const N: i32> aligned_buffer() -> [u8; N]
+fn <const N: i32> clear_aligned(@inout buf: [u8; N])
   requires is_power_of_two(N) {
-    return [0; N]
+    for i in 0..N { buf[i] = 0 }
 }
 
-aligned_buffer<256>()   // ok: 256 is a power of two
-aligned_buffer<300>()   // compile error: 300 is not a power of two
+var a: [u8; 256]
+var b: [u8; 300]
+clear_aligned<256>(&a)  // ok: 256 is a power of two
+clear_aligned<300>(&b)  // compile error: 300 is not a power of two
 ```
 
 See [Eval](/docs/language/eval) for compile-time evaluation rules.
@@ -8959,7 +9331,7 @@ var p: unsafe *i32 = unsafe &x   // create raw pointer from safe binding
 
 Dereferencing a null `unsafe *T` is undefined behavior. The compiler will not insert a check.
 
-Raw pointers are required for [C/C++ interop](/docs/language/c-c++), custom allocators, hardware
+Raw pointers are required for [C/C++ interop](/docs/language/c-cpp), custom allocators, hardware
 register access, and any scenario where AMT tracking is not possible or not desired.
 
 ### Creating raw pointers
@@ -10829,7 +11201,7 @@ AMT-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Unique
 A mismatch between AMT's promotion and the C++ function's expected smart pointer type is a
 compile error.
 
-See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
 
 ---
 
@@ -11626,15 +11998,14 @@ of control flow.
 evaluable:
 
 ```kairo
-eval fn build_lookup_table() -> [i32; 16] {
-    var table: [i32; 16]
+eval fn fill_squares(@inout table: [i32; 16]) {
     eval for i in 0..16 {
         table[i] = i * i
     }
-    return table
 }
 
-eval SQUARES = build_lookup_table()
+var squares: [i32; 16]
+fill_squares(&squares)
 ```
 
 If the loop body or bounds depend on runtime values, the compiler emits an error.
@@ -11843,6 +12214,14 @@ project/
 
 Nested files create nested module names via `::`. A file at `utils/io.k` is accessible as the module `utils::io`.
 
+### Module paths are C++ namespaces
+
+A module's path is exactly its C++ namespace. `utils/strings.k` under a root named `utils` is `utils::strings` in Kairo and `namespace utils::strings` in the emitted C++; a `module codec { }` block inside it is `utils::strings::codec`. The mapping is fixed by the file's location in its root — not by how any importer spelled the import, not by an alias, and not by the directory the root happens to be checked out in — so the C++ name of a declaration is the same in every build of the same tree.
+
+The entry file is the exception: it has no module path, so its declarations are emitted in a namespace named after the file's stem. `main.k` becomes `namespace main`; a stem that is not a valid C++ identifier is rewritten into one. Within it, `priv` and `internal` declarations sit in an unnamed namespace and cannot be reached from any other translation unit. `main` itself is at global scope. A file-scope declaration with no visibility written is `pub`.
+
+Two files under one root that both open `module codec` reopen one namespace, as in C++. Reopening never crosses a root.
+
 ## Library Entry Files
 
 A directory with a `module.k` file is a **library**. The entry file controls what the library exports publicly:
@@ -12048,7 +12427,7 @@ Circular dependencies at the module level reflect circular dependencies in the d
 
 ## Visibility on Top-Level Declarations
 
-All top-level declarations (functions, classes, modules, constants, etc.) default to `pub`. Use `priv` to restrict to the current file and `prot` for library-internal visibility:
+All top-level declarations (functions, classes, modules, constants, etc.) default to `pub` when no visibility is written. Use `priv` to restrict to the current file and `prot` for library-internal visibility:
 
 ```kairo
 pub fn public_api() { ... }
@@ -13216,7 +13595,7 @@ fn get_tokens() -> yield string {
 ---
 
 ## C & C++ Interoperability
-URL: https://www.kairolang.org/docs/language/c-c++/
+URL: https://www.kairolang.org/docs/language/c-cpp/
 
 # C & C++ Interoperability
 
@@ -13300,6 +13679,9 @@ consistency guarantee the whole interop story rests on:
 - ABI-affecting behavior does not drift between the two sides of a call.
 
 The trade-off is that Kairo does not use whatever compiler is installed on the machine. That is deliberate.
+
+The same applies to the C++ standard library. A program that uses libc++ must link against the toolchain's own
+libc++, not a copy installed on the system.
 
 ### Cross-compilation
 
@@ -13452,6 +13834,40 @@ Using a third-party compiler at this step will work, but see
 
 ---
 
+## Using Kairo from C++
+
+### Headers
+
+Every non-entry module can emit a C++ header. `--emit-headers <dir>` writes one per module at a path mirroring the module path: `geo::vec` becomes `<dir>/geo/vec.hh`. A C++ file includes it the way Kairo would import it:
+
+```cpp
+#include "geo/vec.hh"      // Kairo: import geo::vec
+```
+
+A header contains the module's `pub` declarations in their canonical namespaces, declarations only: class layouts, function signatures, enum definitions. Function bodies are in the module's object file; you compile the module with Kairo and link the result. A header `#include`s the headers of modules its layouts depend on and forward-declares everything else, so including one module does not drag in the tree.
+
+### What a Kairo declaration looks like in C++
+
+| Kairo | C++ |
+|---|---|
+| `pub struct Vec2 { ... }` in `geo/vec.k` | `geo::vec::Vec2` |
+| `pub fn dot(a: Vec2, b: Vec2) -> f64` | `double geo::vec::dot(Vec2, Vec2)` |
+| `pub class <T> Box { ... }` | `template <class T> class geo::vec::Box` |
+| `enum Dir derives u8 { N, S }` | `enum class Dir : std::uint8_t { N, S }` |
+| `fn m(self)` inside a class | member function |
+| `fn m(self)` inside `extend Vec2 { }` | free function `geo::vec::m(Vec2* self)` |
+| `x: i32`, `x: f64`, `x: usize` | `std::int32_t`, `double`, `std::size_t` |
+| `p: *T` | `T*` |
+| `@inout x: T`, `@move x: T` | `T&`, `T&&` |
+
+Extension methods are not C++ member functions. Kairo keeps a class's C++ definition identical everywhere it appears, so a method added by `extend` — even in the same file — is a free function taking the receiver as its first parameter. Call it as `geo::vec::len(&v)`.
+
+### Generics
+
+Kairo generics are C++ templates in the header, bodies included. Instances Kairo already compiled are listed as `extern template`, so linking against the module's objects reuses them; any other instance is instantiated by your C++ compiler like any template. Kairo's `impl` bounds are not translated to C++ constraints: instantiating a Kairo generic with a C++ type that does not satisfy the bound fails inside the template body rather than at the call.
+
+---
+
 ## Compiler Flags Across the Boundary
 
 Kairo's flags and Clang's flags are not the same set. Some flags exist on one side only. `kcc` and `kairo`
@@ -13597,8 +14013,10 @@ fn example() {
 }
 ```
 
-Emitted Kairo code lands inside `namespace kairo`, which is why a C++ translation unit sees Kairo's library under
-`kairo::` and its own under the unqualified `std::` it already uses. Nothing is renamed on the C++ side.
+Kairo's standard library lands inside `namespace kairo`, which is why a C++ translation unit sees Kairo's library
+under `kairo::` and its own under the unqualified `std::` it already uses. Nothing is renamed on the C++ side.
+Your own code lands in its module's namespace, or, for an entry file, in a namespace named after the file's stem.
+See [Modules](/docs/language/modules#module-paths-are-c-namespaces).
 
 > [!NOTE]
 > `inline "c++"` blocks are not supported from Stage 1 onward. Use `ffi "c++"` to import declarations and call
@@ -13664,6 +14082,26 @@ pointers (`unsafe *T`, no tracking). Passing any pointer or reference across the
 C++ reference *parameters* (`T&`, `const T&`, `T&&`) are not pointers. They map to Kairo's parameter modes
 (`@inout x: T`, `x: T`, `@move x: T`). See [Parameter passing modes](/docs/language/functions#parameter-passing-modes).
 
+### Calls that return a reference
+
+A call that returns a C++ reference, such as `v.at(i)`, `*p`, or `cout << x`, is usable directly as an operand
+and as the target of an assignment:
+
+```kairo
+ffi "c++" import <vector>;
+
+fn main() {
+    var v: cxx::vector<i32>
+    v.push_back(1)
+
+    v.at(0) = 3             // assign through int&
+    v.at(0) += 2            // compound assignment
+    var x = v.at(0) + 1     // operand
+}
+```
+
+See [Reference returns from C++](/docs/language/functions#reference-returns-from-c) for how these calls are typed.
+
 ### Safe variable, unsafe pass
 
 ```kairo
@@ -13706,6 +14144,13 @@ fn main() {
 > [!WARNING]
 > `unsafe *T` pointers can be null. Dereferencing a null `unsafe *T` is undefined behavior — the compiler will
 > not insert a null check.
+
+### Strings and `const char*`
+
+A Kairo `string` cannot yet be passed to a C `const char*` parameter. The underlying pointer is `*u8`, and
+`*u8` to `*i8` is neither an implicit nor a safe cast. A `string.c_str()` method is planned. Until it lands,
+use `cxx::std::string` on the Kairo side, or add a small C++ helper that takes a `std::string` and makes the
+C call.
 
 ---
 
@@ -14033,6 +14478,144 @@ Exporting Kairo code as a C++ module interface unit (`.cppm`) is also planned bu
 
 ---
 
+## Diagnostics
+URL: https://www.kairolang.org/docs/language/diagnostics/
+
+# Diagnostics
+
+This page lists compiler error messages verbatim so they can be searched. Placeholders are written in braces:
+`{n}` is a number, `{x}` a parameter name, `{f}` a function name, and `[T; M]` the type as written in your code.
+
+---
+
+## List Literals
+
+### `array literal has {n} element(s), but '[T; M]' needs {m}`
+
+A list literal initializes a fixed array of a different length. The literal is not silently turned into a
+slice.
+
+```kairo
+var x: [i32; 4] = [1, 2, 3]    // error: array literal has 3 element(s), but '[i32; 4]' needs 4
+```
+
+**Fix:** give the literal the right number of elements, or change the target to `[T;]` or `[T]`.
+
+### `cannot infer the type of an empty list here; annotate the target as '[T;]' or '[T]'`
+
+`[]` has no elements to take a type from and no target to take one from.
+
+```kairo
+var e = []                     // error
+var f: [i32] = []              // ok
+```
+
+**Fix:** annotate the target.
+
+---
+
+## Slice Literal Lifetime
+
+A list literal that becomes a slice `[T;]` is a view of a temporary array. These errors report the positions
+where the view would outlive that array. See
+[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+
+### `a list literal returned from a function is a view of a temporary array and would outlive it; use '[T]' to own the elements, or bind the literal to a 'var' first`
+
+```kairo
+fn make() -> [i32;] {
+    return [1, 2]              // error
+}
+```
+
+### `a list literal assigned to a slice is a view of a temporary array and would outlive it; use '[T]' to own the elements, or bind the literal to a 'var' first`
+
+```kairo
+var s: [i32;] = [1]
+s = [1, 2]                     // error
+```
+
+### `a list literal used as a field default is a view of a temporary array and would outlive it; use '[T]' to own the elements, or bind the literal to a 'var' first`
+
+```kairo
+struct S {
+    var xs: [i32;] = [1]       // error
+}
+```
+
+### `a list literal stored in a field is a view of a temporary array and would outlive it; use '[T]' to own the elements, or bind the literal to a 'var' first`
+
+```kairo
+var t = S{ xs: [1, 2] }        // error
+```
+
+**Fix, for all four:** declare the target `[T]` so it owns its elements, or bind the literal to a `var` in a
+scope that outlives the slice and use that variable.
+
+> [!NOTE]
+> Passing a slice literal to a function that stores the slice is not diagnosed. Until
+> [AMT](/docs/language/amt) checks it, it is the programmer's responsibility.
+
+---
+
+## Arrays
+
+A fixed array `[T; N]` is not a value type. See [Primitives](/docs/language/primitives#arrays-t-n).
+
+### `an array is not copyable; initialize it from a list literal, or view the source through a slice or a pointer`
+
+```kairo
+var a = [1, 2, 3]
+var b = a                      // error
+```
+
+### `an array is not assignable; assign its elements, or go through a slice`
+
+```kairo
+var a = [1, 2, 3]
+var b = [4, 5, 6]
+b = a                          // error
+```
+
+### `parameter '{x}' takes an array by value; write 'const', '@inout', or take a slice`
+
+```kairo
+fn f(xs: [i32; 3]) { }         // error
+fn f(const xs: [i32; 3]) { }   // ok
+fn f(@inout xs: [i32; 3]) { }  // ok
+fn f(xs: [i32;]) { }           // ok
+```
+
+### `'{f}' returns an array; an array is not returned by value, return '[T]' or fill an '@inout' parameter`
+
+```kairo
+fn g() -> [i32; 3] { ... }     // error
+fn g() -> [i32] { ... }        // ok
+fn g(@inout out: [i32; 3]) { } // ok
+```
+
+---
+
+## Overload Resolution
+
+### `call to '{f}' is ambiguous: more than one candidate matches at the same rank`
+
+Two or more overloads are viable and neither is an exact match, so there is nothing to choose between them.
+Conversions are not ranked against each other.
+
+```kairo
+fn f(xs: [i32;]) { }
+fn f(xs: [i32]) { }
+
+f([1, 2, 3])                   // error: call to 'f' is ambiguous
+f([1, 2, 3] as [i32])          // ok
+```
+
+**Fix:** make the argument's type explicit with `as` or a typed local. See
+[Primitives](/docs/language/primitives#list-literal-arguments).
+
+---
+
 ## Imports
 URL: https://www.kairolang.org/docs/language/imports/
 
@@ -14212,7 +14795,7 @@ FFI imports of headers that define names in `std` are automatically redirected t
 ffi "c++" import "iostream"  // imported into libcxx, not std
 ```
 
-See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
 
 ## FFI Linkage Declarations
 
@@ -14232,7 +14815,7 @@ ffi "c++" {
 }
 ```
 
-Declarations inside an `ffi` block are parsed normally but stamped with C/C++ linkage. See [C/C++ Interop](/docs/language/c-c++) for details on FFI constraints and capabilities.
+Declarations inside an `ffi` block are parsed normally but stamped with C/C++ linkage. See [C/C++ Interop](/docs/language/c-cpp) for details on FFI constraints and capabilities.
 
 ## Import Reference
 

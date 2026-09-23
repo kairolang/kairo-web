@@ -336,6 +336,31 @@ the target type.
 See [Operators](/docs/language/operators#special-operators) for the full operator overloading
 reference.
 
+## Conversion Through a Constructor
+
+`x as T` is also a conversion when `T` declares a constructor with one parameter that accepts `x`'s type. The
+cast calls that constructor:
+
+```kairo
+class Celsius {
+    var value: f64
+
+    fn Celsius(self, v: f64) { self.value = v }
+}
+
+var c = 21.5 as Celsius     // calls Celsius(21.5)
+```
+
+The standing example is slice to vector. A vector has a constructor that takes a slice, so the cast copies the
+elements into a new vector:
+
+```kairo
+var s: [i32;] = [1, 2, 3]
+var v = s as [i32]          // allocates and copies
+```
+
+If the source type declares `op as` for `T` and `T` also has a matching constructor, `op as` wins.
+
 ---
 
 ## Cast Summary
@@ -358,6 +383,8 @@ reference.
 | Int to plain enum | `n as Direction` | UB if no match | No runtime check |
 | ADT enum to int | N/A | Compile error | Use `extend` method |
 | User-defined | `x as TargetType` | Depends on `op as` | Calls user code |
+| Through a constructor | `x as T` | Depends on the constructor | Calls `T`'s one-parameter constructor |
+| Slice to vector | `s as [T]` | Safe | Allocates and copies |
 | `T` to `T?` | Implicit | Safe | N/A |
 | `T?` to `T` | Not a cast | Compile error | Use `??` or `unwrap!()` |
 

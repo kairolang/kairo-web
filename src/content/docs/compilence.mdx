@@ -137,7 +137,7 @@ Kairo primitives, conversions to C++ string types are implicit:
 | `as libcxx::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
 | C `const char*` | Null-terminated UTF-8 `u8` pointer | Implicit conversion; no `unsafe` block required |
 
-See [C/C++ Interop](/docs/language/c-c++) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
 
 ### What Kairo Does Not Do
 
@@ -302,7 +302,7 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe`
   block.
 
-See [C/C++ Interop](/docs/language/c-c++) and [Unsafe](/docs/language/unsafe)
+See [C/C++ Interop](/docs/language/c-cpp) and [Unsafe](/docs/language/unsafe)
 for the full FFI safety model.
 
 ---

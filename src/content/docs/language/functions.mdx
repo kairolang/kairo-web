@@ -136,6 +136,17 @@ separate mode for `const T&`.
 For a function declared in an imported C++ header, the compiler doesn't choose. The parameter is passed
 exactly as the header declares it.
 
+A fixed array `[T; N]` is the exception: it is not a value type, so a plain `xs: [T; N]` parameter is an
+error. Take it as `const` or `@inout`, both of which pass by reference, or take a slice:
+
+```kairo
+fn f(xs: [i32; 3]) { }          // compile error: parameter 'xs' takes an array by value;
+                                //   write 'const', '@inout', or take a slice
+fn f(const xs: [i32; 3]) { }    // ok: read-only, by reference
+fn f(@inout xs: [i32; 3]) { }   // ok: read-write, by reference
+fn f(xs: [i32;]) { }            // ok: a view of any length
+```
+
 #### Call-site syntax
 
 | Parameter     | Call     |
@@ -260,9 +271,21 @@ pointer, and the value category keeps the reference's meaning:
 Because a `T&&` return is an xvalue, `f(g())` where `g` returns `T&&` selects `f`'s `@move` overload, as it
 does in C++.
 
-Unlike `v[0]`, which dereferences implicitly because `[]` is a
-[place-returning operator](/docs/language/operators#subscript), a named method returning `T&` yields a `*T`
-that you dereference yourself.
+The call itself is usable as the referenced value, the same way `v[0]` is: as an operand, and as the target
+of an assignment or compound assignment.
+
+```kairo
+ffi "c++" import <vector>;
+
+var v: cxx::vector<i32>
+v.push_back(1)
+
+v.at(0) = 3                 // assigns through the returned int&
+v.at(0) += 2                // 5
+var x = v.at(0) + 1         // 6
+```
+
+The same holds for `*p` and for operators that return a reference, such as `cout << x`.
 
 #### `@move` is checked
 
@@ -314,6 +337,22 @@ fn log_explicit(msg: string) -> void {   // equivalent
     std::println(msg)
 }
 ```
+
+### Arrays are not returned
+
+A function cannot return a fixed array `[T; N]` by value. Return a vector `[T]`, or fill an `@inout`
+parameter:
+
+```kairo
+fn make() -> [i32; 3] { ... }           // compile error: 'make' returns an array
+fn make() -> [i32] { return [1, 2, 3] } // ok: the caller owns a vector
+fn make(@inout out: [i32; 3]) {         // ok: the caller owns the array
+    out[0] = 1; out[1] = 2; out[2] = 3
+}
+```
+
+Returning a slice literal is also an error, because the literal's storage ends with the function. See
+[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
 
 ### No-return `!`
 
@@ -433,6 +472,26 @@ fn add(a: string, b: string) -> string = a + b
 ```
 
 Parameter modes also participate in overloading. See [Overloading on mode](#overloading-on-mode).
+
+A candidate either matches an argument exactly or through a conversion, and there is no ordering among
+conversions: if two candidates both need one, the call is ambiguous (`call to 'f' is ambiguous: more than
+one candidate matches at the same rank`). For a list literal argument, a `[T; N]` parameter with the same
+element count is an exact match, while `[T;]` and `[T]` parameters both need a conversion:
+
+```kairo
+fn f(const xs: [i32; 3]) { }
+fn f(xs: [i32;]) { }
+fn f(xs: [i32]) { }
+f([1, 2, 3])                // [i32; 3]
+
+fn g(xs: [i32;]) { }
+fn g(xs: [i32]) { }
+g([1, 2, 3])                // compile error: call to 'g' is ambiguous
+g([1, 2, 3] as [i32])       // ok
+```
+
+See [Primitives](/docs/language/primitives#list-literal-arguments)
+for the ranking rules.
 
 ### Unsafe overloads
 
@@ -639,8 +698,8 @@ ABI modifiers control name mangling, dispatch mechanism, and symbol visibility a
 
 | Modifier | Description |
 |---|---|
-| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-c++) |
-| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-c++) |
+| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-cpp) |
+| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-cpp) |
 | `static` | Internal linkage; no vtable dispatch. Cannot be `virtual` or `override` |
 | `virtual` | Dynamic dispatch via vtable. See [Classes](/docs/language/classes) |
 | `override` | Overrides a `virtual` method from a base class; implies `virtual` |
@@ -754,7 +813,7 @@ fn is_odd(n: u32) -> bool  = if n == 0 { false } else { is_even(n - 1) }
 Forward declarations are used when the definition lives elsewhere:
 
 - **FFI imports** the body is provided by a C or C++ library. See
-  [C/C++ Interop](/docs/language/c-c++).
+  [C/C++ Interop](/docs/language/c-cpp).
 - **Separate translation units** the declaration is visible to callers; the
   definition is linked in from another `.kro` file.
 - **Out-of-line class methods** declared in the class body, defined outside it using the `Class::method` qualified-name syntax:

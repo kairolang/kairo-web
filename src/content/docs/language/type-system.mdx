@@ -63,7 +63,7 @@ pub type Base3 = *Base1     // so does this
 priv type Base4 = Base1     // ok: no wider than its target
 ```
 
-Every name the alias mentions counts, not only the outermost one. A pointer, nullable, vector, set,
+Every name the alias mentions counts, not only the outermost one. A pointer, nullable, vector, slice, set,
 tuple, array, map, function-pointer parameter or return, and a generic argument all publish their
 target just as directly, and so does a private module used as a path segment:
 
@@ -219,6 +219,20 @@ feed(&dog)   // *Dog implicitly converts to *Animal
 This is always safe the base subobject is at a known offset. The reverse (base-to-derived) requires
 an explicit cast because it can fail at runtime. See [Casting](/docs/language/casting).
 
+### List literal to a container
+
+A list literal takes the type its target asks for: an array `[T; N]` with a matching element count, a slice
+`[T;]`, or a vector `[T]`. With no target it is an array.
+
+```kairo
+fn total(xs: [i32;]) -> i32 { ... }
+
+total([1, 2, 3])               // the literal becomes a slice for this call
+var v: [i32] = [1, 2, 3]       // the literal becomes a vector
+```
+
+This applies to the literal only. A slice or array *variable* does not convert to anything implicitly.
+
 ### No other implicit conversions
 
 The following conversions are all explicit (require `as`):
@@ -228,6 +242,9 @@ The following conversions are all explicit (require `as`):
 - Base-to-derived pointer (downcast)
 - Any pointer to a different pointer type
 - Integer narrowing or float-to-integer
+- Slice to vector (`s as [T]`; it allocates)
+
+An array variable does not convert to a slice implicitly yet; build the slice explicitly.
 
 ---
 
@@ -380,8 +397,9 @@ Collection literal syntax maps to built-in types:
 
 | Syntax | Type | Description |
 |---|---|---|
-| `[T]` | Vector | Growable contiguous array (ptr + len + cap) |
-| `[T; N]` | Array | Fixed-size, stack-allocated, `N` must be compile-time |
+| `[T]` | Vector | Growable contiguous array that owns a heap copy of its elements (ptr + len + cap) |
+| `[T;]` | Slice | Non-owning view over contiguous elements (ptr + len) |
+| `[T; N]` | Array | Fixed-size, stored inline, `N` must be compile-time; not copyable or assignable |
 | `{K: V}` | Map | Hash map |
 | `{T}` | Set | Hash set |
 
@@ -397,6 +415,11 @@ type <T> HashSet = {T}
 ```
 
 The literal syntax and the aliased names are interchangeable.
+
+A list literal `[a, b, c]` is an array `[T; 3]` unless its target is a slice or a vector. Arrays are not
+value types: they cannot be copied, assigned, passed by value, or returned. See
+[Primitives](/docs/language/primitives#collections) for the full rules on arrays, slices, vectors, and list
+literals.
 
 `N` in `[T; N]` must be a compile-time evaluable expression. Runtime-dependent array sizes are not
 supported use `[T]` (vector) for dynamically sized collections:
@@ -572,6 +595,7 @@ var g: fn(i32) panic -> i32 = risky_fn
 
 // Collections
 var vec: [i32] = [1, 2, 3]
+var view: [i32;] = [1, 2, 3]
 var arr: [u8; 4] = [0, 0, 0, 0]
 var map: {string: i32} = {"a": 1}
 var set: {i32} = {1, 2, 3}

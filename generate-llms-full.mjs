@@ -48,7 +48,7 @@ const LANGUAGE_ORDER = [
   'attributes',
   'macros',
   'concurrency',
-  'c-c++',
+  'c-cpp',
 ];
 
 // Top-level doc pages order

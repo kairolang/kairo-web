@@ -32,7 +32,7 @@ Nested files create nested module names via `::`. A file at `utils/io.k` is acce
 
 A module's path is exactly its C++ namespace. `utils/strings.k` under a root named `utils` is `utils::strings` in Kairo and `namespace utils::strings` in the emitted C++; a `module codec { }` block inside it is `utils::strings::codec`. The mapping is fixed by the file's location in its root — not by how any importer spelled the import, not by an alias, and not by the directory the root happens to be checked out in — so the C++ name of a declaration is the same in every build of the same tree.
 
-The entry file is the exception: it has no module path. Its declarations live in an unnamed C++ namespace (internal linkage), except `main`. Nothing can import the entry file, so nothing can name them from outside.
+The entry file is the exception: it has no module path, so its declarations are emitted in a namespace named after the file's stem. `main.k` becomes `namespace main`; a stem that is not a valid C++ identifier is rewritten into one. Within it, `priv` and `internal` declarations sit in an unnamed namespace and cannot be reached from any other translation unit. `main` itself is at global scope. A file-scope declaration with no visibility written is `pub`.
 
 Two files under one root that both open `module codec` reopen one namespace, as in C++. Reopening never crosses a root.
 
@@ -241,7 +241,7 @@ Circular dependencies at the module level reflect circular dependencies in the d
 
 ## Visibility on Top-Level Declarations
 
-All top-level declarations (functions, classes, modules, constants, etc.) default to `pub`. Use `priv` to restrict to the current file and `prot` for library-internal visibility:
+All top-level declarations (functions, classes, modules, constants, etc.) default to `pub` when no visibility is written. Use `priv` to restrict to the current file and `prot` for library-internal visibility:
 
 ```kairo
 pub fn public_api() { ... }
