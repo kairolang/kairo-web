@@ -135,7 +135,7 @@ int main() {
          if i >= self.size {
              var x = 0
              return &x // since this is a stack pointer, in debug builds,
-                       // AMT changes the decl of x to a unique or shared
+                       // Tether changes the decl of x to a unique or shared
                        // pointer, so theres no undefined behavior.
                        // In release builds, hard error with a fix:
                        // var *x = std::Unique<u8>(0)

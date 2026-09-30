@@ -2,7 +2,7 @@
 
 > Kairo is a statically typed, compiled systems language with native bidirectional C++ interoperability and zero-cost abstractions. It compiles to native object code via Clang, enabling seamless `#include` of Kairo files in C++ projects and direct `ffi "c++"` imports in Kairo without binding generators.
 
-Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable and tracked by the compile-time AMT analysis, from raw pointers (`unsafe *T`), which bypass safety checks entirely. The `const` keyword follows a strict left-to-right binding rule, eliminating C-style ambiguity. Error handling uses `panic` as a function specifier that returns tagged values rather than unwinding the stack, with `match` providing exhaustive multi-way dispatch that replaces traditional `switch` statements. Interop is fully bidirectional with zero bindings: C++ headers are parsed directly by Clang, and Kairo code is exposed to C++ via the `kcc` driver, preserving templates, concepts, and smart pointer semantics across the boundary.
+Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable and tracked by the compile-time Tether analysis, from raw pointers (`unsafe *T`), which bypass safety checks entirely. The `const` keyword follows a strict left-to-right binding rule, eliminating C-style ambiguity. Error handling uses `panic` as a function specifier that returns tagged values rather than unwinding the stack, with `match` providing exhaustive multi-way dispatch that replaces traditional `switch` statements. Interop is fully bidirectional with zero bindings: C++ headers are parsed directly by Clang, and Kairo code is exposed to C++ via the `kcc` driver, preserving templates, concepts, and smart pointer semantics across the boundary.
 
 ## Docs
 
@@ -18,8 +18,8 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 - [Operators](https://www.kairolang.org/docs/language/operators/): Arithmetic, comparison, logical, bitwise, assignment, range, null-safe access, operator overloading, and C-style precedence rules.
 - [Control Flow](https://www.kairolang.org/docs/language/control-flow/): Conditionals, exhaustive `match` dispatch, loops, labeled breaks, `try`/`catch`/`finally`, panic, assert, jumps, and compile-time branching.
 - [Functions](https://www.kairolang.org/docs/language/functions/): Function declarations, parameters, return types, overloading, modifiers, generics, variadic functions, and calling conventions.
-- [Closures](https://www.kairolang.org/docs/language/closures/): Anonymous functions, capture modes (`|&|`, mixed), lambda syntax, and how closures interact with AMT lifetime tracking.
-- [Classes](https://www.kairolang.org/docs/language/classes/): Class declarations, constructors, destructors, inheritance, virtual dispatch, abstract classes, generics, visibility, and the rule of five.
+- [Closures](https://www.kairolang.org/docs/language/closures/): Anonymous functions, capture modes (`|*|`, per-variable), lambda syntax, and how closures interact with Tether lifetime tracking.
+- [Classes](https://www.kairolang.org/docs/language/classes/): Class declarations, constructors, destructors, inheritance, virtual dispatch, abstract classes, generics, visibility, and the Rule of Three.
 - [Structures](https://www.kairolang.org/docs/language/structures/): Struct declarations, aggregate initialization, field visibility, generics, `extend` blocks, layout control, and trivial copy semantics.
 - [Enums](https://www.kairolang.org/docs/language/enums/): Enum declarations, discriminants, underlying types, ADT variants with named struct-style payloads, generics, and `match` destructuring.
 - [Unions](https://www.kairolang.org/docs/language/unions/): Untagged union declarations, memory overlay semantics, trivial-type restrictions, generics, and platform ABI layout rules.
@@ -29,9 +29,9 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 - [Requires Clauses](https://www.kairolang.org/docs/language/requires/): Requires Clause syntax, compile-Time evaluation, constraint semantics.
 - [Where Clauses](https://www.kairolang.org/docs/language/where/): Where Clause syntax, compile-Time evaluation, constraint semantics.
 - [Pointers & Raw Pointers](https://www.kairolang.org/docs/language/pointers/): Safe pointers (`*T`), unsafe raw pointers (`unsafe *T`), null semantics, pointer arithmetic, smart pointer promotion, void pointers, and pointer safety rules.
-- [Ownership](https://www.kairolang.org/docs/language/ownership/): Ownership model, move semantics, borrowing rules, copy vs move, and how ownership interacts with AMT analysis.
-- [AMT](https://www.kairolang.org/docs/language/amt/): Automatic Memory Tracking full-program lifetime analysis, smart pointer promotion, allocator integration, and compile-time safety guarantees.
-- [Unsafe](https://www.kairolang.org/docs/language/unsafe/): Unsafe blocks, unsafe pointers, unsafe function overloads, AMT suspension, `forget!()`, and the safety boundary model.
+- [Ownership](https://www.kairolang.org/docs/language/ownership/): Ownership model, move semantics, borrowing rules, copy vs move, and how ownership interacts with Tether analysis.
+- [Tether](https://www.kairolang.org/docs/language/tether/): Full-program lifetime analysis, smart pointer promotion, allocator integration, and compile-time safety guarantees.
+- [Unsafe](https://www.kairolang.org/docs/language/unsafe/): Unsafe blocks, unsafe pointers, unsafe function overloads, Tether suspension, `forget!()`, and the safety boundary model.
 - [Panic](https://www.kairolang.org/docs/language/panic/): The `panic` specifier, `Panickable` return type, `try`/`catch` exhaustiveness, panic propagation, error types, and zero-cost codegen.
 - [Compile-Time Eval](https://www.kairolang.org/docs/language/eval/): Eval variables, eval functions, eval if/for, compile-time evaluation rules, restrictions, and interaction with generics.
 - [Modules](https://www.kairolang.org/docs/language/modules/): Module system, file-to-module mapping, directories as libraries, namespaces, visibility, module extending, and C++ header imports.
@@ -40,7 +40,7 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 - [Attributes](https://www.kairolang.org/docs/language/attributes/): AST-level code transformations, attribute definitions, arguments, expansion order, overloading, built-in attributes, and the `std::AST` API.
 - [Macros](https://www.kairolang.org/docs/language/macros/): Token-level macros, macro definitions, built-in macros, variadic helpers, source location, diagnostics, code generation, and macro hygiene.
 - [Concurrency](https://www.kairolang.org/docs/language/concurrency/): Async/await, spawn, yield, coroutines, atomic types, thread-local storage, and synchronization primitives.
-- [C & C++ Interoperability](https://www.kairolang.org/docs/language/c-c/): Native bidirectional interop, FFI declarations, the `kcc` driver, inline C++, pointer safety, templates, concepts, exceptions, and ABI details.
+- [C & C++ Interoperability](https://www.kairolang.org/docs/language/c-cpp/): Native bidirectional interop, FFI declarations, the `kcc` driver, inline C++, pointer safety, templates, concepts, exceptions, and ABI details.
 
 ## Standard Library
 
@@ -75,7 +75,6 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 - [How AI is Used in Kairo](https://www.kairolang.org/blog/how-ai-is-used-in-kairo/): How Kairo uses AI tooling in compiler development and documentation.
 - [Kairo Pointer Model](https://www.kairolang.org/blog/kairo-pointer-model/): Deep dive into safe `*T` vs raw `unsafe *T` pointer semantics.
 - [Match Replacing Switch](https://www.kairolang.org/blog/match-replacing-switch/): Why Kairo uses exhaustive `match` instead of `switch`.
-- [New Operator Syntax](https://www.kairolang.org/blog/new-operator-syntax/): Design of the `op` keyword for operator overloading.
 - [Why Native Interop Instead of Bindings](https://www.kairolang.org/blog/why-native-interop-instead-of-bindings/): The rationale for zero-binding bidirectional C++ interop.
 
 ## Optional

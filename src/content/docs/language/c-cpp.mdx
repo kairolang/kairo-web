@@ -29,18 +29,18 @@ The table below summarizes which C and C++ features Kairo can consume and expose
 | Feature | Direction | Notes |
 |---|---|---|
 | Functions | Bidirectional | Includes variadic functions |
-| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/structs) |
-| Unions | Bidirectional | See [Unions](/docs/unions) |
-| Enums | Bidirectional | See [Enums](/docs/enums) |
-| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/classes) |
+| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/language/structures) |
+| Unions | Bidirectional | See [Unions](/docs/language/unions) |
+| Enums | Bidirectional | See [Enums](/docs/language/enums) |
+| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/language/classes) |
 | Tuples | Bidirectional | Emitted as named structs; see [Tuples across the boundary](#tuples-across-the-boundary) |
 | Templates | Bidirectional | Instantiation across the boundary; see [below](#templates-and-concepts) |
 | Concepts | Bidirectional | Kairo's `impl` constraints map to C++20 concepts |
 | Namespaces | Bidirectional | |
 | Pointers & References | Bidirectional | Requires `unsafe` on the Kairo side; see [below](#pointers-and-references) |
-| Operator Overloading | Bidirectional | See [Operators](/docs/operators) |
+| Operator Overloading | Bidirectional | See [Operators](/docs/language/operators) |
 | Lambdas | Bidirectional | |
-| Exceptions | C++ → Kairo only | Kairo never unwinds; errors are values. See [Exceptions](#exceptions) |
+| Exceptions | C++ → Kairo only | Kairo never throws; its errors are values. See [Exceptions](#exceptions) |
 | Macros | C++ → Kairo | Preprocessor macros are expanded before Kairo sees them |
 | Preprocessor Directives | C++ → Kairo | |
 | Inline Assembly | Kairo → C++ | Via `inline "asm"` blocks |
@@ -406,16 +406,16 @@ the boundary, and there is no second implementation to drift.
 | Spelling | On the Kairo side | On the C++ side |
 |---|---|---|
 | `std::` | Kairo's standard library | C++'s standard library |
-| `cxx::` | C++'s standard library | — |
+| `cxx::std::` | C++'s standard library | — |
 | `kairo::` | — | Kairo's own namespace, including its standard library |
 
-From Kairo, the C++ standard library is always reached through `cxx::`:
+From Kairo, the C++ standard library is always reached through `cxx::std::`:
 
 ```kairo
 ffi "c++" import <vector>;
 
 fn example() {
-    var v: cxx::vector<i32>
+    var v: cxx::std::vector<i32>
     v.push_back(42)
 }
 ```
@@ -482,7 +482,7 @@ fn syscall_example(fd: i32, buf: *u8, len: usize) -> isize {
 
 ## Pointers and References
 
-Kairo's [pointer model](/docs/pointers) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
+Kairo's [pointer model](/docs/language/pointers) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
 pointers (`unsafe *T`, no tracking). Passing any pointer or reference across the FFI boundary requires explicit
 `unsafe` context because the compiler cannot enforce safety guarantees on the C/C++ side.
 
@@ -498,7 +498,7 @@ and as the target of an assignment:
 ffi "c++" import <vector>;
 
 fn main() {
-    var v: cxx::vector<i32>
+    var v: cxx::std::vector<i32>
     v.push_back(1)
 
     v.at(0) = 3             // assign through int&
@@ -590,7 +590,7 @@ delete p;   // runs Kairo's destructor, then returns memory to Kairo's global al
 
 This works because Kairo emits the class, and therefore emits the destructor. `~MyKairoClass` performs Kairo's
 destruction semantics; C++'s `delete` merely sequences destructor-then-deallocate, which is the same pair of
-operations Kairo spells as [`delete obj`](/docs/allocators#delete-operation) followed by `@free`.
+operations Kairo spells as [`delete obj`](/docs/language/tether#delete-operation) followed by `@free`.
 
 Pointer parameters and return values stay raw `*T` — there is no wrapper type, no ABI change, and no cost at the
 call boundary.
@@ -603,7 +603,7 @@ allocations. The isolation is structural, not a restriction.
 
 ### The operators bind to the *global* allocator, always
 
-Kairo's [scoped allocator](/docs/allocators#scoped-allocator) mechanism works by swapping the allocator the
+Kairo's [scoped allocator](/docs/language/tether#scoped-allocator) mechanism works by swapping the allocator the
 process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that
 indirection and address the global allocator directly.
 
@@ -622,7 +622,7 @@ of what is active at the call site.
 
 The invariant that makes this sound: **objects reachable from C++ were allocated by the global allocator.** A
 pointer allocated through a scoped allocator that escapes the allocator's scope is a hard error under
-[Tether](/docs/tether), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
+[Tether](/docs/language/tether), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
 
 ### What is still an error
 
@@ -643,7 +643,7 @@ override does apply to them — `core` provides `CxxNewAllocator`:
 @mem::set_allocator(core::CxxNewAllocator)
 ```
 
-This is the unusual case, not the default. The [intentional friction](/docs/allocators#global-allocator) rule
+This is the unusual case, not the default. The [intentional friction](/docs/language/tether#global-allocator) rule
 applies: the annotation must appear at the top of every file in the affected dependency graph.
 
 ### Ownership annotations in generated headers
@@ -754,6 +754,14 @@ which is deliberately TU-local.
 
 ## Exceptions
 
+Kairo and C++ signal failure differently, and the two models meet at one place: a Kairo `try`/`catch`.
+
+- **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic): a tagged union value returned to
+  the caller. Every Kairo function is `noexcept`.
+- **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
+- **`try`/`catch` handles both.** Around a Kairo call it lowers to a `match` on the returned tagged union.
+  Around a C++ call it catches C++ exceptions through the unwinder.
+
 ### C++ → Kairo
 
 Kairo can catch C++ exceptions using its standard `try`/`catch` syntax.
@@ -764,28 +772,34 @@ ffi "c++" import "my_code.hh";
 fn main() {
     try {
         might_throw(true);
-    } catch e: std::exception {
+    } catch e: cxx::std::exception {
         std::println(f"Caught: {e.what()}")
     }
 }
 ```
 
+The exception does not have to be thrown directly inside the `try`. It can come from a C++ call several Kairo
+frames down, and the unwinder passes through the Kairo frames in between to reach the `catch`. The compiler emits
+unwind info for exactly those frames: a Kairo function gets it only when it sits between a C++ call and a Kairo
+`try` that can catch from that call. Kairo code with no such path carries no unwind tables.
+
 > [!NOTE]
-> Unlike Kairo's [panic system](/docs/panic), the compiler cannot statically determine every exception type a C++
-> function might throw. A `catch` block that doesn't handle a thrown type will propagate the exception up the
-> stack. If nothing catches it, the runtime calls `std::terminate`.
+> Unlike Kairo's [panic system](/docs/language/panic), the compiler cannot statically determine every exception
+> type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue
+> to the next enclosing Kairo `try`. An exception that no Kairo `try` catches reaches a `noexcept` frame, and
+> the runtime calls `std::terminate`.
 
 ### Kairo → C++: every Kairo function is `noexcept`
 
-Kairo does not throw. `panic` is a checked effect with a typed, inferred set — a Kairo error is a tagged union
-value returned to the caller, not an object propagated by the unwinder. There are no unwinding edges out of Kairo
-code.
+Kairo does not throw. `panic` is a checked effect with a typed, inferred set: a Kairo error is a tagged union
+value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
 Emitted declarations are therefore **`noexcept` unconditionally**, and this is a structural property rather than
 a promise:
 
 - A C++ caller never needs a `try`/`catch` around a Kairo call.
-- No unwind tables are generated at the boundary.
+- A C++ exception cannot leave Kairo code through a Kairo entry point. It is either caught by a Kairo `try` or
+  ends in `std::terminate`.
 - `noexcept`-conditional C++ code that calls into Kairo takes the `noexcept(true)` branch.
 
 #### The value API

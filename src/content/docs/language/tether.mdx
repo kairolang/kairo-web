@@ -1,12 +1,12 @@
 ---
 order: 18
-title: AMT
-description: Automatic Memory Tracking a compile-time proof engine for pointer safety in Kairo. Bounds, provenance, lifetime, ownership, and data-race freedom as proof obligations over the whole-program graph.
+title: Tether
+description: Tether, a compile-time proof engine for pointer safety in Kairo. Bounds, provenance, lifetime, ownership, and data-race freedom as proof obligations over the whole-program graph.
 ---
 
-# AMT (Automatic Memory Tracking)
+# Tether
 
-AMT is a compile-time proof engine. For every pointer dereference in the program, it attempts to
+Tether is a compile-time proof engine. For every pointer dereference in the program, it attempts to
 prove that the access is safe. When it succeeds, no runtime code is emitted. When it can prove
 everything except one residual property, it emits the minimal runtime code required to discharge
 exactly that property and nothing else. When it cannot prove the access safe and no runtime check
@@ -17,21 +17,21 @@ asks one question at every dereference:
 
 > What is the strongest proof I have that this access is safe?
 
-The answer to that question and only the answer determines what code is generated. AMT never
+The answer to that question and only the answer determines what code is generated. Tether never
 asks "should I insert a check here." It asks "which proof obligations remain after static analysis,"
 and emits code for the residual.
 
-AMT operates on safe pointers (`*T`) only. Raw pointers (`unsafe *T`) carry no obligations and are
+Tether operates on safe pointers (`*T`) only. Raw pointers (`unsafe *T`) carry no obligations and are
 never analyzed. The programmer owns their correctness.
 
 > [!WARNING]
-> AMT is not yet implemented. The compiler is currently in the **Stage 1** parsing phase.
-> AMT development begins at **Stage 2**. The roadmap:
+> Tether is not yet implemented. The compiler is currently in the **Stage 1** parsing phase.
+> Tether development begins at **Stage 2**. The roadmap:
 >
 > - **Stage 0** (stable): C++ compiler, transpiles Kairo to C++.
 > - **Stage 1** (current): self-hosted compiler frontend parser, AST, diagnostics.
 > - **Stage 1.5**: Stage 1 migrated to Kairo's standard library, fully self-hosting.
-> - **Stage 2**: compiler rewritten using Kairo's extended feature set. **AMT work begins here.**
+> - **Stage 2**: compiler rewritten using Kairo's extended feature set. **Tether work begins here.**
 >
 > This page describes the intended design and target semantics. The analysis is the target, not the
 > current state. A separate formal paper will carry the full proofs; this page states the model and
@@ -64,14 +64,14 @@ Where:
   `sizeof T` scaling in C3 is explicit and the element-count-times-size multiply cannot silently
   overflow.
 
-Each clause is a distinct **proof domain** with its own analysis. AMT discharges as many clauses as
+Each clause is a distinct **proof domain** with its own analysis. Tether discharges as many clauses as
 it can statically. The clauses that remain the **residual** determine what is generated. The
-mapping from a residual clause to a code-generation response is the entire specification of AMT's
+mapping from a residual clause to a code-generation response is the entire specification of Tether's
 behavior, and it is given in [The Residual Table](#the-residual-table).
 
 The critical design point: the obligation is checked at the **dereference**, never at pointer
 arithmetic. Forming a pointer value (`var q = p + i`) computes a new provenance fact and emits no
-code. Only `*q` discharges the obligation against that provenance. This lets AMT carry symbolic
+code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic
 offset information through arbitrarily many SSA transformations and discharge or eliminate the
 obligation as late as possible see [Pointer Arithmetic](#pointer-arithmetic).
 
@@ -79,7 +79,7 @@ obligation as late as possible see [Pointer Arithmetic](#pointer-arithmetic).
 
 ## The Proof Lattice
 
-AMT is a forward dataflow analysis over the program's SSA graph. For each pointer at each program
+Tether is a forward dataflow analysis over the program's SSA graph. For each pointer at each program
 point it computes a **fact tuple**: one element per clause domain, recording how strongly that
 clause is currently proven.
 
@@ -124,14 +124,14 @@ at control-flow merge points takes the weaker (less proven) state.
 
 Monotone transfer functions over a finite-height lattice means the Kleene iteration reaches a fixed
 point in a bounded number of passes (bounded by the lattice height times the number of program
-points). **The analysis always terminates.** This is the only termination argument AMT needs;
+points). **The analysis always terminates.** This is the only termination argument Tether needs;
 there is no widening, no heuristic iteration cap required for soundness. (A pass ceiling exists for
-*interprocedural* recursion, see [Summaries](#amt-summaries) but it degrades precision, never
+*interprocedural* recursion, see [Summaries](#tether-summaries) but it degrades precision, never
 soundness: hitting it demotes clauses to Residual, which is always safe.)
 
 ### Classifying a dereference
 
-The four named proof states from AMT's vocabulary `PROVEN_STATIC`, `PROVEN_RANGE`,
+The four named proof states from Tether's vocabulary `PROVEN_STATIC`, `PROVEN_RANGE`,
 `REQUIRES_DYNAMIC`, `UNSAFE` are not elements of the lattice. They are a **classification of the
 residual set** at a dereference site, derived from the fact tuple:
 
@@ -213,14 +213,14 @@ prove non-null or handle the null case explicitly.
 ## Pointer Arithmetic
 
 Kairo permits pointer arithmetic on safe pointers. This is a deliberate departure from Rust's safe
-subset, and AMT is what makes it sound.
+subset, and Tether is what makes it sound.
 
 ```kairo
 var a: *i32 = @create i32(120)
 *(a + 10) = 19
 ```
 
-At this dereference AMT knows the allocation base, element type (`i32`), element size (4 bytes), and
+At this dereference Tether knows the allocation base, element type (`i32`), element size (4 bytes), and
 element count (120). The offset 10 is a compile-time constant. C3 reduces to `10 < 120`, proven
 statically. C1, C2, C4, C5, C6 are all proven. Residual set is empty -> `PROVEN_STATIC`:
 
@@ -245,12 +245,12 @@ assert((0 <= i) && (i < 120));
 mov [rdi + i*4], 19
 ```
 
-Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof T) <= size`, and AMT emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by a `i >= 0` guard. For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
+Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof T) <= size`, and Tether emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by a `i >= 0` guard. For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
 
 The check is on the **offset**, computed before the pointer is formed never on the resulting
 pointer address. Checking `result_ptr < end` after forming the pointer is the bypassable version:
 if `i * sizeof T` overflowed the address width, the formed pointer can wrap below `end` and pass a
-post-hoc check. AMT checks the offset in a width that cannot wrap for any in-allocation offset
+post-hoc check. Tether checks the offset in a width that cannot wrap for any in-allocation offset
 (the valid offset range is bounded by `size`, which is known), then forms the pointer.
 
 ### Hoisting
@@ -260,7 +260,7 @@ for i in 0..<120
     *(a + i) = 0
 ```
 
-AMT proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure. The
+Tether proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure. The
 bounds clause is `HoistableResidual` if it is the only residual -> `PROVEN_RANGE`. The per-iteration
 check is lifted to a single check before the loop:
 
@@ -278,9 +278,9 @@ for i in 0..<n
     *(a + i) = 0
 ```
 
-AMT proves `loop_bound == allocation_count` provided `n` and `a` are not mutated between the
+Tether proves `loop_bound == allocation_count` provided `n` and `a` are not mutated between the
 allocation and the loop (see the immutability requirement under [Threading](#threading) and
-[Summaries](#amt-summaries)). The entire loop's bounds obligation collapses to one check:
+[Summaries](#tether-summaries)). The entire loop's bounds obligation collapses to one check:
 
 ```asm
 assert(n <= allocation_count);   ; trivially true here; elided
@@ -289,7 +289,7 @@ loop:
 ```
 
 One branch (or zero), discharging millions of accesses. This is the same class of transformation an
-optimizing backend already performs; AMT's contribution is proving it is *sound* to do so under the
+optimizing backend already performs; Tether's contribution is proving it is *sound* to do so under the
 language's safety guarantee, not merely profitable.
 
 ### Forming versus dereferencing, and one-past-the-end
@@ -309,7 +309,7 @@ iterators. The safety **guarantee** is the same no out-of-bounds access reaches 
 cost model is pay-only-when-unprovable rather than always-checked-unless-elided, and the surface
 syntax is C-style arithmetic rather than slice methods.
 
-> AMT does not present an unprovable bounds access as a *warning*. The programmer did nothing
+> Tether does not present an unprovable bounds access as a *warning*. The programmer did nothing
 > questionable; the allocation size is simply runtime data. It is reported as an **optimization
 > remark** when remarks are enabled, naming the fact that blocked the proof:
 > `[amt] runtime bounds check at <loc>: allocation size depends on runtime value 'n'; cost: one
@@ -334,7 +334,7 @@ free or relocate the allocation increments its epoch:
 A pointer value derived at epoch *e* records *e* in its provenance. Clause C1 requires
 `epoch(prov(p)) == live_epoch(alloc(prov(p)))` at the dereference. Statically, most epochs are
 provably equal there is no intervening freeing operation between derivation and use so C1 is
-`Proven` and emits nothing. When AMT cannot prove the epochs equal (a free *might* have happened on
+`Proven` and emits nothing. When Tether cannot prove the epochs equal (a free *might* have happened on
 some path), C1 is residual:
 
 ```kairo
@@ -344,9 +344,9 @@ realloc(buf)        // increments buf's epoch
 *p = 1              // C1 residual: p was derived at the old epoch
 ```
 
-If provenance is intact (AMT still knows which allocation and can read the live epoch), C1 residual
+If provenance is intact (Tether still knows which allocation and can read the live epoch), C1 residual
 is **Tier R**: an epoch comparison at the dereference, in both modes. If provenance has been lost
-entirely (the pointer was laundered through an untracked path and AMT no longer knows the
+entirely (the pointer was laundered through an untracked path and Tether no longer knows the
 allocation), there is nothing to compare against and it is **Tier N**: a hard error.
 
 Folding UAF into the same obligation as bounds is what makes the architecture scale: there is one
@@ -361,7 +361,7 @@ Provenance and epochs govern whether an *access* is safe. A separate analysis go
 lives and who frees it*. Its residuals are Tier P (transformable) or Tier N (unfixable), never Tier
 R there is no runtime check for "who owns this."
 
-When AMT determines that a heap pointer needs ownership semantics, it selects a smart pointer type
+When Tether determines that a heap pointer needs ownership semantics, it selects a smart pointer type
 from the pointer's whole-program usage. In **debug** it performs the promotion and warns; in
 **release** it emits a hard error naming the type to annotate.
 
@@ -449,7 +449,7 @@ special-cased; they reuse the epoch machinery.
 
 A stack value has no heap allocation behind it, so it cannot be promoted to a smart pointer. But the
 (B) model splits stack escape into two cases by whether the value is **heap-promotable** that is,
-whether AMT can mechanically rewrite the stack allocation into a `@create` call.
+whether Tether can mechanically rewrite the stack allocation into a `@create` call.
 
 **Heap-promotable escape Tier P.** A plain local whose address escapes via return or store, where
 the value's type can be heap-allocated:
@@ -464,21 +464,21 @@ fn make() -> *i32 {
 }
 ```
 
-In debug, AMT lifts `x` to the heap and the escape becomes a legal ownership transfer. In release
+In debug, Tether lifts `x` to the heap and the escape becomes a legal ownership transfer. In release
 this is a hard error, because silently turning a stack allocation into a heap allocation in a
 release binary is exactly the hidden allocation the language forbids. The diagnostic shows the fix:
 
 ```
-error[AMT]: address of stack local 'x' escapes its scope
+error[Tether]: address of stack local 'x' escapes its scope
   --> src/m.k:3:12
    3 |     return &x
      |            ^^ 'x' is stack-allocated and destroyed at end of make()
-  note: in debug, AMT would heap-promote: var x = @create i32()
+  note: in debug, Tether would heap-promote: var x = @create i32()
   help: allocate on the heap explicitly, or restructure to avoid the escape
 ```
 
-**Non-promotable escape Tier N.** A borrow with no value to lift (a pointer into a structure AMT
-cannot heap-allocate, an escape into an opaque sink where AMT cannot even establish the
+**Non-promotable escape Tier N.** A borrow with no value to lift (a pointer into a structure Tether
+cannot heap-allocate, an escape into an opaque sink where Tether cannot even establish the
 heap-allocation pattern) is a hard error in both modes. There is nothing to transform.
 
 Dangling within a function is likewise a hard error in both modes the value is gone, there is no
@@ -505,7 +505,7 @@ or `spawn` call and is the join point.
 
 This is what makes static race-freedom tractable. Every concurrent edge in the program is a
 syntactic `thread`/`spawn` call site there are no hidden threads, no callbacks invoked from
-another thread, no library spawning work behind your back. AMT knows exactly where every thread
+another thread, no library spawning work behind your back. Tether knows exactly where every thread
 boundary is, which is the precondition for proving the absence of races rather than checking for
 them at runtime.
 
@@ -513,12 +513,12 @@ them at runtime.
 > The precise distinction between `thread` and `spawn`, and the synchronization primitives that
 > establish happens-before, depend on Kairo's concurrency runtime, which is not yet finalized. The
 > **analysis shape below is fixed**; the runtime seam is marked where it occurs. A synchronization
-> primitive, when it lands, is anything that injects a happens-before edge AMT can observe; crossing
+> primitive, when it lands, is anything that injects a happens-before edge Tether can observe; crossing
 > one re-permits an otherwise-forbidden access.
 
 ### Strict mode
 
-Between a `thread`/`spawn` and its corresponding `await` (the task's **extent**), AMT enters a
+Between a `thread`/`spawn` and its corresponding `await` (the task's **extent**), Tether enters a
 stricter analysis mode. Any allocation reachable by a pointer captured into the task is a **shared
 allocation** for that extent, and every access to it is analyzed under the rules below instead of
 the single-threaded rules.
@@ -573,16 +573,16 @@ checks on it are sound again. Tier R survives only on read-only shared state.
 
 7. **Detached tasks (never awaited).** With no join there is no happens-before edge, so the task's
    captured allocations are shared for the rest of the program (or until the task provably ends,
-   which AMT usually cannot prove). Any allocation a detached task captures by address and that
+   which Tether usually cannot prove). Any allocation a detached task captures by pointer and that
    anyone writes after the spawn is a hard error. The clean pattern detached tasks capture by
-   transfer only, owning everything they touch is recommended explicitly.
+   value only, owning everything they touch is recommended explicitly.
 
 ### Sharing syntax
 
 For **closures and lambdas**, read-only sharing across a thread boundary is expressed by capturing
-with `const &` and nothing else. A `const &` capture is a `*const T` into the captured allocation;
+with `const *` and nothing else. A `const *` capture is a `*const T` into the captured allocation;
 it cannot mutate the target, which is exactly what rule 2 requires for free shared reads. A plain
-`&` (mutating) capture into a task makes the allocation a shared *mutable* allocation and triggers
+`*` (mutating) capture into a task makes the allocation a shared *mutable* allocation and triggers
 the single-writer analysis.
 
 For **functions marked `async`**, the read-only guarantee is carried in the parameter type. The
@@ -637,15 +637,15 @@ A pointer allocated through a scoped allocator that escapes the allocator's scop
 
 ### Freestanding allocator
 
-A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. AMT treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
+A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. Tether treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
 
 ---
 
 ## Destruction Timing
 
-Where AMT places a value's destruction depends on whether the destructor is observable.
+Where Tether places a value's destruction depends on whether the destructor is observable.
 
-**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. AMT places the `@destroy`/`@free` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
+**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. Tether places the `@destroy`/`@free` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
 
 ```kairo
 var foo = @create SomeClass()    // trivial destructor
@@ -654,7 +654,7 @@ use(foo)
 std::println(10)
 ```
 
-**Non-trivial destructors** (a user-defined `op delete`, or any member with one file close, lock release, flush, disconnect) run at the **end of the owning binding's lexical scope**, in reverse declaration order. AMT does not move these to last use:
+**Non-trivial destructors** (a user-defined `op delete`, or any member with one file close, lock release, flush, disconnect) run at the **end of the owning binding's lexical scope**, in reverse declaration order. Tether does not move these to last use:
 
 ```kairo
 fn example() {
@@ -704,31 +704,31 @@ obj.init() // can re-initialize obj and reuse the memory
 
 ## Copy Elision
 
-For COPY types, AMT may emit a move instead of a copy when it proves the source is unused after the transfer **and** the elision is unobservable. Elision means the source's destructor runs at the transfer point instead of at its own scope exit; AMT performs it only when the destructor's observable effects do not depend on that timing trivial destructors, or effects (a `free`, a refcount decrement) that produce identical observable behavior either way.
+For COPY types, Tether may emit a move instead of a copy when it proves the source is unused after the transfer **and** the elision is unobservable. Elision means the source's destructor runs at the transfer point instead of at its own scope exit; Tether performs it only when the destructor's observable effects do not depend on that timing trivial destructors, or effects (a `free`, a refcount decrement) that produce identical observable behavior either way.
 
-If the destructor has timing-sensitive side effects a flush, a lock release, a log line AMT does not elide. The copy is preserved and the source is destroyed at its lexical scope exit as written. Elision is silent precisely because it is only applied where it cannot be observed. The programmer neither opts in nor controls it, and it is never applied if the move constructor is deleted.
+If the destructor has timing-sensitive side effects a flush, a lock release, a log line Tether does not elide. The copy is preserved and the source is destroyed at its lexical scope exit as written. Elision is silent precisely because it is only applied where it cannot be observed. The programmer neither opts in nor controls it, and it is never applied if the move constructor is deleted.
 
 ---
 
 ## C/C++ Interop
 
-The FFI boundary is where AMT's facts run out, and the cost model has an honest asterisk: pointers crossing the boundary carry no provenance AMT can trust, so accessing them in safe code is not free.
+The FFI boundary is where Tether's facts run out, and the cost model has an honest asterisk: pointers crossing the boundary carry no provenance Tether can trust, so accessing them in safe code is not free.
 
 ### Inbound pointers are tainted
 
-A pointer that enters Kairo from C++ has **no provenance** AMT does not know its allocation, size, or epoch. Such a pointer is *tainted* (clause C6). Dereferencing a tainted pointer in safe code cannot be `PROVEN_STATIC`. If AMT can recover enough provenance to form a check, the dereference is Tier R; if the provenance is fully opaque, it is Tier N a hard error demanding an `unsafe` block or an explicit `assume`/launder that transfers responsibility to the programmer.
+A pointer that enters Kairo from C++ has **no provenance** Tether does not know its allocation, size, or epoch. Such a pointer is *tainted* (clause C6). Dereferencing a tainted pointer in safe code cannot be `PROVEN_STATIC`. If Tether can recover enough provenance to form a check, the dereference is Tier R; if the provenance is fully opaque, it is Tier N a hard error demanding an `unsafe` block or an explicit `assume`/launder that transfers responsibility to the programmer.
 
 A pointer that acquires its provenance *inside* an `unsafe` block carries the same taint when it flows back into safe code: unsafe is allowed to *narrow* where checks vanish, but it does not let an untracked pointer leak into a safe dereference as if it were proven.
 
 ### Outbound pointers freeze their epoch
 
-A Kairo pointer handed to C++ has its allocation's epoch frozen pessimistically: AMT must assume C++ may free, relocate, or retain it. On return from the FFI call, all optimistic facts about that allocation are erased unless an annotation says otherwise. This is unavoidable AMT genuinely lacks the proof and it is where the "as fast as unchecked C++" property does not hold: at the interop boundary you pay, because the proof is on the other side of a wall AMT cannot see through.
+A Kairo pointer handed to C++ has its allocation's epoch frozen pessimistically: Tether must assume C++ may free, relocate, or retain it. On return from the FFI call, all optimistic facts about that allocation are erased unless an annotation says otherwise. This is unavoidable Tether genuinely lacks the proof and it is where the "as fast as unchecked C++" property does not hold: at the interop boundary you pay, because the proof is on the other side of a wall Tether cannot see through.
 
 ### Smart-pointer and reference parameters
 
 C++ functions using smart-pointer or reference types map automatically and require no `unsafe`:
 
-| C++ type             | Kairo AMT type            | Requires `unsafe` |
+| C++ type             | Kairo Tether type            | Requires `unsafe` |
 |----------------------|---------------------------|-------------------|
 | `std::unique_ptr<T>` | `std::Unique<T>`         | No                |
 | `std::shared_ptr<T>` | `std::Shared<T>`         | No                |
@@ -736,17 +736,17 @@ C++ functions using smart-pointer or reference types map automatically and requi
 | `T&`, `const T&`     | `*T`, `*const T`          | No                |
 | `T&&` (move ref)     | `*T` (ownership transfer) | No                |
 
-A mismatch between AMT's promotion and the C++ signature is a compile error.
+A mismatch between Tether's promotion and the C++ signature is a compile error.
 
 ### Raw-pointer parameters and shallow analysis
 
-C++ functions taking raw pointers (`T*`, `void*`) require an `unsafe` block; AMT does not track across the boundary. For raw FFI calls where the C++ source is visible via the imported header, AMT performs a **one-level** heuristic: if the function only dereferences the pointer without aliasing, storing, or forwarding it, the call may be classified safe without `unsafe`. The analysis does not recurse. If the body is not visible (forward-declared, compiled library), all raw-pointer parameters are opaque and `unsafe` is required.
+C++ functions taking raw pointers (`T*`, `void*`) require an `unsafe` block; Tether does not track across the boundary. For raw FFI calls where the C++ source is visible via the imported header, Tether performs a **one-level** heuristic: if the function only dereferences the pointer without aliasing, storing, or forwarding it, the call may be classified safe without `unsafe`. The analysis does not recurse. If the body is not visible (forward-declared, compiled library), all raw-pointer parameters are opaque and `unsafe` is required.
 
 ---
 
 ## Generic Code
 
-AMT analyzes each monomorphization with full concrete type information generics are not an opaque boundary:
+Tether analyzes each monomorphization with full concrete type information generics are not an opaque boundary:
 
 ```kairo
 fn <T> take_ownership(x: *T) {
@@ -760,8 +760,8 @@ fn caller() {
 }
 ```
 
-If `T` has a `@move` transfer constructor, AMT tracks the transfer through the move; if `T` is
-`@copy`, AMT knows both source and destination are live after the copy. Each instantiation is
+If `T` has a `@move` transfer constructor, Tether tracks the transfer through the move; if `T` is
+`@copy`, Tether knows both source and destination are live after the copy. Each instantiation is
 analyzed as if it were a hand-written concrete function.
 
 ---
@@ -781,7 +781,7 @@ A function's summary records four sections per pointer parameter and for the fun
 
 `Escapes` defaults to *everything* and `Preserves` to *nothing* when analysis is incomplete the summary fails **closed**. An incomplete summary costs precision (more residual, more checks or errors), never soundness.
 
-The caller-discharges-obligation model: when a pointer flows into a function, AMT consumes the summary rather than the body. If the caller has already proven the `Requires`, the checks are skipped; if it cannot, AMT emits one assertion before the call to establish the precondition. AMT does not need to look inside the callee.
+The caller-discharges-obligation model: when a pointer flows into a function, Tether consumes the summary rather than the body. If the caller has already proven the `Requires`, the checks are skipped; if it cannot, Tether emits one assertion before the call to establish the precondition. Tether does not need to look inside the callee.
 
 ### Summaries are proof certificates, not caches
 
@@ -804,7 +804,7 @@ system and need not be committed to version control.)
 
 ## Soundness and Testing
 
-AMT makes a strong claim `PROVEN_STATIC` means an access is safe with no runtime evidence and a
+Tether makes a strong claim `PROVEN_STATIC` means an access is safe with no runtime evidence and a
 proof engine cannot ship on inspection alone. Two properties pin it down.
 
 ### The soundness property
@@ -812,12 +812,12 @@ proof engine cannot ship on inspection alone. Two properties pin it down.
 > If a dereference classifies as `PROVEN_STATIC`, then no clause of its obligation can fail at
 > runtime for any execution.
 
-This is what licenses emitting a bare `mov`. The full proof belongs in the AMT paper, not here; the
+This is what licenses emitting a bare `mov`. The full proof belongs in the Tether paper, not here; the
 property to hold against is that the static classification is an under-approximation of safety the
 analysis only proves a clause when it is genuinely discharged, and every uncertainty is resolved
 toward residual (the monotone "take the weaker state at a merge" rule). Failing closed at every
 boundary interop, threads, summary gaps, non-convergent recursion is what keeps the
-under-approximation honest: optimism is what would make the property false, and AMT is never
+under-approximation honest: optimism is what would make the property false, and Tether is never
 optimistic at a boundary.
 
 ### Paranoid mode the empirical falsifier
@@ -826,7 +826,7 @@ The contrapositive of the soundness property is directly testable. **Paranoid mo
 runtime check for *every* dereference regardless of its classification including the ones marked
 `PROVEN_STATIC`. Then:
 
-> If a check fires in paranoid mode at a site AMT classified `PROVEN_STATIC`, the static proof was
+> If a check fires in paranoid mode at a site Tether classified `PROVEN_STATIC`, the static proof was
 > wrong. That is a soundness bug.
 
 Paranoid mode is the fuzzing oracle. It is cheap to build (the check-emission machinery already
@@ -836,7 +836,7 @@ instrumentation. **It is the first thing to build,** before trusting any `PROVEN
 
 ### Optimization-level independence
 
-AMT's proof results are **independent of the LLVM optimization level**. The lattice is computed
+Tether's proof results are **independent of the LLVM optimization level**. The lattice is computed
 before, and separately from, the backend optimization passes. A higher opt level may *lower* a check
 more cheaply, but it may never change a dereference's proof *state*. The set of dereferences that
 carry a runtime check is **identical at every opt level**.
@@ -850,11 +850,11 @@ assertion.
 
 ---
 
-## What AMT Does Not Do
+## What Tether Does Not Do
 
 - **Garbage collection.** No tracing, no mark-and-sweep, no runtime collector. Reference counting for
   `Shared` is the only runtime ownership cost, and it exists only where multiple ownership is required.
-- **Runtime borrow checking.** Aliasing is resolved at compile time. AMT does not insert runtime
+- **Runtime borrow checking.** Aliasing is resolved at compile time. Tether does not insert runtime
   aliasing checks; it inserts bounds, epoch, and (for tainted/nullable residuals) access checks
   those are clause discharges, not borrow checks.
 - **Lifetime annotations.** No `'a`-style parameters, no lifetime polymorphism. Whole-program analysis
@@ -862,7 +862,7 @@ assertion.
 - **Reference counting everywhere.** Single-owner pointers promote to `Unique` (no refcount); contained
   lifetimes are not promoted at all. Refcounting appears only under proven multiple ownership.
 - **Cross-language analysis.** C++ is opaque beyond the one-level heuristic on a visible body. Across
-  the FFI boundary, AMT fails closed (taint inbound, epoch-freeze outbound) rather than guessing.
+  the FFI boundary, Tether fails closed (taint inbound, epoch-freeze outbound) rather than guessing.
 
 ---
 
@@ -899,4 +899,4 @@ The whole system, in one table maps each clause's residual to its response:
 | FFI smart ptr    | Yes      | Mapped 1:1                | Type mismatch = error                                 |
 | FFI raw ptr      | No       | Never                     | Tainted; requires unsafe/launder                      |
 
-AMT proves every dereference safe statically when it can, and emits nothing. When only a checkable property remains, it emits the minimal check Tier R, the only runtime cost in a release build. When safety needs a program change it transforms in debug and errors in release (Tier P), and when nothing can establish safety it is a hard error in every mode (Tier N).
+Tether proves every dereference safe statically when it can, and emits nothing. When only a checkable property remains, it emits the minimal check Tier R, the only runtime cost in a release build. When safety needs a program change it transforms in debug and errors in release (Tier P), and when nothing can establish safety it is a hard error in every mode (Tier N).

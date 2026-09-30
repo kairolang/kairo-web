@@ -39,7 +39,7 @@ const LANGUAGE_ORDER = [
   'where',
   'pointers',
   'ownership',
-  'amt',
+  'tether',
   'unsafe',
   'panic',
   'eval',

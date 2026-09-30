@@ -84,8 +84,7 @@ The rules differ by type:
 | Methods | Constructors |
 | Static functions | Destructors (`fn op delete`) |
 | Arithmetic / comparison operators | Copy / move assignment (`fn op =`) |
-| `fn op as` (type conversion) | |
-| `fn op in` (iteration) | |
+| `fn op in` (iteration) | Member-only operators (`as`, `[]`, `->`) |
 
 Structs are trivially copyable. Extending lifecycle operations (destructors, copy/move) would break
 that guarantee. See [Structures](/docs/language/structures#copy-semantics).
@@ -97,7 +96,7 @@ that guarantee. See [Structures](/docs/language/structures#copy-semantics).
 | Methods | Constructors |
 | Static functions | Destructors |
 | Comparison / arithmetic operators | Copy / move assignment |
-| `fn op as` (type conversion) | |
+| | Member-only operators (`as`, `[]`, `->`) |
 
 ### Classes
 
@@ -105,14 +104,16 @@ that guarantee. See [Structures](/docs/language/structures#copy-semantics).
 |---|---|
 | Methods | Constructors |
 | Static functions | Destructors |
-| All operators | Copy / move assignment |
+| Operators other than the member-only ones | Copy / move assignment |
+| | Member-only operators (`as`, `[]`, `->`, `delete`) |
 
 Classes already support methods and operators in their body. `extend` on a class is useful for
 separating interface conformance or adding functionality in a different section of the codebase
 (within the same file).
 
 > [!NOTE]
-> Constructors, destructors, and copy/move assignment cannot be added via `extend` on any type.
+> Constructors, destructors, and copy/move assignment cannot be added via `extend` on any type. Neither
+> can the member-only operators `as`, `[]`, `->`, and `delete`; declare them in the type's own body.
 > If you need construction logic on a struct, extend a static factory function instead. If you need
 > a destructor, use a [class](/docs/language/classes).
 
@@ -202,7 +203,7 @@ extend <T> Pair<T> impl Container<T> {
 }
 ```
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 

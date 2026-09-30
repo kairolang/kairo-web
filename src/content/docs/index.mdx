@@ -94,7 +94,14 @@ fn load_config(path: string) panic -> Point {
         panic std::Error::IO("config file is empty")
     }
 
-    return try_parse_point(content).value
+    match try_parse_point(content) {
+        case .Ok(var value) {
+            return value
+        }
+        case .Error(var message) {
+            panic std::Error::Runtime(message)
+        }
+    }
 }
 
 var a = Point { x: 3.0, y: 4.0 }

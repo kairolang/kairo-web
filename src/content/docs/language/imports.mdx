@@ -163,21 +163,21 @@ gfx::RenderContext()
 
 ### C++ `std` Namespace
 
-If a C++ header defines names in the `std` namespace, those collide with Kairo's `std` module. The C++ standard library is accessible through `libcxx`:
+If a C++ header defines names in the `std` namespace, those collide with Kairo's `std` module. The C++ standard library is accessible through `cxx::std`:
 
 ```kairo
-import std                       // Kairo standard library
-import libcxx::vector            // C++ std::vector
-import libcxx::{cout, endl}      // C++ std output stream
+import std                         // Kairo standard library
+import cxx::std::vector            // C++ std::vector
+import cxx::std::{cout, endl}      // C++ std output stream
 
 std::println("Kairo")
 cout << "C++" << endl
 ```
 
-FFI imports of headers that define names in `std` are automatically redirected to `libcxx`:
+FFI imports of headers that define names in `std` are automatically redirected to `cxx::std`:
 
 ```kairo
-ffi "c++" import "iostream"  // imported into libcxx, not std
+ffi "c++" import "iostream"  // imported into cxx::std, not std
 ```
 
 See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
