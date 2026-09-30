@@ -171,15 +171,29 @@ var result = b & mask   // ok: bitwise AND
 
 ## Strings
 
-| Type | Size | Encoding | C++ Equivalent |
-|---|---|---|---|
-| `string` | 32 bytes | UTF-8 | `std::string` |
+| Type | Size | Encoding |
+|---|---|---|
+| `string` | 4 words (32 bytes on 64-bit) | UTF-8 |
 
-Strings are UTF-8 encoded byte sequences. The `string` type uses small string optimization (SSO); short strings are stored inline without a heap allocation (exact threshold subject to change until the standard library is finalized). Longer strings are heap-allocated.
+A `string` is a UTF-8 byte sequence. Its fields are public:
 
 ```kairo
-var greeting = "Hello, Kairo! 📣"   // 18 UTF-8 bytes fits in SSO
-var name     = "Name"               // 7 bytes SSO
+struct string {
+    var data:   *const u8   // the bytes
+    var len:    usize       // length in bytes
+    var cp_len: usize       // number of codepoints the bytes encode
+    var cap:    usize       // heap capacity in bytes; 0 for a borrowed string
+}
+```
+
+`len` counts bytes, not characters; `cp_len` counts codepoints, and `len == cp_len` means the string is
+ASCII. A string literal is a borrowed view of static storage: it allocates nothing, and its `cap` is `0`. An
+owned string has `cap` bytes of heap memory behind `data`. Both kinds keep a NUL byte after the last byte, so
+`data` can be passed to C as a C string.
+
+```kairo
+var greeting = "Hello, Kairo! 📣"   // len 18, cp_len 15, no allocation
+var name     = "Name"               // len 4, cp_len 4
 ```
 
 Because UTF-8 is a variable-width encoding, indexing by codepoint (`s[i]`) complexity depends on how the string was constructed. For string literals, the compiler pre-populates a breadcrumb cache at codegen time mapping codepoint positions to byte offsets, making indexing O(1) with zero runtime cost. For strings constructed at runtime from a raw pointer, no cache is available and indexing is O(n). Indexing by byte (`s.bytes[i]`) is always O(1) but returns raw `u8` bytes, not characters.
@@ -227,7 +241,7 @@ var void_t: MyObj<void> = MyObj<void>()  // void is valid here
 | `*T` | 8 bytes | Safe pointer non-null, compiler-tracked |
 | `unsafe *T` | 8 bytes | Raw pointer nullable, no safety checks |
 
-`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [AMT](/docs/language/amt). See [Pointers](/docs/language/pointers) for full details.
+`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [Tether](/docs/language/tether). See [Pointers](/docs/language/pointers) for full details.
 
 `unsafe *T` is a raw C-style pointer with no compiler tracking. It can be null, and dereferencing a null
 
@@ -378,7 +392,7 @@ and use that.
 
 > [!WARNING]
 > One case is not caught: passing a slice literal to a function that **stores** the slice. The literal's
-> storage ends with the statement, and the stored slice then points at nothing. Until [AMT](/docs/language/amt)
+> storage ends with the statement, and the stored slice then points at nothing. Until [Tether](/docs/language/tether)
 > checks this, it is the programmer's responsibility.
 
 #### Slices in fields
@@ -435,7 +449,7 @@ A pointer to a function with the given signature. Platform-dependent size.
 
 ```kairo
 fn add(a: i32, b: i32) -> i32 { return a + b }
-var operator: fn (i32, i32) -> i32 = add
+var #op: fn (i32, i32) -> i32 = add
 op(3, 4)  // 7
 ```
 
@@ -474,7 +488,7 @@ var g = 3.14f32         // f32
 // Bool, char, string
 var h = true            // bool
 var i = '📣'            // char (4 bytes, Unicode scalar)
-var j = "Hello, Kairo!" // string (UTF-8, SSO threshold TBD)
+var j = "Hello, Kairo!" // string (UTF-8)
 
 // Byte
 var k: byte = 0xFF      // raw byte, no arithmetic
@@ -494,7 +508,7 @@ var point: (f64, f64) = (1.0, 2.0)                    // tuple
 
 // Function pointer
 fn add(a: i32, b: i32) -> i32 { return a + b }
-var operator: fn (i32, i32) -> i32 = add
+var #op: fn (i32, i32) -> i32 = add
 ```
 
 
@@ -646,7 +660,7 @@ are invalid scalar values) — decide whether that check traps or produces a
 **`bool`.** E in both directions. Your docs already say "no implicit conversion from
 integers"; this extends it to the reverse. `int → bool` is E with `!= 0` semantics.
 
-**Pointers.** `*T → unsafe *T` is **U**, not W — it is a safety downgrade and AMT loses
+**Pointers.** `*T → unsafe *T` is **U**, not W — it is a safety downgrade and Tether loses
 provenance at that point, so it should be visible. `unsafe *T → *T` is U and must be a
 checked or asserted construction, never a silent reinterpretation. `*T → unsafe *void`
 is U. Pointer↔integer is U in both directions. No pointer conversion is ever W.

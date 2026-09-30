@@ -144,7 +144,7 @@ interface <T impl Comparable, U derives Base> Registry {
 
 Generic defaults are not permitted on interface type parameters.
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -274,7 +274,7 @@ class Pipeline impl Chainable {
 }
 ```
 
-Kairo has no user-visible reference types [AMT](/docs/language/amt) infers reference semantics where
+Kairo has no user-visible reference types [Tether](/docs/language/tether) infers reference semantics where
 needed. In practice this means `Self` returns enable fluent chaining without `->` or explicit
 dereferencing:
 
@@ -355,7 +355,7 @@ fn <T impl Serializable> save(data: T, path: string) {
 ```
 
 `impl` checks structural conformance the type satisfies the interface's required method signatures.
-This is distinct from `derives`, which checks class inheritance. See [Bounds](/docs/language/bounds)
+This is distinct from `derives`, which checks class inheritance. See [Requires Clauses](/docs/language/requires)
 for the full constraint system.
 
 ```kairo

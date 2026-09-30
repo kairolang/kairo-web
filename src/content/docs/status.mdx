@@ -33,7 +33,7 @@ diagnostic. This covers `priv` constructors and writes to `const` fields.
 ## Not Diagnosed
 
 Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with
-the statement, so the stored slice dangles. This becomes an error when [AMT](/docs/language/amt) lands; until
+the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether) lands; until
 then, pass a `var` or a `[T]` to any function that keeps what it is given. See
 [Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
 

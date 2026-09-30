@@ -15,7 +15,7 @@ hold a memory address.
 ## Safe Pointers (`*T`)
 
 `*T` is the default pointer type. The compiler tracks its provenance via
-[AMT](/docs/language/amt) and inserts null checks on dereference:
+[Tether](/docs/language/tether) and inserts null checks on dereference:
 
 ```kairo
 var x = 42
@@ -74,7 +74,7 @@ ptr->port   // 8080
 
 ## Raw Pointers (`unsafe *T`)
 
-`unsafe *T` is an untracked pointer with no null checks, no bounds checks, and no AMT provenance
+`unsafe *T` is an untracked pointer with no null checks, no bounds checks, and no Tether provenance
 tracking. It is equivalent to a raw C/C++ pointer:
 
 ```kairo
@@ -86,7 +86,7 @@ var p: unsafe *i32 = unsafe &x   // create raw pointer from safe binding
 Dereferencing a null `unsafe *T` is undefined behavior. The compiler will not insert a check.
 
 Raw pointers are required for [C/C++ interop](/docs/language/c-cpp), custom allocators, hardware
-register access, and any scenario where AMT tracking is not possible or not desired.
+register access, and any scenario where Tether tracking is not possible or not desired.
 
 ### Creating raw pointers
 
@@ -157,8 +157,8 @@ Pointer-to-pointer arithmetic (`p1 - p2`) is not permitted on safe pointers use 
 that.
 
 > [!CAUTION]
-> Safe pointer arithmetic is bounds-checked by AMT only when provenance is trackable. If the pointer
-> originates from a context where AMT cannot determine the allocation bounds, the arithmetic compiles
+> Safe pointer arithmetic is bounds-checked by Tether only when provenance is trackable. If the pointer
+> originates from a context where Tether cannot determine the allocation bounds, the arithmetic compiles
 > but bounds safety is not guaranteed. Prefer array/vector indexing over pointer arithmetic when
 > possible.
 
@@ -187,7 +187,7 @@ p[0]    // same as *(p + 0)
 p[2]    // same as *(p + 2)
 ```
 
-Bounds checking follows the same rules as pointer arithmetic AMT checks when provenance is
+Bounds checking follows the same rules as pointer arithmetic Tether checks when provenance is
 trackable, no checks on `unsafe *T`.
 
 ---
@@ -235,7 +235,7 @@ const pp: *const *i32 = &p
 
 ## Smart Pointer Promotion
 
-[AMT](/docs/language/amt) analyzes pointer usage and automatically promotes safe pointers to smart
+[Tether](/docs/language/tether) analyzes pointer usage and automatically promotes safe pointers to smart
 pointers when needed. The smart pointer types are compiler intrinsics exposed through the standard
 library:
 
@@ -245,20 +245,20 @@ library:
 | `std::Shared<T>` | Reference-counted, multiple owners, freed when count reaches zero |
 | `std::Weak<*T>` | Non-owning reference to a `Shared` allocation, does not prevent deallocation |
 
-AMT decides which smart pointer type to use based on how the pointer is used across the program. The
-programmer does not need to annotate or choose AMT handles it automatically:
+Tether decides which smart pointer type to use based on how the pointer is used across the program. The
+programmer does not need to annotate or choose Tether handles it automatically:
 
 ```kairo
 fn make_config() -> *Config {
     var cfg = @create Config(8080)
-    return cfg   // AMT determines ownership: likely Unique or Shared
+    return cfg   // Tether determines ownership: likely Unique or Shared
 }
 ```
 
-If AMT cannot determine a safe promotion path (e.g., the pointer escapes in a way that prevents
+If Tether cannot determine a safe promotion path (e.g., the pointer escapes in a way that prevents
 tracking), it emits a compile error rather than allowing unsafe behavior.
 
-Smart pointer types can be used explicitly to override AMT's decision or to validate compiler
+Smart pointer types can be used explicitly to override Tether's decision or to validate compiler
 behavior:
 
 ```kairo
@@ -266,7 +266,7 @@ var ptr: std::Unique<Config> = @create Config(8080)
 var shared: std::Shared<Config> = @create Config(8080)
 ```
 
-See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
+See [Tether](/docs/language/tether) for the full lifetime and promotion model, and
 [Ownership](/docs/language/ownership) for borrowing semantics.
 
 ---
@@ -277,10 +277,10 @@ Stack allocation is the default. Heap allocation uses `@create T()`:
 
 ```kairo
 var stack_val = Config(8080)                    // stack-allocated
-var heap_ptr = @create Config(8080)        // heap-allocated, AMT chooses pointer type
+var heap_ptr = @create Config(8080)        // heap-allocated, Tether chooses pointer type
 ```
 
-For raw heap allocation without AMT tracking:
+For raw heap allocation without Tether tracking:
 
 ```kairo
 var raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
@@ -288,7 +288,7 @@ var raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
 unsafe std::free(raw)
 ```
 
-See [AMT](/docs/language/amt) for how allocation interacts with lifetime tracking.
+See [Tether](/docs/language/tether) for how allocation interacts with lifetime tracking.
 
 ---
 
@@ -298,22 +298,24 @@ See [AMT](/docs/language/amt) for how allocation interacts with lifetime trackin
 |---|---|
 | `==` | Compares addresses do both pointers point to the same location? |
 | `!=` | Negation of `==` |
-| `===` | Deep equality dereferences both pointers and compares the values |
+| `===` | Null-aware equality on nullable pointers (`*T?`): true when both are non-null and the values they point to are equal |
 
 ```kairo
 var a = 42
 var b = 42
-var p = &a
-var q = &b
+var p: *i32? = &a
+var q: *i32? = &b
 
 p == q    // false: different addresses
 p === q   // true: both point to 42
 
-var r = &a
+var r: *i32? = &a
 p == r    // true: same address
 ```
 
-`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system null-check with `?` first, then `===` the unwrapped pointers.
+`===` needs at least one nullable operand; on two `*T` it is an error. To compare what two `*T` point to,
+dereference them: `*x == *y`. For raw pointers (`unsafe *T`), use `==` for address comparison and
+dereference manually after a null check.
 
 See [Operators](/docs/language/operators#comparison) for the full comparison model.
 
@@ -346,7 +348,7 @@ wraps the pointer in the standard `Nullable<T>` system:
 | Can be null | No | Yes | Yes |
 | Null check mechanism | N/A | `?.`, `??`, `unwrap!()`, `val?` | `ptr != &null` (manual) |
 | Dereference null | Cannot happen | Compile error (must check first) | Undefined behavior |
-| AMT tracked | Yes | Yes | No |
+| Tether tracked | Yes | Yes | No |
 
 `*T?` supports the same null-handling operators as any other nullable type. `unsafe *T` uses
 manual null comparison, it does not participate in the `Nullable<T>` system.
@@ -379,10 +381,10 @@ var p: *i32 = &x
 // Raw pointer
 var raw: unsafe *i32 = unsafe &x
 
-// Null
-var null_ptr: *i32 = &null
-if null_ptr != &null {
-    std::println(*null_ptr)
+// Nullable pointer (*T itself is never null)
+var maybe: *i32? = null
+if maybe? {
+    std::println(*maybe)
 }
 
 // Const pointer
@@ -410,5 +412,6 @@ var pp: **i32 = &p
 
 // Comparison
 p == q     // address comparison
-p === q    // deep value comparison
+*p == *q   // value comparison
+maybe === other   // deep value comparison on nullable pointers
 ```

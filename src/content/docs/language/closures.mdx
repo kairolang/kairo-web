@@ -1,7 +1,7 @@
 ---
 order: 6
 title: Closures
-description: Anonymous functions, capture modes, lambda syntax, and how closures interact with AMT in Kairo.
+description: Anonymous functions, capture modes, lambda syntax, and how closures interact with Tether in Kairo.
 ---
 
 # Closures
@@ -217,10 +217,10 @@ var nested_mixed = fn () -> fn(i32) -> i32 {
 
 ---
 
-## AMT and Lifetime Safety
+## Tether and Lifetime Safety
 
-[AMT](/docs/language/amt) tracks closure captures the same way it tracks any other borrow. If a closure
-captures a variable by pointer and the closure outlives the variable, AMT will attempt to auto-promote the
+[Tether](/docs/language/tether) tracks closure captures the same way it tracks any other borrow. If a closure
+captures a variable by pointer and the closure outlives the variable, Tether will attempt to auto-promote the
 capture to a smart pointer (shared, weak, or unique). If promotion is not possible, the compiler emits a
 hard error.
 
@@ -228,7 +228,7 @@ hard error.
 fn make_closure() -> fn() -> i32 {
     var x = 42
     return fn ()|*x| -> i32 { return *x }
-    // AMT error: x is a stack local, closure would outlive it,
+    // Tether error: x is a stack local, closure would outlive it,
     //   and there is no safe promotion path for a stack variable
 }
 ```
@@ -244,7 +244,7 @@ fn make_closure() -> fn() -> i32 {
 ```
 
 > [!WARNING]
-> Capturing stack-local variables by pointer in a closure that escapes the current scope is always an AMT
+> Capturing stack-local variables by pointer in a closure that escapes the current scope is always a Tether
 > error. There is no way to promote a pointer to a stack variable into a safe smart pointer. Use capture
 > by copy for closures that outlive their enclosing scope.
 

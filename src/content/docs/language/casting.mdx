@@ -107,12 +107,12 @@ fn process(animal: *Animal) panic {
 }
 ```
 
-**Checked downcast** returns a nullable pointer. `&null` if the runtime type does not match:
+**Checked downcast** returns a nullable pointer `*Derived?`, which is null if the runtime type does not match:
 
 ```kairo
 fn process(animal: *Animal) {
     var dog = animal as *Dog?   // null if animal is not a Dog
-    if dog != &null {
+    if dog? {
         dog->fetch()
     }
 }
@@ -127,7 +127,7 @@ Casting to `unsafe *T` reinterprets the pointer with no type checking equivalent
 `reinterpret_cast`. The compiler performs no validation.
 
 Casting a safe pointer to a raw pointer `*T as unsafe *U` requires an
-[`unsafe` block](/docs/language/unsafe#unsafe-blocks). This is the point where AMT loses provenance:
+[`unsafe` block](/docs/language/unsafe#unsafe-blocks). This is the point where Tether loses provenance:
 after the cast the compiler can no longer relate the pointer to the allocation it came from, so the
 loss is made visible at the source:
 
@@ -144,7 +144,7 @@ Casting between `unsafe *T` types needs no `unsafe` block there is no provenance
 result is the same pointer value with a different type no runtime check, no adjustment.
 
 > [!CAUTION]
-> Raw pointer casts bypass AMT's safety guarantees. Casting to `unsafe *void` erases type information
+> Raw pointer casts bypass Tether's safety guarantees. Casting to `unsafe *void` erases type information
 > permanently the compiler cannot verify the correctness of a subsequent cast back. Use only for
 > C/C++ interop, custom allocators, and other low-level scenarios.
 
@@ -177,7 +177,7 @@ The second cast is an ordinary [numeric narrowing](#narrowing-truncation) and re
 Casting an integer to a pointer fabricates a pointer from a numeric address. The result must be an
 `unsafe` pointer safe pointers require provenance tracking that an integer cannot provide and the
 cast requires an [`unsafe` block](/docs/language/unsafe#unsafe-blocks). The integer carries no
-provenance, so the cast invents one that AMT has no way to verify:
+provenance, so the cast invents one that Tether has no way to verify:
 
 ```kairo
 var addr: usize = 0x7FFE_0000_1000
@@ -202,7 +202,7 @@ fabricate it are not:
 |---|---|---|---|
 | `ptr as usize` | Allowed, no `unsafe` | Discarded | Reading an address cannot cause UB on its own |
 | `ptr as u8` (any narrower int) | **Compile error** | | Narrowing an address is never intended write `ptr as usize as u8` |
-| `n as unsafe *T` | Allowed, requires `unsafe` block | Fabricated | AMT cannot verify an address that came from an integer |
+| `n as unsafe *T` | Allowed, requires `unsafe` block | Fabricated | Tether cannot verify an address that came from an integer |
 | `n as *T` | **Compile error** | | Safe pointers require provenance an integer cannot supply |
 | `*T as unsafe *U` | Allowed, requires `unsafe` block | Lost | The provenance-loss point keep it visible |
 | `unsafe *T as unsafe *U` | Allowed, no `unsafe` | Already absent | Nothing left to lose |
@@ -213,9 +213,9 @@ The two error rows are deliberate refusals rather than warnings. `ptr as u8` has
 (`ptr as usize as u8`) that says the same thing in two steps, and `n as *T` has no honest spelling at
 all a safe pointer's guarantees cannot be reconstructed from a number.
 
-`unsafe` blocks appear on exactly the rows where AMT stops being able to reason about the pointer.
+`unsafe` blocks appear on exactly the rows where Tether stops being able to reason about the pointer.
 See [Unsafe](/docs/language/unsafe#the-safety-boundary) for the boundary model and
-[AMT](/docs/language/amt) for what provenance tracking buys.
+[Tether](/docs/language/tether) for what provenance tracking buys.
 
 ---
 
@@ -373,7 +373,7 @@ If the source type declares `op as` for `T` and `T` also has a matching construc
 | Int to float | `x as f64` | May lose precision | Rounded |
 | Derived-to-base ptr | Implicit | Safe | N/A |
 | Base-to-derived ptr (asserting) | `ptr as *Derived` | Runtime check | Panics |
-| Base-to-derived ptr (checked) | `ptr as *Derived?` | Runtime check | Returns `&null` |
+| Base-to-derived ptr (checked) | `ptr as *Derived?` | Runtime check | Returns null |
 | Safe to raw pointer | `ptr as unsafe *T` | Requires `unsafe` block | Provenance loss |
 | Raw to raw pointer | `raw as unsafe *T` | No check | Reinterpret |
 | Pointer to `usize` | `ptr as usize` | Safe | Address value |

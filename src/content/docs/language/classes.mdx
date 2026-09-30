@@ -345,7 +345,7 @@ The one exception is both being `= delete`, which is the **NON_TRANSFER** form.
 
 | Category | Trigger | Semantics |
 |---|---|---|
-| **COPY** | `@copy` ctor (explicit or implicit) | Allows copy; AMT may silently elide a copy into a move when the source is unused after the transfer |
+| **COPY** | `@copy` ctor (explicit or implicit) | Allows copy; Tether may silently elide a copy into a move when the source is unused after the transfer |
 | **MOVE** | `@move` ctor | Allows move only; copying is a compile error |
 | **NON_TRANSFER** | both `@copy` and `@move` are `= delete`d | Stack-only; cannot be assigned, copied, or moved |
 | **DEFAULT** | no transfer ctor declared | Treated as COPY with compiler-generated members |
@@ -436,9 +436,9 @@ class UniqueFile {
 }
 ```
 
-### AMT copy elision
+### Tether copy elision
 
-For COPY classes, [AMT](/docs/language/amt) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. AMT does not elide if the move constructor is
+For COPY classes, [Tether](/docs/language/tether) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. Tether does not elide if the move constructor is
 deleted. Users do not opt into or out of this optimization.
 
 ---
@@ -731,7 +731,7 @@ fn <T impl Hashable> insert(set: {T}, item: T) { ... }
 insert(my_set, Point(1.0, 2.0))   // compiles: Point has hash()
 ```
 
-See [Interfaces](/docs/language/interfaces) and [Bounds](/docs/language/bounds).
+See [Interfaces](/docs/language/interfaces) and [Requires Clauses](/docs/language/requires).
 
 ---
 
@@ -810,7 +810,7 @@ interface Copyable {
 fn <T impl Copyable> store(item: T) -> T { ... }
 ```
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -1120,14 +1120,14 @@ A plain `var` declaration allocates on the stack:
 var obj = Foo(42)   // stack-allocated
 ```
 
-Heap allocation uses `@create T()`, which returns a pointer. [AMT](/docs/language/amt) determines
+Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether) determines
 whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
 var ptr = @create Foo(42)
 ```
 
-See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt).
+See [Pointers](/docs/language/pointers) and [Tether](/docs/language/tether).
 
 ---
 

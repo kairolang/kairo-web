@@ -351,7 +351,7 @@ if raw != &null {
 ```
 
 See [Pointers](/docs/language/pointers) for the full pointer model and how
-[AMT](/docs/language/amt) tracks pointer provenance.
+[Tether](/docs/language/tether) tracks pointer provenance.
 
 ---
 
@@ -462,8 +462,8 @@ Variables are block-scoped and destroyed at the end of their enclosing block.
 // x is no longer accessible
 ```
 
-[AMT](/docs/language/amt) performs full-program analysis to track lifetimes automatically no lifetime
-annotations are required. If AMT determines that a pointer outlives its referent and cannot automatically
+[Tether](/docs/language/tether) performs full-program analysis to track lifetimes automatically no lifetime
+annotations are required. If Tether determines that a pointer outlives its referent and cannot automatically
 promote the pointer (to a shared, weak, or unique smart pointer), it emits a compile error.
 
 ```kairo
@@ -472,10 +472,10 @@ var y = &x
 {
     *y = 15    // ok: x is still alive, y is valid
 }
-std::println(*y)      // AMT error: y's safety cannot be guaranteed at this point
+std::println(*y)      // Tether error: y's safety cannot be guaranteed at this point
 ```
 
-See [AMT](/docs/language/amt) and [Ownership](/docs/language/ownership) for the full lifetime and borrowing
+See [Tether](/docs/language/tether) and [Ownership](/docs/language/ownership) for the full lifetime and borrowing
 model.
 
 ---

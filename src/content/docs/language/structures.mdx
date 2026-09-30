@@ -134,7 +134,7 @@ a.x   // still 1.0
 
 This is a hard guarantee. Extending a destructor (`fn op delete`), copy assignment (`fn op =`), or
 move assignment onto a struct is a compile error. If you need custom lifecycle management, use a
-[class](/docs/language/classes#the-rule-of-five).
+[class](/docs/language/classes#the-rule-of-three).
 
 ---
 
@@ -231,7 +231,7 @@ struct <T impl Comparable> Range {
 }
 ```
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -331,7 +331,7 @@ var local = Point { x: 1.0, y: 2.0 }           // stack
 var *heap = @create Point{ x: 1.0, y: 2.0 }    // heap
 ```
 
-See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt) for allocation and pointer semantics.
+See [Pointers](/docs/language/pointers) and [Tether](/docs/language/tether) for allocation and pointer semantics.
 
 ---
 
@@ -363,7 +363,7 @@ struct Node {
 | Methods in body | No (use [extends](/docs/language/extends)) | Yes |
 | Constructors | No (aggregate init only) | Yes |
 | Destructors | No | Yes |
-| Copy semantics | `memcpy` (trivial) | Rule of five |
+| Copy semantics | `memcpy` (trivial) | Rule of Three |
 | Inheritance | No | `derives` |
 | Virtual dispatch | No | Yes |
 | Aggregate initialization | Yes | No |

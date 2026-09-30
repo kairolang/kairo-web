@@ -201,8 +201,8 @@ finally { // identical to standalone `finally`
 
 ### Standalone `finally` (scope exit)
 
-`finally` can appear without a preceding `try`. In this form it runs when the enclosing function
-exits, regardless of how normal return, panic, or early return:
+`finally` can appear without a preceding `try`. In this form it runs when control leaves the
+enclosing scope, however it leaves: normal exit, `return`, `break`, `continue`, or a panic:
 
 ```kairo
 fn process_file(path: string) panic {
@@ -221,7 +221,9 @@ fn process_file(path: string) panic {
 }
 ```
 
-Multiple `finally` blocks in the same function execute in reverse declaration order (LIFO).
+A standalone `finally` behaves like the destructor of a local declared at the same point. It belongs to
+its enclosing block rather than the function, runs only if execution reached it, and runs in reverse
+declaration order (LIFO) together with the scope's destructors.
 
 See [Control Flow](/docs/language/control-flow#finally) for full `finally` semantics.
 
@@ -248,7 +250,7 @@ fn fatal(msg: string) -> ! {
 }
 ```
 
-See [Functions](/docs/language/functions#no-return) and
+See [Functions](/docs/language/functions#no-return-) and
 [Type System](/docs/language/type-system#the-never-type-) for `!` semantics.
 
 ---
@@ -259,16 +261,21 @@ Panics compile to zero-cost tagged return values. There are no unwinding tables,
 exception handler, and no stack unwinding. A function marked `panic` returns a tagged union
 containing either the success value or an error with source location metadata.
 
-At the call site, `try`/`catch` compiles to a branch on the tag. If the tag indicates an error,
-the catch block executes. If it indicates success, the value is extracted and execution continues.
+At the call site, the compiler lowers `try`/`catch` to a `match` on the tagged union. If the tag
+indicates an error, the matching catch block executes. If it indicates success, the value is
+extracted and execution continues.
 
 This means:
 
 - No runtime overhead on the success path beyond a single branch (which the branch predictor
   handles efficiently)
 - No stack unwinding errors propagate via normal return values
-- No unwinding tables in the binary smaller executables
-- All functions in Kairo are trivially `noexcept` at the ABI level
+- No unwinding tables for panics smaller executables
+- All functions in Kairo are `noexcept` at the ABI level
+
+> [!NOTE]
+> The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use
+> the platform unwinder. See [Exceptions](/docs/language/c-cpp#exceptions) in C/C++ Interop.
 
 > [!NOTE]
 > The `panic` statement inside a function body (`panic SomeError(...)`) does not halt the program.

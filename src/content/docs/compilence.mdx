@@ -132,9 +132,9 @@ Kairo primitives, conversions to C++ string types are implicit:
 
 | Conversion | Output | Use case |
 |---|---|---|
-| `as libcxx::string` | UTF-8 `std::string` | Natural fit; Kairo strings are UTF-8 internally |
-| `as libcxx::u16string` | UTF-16 `std::u16string` | Windows WinAPI (`LPWSTR`), Java interop |
-| `as libcxx::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
+| `as cxx::std::string` | UTF-8 `std::string` | Natural fit; Kairo strings are UTF-8 internally |
+| `as cxx::std::u16string` | UTF-16 `std::u16string` | Windows WinAPI (`LPWSTR`), Java interop |
+| `as cxx::std::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
 | C `const char*` | Null-terminated UTF-8 `u8` pointer | Implicit conversion; no `unsafe` block required |
 
 See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
@@ -288,15 +288,20 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   support overloading and seamless interop with Clang-compiled C++ code.
   Explicit `ffi "C"` linkage (no mangling) is only used for C interop or
   when specifically requested.
-- C++ exceptions propagate across the Kairo/C++ boundary normally because both
-  sides use the same unwinding tables (`.eh_frame` / `__eh_frame`). Kairo
-  functions are trivially `noexcept` at the ABI level (panics are returned as
-  tagged values, not thrown), so the unwinder can pass through them cleanly.
+- Every Kairo function is `noexcept` at the ABI level. Kairo never throws:
+  panics are returned as tagged union values, and a Kairo `try`/`catch` around
+  a Kairo call lowers to a `match` on that union.
+- A C++ exception can be caught by a Kairo `try`/`catch`. It is unwound by the
+  platform unwinder (libunwind on Unix-like systems) using the standard
+  unwind tables (`.eh_frame` / `__eh_frame`). The compiler emits unwind info
+  only for Kairo frames between a C++ call and a Kairo `try` that can catch
+  from it. A C++ exception that no Kairo `try` catches reaches a `noexcept`
+  frame and calls `std::terminate`.
 - Virtual dispatch into C++ classes works without special handling because Kairo
   lowers method calls on C++ objects directly to Clang, which handles vtable
   dispatch normally.
 - C++ smart pointers (`std::unique_ptr<T>`, `std::shared_ptr<T>`,
-  `std::weak_ptr<T>`) map to Kairo's AMT-tracked equivalents (`std::Unique<T>`,
+  `std::weak_ptr<T>`) map to Kairo's Tether-tracked equivalents (`std::Unique<T>`,
   `std::Shared<T>`, `std::Weak<*T>`) automatically. No `unsafe` block is
   required for FFI calls using smart pointers, references, move references, or
   value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe`

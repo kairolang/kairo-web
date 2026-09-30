@@ -164,7 +164,7 @@ and it is rejected anywhere else:
 read(&n)           // compile error: parameter 'x' of 'read' is not @inout
 bump(n)            // compile error: '@inout' argument requires '&'
 
-const var k: i32 = 5
+const k: i32 = 5
 bump(&k)           // compile error: '@inout' requires a non-const lvalue
 bump(&10)          // compile error: '@inout' requires an lvalue
 ```
@@ -277,7 +277,7 @@ of an assignment or compound assignment.
 ```kairo
 ffi "c++" import <vector>;
 
-var v: cxx::vector<i32>
+var v: cxx::std::vector<i32>
 v.push_back(1)
 
 v.at(0) = 3                 // assigns through the returned int&
@@ -512,13 +512,13 @@ var y = unsafe add(10, 20)   // calls the unsafe overload
 ```
 
 > [!NOTE]
-> `unsafe` overloads are not "unsafe memory" AMT still guarantees memory safety. The `unsafe` qualifier
+> `unsafe` overloads are not "unsafe memory" Tether still guarantees memory safety. The `unsafe` qualifier
 > signals that the function may not uphold other invariants that the safe version does. See
 > [Unsafe](/docs/language/unsafe) for the full unsafe model.
 
 ### Const overloading restriction
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Operators are exempt**, because they cannot be renamed: a place-returning operator may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#subscript).
+`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Place operators are exempt**, because they cannot be renamed: a place-returning operator (`[]`, `->`) may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#const-overloading-operators).
 
 ```kairo
 class Foo {
@@ -526,8 +526,11 @@ class Foo {
     fn bar(self) -> i32 { return 24 }               // compile error: cannot overload const
     fn bar(const self, a: i32) -> i32 { return a }  // ok: different parameter list ok
 
-    fn op [](const self, index: i32) -> i32 { return 42 }   // ok: operator overload
-    fn op [](self, index: i32) -> i32 { return 24 }         // ok: const-ness dispatch
+    fn op [](const self, index: i32) -> *const i32 { /* ... */ }   // ok: place operator
+    fn op [](self, index: i32) -> *i32 { /* ... */ }               // ok: const-ness dispatch
+
+    fn op +(self, o: Foo) -> Foo { /* ... */ }
+    fn op +(const self, o: Foo) -> Foo { /* ... */ }  // compile error: not a place operator
 }
 ```
 
@@ -675,20 +678,22 @@ Not all modifiers can be combined:
 
 ## Visibility
 
-| Keyword | Scope |
+A top-level function with no visibility written is `pub`.
+
+| Keyword | Scope of a top-level function |
 |---|---|
-| `pub` | Accessible from any module |
-| `priv` | Accessible only within the defining module (default) |
-| `prot` | Accessible within the defining module and by subclasses in other modules |
+| `pub` (default) | Any module that imports this module |
+| `priv` | Current file only |
+| `prot` | Current file and sibling files in the same library subtree |
 
 ```kairo
-pub fn public_api()       { /* ... */ }
+fn api()                  { /* ... */ }   // pub by default
 priv fn internal_helper() { /* ... */ }
-prot fn for_subclasses()  { /* ... */ }
+prot fn library_helper()  { /* ... */ }
 ```
 
-Visibility applies to both free functions and methods. See [Modules](/docs/language/modules) for how
-visibility interacts with imports.
+See [Modules](/docs/language/modules#visibility-on-top-level-declarations) for how visibility interacts
+with imports. Methods follow the member rules in [Classes](/docs/language/classes#default-visibility).
 
 ---
 
@@ -712,7 +717,7 @@ class Shape {
     virtual fn area(const self) -> f64 { return 0.0 }
 }
 
-class Circle : Shape {
+class Circle derives Shape {
     var radius: f64
 
     override fn area(const self) -> f64 {
@@ -737,7 +742,7 @@ Functions are first-class values. The type of a function pointer is `fn(ParamTyp
 fn add(a: i32, b: i32) -> i32 = a + b
 fn sub(a: i32, b: i32) -> i32 = a - b
 
-var op: fn(i32, i32) -> i32 = add
+var #op: fn(i32, i32) -> i32 = add
 op(3, 4)   // 7
 
 op = sub
@@ -758,7 +763,7 @@ fn outer(x: i32) -> i32 {
 ## Closures
 
 Anonymous functions (lambdas) capture variables from the enclosing scope. Default capture is by copy; use
-`|&|` for capture-by-reference or specify per-variable:
+`|*|` to capture by pointer or specify per-variable:
 
 ```kairo
 var multiplier = 3
@@ -767,8 +772,8 @@ var scale = fn (x: i32) -> i32 { return x * multiplier }   // captures multiplie
 scale(10)   // 30
 ```
 
-See [Closures](/docs/language/closures) for capture modes (`|&|`, `|a, &b|`), lifetime rules, and how
-closures interact with [AMT](/docs/language/amt).
+See [Closures](/docs/language/closures) for capture modes (`|*|`, `|a, *b|`), lifetime rules, and how
+closures interact with [Tether](/docs/language/tether).
 
 ---
 
@@ -834,7 +839,7 @@ Forward declarations are used when the definition lives elsewhere:
     fn Parser::peek(const self) -> Token = self.tokens[self.pos]
     ```
 
-    See [Classes](/docs/language/classes#out-of-line-definitions) for the full rules.
+    See [Classes](/docs/language/classes#forward-declarations-and-out-of-line-definitions) for the full rules.
 
 ### Signature matching
 

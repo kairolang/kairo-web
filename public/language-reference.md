@@ -4,7 +4,7 @@
 > Kairo is a statically typed, compiled systems language with native
 > bidirectional C++ interoperability.
 >
-> Source: https://www.kairolang.org/docs/  ·  Generated: 2026-09-23
+> Source: https://www.kairolang.org/docs/  ·  Generated: 2026-09-28
 
 ## Contents
 
@@ -13,7 +13,7 @@
 - [Operators](#operators) Arithmetic, comparison, logical, bitwise, assignment, range, null-safe access, operator overloading, and precedence rules in Kairo.
 - [Control Flow](#control-flow) Conditionals, match, loops, labeled breaks, try/catch/finally, panic, assert, jumps, compile-time branching, and branch hints in Kairo.
 - [Functions](#functions) Function declarations, parameters, return types, overloading, modifiers, generics, variadic functions, and calling conventions in Kairo.
-- [Closures](#closures) Anonymous functions, capture modes, lambda syntax, and how closures interact with AMT in Kairo.
+- [Closures](#closures) Anonymous functions, capture modes, lambda syntax, and how closures interact with Tether in Kairo.
 - [Classes](#classes) Class declarations, constructors, destructors, lifecycle categories, inheritance, virtual dispatch, abstract classes, generics, visibility, memory layout, and out-of-line definitions in Kairo.
 - [Structures](#structures) Struct declarations, aggregate initialization, field visibility, generics, extends, layout control, and how structs differ from classes in Kairo.
 - [Enums](#enums) Enum declarations, discriminants, underlying types, ADT variants with payloads, generics, extends, and enum semantics in Kairo.
@@ -25,8 +25,8 @@
 - [Where Clauses](#where-clauses) Where clauses attach runtime-conditional constraints to declarations. They are evaluated at runtime, and can be used for dispatching on values or types.
 - [Pointers & Raw Pointers](#pointers-raw-pointers) Safe pointers, unsafe raw pointers, null semantics, pointer arithmetic, smart pointer promotion, void pointers, double pointers, and pointer safety rules in Kairo.
 - [Ownership](#ownership) Transfer semantics, pointer aliasing, closure captures, and destruction order in Kairo's ownership model.
-- [AMT](#amt) Automatic Memory Tracking a compile-time proof engine for pointer safety in Kairo. Bounds, provenance, lifetime, ownership, and data-race freedom as proof obligations over the whole-program graph.
-- [Unsafe](#unsafe) Unsafe blocks, unsafe pointers, unsafe function overloads, AMT suspension, forget, and the safety boundary model in Kairo.
+- [Tether](#tether) Tether, a compile-time proof engine for pointer safety in Kairo. Bounds, provenance, lifetime, ownership, and data-race freedom as proof obligations over the whole-program graph.
+- [Unsafe](#unsafe) Unsafe blocks, unsafe pointers, unsafe function overloads, Tether suspension, forget, and the safety boundary model in Kairo.
 - [Panic](#panic) The panic specifier, Panickable return type, try/catch exhaustiveness, panic propagation, error types, and zero-cost codegen in Kairo.
 - [Compile-Time Eval](#compile-time-eval) Eval variables, eval functions, eval if, eval for, compile-time evaluation rules, restrictions, and interaction with generics in Kairo.
 - [Modules](#modules) File-to-module mapping, library entry files, module namespaces, visibility, circular dependencies, and module reopening.
@@ -211,15 +211,29 @@ var result = b & mask   // ok: bitwise AND
 
 ### Strings
 
-| Type | Size | Encoding | C++ Equivalent |
-|---|---|---|---|
-| `string` | 32 bytes | UTF-8 | `std::string` |
+| Type | Size | Encoding |
+|---|---|---|
+| `string` | 4 words (32 bytes on 64-bit) | UTF-8 |
 
-Strings are UTF-8 encoded byte sequences. The `string` type uses small string optimization (SSO); short strings are stored inline without a heap allocation (exact threshold subject to change until the standard library is finalized). Longer strings are heap-allocated.
+A `string` is a UTF-8 byte sequence. Its fields are public:
 
 ```kairo
-var greeting = "Hello, Kairo! 📣"   // 18 UTF-8 bytes fits in SSO
-var name     = "Name"               // 7 bytes SSO
+struct string {
+    var data:   *const u8   // the bytes
+    var len:    usize       // length in bytes
+    var cp_len: usize       // number of codepoints the bytes encode
+    var cap:    usize       // heap capacity in bytes; 0 for a borrowed string
+}
+```
+
+`len` counts bytes, not characters; `cp_len` counts codepoints, and `len == cp_len` means the string is
+ASCII. A string literal is a borrowed view of static storage: it allocates nothing, and its `cap` is `0`. An
+owned string has `cap` bytes of heap memory behind `data`. Both kinds keep a NUL byte after the last byte, so
+`data` can be passed to C as a C string.
+
+```kairo
+var greeting = "Hello, Kairo! 📣"   // len 18, cp_len 15, no allocation
+var name     = "Name"               // len 4, cp_len 4
 ```
 
 Because UTF-8 is a variable-width encoding, indexing by codepoint (`s[i]`) complexity depends on how the string was constructed. For string literals, the compiler pre-populates a breadcrumb cache at codegen time mapping codepoint positions to byte offsets, making indexing O(1) with zero runtime cost. For strings constructed at runtime from a raw pointer, no cache is available and indexing is O(n). Indexing by byte (`s.bytes[i]`) is always O(1) but returns raw `u8` bytes, not characters.
@@ -267,7 +281,7 @@ var void_t: MyObj<void> = MyObj<void>()  // void is valid here
 | `*T` | 8 bytes | Safe pointer non-null, compiler-tracked |
 | `unsafe *T` | 8 bytes | Raw pointer nullable, no safety checks |
 
-`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [AMT](/docs/language/amt). See [Pointers](/docs/language/pointers) for full details.
+`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [Tether](/docs/language/tether). See [Pointers](/docs/language/pointers) for full details.
 
 `unsafe *T` is a raw C-style pointer with no compiler tracking. It can be null, and dereferencing a null
 
@@ -418,7 +432,7 @@ and use that.
 
 > [!WARNING]
 > One case is not caught: passing a slice literal to a function that **stores** the slice. The literal's
-> storage ends with the statement, and the stored slice then points at nothing. Until [AMT](/docs/language/amt)
+> storage ends with the statement, and the stored slice then points at nothing. Until [Tether](/docs/language/tether)
 > checks this, it is the programmer's responsibility.
 
 ##### Slices in fields
@@ -475,7 +489,7 @@ A pointer to a function with the given signature. Platform-dependent size.
 
 ```kairo
 fn add(a: i32, b: i32) -> i32 { return a + b }
-var operator: fn (i32, i32) -> i32 = add
+var #op: fn (i32, i32) -> i32 = add
 op(3, 4)  // 7
 ```
 
@@ -514,7 +528,7 @@ var g = 3.14f32         // f32
 // Bool, char, string
 var h = true            // bool
 var i = '📣'            // char (4 bytes, Unicode scalar)
-var j = "Hello, Kairo!" // string (UTF-8, SSO threshold TBD)
+var j = "Hello, Kairo!" // string (UTF-8)
 
 // Byte
 var k: byte = 0xFF      // raw byte, no arithmetic
@@ -534,7 +548,7 @@ var point: (f64, f64) = (1.0, 2.0)                    // tuple
 
 // Function pointer
 fn add(a: i32, b: i32) -> i32 { return a + b }
-var operator: fn (i32, i32) -> i32 = add
+var #op: fn (i32, i32) -> i32 = add
 ```
 
 
@@ -686,7 +700,7 @@ are invalid scalar values) — decide whether that check traps or produces a
 **`bool`.** E in both directions. Your docs already say "no implicit conversion from
 integers"; this extends it to the reverse. `int → bool` is E with `!= 0` semantics.
 
-**Pointers.** `*T → unsafe *T` is **U**, not W — it is a safety downgrade and AMT loses
+**Pointers.** `*T → unsafe *T` is **U**, not W — it is a safety downgrade and Tether loses
 provenance at that point, so it should be visible. `unsafe *T → *T` is U and must be a
 checked or asserted construction, never a silent reinterpretation. `*T → unsafe *void`
 is U. Pointer↔integer is U in both directions. No pointer conversion is ever W.
@@ -1222,7 +1236,7 @@ if raw != &null {
 ```
 
 See [Pointers](/docs/language/pointers) for the full pointer model and how
-[AMT](/docs/language/amt) tracks pointer provenance.
+[Tether](/docs/language/tether) tracks pointer provenance.
 
 ---
 
@@ -1333,8 +1347,8 @@ Variables are block-scoped and destroyed at the end of their enclosing block.
 // x is no longer accessible
 ```
 
-[AMT](/docs/language/amt) performs full-program analysis to track lifetimes automatically no lifetime
-annotations are required. If AMT determines that a pointer outlives its referent and cannot automatically
+[Tether](/docs/language/tether) performs full-program analysis to track lifetimes automatically no lifetime
+annotations are required. If Tether determines that a pointer outlives its referent and cannot automatically
 promote the pointer (to a shared, weak, or unique smart pointer), it emits a compile error.
 
 ```kairo
@@ -1343,10 +1357,10 @@ var y = &x
 {
     *y = 15    // ok: x is still alive, y is valid
 }
-std::println(*y)      // AMT error: y's safety cannot be guaranteed at this point
+std::println(*y)      // Tether error: y's safety cannot be guaranteed at this point
 ```
 
-See [AMT](/docs/language/amt) and [Ownership](/docs/language/ownership) for the full lifetime and borrowing
+See [Tether](/docs/language/tether) and [Ownership](/docs/language/ownership) for the full lifetime and borrowing
 model.
 
 ---
@@ -1361,9 +1375,9 @@ All four declaration keywords `var`, `const`, `static`, `eval` work in both loca
 
 ## Operators
 
-Kairo's operators follow C-style precedence and semantics with a few additions: exponentiation (`^^`), deep
-equality (`===`), null-safe access (`?.`, `?->`), and ranges (`..`, `..=`). All operators can be overloaded
-for user-defined types.
+Kairo's operators follow C-style precedence and semantics with a few additions: exponentiation (`^^`), null-aware
+equality (`===`), null-safe access (`?.`, `?->`), and ranges (`..`, `..=`). Most operators can be overloaded
+for user-defined types; the [overload table](#all-overload-able-operators-for-user-defined-types) lists which.
 
 ---
 
@@ -1380,8 +1394,20 @@ for user-defined types.
 
 Integer division truncates toward zero, matching C++.
 
-`^^` works on any integer combination (`i32 ^^ i32`, `u64 ^^ u8`, etc.) and on float bases with integer
-exponents (`f64 ^^ i32`). Overflow follows the same rules as other arithmetic see below.
+The base of `^^` takes the expected type, the exponent may be any integer type, and the result has the base's
+type (`u64 ^^ u8` is `u64`, `f64 ^^ i32` is `f64`). A float exponent is an error.
+
+- `x ^^ 0` is `1`.
+- A negative exponent is `(1 / x) ^^ n` using the base type's own division. For an integer base that is
+  `0`, `1` or `-1`; for a float base it is the reciprocal.
+- Overflow behaves exactly as repeated `*` does; see below.
+
+```kairo
+var a = 2 ^^ 10       // 1024
+var b = 2.0 ^^ -2     // 0.25
+var c = 2 ^^ -1       // 0: 1 / 2 is 0 for an integer
+var d = 2 ^^ 0.5      // error: the exponent must be an integer
+```
 
 #### Integer overflow
 
@@ -1410,35 +1436,36 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 | `<=` | Less than or equal | `a <= b` |
 | `>=` | Greater than or equal | `a >= b` |
 | `<=>` | Three-way comparison (spaceship) | `a <=> b` |
-| `===` | Deep equality | `a === b` |
+| `===` | Null-aware equality | `a === b` |
 
-`<=>` returns an ordering value, matching C++20 spaceship operator semantics.
+`<=>` returns an `Ordering`, matching the C++20 spaceship operator.
 
 #### `==` vs `===`
 
-On pointers, `==` compares **addresses** whether two pointers point to the same memory location. `===` dereferences both pointers and compares the values they point to. `===` is defined only on `*T`, which is non-null by construction, so no null check is needed. For a pointer that might be null, use `*T?` and the nullable operators (?, ??) before comparing.
-
-```kairo
-var z = 42
-var x = &z
-var y = &z
-
-x == y    // true same address
-x === y   // true dereferenced values are equal
-```
+`===` is valid when at least one operand is nullable (`T?`). `a === b` is true when both are non-null and
+equal. On nullable pointers (`*T?`) it compares the values they point to, where `==` compares **addresses**.
+Using `===` where neither operand is nullable is an error, including two `*T`. To compare the pointees of two
+non-null pointers, dereference them and use `==`.
 
 ```kairo
 var a = 42
 var b = 42
-var p = &a
-var q = &b
+var p: *i32? = &a
+var q: *i32? = &b
 
-p == q    // false different addresses
-p === q   // true both point to 42
+p == q    // false: different addresses
+p === q   // true: both point to 42
 ```
 
-For user-defined types, `===` can be overloaded to implement deep equality. By default it is only defined for
-pointer types.
+```kairo
+var x = &a
+var y = &b
+
+x === y   // error: '===' needs a nullable operand; '*i32' and '*i32' are not nullable
+*x == *y  // true
+```
+
+`===` is not overloadable.
 
 ---
 
@@ -1479,7 +1506,10 @@ Right shift is arithmetic (sign-extending) for signed types and logical (zero-fi
 | `&=`, `\|=`, `^=` | Bitwise compound assignment |
 | `<<=`, `>>=` | Shift compound assignment |
 
-All compound assignment operators desugar to `x = x op y`.
+On primitives, `x op= y` behaves like `x = x op y` with `x` evaluated once. For user-defined types, a
+compound assignment and its binary operator form one pair (`+=` with `+`, `<<=` with `<<`, and so on): a
+type declares `op +` **or** `op +=`, never both, and the other is derived from it. See
+[Compound assignment](#compound-assignment).
 
 ---
 
@@ -1511,7 +1541,7 @@ interface can be used with range operators:
 
 ```kairo
 interface <T> Steppable {
-    fn op l++ (self) -> Steppable   // step forward (prefix increment)
+    fn op l++ (self) -> Self        // step forward (prefix increment)
     fn op == (self, other: T) -> bool
 }
 ```
@@ -1538,8 +1568,6 @@ Kairo provides null-safe operators for working with nullable types (`T?`).
 |---|---|---|
 | `?.` | Null-safe member access | `obj?.field` |
 | `?->` | Null-safe pointer deref + member access | `ptr?->field` |
-| `?.*` | Null-safe deref member pointer | `obj?.*member_ptr` |
-| `?->*` | Null-safe pointer deref + member pointer deref | `ptr?->*member_ptr` |
 
 If the left-hand side is null, the entire expression evaluates to null instead of crashing.
 
@@ -1554,8 +1582,6 @@ The non-null equivalents follow the same pattern without the safety check:
 |---|---|
 | `.` | Member access |
 | `->` | Pointer dereference + member access |
-| `.*` | Dereference member pointer |
-| `->*` | Pointer dereference + member pointer dereference |
 
 ---
 
@@ -1617,7 +1643,10 @@ See [Casting](/docs/language/casting) for the full conversion rules.
 
 ### Operator Overloading
 
-Operators are overloaded by defining `fn op` methods on a class, [struct](/docs/language/structures) OR (via [extends](/docs/language/extends)). The syntax mirrors the operator being defined.
+Operators are overloaded by defining `fn op` methods on a class or [struct](/docs/language/structures), or
+in an [extension](/docs/language/extends). The syntax mirrors the operator being defined. An extension may
+declare any overloadable operator except `as`, `[]`, `->`, `.*`, `->*` and `delete`, which are
+**member-only**: they must be declared in the type's own body.
 
 ##### All Overload-able Operators for User-Defined Types
 
@@ -1628,26 +1657,25 @@ Operators are overloaded by defining `fn op` methods on a class, [struct](/docs/
 | `^^` | ok | no | Returns a new value. |
 | `<<` `>>` | ok | no | Returns a new value. |
 | `&` `\|` `^` `~` (bitwise) | ok | no | Returns a new value. |
-| `==` `!=` | ok | no | Returns `bool`. |
-| `<` `<=` `>` `>=` | ok | no | May be implemented via `<=>`. |
+| `==` | ok | no | Returns `bool`. |
+| `!=` | ok | no | Returns `bool`. Derived from `op ==` when not declared. |
+| `<` `<=` `>` `>=` | ok | no | Return `bool`. Derived from `op <=>` when not declared. |
 | `<=>` | ok | no | Returns `Ordering`. |
-| `===` | ok | no | Returns `bool`. |
 | `l++` `r++` `l--` `r--` | ok | no | Mutating operators. |
-| `[]` | ok | ok | Returns a place into `self` (`*T` / `*const T`). |
-| `->` | ok | ok | Returns a place into `self` (`*T` / `*const T`). |
-| `.*` | ok | ok | Returns a place into `self` (`*T` / `*const T`). |
-| `->*` | ok | ok | Returns a place into `self` (`*T` / `*const T`). |
+| `[]` | ok | ok | Returns a place into `self` (`*T` / `*const T`). Member-only. |
+| `->` | ok | ok | Returns a place into `self` (`*T` / `*const T`). Member-only. |
 | `in` (containment) | ok | no | Returns `bool`. |
 | `in` (iteration) | ok | no | Returns `yield T`. |
-| `as` | ok | no | Returns a converted value. |
-| `delete` | ok | no | Custom destructor. |
+| `as` | ok | no | Returns a converted value. Member-only. |
+| `delete` | ok | no | Custom destructor. Member-only. |
 | `await` | ok | no | Returns the awaited value. |
+| `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` | ok | no | Returns nothing. Declare either this or its binary operator, not both. |
 | `=` | no | no | Generated by the compiler; cannot be overloaded. |
-| `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` | no | no | Desugar to the corresponding binary operator and assignment. |
+| `===` | no | no | Built in; needs a nullable operand. |
 | `.` `::` | no | no | Language syntax; not overloadable. |
 | Unary `&` `*` | no | no | Built-in pointer operations. |
 | `&&` `\|\|` `!` | no | no | Preserve built-in short-circuit semantics. |
-| `?.` `?->` `?.*` `?->*` | no | no | Derived automatically from the corresponding non-null-safe operator. |
+| `?.` `?->` | no | no | Derived automatically from the corresponding non-null-safe operator. |
 | `..` `..=` | no | no | Implemented through the `Steppable` interface. |
 | `sizeof` `alignof` `typeof` | no | no | Compile-time language keywords. |
 
@@ -1673,10 +1701,62 @@ class Vec3 {
 }
 ```
 
+Operators have no default arguments, and every comparison operator (`==`, `!=`, `<`, `<=`, `>`, `>=`)
+must return `bool`.
+
+#### Derived comparisons
+
+A comparison the type does not declare is derived: `!=` from `op ==`, and `<`, `<=`, `>`, `>=` from
+`op <=>`. A declared operator always wins over a derived one, so a type can declare `op <=>` for ordering
+and still declare its own `op <` when it has a faster path.
+
+```kairo
+struct Version {
+    var major: i32
+    var minor: i32
+
+    fn op == (self, o: Version) -> bool { return self.major == o.major && self.minor == o.minor }
+    fn op <=> (self, o: Version) -> Ordering { /* ... */ }
+}
+
+var a = Version { major: 1, minor: 2 }
+var b = Version { major: 1, minor: 3 }
+a != b   // derived from op ==
+a < b    // derived from op <=>
+```
+
+#### Compound assignment
+
+Each compound assignment and its binary operator form a pair: `+=` / `+`, `-=` / `-`, `*=` / `*`, `/=` / `/`,
+`%=` / `%`, `&=` / `&`, `|=` / `|`, `^=` / `^`, `<<=` / `<<`, `>>=` / `>>`. A type declares **one** half of a
+pair and the other is derived from it. Declaring both halves is an error.
+
+- From `op +`: `a += b` is `a = a + b`, with `a` evaluated once.
+- From `op +=`: `a + b` copies `a`, applies `+=` to the copy with `b`, and yields the copy.
+
+A compound assignment operator mutates `self` and returns nothing, so `a += b` on a struct or class is a
+statement, not a value:
+
+```kairo
+struct Acc {
+    var total: i32
+    fn op += (self, n: i32) { self.total = self.total + n }
+}
+
+var acc = Acc { total: 0 }
+acc += 5             // calls op +=
+var acc2 = acc + 7   // op + derived from op +=: acc2.total == 12
+```
+
+Declaring `op +` instead derives `+=` the other way. Declare whichever form is natural for the type; the
+in-place form usually avoids a copy.
+
+Imported C++ types are not paired: they get exactly the operators their C++ declaration has.
+
 #### Increment and decrement
 
-Use the `l` (left/prefix) or `r` (right/postfix) modifier to specify which variant you are overloading. The
-compiler warns if the modifier is omitted.
+Use the `l` (left/prefix) or `r` (right/postfix) modifier to specify which variant you are overloading. A
+type may declare both. An unmarked `op ++` or `op --` is taken as the prefix form, with a warning.
 
 ```kairo
 fn op r-- (self) -> T    // postfix: x--
@@ -1687,7 +1767,7 @@ fn op r++ (self) -> T    // postfix: x++ the ++ is on the right of the operand
 
 ## Const Overloading Operators
 
-Place-returning operators (`[]`, `->`, `.*`, `->*`) may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. The `const self` overload must return `*const T` where the `self` overload returns `*T`. This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions#const-overloading-restriction) for details.
+Place-returning operators (`[]`, `->`) may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. The `const self` overload must return `*const T` where the `self` overload returns `*T`. This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions#const-overloading-restriction) for details.
 
 ```kairo
 class Buffer {
@@ -1703,9 +1783,28 @@ class Buffer {
 }
 
 var buff = Buffer { data: [1, 2, 3] }
-var p: u8 = buff[1] // calls the const overload and compiler infers `*u8` -> `u8`
-                    // NOTE: this behavior is only for Place-returning operators, a named method returning `*T` would not be implicitly dereferenced
-buff[1] = 42        // calls the non-const overload
+var p: u8 = buff[1] // `buff` is not const: the `self` overload is picked, and the read
+                    // dereferences the returned `*u8` to `u8`
+buff[1] = 42        // `self` overload; writes through the returned `*u8`
+
+const cbuff = Buffer { data: [1, 2, 3] }
+var c: u8 = cbuff[1] // `cbuff` is const: the `const self` overload is picked
+cbuff[1] = 42        // error: the place is `*const u8`
+```
+
+A non-const receiver prefers the `self` overload; a const receiver can only use the `const self` one. The
+result of a place operator is used as the value it points to, as a read or as the target of an assignment.
+A named method returning `*T` is not dereferenced this way.
+
+Every other operator follows the named-method rule: a `const self` overload of it is a redeclaration error,
+the same as for a named method.
+
+```kairo
+struct V {
+    var x: i32
+    fn op + (self, o: V) -> V { /* ... */ }
+    fn op + (const self, o: V) -> V { /* ... */ }   // error: only place operators overload on const-ness
+}
 ```
 
 #### Special operators
@@ -1713,7 +1812,6 @@ buff[1] = 42        // calls the non-const overload
 | Operator | Signature | Description |
 |---|---|---|
 | `as` | `fn op as (self) -> TargetType` | Type conversion takes no parameters |
-| `===` | `fn op === (self, other: T) -> bool` | Deep equality |
 | `in` (containment) | `fn op in (self, other: T) -> bool` | `if item in collection` checks membership |
 | `in` (iteration) | `fn op in (self) -> yield T` | `for x in collection` yields elements |
 | `delete` | `fn op delete (self)` | Custom destructor called when the value goes out of scope |
@@ -1767,10 +1865,43 @@ class FileHandle {
 }
 ```
 
-See [AMT](/docs/language/amt) for details on destruction order and allocator interaction.
+See [Tether](/docs/language/tether) for details on destruction order and allocator interaction.
 
-> [!CAUTION]
-> Overloading operators in an `unsafe` context is not permitted. All operator overloads must be safe.
+
+---
+
+### Statement Expressions
+
+A statement expression runs a block of statements and yields the value of its last expression:
+
+```kairo
+fn main() -> i32 {
+    var x = 1
+    var y = ({
+        var t = x * 10
+        t + 2
+    })
+    return x + y   // 13
+}
+```
+
+The form is `({ statements... expression })`. Its value and type are those of the last expression.
+
+- The last statement must be an expression. A block that ends in `var`, an `if` statement or `return`, or
+  an empty block, is an error.
+- Locals declared inside are scoped to the block and destroyed at its closing brace.
+- `return`, `break` and `continue` inside the block jump out of it as they would anywhere else; `return`
+  returns from the enclosing function.
+- The expected type reaches the last expression: in `var b: u8 = ({ 5 })` the literal is a `u8`.
+- The value is a copy. A statement expression cannot yield a fixed-size array, since arrays are not copied
+  implicitly.
+- Inside the block, a newline ends a statement as it does in any block.
+
+`({` always opens a statement expression. A set or map literal, or an anonymous initializer, is written
+without surrounding parentheses.
+
+This is the only place a block yields a value. The arms of an `if` or `match` expression are single
+expressions, and no other block returns its last expression implicitly.
 
 ---
 
@@ -1781,26 +1912,29 @@ equal precedence and associate in the direction shown.
 
 | Precedence | Operators | Associativity | Description |
 |---|---|---|---|
-| 1 | `::` | Left | Scope resolution |
-| 2 | `()` `[]` `.` `->` `.*` `->*` `?.` `?->` `?.*` `?->*` | Left | Postfix / member access |
-| 3 | `++` `--` (postfix) | Left | Postfix increment/decrement |
-| 4 | `++` `--` (prefix) `!` `~` `+` `-` (unary) `*` `&` `sizeof` `alignof` `typeof` | Right | Prefix / unary |
-| 5 | `^^` | Right | Exponentiation |
-| 6 | `*` `/` `%` | Left | Multiplicative |
-| 7 | `+` `-` | Left | Additive |
-| 8 | `<<` `>>` | Left | Bitwise shift |
-| 9 | `<=>` | Left | Three-way comparison |
-| 10 | `<` `<=` `>` `>=` | Left | Relational |
-| 11 | `==` `!=` `===` | Left | Equality |
-| 12 | `&` | Left | Bitwise AND |
-| 13 | `^` | Left | Bitwise XOR |
-| 14 | `\|` | Left | Bitwise OR |
-| 15 | `&&` | Left | Logical AND |
-| 16 | `\|\|` | Left | Logical OR |
-| 17 | `..` `..=` | Left | Range |
-| 18 | `=` `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` | Right | Assignment |
-| 19 | `in` | Left | Containment / iteration |
-| 20 | `as` | Left | Type cast |
+| 1 | Literals, names, `( )` grouping, `({ ... })` | | Primary expressions |
+| 2 | `::` | Left | Scope resolution |
+| 3 | `()` `[]` `.` `->` `?.` `?->` | Left | Postfix / member access |
+| 4 | `++` `--` (postfix) | Left | Postfix increment/decrement |
+| 5 | `++` `--` (prefix) `!` `~` `+` `-` (unary) `*` `&` `sizeof` `alignof` `typeof` | Right | Prefix / unary |
+| 6 | `as` | Left | Type cast |
+| 7 | `^^` | Right | Exponentiation |
+| 8 | `*` `/` `%` | Left | Multiplicative |
+| 9 | `+` `-` | Left | Additive |
+| 10 | `<<` `>>` | Left | Bitwise shift |
+| 11 | `<` `<=` `>` `>=` `<=>` `in` | Left | Relational / three-way / containment |
+| 12 | `==` `!=` `===` | Left | Equality |
+| 13 | `&` | Left | Bitwise AND |
+| 14 | `^` | Left | Bitwise XOR |
+| 15 | `\|` | Left | Bitwise OR |
+| 16 | `&&` | Left | Logical AND |
+| 17 | `\|\|` | Left | Logical OR |
+| 18 | `..` `..=` | None | Range |
+| 19 | `??` | Right | Null coalescing |
+| 20 | `=` `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` | Right | Assignment |
+
+`as` binds looser than every prefix operator and tighter than every binary one: `-1 as u8` casts `-1`,
+`&x as *const T` casts the address, and `x as i64 + 1` is `(x as i64) + 1`.
 
 > [!NOTE]
 > `==` binds tighter than `&&` and `||` compound conditions like `a == b && c == d` do not require
@@ -1813,7 +1947,7 @@ improves readability.
 
 ### Evaluation Order
 
-Function and method arguments, including the receiver, are evaluated **left to right**. Given
+Call arguments are evaluated **left to right**, and the receiver of a method call comes first. Given
 `f(a(), b())`, `a()` runs before `b()`; given `x.m(a())`, `x` is evaluated before `a()`.
 
 ```kairo
@@ -1826,16 +1960,11 @@ f(g(&n), g(&n))     // always f(10, 20)
 `&&` and `||` are also left to right, with short-circuiting. See
 [Control Flow](/docs/language/control-flow).
 
-Two cases still follow C++, where the order is unspecified:
-
-- A call whose result is a C++ reference or a class object. The order of that call's arguments is not
-  guaranteed.
-- A primitive operator such as `a + b` where **both** operands have side effects. Either operand may be
-  evaluated first.
+The operands of a primitive operator follow C++ and their order is unspecified: in `a() + b()`, either call
+may run first.
 
 > [!WARNING]
-> In those two cases, do not rely on evaluation order for correctness. Split the side effects into separate
-> statements.
+> Do not rely on the order of operands with side effects. Split the side effects into separate statements.
 
 ---
 
@@ -1847,7 +1976,7 @@ For C++ developers the following C++ operators have no equivalent in Kairo:
 |---|---|
 | `? :` (ternary) | `if`/`else` expressions |
 | `,` (comma operator) | Not supported use separate statements |
-| `new` / `delete` | `@create T()` / automatic via AMT, or `op delete` for custom destructors |
+| `new` / `delete` | `@create T()` / automatic via Tether, or `op delete` for custom destructors |
 | `typeid` | `typeof expr` returns `TypeInfo` |
 | `const_cast` / `reinterpret_cast` / `static_cast` / `dynamic_cast` | `as` for safe casts; see [Casting](/docs/language/casting) |
 
@@ -1884,8 +2013,8 @@ integers or pointers.
 
 #### `if` as an expression (ternary equivalent)
 
-Kairo has no ternary `? :` operator. Use `if`/`else` as an expression instead, the expression in each
-branch is the result:
+Kairo has no ternary `? :` operator. Use `if`/`else` as an expression instead. Each branch holds a single
+expression, which is the result:
 
 ```kairo
 var x = if condition { 10 } else { 20 }
@@ -2063,8 +2192,8 @@ match http_status {
 
 #### `match` as an expression
 
-Like `if`, `match` can be used as an expression. The last expression in each branch is the result value.
-All branches must produce the same type:
+Like `if`, `match` can be used as an expression. Each branch holds a single expression, which is the result
+value. All branches must produce the same type:
 
 ```kairo
 var label = match level {
@@ -2289,7 +2418,7 @@ A bare `catch` (no type) acts as a catch-all and satisfies exhaustiveness for an
 
 #### `try`/`catch` as an expression
 
-Like `if`, `try`/`catch` can be used as an expression. The last expression in each block is the result value:
+Like `if`, `try`/`catch` can be used as an expression. Each block holds a single expression, which is the result value:
 
 ```kairo
 var result = try {
@@ -2321,8 +2450,8 @@ try {
 
 #### Standalone `finally` (scope exit)
 
-`finally` can also appear inside any function body without a preceding `try`. In this form, it acts as a
-scope exit block the body executes when the enclosing function returns, regardless of how it exits:
+`finally` can also appear without a preceding `try`. In this form it is a scope-exit block: its body runs
+when control leaves the enclosing scope, however it leaves:
 
 ```kairo
 fn process_file(path: string) panic -> void {
@@ -2339,34 +2468,64 @@ fn process_file(path: string) panic -> void {
 }
 ```
 
-This is equivalent to Go's `defer` the body executes when the enclosing function exits, regardless of
-how it exits (normal return, panic, or early return). Multiple `finally` blocks in the same function
-execute in reverse declaration order (LIFO), matching destructor semantics.
+A standalone `finally` behaves like the destructor of a local declared at the same point:
+
+- **It is tied to the enclosing block, not the function.** A `finally` inside an `if` body or a loop body
+  runs when that block ends. In a loop it runs at the end of every iteration that reached it.
+- **It only runs if execution reached it.** A `return` or panic before the `finally` statement skips it, just
+  as a local that was never declared is never destroyed.
+- **It runs on every exit from the scope.** That includes falling off the end, `return`, `break`,
+  `continue`, and a panic leaving the scope.
+- **It runs in reverse order with everything else in the scope.** Multiple `finally` blocks and local
+  destructors run in reverse declaration order (LIFO), so a `finally` written after a local runs before
+  that local is destroyed.
+
+```kairo
+fn copy_all(paths: [string]) {
+    for path in paths {
+        var fd = open(path)
+        finally {
+            close(fd)   // runs at the end of each iteration, not when copy_all returns
+        }
+        copy(fd)
+    }
+}
+```
+
+This differs from Go's `defer`, which always waits for the function to return.
 
 ---
 
 ### `assert`
 
-`assert` evaluates a condition and panics if it is false. It takes an expression and an optional diagnostic
-message:
+`assert` checks a condition. It takes an expression and an optional diagnostic message:
 
 ```kairo
 assert index < len, "index out of bounds"
-assert ptr != null
+assert count > 0
 ```
 
-Assert behavior is globally configurable via the `-fassert-mode` compiler flag:
+What an assert does depends on the build:
+
+| Build | Behavior |
+|---|---|
+| Debug | The condition is evaluated. If it is false, the program aborts with the message or a generated diagnostic |
+| Release | Asserts are removed. The condition is not evaluated |
+
+Because a release build drops the condition entirely, don't put side effects the program depends on inside
+an `assert`.
+
+The `-fassert-mode` compiler flag replaces the default failure behavior:
 
 | Mode | Behavior |
 |---|---|
 | `panic`  | Panics with the provided message or a generated diagnostic |
 | `return` | Returns a default-constructed value of the function's return type |
-| `log` (default) | Logs the assertion failure and continues execution |
+| `log` | Logs the assertion failure and continues execution |
 
 > [!WARNING]
 > `return` mode silently swallows assertion failures and produces a default-constructed value. This can
-> mask bugs and produce incorrect results downstream. Use with caution `panic` mode is the default for
-> a reason.
+> mask bugs and produce incorrect results downstream.
 
 Asserts cannot appear at file scope they are only valid inside function bodies.
 
@@ -2417,15 +2576,17 @@ order.
 // x and y are destroyed and no longer accessible
 ```
 
-Blocks are expressions when used as the right-hand side of a binding. The last expression in the block is
-the result value:
+A plain block does not produce a value. To compute a value with statements, use a
+[statement expression](/docs/language/operators#statement-expressions), whose value is its last expression:
 
 ```kairo
-var result = {
+var result = ({
     var tmp = expensive_computation()
     tmp * 2   // result = tmp * 2
-}
+})
 ```
+
+A branch of an `if` or `match` expression that needs statements can use one too.
 
 Anonymous blocks are useful for limiting the lifetime of temporary resources without introducing a function:
 
@@ -2447,7 +2608,7 @@ fn process() {
 All control flow constructs (`if`, `match`, `for`, `while`, `loop`, `try`) create implicit blocks
 their bodies follow the same scoping and destruction rules.
 
-See [Variables](/docs/language/variables#scope-and-lifetime) and [AMT](/docs/language/amt) for full lifetime semantics.
+See [Variables](/docs/language/variables#scope-and-lifetime) and [Tether](/docs/language/tether) for full lifetime semantics.
 
 ---
 
@@ -2774,7 +2935,7 @@ and it is rejected anywhere else:
 read(&n)           // compile error: parameter 'x' of 'read' is not @inout
 bump(n)            // compile error: '@inout' argument requires '&'
 
-const var k: i32 = 5
+const k: i32 = 5
 bump(&k)           // compile error: '@inout' requires a non-const lvalue
 bump(&10)          // compile error: '@inout' requires an lvalue
 ```
@@ -2887,7 +3048,7 @@ of an assignment or compound assignment.
 ```kairo
 ffi "c++" import <vector>;
 
-var v: cxx::vector<i32>
+var v: cxx::std::vector<i32>
 v.push_back(1)
 
 v.at(0) = 3                 // assigns through the returned int&
@@ -3122,13 +3283,13 @@ var y = unsafe add(10, 20)   // calls the unsafe overload
 ```
 
 > [!NOTE]
-> `unsafe` overloads are not "unsafe memory" AMT still guarantees memory safety. The `unsafe` qualifier
+> `unsafe` overloads are not "unsafe memory" Tether still guarantees memory safety. The `unsafe` qualifier
 > signals that the function may not uphold other invariants that the safe version does. See
 > [Unsafe](/docs/language/unsafe) for the full unsafe model.
 
 #### Const overloading restriction
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Operators are exempt**, because they cannot be renamed: a place-returning operator may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#subscript).
+`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Place operators are exempt**, because they cannot be renamed: a place-returning operator (`[]`, `->`) may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#const-overloading-operators).
 
 ```kairo
 class Foo {
@@ -3136,8 +3297,11 @@ class Foo {
     fn bar(self) -> i32 { return 24 }               // compile error: cannot overload const
     fn bar(const self, a: i32) -> i32 { return a }  // ok: different parameter list ok
 
-    fn op [](const self, index: i32) -> i32 { return 42 }   // ok: operator overload
-    fn op [](self, index: i32) -> i32 { return 24 }         // ok: const-ness dispatch
+    fn op [](const self, index: i32) -> *const i32 { /* ... */ }   // ok: place operator
+    fn op [](self, index: i32) -> *i32 { /* ... */ }               // ok: const-ness dispatch
+
+    fn op +(self, o: Foo) -> Foo { /* ... */ }
+    fn op +(const self, o: Foo) -> Foo { /* ... */ }  // compile error: not a place operator
 }
 ```
 
@@ -3285,20 +3449,22 @@ Not all modifiers can be combined:
 
 ### Visibility
 
-| Keyword | Scope |
+A top-level function with no visibility written is `pub`.
+
+| Keyword | Scope of a top-level function |
 |---|---|
-| `pub` | Accessible from any module |
-| `priv` | Accessible only within the defining module (default) |
-| `prot` | Accessible within the defining module and by subclasses in other modules |
+| `pub` (default) | Any module that imports this module |
+| `priv` | Current file only |
+| `prot` | Current file and sibling files in the same library subtree |
 
 ```kairo
-pub fn public_api()       { /* ... */ }
+fn api()                  { /* ... */ }   // pub by default
 priv fn internal_helper() { /* ... */ }
-prot fn for_subclasses()  { /* ... */ }
+prot fn library_helper()  { /* ... */ }
 ```
 
-Visibility applies to both free functions and methods. See [Modules](/docs/language/modules) for how
-visibility interacts with imports.
+See [Modules](/docs/language/modules#visibility-on-top-level-declarations) for how visibility interacts
+with imports. Methods follow the member rules in [Classes](/docs/language/classes#default-visibility).
 
 ---
 
@@ -3322,7 +3488,7 @@ class Shape {
     virtual fn area(const self) -> f64 { return 0.0 }
 }
 
-class Circle : Shape {
+class Circle derives Shape {
     var radius: f64
 
     override fn area(const self) -> f64 {
@@ -3347,7 +3513,7 @@ Functions are first-class values. The type of a function pointer is `fn(ParamTyp
 fn add(a: i32, b: i32) -> i32 = a + b
 fn sub(a: i32, b: i32) -> i32 = a - b
 
-var op: fn(i32, i32) -> i32 = add
+var #op: fn(i32, i32) -> i32 = add
 op(3, 4)   // 7
 
 op = sub
@@ -3368,7 +3534,7 @@ fn outer(x: i32) -> i32 {
 ### Closures
 
 Anonymous functions (lambdas) capture variables from the enclosing scope. Default capture is by copy; use
-`|&|` for capture-by-reference or specify per-variable:
+`|*|` to capture by pointer or specify per-variable:
 
 ```kairo
 var multiplier = 3
@@ -3377,8 +3543,8 @@ var scale = fn (x: i32) -> i32 { return x * multiplier }   // captures multiplie
 scale(10)   // 30
 ```
 
-See [Closures](/docs/language/closures) for capture modes (`|&|`, `|a, &b|`), lifetime rules, and how
-closures interact with [AMT](/docs/language/amt).
+See [Closures](/docs/language/closures) for capture modes (`|*|`, `|a, *b|`), lifetime rules, and how
+closures interact with [Tether](/docs/language/tether).
 
 ---
 
@@ -3444,7 +3610,7 @@ Forward declarations are used when the definition lives elsewhere:
     fn Parser::peek(const self) -> Token = self.tokens[self.pos]
     ```
 
-    See [Classes](/docs/language/classes#out-of-line-definitions) for the full rules.
+    See [Classes](/docs/language/classes#forward-declarations-and-out-of-line-definitions) for the full rules.
 
 #### Signature matching
 
@@ -3724,10 +3890,10 @@ var nested_mixed = fn () -> fn(i32) -> i32 {
 
 ---
 
-### AMT and Lifetime Safety
+### Tether and Lifetime Safety
 
-[AMT](/docs/language/amt) tracks closure captures the same way it tracks any other borrow. If a closure
-captures a variable by pointer and the closure outlives the variable, AMT will attempt to auto-promote the
+[Tether](/docs/language/tether) tracks closure captures the same way it tracks any other borrow. If a closure
+captures a variable by pointer and the closure outlives the variable, Tether will attempt to auto-promote the
 capture to a smart pointer (shared, weak, or unique). If promotion is not possible, the compiler emits a
 hard error.
 
@@ -3735,7 +3901,7 @@ hard error.
 fn make_closure() -> fn() -> i32 {
     var x = 42
     return fn ()|*x| -> i32 { return *x }
-    // AMT error: x is a stack local, closure would outlive it,
+    // Tether error: x is a stack local, closure would outlive it,
     //   and there is no safe promotion path for a stack variable
 }
 ```
@@ -3751,7 +3917,7 @@ fn make_closure() -> fn() -> i32 {
 ```
 
 > [!WARNING]
-> Capturing stack-local variables by pointer in a closure that escapes the current scope is always an AMT
+> Capturing stack-local variables by pointer in a closure that escapes the current scope is always a Tether
 > error. There is no way to promote a pointer to a stack variable into a safe smart pointer. Use capture
 > by copy for closures that outlive their enclosing scope.
 
@@ -4197,7 +4363,7 @@ The one exception is both being `= delete`, which is the **NON_TRANSFER** form.
 
 | Category | Trigger | Semantics |
 |---|---|---|
-| **COPY** | `@copy` ctor (explicit or implicit) | Allows copy; AMT may silently elide a copy into a move when the source is unused after the transfer |
+| **COPY** | `@copy` ctor (explicit or implicit) | Allows copy; Tether may silently elide a copy into a move when the source is unused after the transfer |
 | **MOVE** | `@move` ctor | Allows move only; copying is a compile error |
 | **NON_TRANSFER** | both `@copy` and `@move` are `= delete`d | Stack-only; cannot be assigned, copied, or moved |
 | **DEFAULT** | no transfer ctor declared | Treated as COPY with compiler-generated members |
@@ -4288,9 +4454,9 @@ class UniqueFile {
 }
 ```
 
-#### AMT copy elision
+#### Tether copy elision
 
-For COPY classes, [AMT](/docs/language/amt) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. AMT does not elide if the move constructor is
+For COPY classes, [Tether](/docs/language/tether) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. Tether does not elide if the move constructor is
 deleted. Users do not opt into or out of this optimization.
 
 ---
@@ -4583,7 +4749,7 @@ fn <T impl Hashable> insert(set: {T}, item: T) { ... }
 insert(my_set, Point(1.0, 2.0))   // compiles: Point has hash()
 ```
 
-See [Interfaces](/docs/language/interfaces) and [Bounds](/docs/language/bounds).
+See [Interfaces](/docs/language/interfaces) and [Requires Clauses](/docs/language/requires).
 
 ---
 
@@ -4662,7 +4828,7 @@ interface Copyable {
 fn <T impl Copyable> store(item: T) -> T { ... }
 ```
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -4972,14 +5138,14 @@ A plain `var` declaration allocates on the stack:
 var obj = Foo(42)   // stack-allocated
 ```
 
-Heap allocation uses `@create T()`, which returns a pointer. [AMT](/docs/language/amt) determines
+Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether) determines
 whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
 var ptr = @create Foo(42)
 ```
 
-See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt).
+See [Pointers](/docs/language/pointers) and [Tether](/docs/language/tether).
 
 ---
 
@@ -5207,7 +5373,7 @@ a.x   // still 1.0
 
 This is a hard guarantee. Extending a destructor (`fn op delete`), copy assignment (`fn op =`), or
 move assignment onto a struct is a compile error. If you need custom lifecycle management, use a
-[class](/docs/language/classes#the-rule-of-five).
+[class](/docs/language/classes#the-rule-of-three).
 
 ---
 
@@ -5304,7 +5470,7 @@ struct <T impl Comparable> Range {
 }
 ```
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -5404,7 +5570,7 @@ var local = Point { x: 1.0, y: 2.0 }           // stack
 var *heap = @create Point{ x: 1.0, y: 2.0 }    // heap
 ```
 
-See [Pointers](/docs/language/pointers) and [AMT](/docs/language/amt) for allocation and pointer semantics.
+See [Pointers](/docs/language/pointers) and [Tether](/docs/language/tether) for allocation and pointer semantics.
 
 ---
 
@@ -5436,7 +5602,7 @@ struct Node {
 | Methods in body | No (use [extends](/docs/language/extends)) | Yes |
 | Constructors | No (aggregate init only) | Yes |
 | Destructors | No | Yes |
-| Copy semantics | `memcpy` (trivial) | Rule of five |
+| Copy semantics | `memcpy` (trivial) | Rule of Three |
 | Inheritance | No | `derives` |
 | Virtual dispatch | No | Yes |
 | Aggregate initialization | Yes | No |
@@ -5728,7 +5894,7 @@ enum <T impl Serializable> CacheEntry {
 }
 ```
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -6362,7 +6528,7 @@ interface <T impl Comparable, U derives Base> Registry {
 
 Generic defaults are not permitted on interface type parameters.
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -6492,7 +6658,7 @@ class Pipeline impl Chainable {
 }
 ```
 
-Kairo has no user-visible reference types [AMT](/docs/language/amt) infers reference semantics where
+Kairo has no user-visible reference types [Tether](/docs/language/tether) infers reference semantics where
 needed. In practice this means `Self` returns enable fluent chaining without `->` or explicit
 dereferencing:
 
@@ -6573,7 +6739,7 @@ fn <T impl Serializable> save(data: T, path: string) {
 ```
 
 `impl` checks structural conformance the type satisfies the interface's required method signatures.
-This is distinct from `derives`, which checks class inheritance. See [Bounds](/docs/language/bounds)
+This is distinct from `derives`, which checks class inheritance. See [Requires Clauses](/docs/language/requires)
 for the full constraint system.
 
 ```kairo
@@ -6976,7 +7142,7 @@ or in any other type position:
 // var y: Foo<!>     // compile error
 ```
 
-See [Functions](/docs/language/functions#no-return) for no-return function semantics.
+See [Functions](/docs/language/functions#no-return-) for no-return function semantics.
 
 ---
 
@@ -7043,7 +7209,7 @@ var x: (i32) = 42   // same as var x: i32 = 42
 
 There is no unit type or empty tuple `()`. Functions that return nothing use `void`.
 
-See [Primitives](/docs/language/primitives#tuples) for tuple syntax and
+See [Primitives](/docs/language/primitives#tuples-t1-t2-) for tuple syntax and
 [Variables](/docs/language/variables#destructuring) for tuple destructuring.
 
 ---
@@ -7399,12 +7565,12 @@ fn process(animal: *Animal) panic {
 }
 ```
 
-**Checked downcast** returns a nullable pointer. `&null` if the runtime type does not match:
+**Checked downcast** returns a nullable pointer `*Derived?`, which is null if the runtime type does not match:
 
 ```kairo
 fn process(animal: *Animal) {
     var dog = animal as *Dog?   // null if animal is not a Dog
-    if dog != &null {
+    if dog? {
         dog->fetch()
     }
 }
@@ -7419,7 +7585,7 @@ Casting to `unsafe *T` reinterprets the pointer with no type checking equivalent
 `reinterpret_cast`. The compiler performs no validation.
 
 Casting a safe pointer to a raw pointer `*T as unsafe *U` requires an
-[`unsafe` block](/docs/language/unsafe#unsafe-blocks). This is the point where AMT loses provenance:
+[`unsafe` block](/docs/language/unsafe#unsafe-blocks). This is the point where Tether loses provenance:
 after the cast the compiler can no longer relate the pointer to the allocation it came from, so the
 loss is made visible at the source:
 
@@ -7436,7 +7602,7 @@ Casting between `unsafe *T` types needs no `unsafe` block there is no provenance
 result is the same pointer value with a different type no runtime check, no adjustment.
 
 > [!CAUTION]
-> Raw pointer casts bypass AMT's safety guarantees. Casting to `unsafe *void` erases type information
+> Raw pointer casts bypass Tether's safety guarantees. Casting to `unsafe *void` erases type information
 > permanently the compiler cannot verify the correctness of a subsequent cast back. Use only for
 > C/C++ interop, custom allocators, and other low-level scenarios.
 
@@ -7469,7 +7635,7 @@ The second cast is an ordinary [numeric narrowing](#narrowing-truncation) and re
 Casting an integer to a pointer fabricates a pointer from a numeric address. The result must be an
 `unsafe` pointer safe pointers require provenance tracking that an integer cannot provide and the
 cast requires an [`unsafe` block](/docs/language/unsafe#unsafe-blocks). The integer carries no
-provenance, so the cast invents one that AMT has no way to verify:
+provenance, so the cast invents one that Tether has no way to verify:
 
 ```kairo
 var addr: usize = 0x7FFE_0000_1000
@@ -7494,7 +7660,7 @@ fabricate it are not:
 |---|---|---|---|
 | `ptr as usize` | Allowed, no `unsafe` | Discarded | Reading an address cannot cause UB on its own |
 | `ptr as u8` (any narrower int) | **Compile error** | | Narrowing an address is never intended write `ptr as usize as u8` |
-| `n as unsafe *T` | Allowed, requires `unsafe` block | Fabricated | AMT cannot verify an address that came from an integer |
+| `n as unsafe *T` | Allowed, requires `unsafe` block | Fabricated | Tether cannot verify an address that came from an integer |
 | `n as *T` | **Compile error** | | Safe pointers require provenance an integer cannot supply |
 | `*T as unsafe *U` | Allowed, requires `unsafe` block | Lost | The provenance-loss point keep it visible |
 | `unsafe *T as unsafe *U` | Allowed, no `unsafe` | Already absent | Nothing left to lose |
@@ -7505,9 +7671,9 @@ The two error rows are deliberate refusals rather than warnings. `ptr as u8` has
 (`ptr as usize as u8`) that says the same thing in two steps, and `n as *T` has no honest spelling at
 all a safe pointer's guarantees cannot be reconstructed from a number.
 
-`unsafe` blocks appear on exactly the rows where AMT stops being able to reason about the pointer.
+`unsafe` blocks appear on exactly the rows where Tether stops being able to reason about the pointer.
 See [Unsafe](/docs/language/unsafe#the-safety-boundary) for the boundary model and
-[AMT](/docs/language/amt) for what provenance tracking buys.
+[Tether](/docs/language/tether) for what provenance tracking buys.
 
 ---
 
@@ -7665,7 +7831,7 @@ If the source type declares `op as` for `T` and `T` also has a matching construc
 | Int to float | `x as f64` | May lose precision | Rounded |
 | Derived-to-base ptr | Implicit | Safe | N/A |
 | Base-to-derived ptr (asserting) | `ptr as *Derived` | Runtime check | Panics |
-| Base-to-derived ptr (checked) | `ptr as *Derived?` | Runtime check | Returns `&null` |
+| Base-to-derived ptr (checked) | `ptr as *Derived?` | Runtime check | Returns null |
 | Safe to raw pointer | `ptr as unsafe *T` | Requires `unsafe` block | Provenance loss |
 | Raw to raw pointer | `raw as unsafe *T` | No check | Reinterpret |
 | Pointer to `usize` | `ptr as usize` | Safe | Address value |
@@ -8252,7 +8418,7 @@ hold a memory address.
 ### Safe Pointers (`*T`)
 
 `*T` is the default pointer type. The compiler tracks its provenance via
-[AMT](/docs/language/amt) and inserts null checks on dereference:
+[Tether](/docs/language/tether) and inserts null checks on dereference:
 
 ```kairo
 var x = 42
@@ -8311,7 +8477,7 @@ ptr->port   // 8080
 
 ### Raw Pointers (`unsafe *T`)
 
-`unsafe *T` is an untracked pointer with no null checks, no bounds checks, and no AMT provenance
+`unsafe *T` is an untracked pointer with no null checks, no bounds checks, and no Tether provenance
 tracking. It is equivalent to a raw C/C++ pointer:
 
 ```kairo
@@ -8323,7 +8489,7 @@ var p: unsafe *i32 = unsafe &x   // create raw pointer from safe binding
 Dereferencing a null `unsafe *T` is undefined behavior. The compiler will not insert a check.
 
 Raw pointers are required for [C/C++ interop](/docs/language/c-cpp), custom allocators, hardware
-register access, and any scenario where AMT tracking is not possible or not desired.
+register access, and any scenario where Tether tracking is not possible or not desired.
 
 #### Creating raw pointers
 
@@ -8394,8 +8560,8 @@ Pointer-to-pointer arithmetic (`p1 - p2`) is not permitted on safe pointers use 
 that.
 
 > [!CAUTION]
-> Safe pointer arithmetic is bounds-checked by AMT only when provenance is trackable. If the pointer
-> originates from a context where AMT cannot determine the allocation bounds, the arithmetic compiles
+> Safe pointer arithmetic is bounds-checked by Tether only when provenance is trackable. If the pointer
+> originates from a context where Tether cannot determine the allocation bounds, the arithmetic compiles
 > but bounds safety is not guaranteed. Prefer array/vector indexing over pointer arithmetic when
 > possible.
 
@@ -8424,7 +8590,7 @@ p[0]    // same as *(p + 0)
 p[2]    // same as *(p + 2)
 ```
 
-Bounds checking follows the same rules as pointer arithmetic AMT checks when provenance is
+Bounds checking follows the same rules as pointer arithmetic Tether checks when provenance is
 trackable, no checks on `unsafe *T`.
 
 ---
@@ -8472,7 +8638,7 @@ const pp: *const *i32 = &p
 
 ### Smart Pointer Promotion
 
-[AMT](/docs/language/amt) analyzes pointer usage and automatically promotes safe pointers to smart
+[Tether](/docs/language/tether) analyzes pointer usage and automatically promotes safe pointers to smart
 pointers when needed. The smart pointer types are compiler intrinsics exposed through the standard
 library:
 
@@ -8482,20 +8648,20 @@ library:
 | `std::Shared<T>` | Reference-counted, multiple owners, freed when count reaches zero |
 | `std::Weak<*T>` | Non-owning reference to a `Shared` allocation, does not prevent deallocation |
 
-AMT decides which smart pointer type to use based on how the pointer is used across the program. The
-programmer does not need to annotate or choose AMT handles it automatically:
+Tether decides which smart pointer type to use based on how the pointer is used across the program. The
+programmer does not need to annotate or choose Tether handles it automatically:
 
 ```kairo
 fn make_config() -> *Config {
     var cfg = @create Config(8080)
-    return cfg   // AMT determines ownership: likely Unique or Shared
+    return cfg   // Tether determines ownership: likely Unique or Shared
 }
 ```
 
-If AMT cannot determine a safe promotion path (e.g., the pointer escapes in a way that prevents
+If Tether cannot determine a safe promotion path (e.g., the pointer escapes in a way that prevents
 tracking), it emits a compile error rather than allowing unsafe behavior.
 
-Smart pointer types can be used explicitly to override AMT's decision or to validate compiler
+Smart pointer types can be used explicitly to override Tether's decision or to validate compiler
 behavior:
 
 ```kairo
@@ -8503,7 +8669,7 @@ var ptr: std::Unique<Config> = @create Config(8080)
 var shared: std::Shared<Config> = @create Config(8080)
 ```
 
-See [AMT](/docs/language/amt) for the full lifetime and promotion model, and
+See [Tether](/docs/language/tether) for the full lifetime and promotion model, and
 [Ownership](/docs/language/ownership) for borrowing semantics.
 
 ---
@@ -8514,10 +8680,10 @@ Stack allocation is the default. Heap allocation uses `@create T()`:
 
 ```kairo
 var stack_val = Config(8080)                    // stack-allocated
-var heap_ptr = @create Config(8080)        // heap-allocated, AMT chooses pointer type
+var heap_ptr = @create Config(8080)        // heap-allocated, Tether chooses pointer type
 ```
 
-For raw heap allocation without AMT tracking:
+For raw heap allocation without Tether tracking:
 
 ```kairo
 var raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
@@ -8525,7 +8691,7 @@ var raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
 unsafe std::free(raw)
 ```
 
-See [AMT](/docs/language/amt) for how allocation interacts with lifetime tracking.
+See [Tether](/docs/language/tether) for how allocation interacts with lifetime tracking.
 
 ---
 
@@ -8535,22 +8701,24 @@ See [AMT](/docs/language/amt) for how allocation interacts with lifetime trackin
 |---|---|
 | `==` | Compares addresses do both pointers point to the same location? |
 | `!=` | Negation of `==` |
-| `===` | Deep equality dereferences both pointers and compares the values |
+| `===` | Null-aware equality on nullable pointers (`*T?`): true when both are non-null and the values they point to are equal |
 
 ```kairo
 var a = 42
 var b = 42
-var p = &a
-var q = &b
+var p: *i32? = &a
+var q: *i32? = &b
 
 p == q    // false: different addresses
 p === q   // true: both point to 42
 
-var r = &a
+var r: *i32? = &a
 p == r    // true: same address
 ```
 
-`===` is defined only on `*T`, which cannot be null, so there is no null case to handle. For raw pointers (`unsafe *T`), use `==` for address comparison and dereference manually after a null check. `*T?` deep equality goes through the nullable system null-check with `?` first, then `===` the unwrapped pointers.
+`===` needs at least one nullable operand; on two `*T` it is an error. To compare what two `*T` point to,
+dereference them: `*x == *y`. For raw pointers (`unsafe *T`), use `==` for address comparison and
+dereference manually after a null check.
 
 See [Operators](/docs/language/operators#comparison) for the full comparison model.
 
@@ -8583,7 +8751,7 @@ wraps the pointer in the standard `Nullable<T>` system:
 | Can be null | No | Yes | Yes |
 | Null check mechanism | N/A | `?.`, `??`, `unwrap!()`, `val?` | `ptr != &null` (manual) |
 | Dereference null | Cannot happen | Compile error (must check first) | Undefined behavior |
-| AMT tracked | Yes | Yes | No |
+| Tether tracked | Yes | Yes | No |
 
 `*T?` supports the same null-handling operators as any other nullable type. `unsafe *T` uses
 manual null comparison, it does not participate in the `Nullable<T>` system.
@@ -8616,10 +8784,10 @@ var p: *i32 = &x
 // Raw pointer
 var raw: unsafe *i32 = unsafe &x
 
-// Null
-var null_ptr: *i32 = &null
-if null_ptr != &null {
-    std::println(*null_ptr)
+// Nullable pointer (*T itself is never null)
+var maybe: *i32? = null
+if maybe? {
+    std::println(*maybe)
 }
 
 // Const pointer
@@ -8647,7 +8815,8 @@ var pp: **i32 = &p
 
 // Comparison
 p == q     // address comparison
-p === q    // deep value comparison
+*p == *q   // value comparison
+maybe === other   // deep value comparison on nullable pointers
 ```
 
 ---
@@ -8659,26 +8828,26 @@ p === q    // deep value comparison
 ## Ownership
 
 > [!WARNING]
-> The ownership model is enforced by [AMT](/docs/language/amt), which is not yet implemented.
-> AMT development begins at **Stage 2** of the compiler roadmap. This page describes the
-> intended design. See [AMT](/docs/language/amt) for the implementation timeline.
+> The ownership model is enforced by [Tether](/docs/language/tether), which is not yet implemented.
+> Tether development begins at **Stage 2** of the compiler roadmap. This page describes the
+> intended design. See [Tether](/docs/language/tether) for the implementation timeline.
 
 Kairo's ownership model governs how values are created, transferred, borrowed, and destroyed.
-It works in conjunction with [AMT](/docs/language/amt) to provide memory safety without lifetime
+It works in conjunction with [Tether](/docs/language/tether) to provide memory safety without lifetime
 annotations and without a separate reference type.
 
 The model has two parts: **transfer semantics** (how values move between bindings) and **pointer
 aliasing** (how multiple pointers to the same value interact). Transfer semantics are determined
-by the type's lifecycle category. Pointer aliasing is tracked by AMT at compile time.
+by the type's lifecycle category. Pointer aliasing is tracked by Tether at compile time.
 
 > [!NOTE]
 > This page covers *who owns a value and when it dies*. It does not cover the safety of individual
 > pointer *accesses* (bounds, use-after-free, null, data races) those are dereference obligations
-> discharged by AMT's proof engine, described in [AMT The Dereference Obligation](/docs/language/amt#the-dereference-obligation).
+> discharged by Tether's proof engine, described in [Tether The Dereference Obligation](/docs/language/tether#the-dereference-obligation).
 > The distinction matters: ownership and escape violations are resolved by *transforming the program*
 > (debug) or a *hard error* (release), never by a runtime check. Access violations may fall back to a
 > runtime check. When this page says a violation is "a hard error," it means specifically that no
-> ownership transformation can rescue it see [AMT The Residual Table](/docs/language/amt#the-residual-table)
+> ownership transformation can rescue it see [Tether The Residual Table](/docs/language/tether#the-residual-table)
 > for the full classification.
 
 ---
@@ -8710,12 +8879,12 @@ b.data.push(42)
 a.data.length()       // 0 a is unaffected
 ```
 
-AMT may **elide a copy into a move** when it proves the source is not used after the transfer and
+Tether may **elide a copy into a move** when it proves the source is not used after the transfer and
 the elision is unobservable. This is a pure optimization with no observable semantic difference.
-AMT does not elide when the destructor has timing-sensitive side effects see
-[AMT Copy Elision](/docs/language/amt#copy-elision) for the exact rule.
+Tether does not elide when the destructor has timing-sensitive side effects see
+[Tether Copy Elision](/docs/language/tether#copy-elision) for the exact rule.
 
-The programmer does not opt into or control copy elision. AMT applies it when safe.
+The programmer does not opt into or control copy elision. Tether applies it when safe.
 
 #### MOVE types
 
@@ -8764,7 +8933,7 @@ var lock = ScopeLock()
 > [!NOTE]
 > `NON_TRANSFER` types have a specific restriction under threading: they cannot be transfer-captured
 > into a spawned task (there is nothing to transfer), and may only be shared read-only by address.
-> See [AMT Threading](/docs/language/amt#threading).
+> See [Tether Threading](/docs/language/tether#threading).
 
 #### Structs
 
@@ -8814,12 +8983,12 @@ To let a callee write to the caller's object, or to take ownership of a generic 
 
 #### Last-use move optimization
 
-For MOVE types, AMT detects when a value is passed to a function and never used again. In this
+For MOVE types, Tether detects when a value is passed to a function and never used again. In this
 case, the value is moved rather than requiring explicit annotation:
 
 ```kairo
 var m = Moveable()
-foo(m)          // m is moved AMT sees m is not referenced after this line
+foo(m)          // m is moved Tether sees m is not referenced after this line
 // m is invalidated from here
 ```
 
@@ -8831,16 +9000,16 @@ references the value, it is a compile error (MOVE types cannot be copied).
 When a function takes a parameter by value and the type is larger than a pointer (8 bytes on
 64-bit), the compiler may silently pass a pointer instead of copying. This is a **codegen
 optimization only** the source-level semantics are always by-value. The optimization applies
-only when AMT can prove the by-value semantics are preserved for the duration of the call:
+only when Tether can prove the by-value semantics are preserved for the duration of the call:
 
 - The parameter is not aliased *and mutated* through any other live pointer while the call is in
-  progress i.e. AMT proves no write reaches the same allocation during the call.
+  progress i.e. Tether proves no write reaches the same allocation during the call.
 - The parameter is not modified inside the callee (or the function takes it as `const`).
 - The parameter is not stored, returned, or captured.
 - The function is not `async`.
 
 The first condition is stronger than "no other pointer exists." Kairo permits arbitrary mutable
-aliasing in single-threaded code (see [Pointer Aliasing](#pointer-aliasing)), so AMT cannot rely on
+aliasing in single-threaded code (see [Pointer Aliasing](#pointer-aliasing)), so Tether cannot rely on
 the absence of aliases it must prove that no *write* through an alias is observable during the
 call. If it cannot prove this, the parameter is copied as written. The programmer does not control
 this optimization and cannot observe it.
@@ -8863,10 +9032,10 @@ std::println(*q)   // 100 defined behavior
 
 > [!IMPORTANT]
 > This freedom is single-threaded only. The moment an allocation is shared across a thread boundary
-> (captured into a `spawn`/`thread`), AMT switches to a stricter rule: one writer, or many readers,
+> (captured into a `spawn`/`thread`), Tether switches to a stricter rule: one writer, or many readers,
 > never both. Arbitrary mutable aliasing is permitted within one thread because a single-threaded
 > race is impossible; across threads it is undefined behavior that no runtime check can rule out, so
-> the rule tightens exactly at the boundary. See [AMT Threading](/docs/language/amt#threading).
+> the rule tightens exactly at the boundary. See [Tether Threading](/docs/language/tether#threading).
 
 This applies uniformly regardless of `const`:
 
@@ -8880,16 +9049,16 @@ std::println(*q)   // 100 *const prevents mutation through q, not through p
 
 `const` is a **semantic check on the binding**, not an aliasing constraint. `*const T` prevents
 the holder from mutating through that pointer. It does not prevent other pointers from mutating
-the same value. AMT does not change behavior based on `const` qualifiers it tracks provenance
+the same value. Tether does not change behavior based on `const` qualifiers it tracks provenance
 and lifetime independently of mutability.
 
-#### What AMT enforces
+#### What Tether enforces
 
-AMT does not restrict aliasing patterns in single-threaded code. What it does enforce:
+Tether does not restrict aliasing patterns in single-threaded code. What it does enforce:
 
 **Provenance validity.** A pointer must refer to memory that is still live. Using a pointer after
 its target has been destroyed is a hard error. This is clause C1 of the dereference obligation,
-discharged by epoch tracking AMT proves the allocation has not been freed or relocated since the
+discharged by epoch tracking Tether proves the allocation has not been freed or relocated since the
 pointer was derived:
 
 ```kairo
@@ -8903,7 +9072,7 @@ var p: *i32
 
 When provenance is intact but the epoch cannot be proven equal statically, this access falls back
 to a runtime epoch check rather than a hard error see
-[AMT Provenance and Epochs](/docs/language/amt#provenance-and-epochs). It is a hard error only when
+[Tether Provenance and Epochs](/docs/language/tether#provenance-and-epochs). It is a hard error only when
 provenance is lost entirely.
 
 **Iterator invalidation.** A pointer into a container's buffer is invalidated by operations that
@@ -8916,14 +9085,14 @@ v.push(4)           // may reallocate v's internal buffer
 std::println(*p)    // hard error: p's provenance is invalidated by push
 ```
 
-AMT detects this through `.amt` summaries: `push`'s summary records that it may reallocate the
+Tether detects this through `.amt` summaries: `push`'s summary records that it may reallocate the
 backing buffer, so any live pointer into that buffer is flagged at the call site. **Invalidation is
-a hard error even when AMT can trace the reallocation** it is not a runtime-check fallback. The
+a hard error even when Tether can trace the reallocation** it is not a runtime-check fallback. The
 realloc is provable statically, re-validating every live pointer across every potentially-reallocating
-call would be expensive, and a use-after-realloc is almost always a real bug, so AMT errors rather
-than checks. Where the buffer is mutated through a path AMT cannot trace (an opaque container, a raw
-FFI call), AMT also errors rather than allowing an unprovable access. See
-[AMT Analysis scope](/docs/language/amt#dereference-obligation).
+call would be expensive, and a use-after-realloc is almost always a real bug, so Tether errors rather
+than checks. Where the buffer is mutated through a path Tether cannot trace (an opaque container, a raw
+FFI call), Tether also errors rather than allowing an unprovable access. See
+[Tether Analysis scope](/docs/language/tether#the-dereference-obligation).
 
 **Stack escape.** A pointer to a stack-allocated value cannot outlive the value. What happens when
 it tries depends on whether the value is **heap-promotable**:
@@ -8932,39 +9101,39 @@ it tries depends on whether the value is **heap-promotable**:
 fn make() -> *i32 {
     var x = 42
     return &x
-    // debug: AMT rewrites `var x = 42` to a heap allocation and promotes the
+    // debug: Tether rewrites `var x = 42` to a heap allocation and promotes the
     //        escaping pointer (Unique)
     // release: hard error a heap allocation in a release binary must be visible
-    //          in the source, so AMT shows the fix instead of inserting it silently
+    //          in the source, so Tether shows the fix instead of inserting it silently
 }
 ```
 
-A stack escape of a heap-promotable value is **debug-transformable / release-error** AMT can lift
+A stack escape of a heap-promotable value is **debug-transformable / release-error** Tether can lift
 `x` to the heap, which turns the escape into a legal ownership transfer. A stack escape with *no
-value to lift* (a borrow with no owner, an escape into an opaque sink where AMT cannot establish the
+value to lift* (a borrow with no owner, an escape into an opaque sink where Tether cannot establish the
 heap-allocation pattern) is a hard error in both modes there is nothing to transform. This is the
-split the [AMT Stack Pointers](/docs/language/amt#stack-pointers) section details in full. Either
+split the [Tether Stack Pointers](/docs/language/tether#stack-pointers) section details in full. Either
 way, the fix in release is to allocate explicitly or restructure.
 
 > [!NOTE]
-> **Data-race detection across threads** is enforced by AMT's strict threading mode. When an
-> allocation is shared across a `spawn`/`thread` boundary, AMT requires a single writer (or
+> **Data-race detection across threads** is enforced by Tether's strict threading mode. When an
+> allocation is shared across a `spawn`/`thread` boundary, Tether requires a single writer (or
 > read-only sharing) and treats a second writer, or any unsynchronized write+read, as a hard error.
 > The synchronization primitives that discharge these obligations depend on Kairo's concurrency
 > runtime, which is not yet finalized the analysis shape is fixed, the runtime seam is not. See
-> [AMT Threading](/docs/language/amt#threading) and [Concurrency](/docs/language/concurrency).
+> [Tether Threading](/docs/language/tether#threading) and [Concurrency](/docs/language/concurrency).
 
-#### What AMT does not enforce
+#### What Tether does not enforce
 
-AMT does not prevent multiple mutable pointers to the same value in single-threaded code. This
+Tether does not prevent multiple mutable pointers to the same value in single-threaded code. This
 is intentional many valid patterns require mutable aliasing (parent/child pointers, graph
 structures, cache-and-source patterns). The tradeoff: Kairo allows more programs than Rust at
-the cost of not statically preventing all aliasing bugs. AMT catches the ones that are provably
+the cost of not statically preventing all aliasing bugs. Tether catches the ones that are provably
 wrong (dangling, invalidation, and across a thread boundary races) and lets the rest through.
 
 #### noalias optimization
 
-When AMT proves that two pointers do not alias (point to different allocations or non-overlapping
+When Tether proves that two pointers do not alias (point to different allocations or non-overlapping
 regions), it attaches `noalias` metadata to the LLVM IR. This enables the backend optimizer to
 perform more aggressive transformations (load/store reordering, vectorization) without the
 programmer writing anything. This is invisible the source code does not change, and the
@@ -8974,16 +9143,16 @@ behavior is identical with or without the tag.
 
 ### Smart Pointer Promotion and Aliasing
 
-When AMT promotes a heap pointer to a smart pointer (in debug mode), the aliasing pattern
+When Tether promotes a heap pointer to a smart pointer (in debug mode), the aliasing pattern
 determines which smart pointer type is chosen. In release, the same analysis produces a hard error
-naming the type to annotate AMT does not silently change pointer types in a release binary. See
-[AMT Ownership and Promotion](/docs/language/amt#ownership-and-promotion).
+naming the type to annotate Tether does not silently change pointer types in a release binary. See
+[Tether Ownership and Promotion](/docs/language/tether#ownership-and-promotion).
 
 ```kairo
 // Single owner, no aliasing -> Unique
 var cfg = @create Config(8080)
 return cfg
-// AMT: cfg has one owner -> Unique
+// Tether: cfg has one owner -> Unique
 ```
 
 ```kairo
@@ -8991,7 +9160,7 @@ return cfg
 var cfg = @create Config(8080)
 server_a.config = cfg
 server_b.config = cfg
-// AMT: cfg is aliased across two live bindings -> Shared
+// Tether: cfg is aliased across two live bindings -> Shared
 ```
 
 ```kairo
@@ -9003,54 +9172,56 @@ var cfg = @create Config(8080)
 }
 // tmp is dead cfg has single ownership at this point
 return cfg
-// AMT: alias was short-lived, cfg is sole owner -> Unique
+// Tether: alias was short-lived, cfg is sole owner -> Unique
 ```
 
 The promotion trigger is not "multiple pointers exist" but "multiple pointers exist AND the
 aliasing pattern requires shared ownership for safety." A short-lived alias that dies before the
 owner escapes does not force `Shared`.
 
-Because AMT is whole-program, the cases where promotion is actually needed are narrow. Most
+Because Tether is whole-program, the cases where promotion is actually needed are narrow. Most
 pointers have fully contained lifetimes and require no promotion at all.
 
-See [AMT Promotion Decision](/docs/language/amt#ownership-and-promotion) for the full decision tree.
+See [Tether Promotion Decision](/docs/language/tether#ownership-and-promotion) for the full decision tree.
 
 ---
 
 ### Closure Captures
 
 Closures capture variables from their enclosing scope. The capture mode determines the ownership
-relationship between the closure and the captured variable.
+relationship between the closure and the captured variable. Kairo has no reference types, so a
+closure holds either its own value or a pointer.
 
-#### Capture by transfer (`|=|`)
+#### Default capture (by value)
 
-`|=|` captures all referenced variables by their type's transfer semantics COPY types are
-copied, MOVE types are moved. Captures happen at closure creation time, not at invocation:
+With no capture list, a closure captures every referenced variable by value, using its type's
+transfer semantics: COPY types are copied, MOVE types are moved. Captures happen at closure
+creation time, not at invocation:
 
 ```kairo
 var buf = Buffer()       // COPY type
 var file = UniqueFile()  // MOVE type
 
-var closure = fn ()|=| {
+var closure = fn () {
     buf.data.push(1)     // operates on the closure's copy
     file.close()         // operates on the moved-in file
 }
 
-buf.data.length()           // ok: buf was copied, original is still live
+buf.data.length()        // ok: buf was copied, original is still live
 file.handle              // compile error: file was moved into the closure
 ```
 
-#### Capture by address (`|&|`)
+#### Capture by pointer (`|*|`)
 
-`|&|` captures all referenced variables by address. The closure holds `*T` to each captured
-variable `&` here is the address-of operator, the same `&` used everywhere else in the
-language. Mutations through the pointer affect the original:
+`|*|` captures all referenced variables by pointer. The closure holds `*T` to each captured
+variable and reaches it through explicit dereference. Mutations through the pointer affect the
+original:
 
 ```kairo
 var count = 0
 
-var inc = fn ()|&| {
-    count += 1    // modifies the original count through a pointer
+var inc = fn ()|*| {
+    *count += 1    // modifies the original count through a pointer
 }
 
 inc()
@@ -9058,50 +9229,50 @@ inc()
 count   // 2
 ```
 
-AMT tracks address captures the same way it tracks any other pointer. If the closure escapes
+Tether tracks pointer captures the same way it tracks any other pointer. If the closure escapes
 and the captured variable is stack-allocated, the heap-promotable / non-promotable split applies
-exactly as it does for any stack escape (see [Stack escape](#what-amt-enforces) above): a
+exactly as it does for any stack escape (see [Stack escape](#what-tether-enforces) above): a
 promotable value is heap-lifted in debug and a hard error in release; a non-promotable one is a
 hard error in both modes:
 
 ```kairo
 fn make_closure() -> fn() -> i32 {
     var x = 42
-    return fn ()|&| -> i32 { return x }
+    return fn ()|*x| -> i32 { return *x }
     // debug: x is heap-lifted and the capture promoted
-    // release: hard error capture by transfer or heap-allocate explicitly
+    // release: hard error, capture by value or heap-allocate explicitly
 }
 ```
 
-Capture by transfer sidesteps the escape entirely the closure owns its own copy with no lifetime
+Capture by value sidesteps the escape entirely: the closure owns its own copy with no lifetime
 dependency on the enclosing frame:
 
 ```kairo
 fn make_closure() -> fn() -> i32 {
     var x = 42
-    return fn ()|=| -> i32 { return x }
+    return fn () -> i32 { return x }
     // ok: x is copied into the closure, no lifetime dependency
 }
 ```
 
 > [!NOTE]
-> When a closure is captured into a spawned task, address captures fall under AMT's threading rules:
-> a `const &` (read-only) capture shares the allocation read-only across the boundary; a mutating
-> `&` capture makes the allocation a shared *mutable* allocation and triggers the single-writer
-> analysis. See [AMT Threading](/docs/language/amt#threading).
+> When a closure is captured into a spawned task, pointer captures fall under Tether's threading rules:
+> a `const *` (read-only) capture shares the allocation read-only across the boundary; a mutating
+> `*` capture makes the allocation a shared *mutable* allocation and triggers the single-writer
+> analysis. See [Tether Threading](/docs/language/tether#threading).
 
 #### Per-variable capture
 
-Mix capture modes per variable. Unqualified names use transfer semantics, `&`-prefixed names
-capture by address:
+Name variables in the capture list to choose a mode for each. Unqualified names are captured by
+value, `*`-prefixed names by pointer, and `const *`-prefixed names by const pointer:
 
 ```kairo
 var a = Buffer()    // COPY
 var b = 0
 
-var closure = fn ()|a, &b| {
+var closure = fn ()|a, *b| {
     a.data.push(1)   // closure's own copy of a
-    b += 1            // modifies the original b through a pointer
+    *b += 1          // modifies the original b through a pointer
 }
 ```
 
@@ -9123,7 +9294,7 @@ fn example() {
 // destruction order: c, b, a
 ```
 
-For smart pointers promoted by AMT:
+For smart pointers promoted by Tether:
 
 - `std::Unique<T>`: the object destructor runs at the end of the owning binding's lexical scope,
   in reverse declaration order.
@@ -9131,13 +9302,13 @@ For smart pointers promoted by AMT:
   reverse declaration order; the *object* destructor and deallocation run once, when the last
   `Shared` reference's scope ends. The decrement order is lexical and deterministic; the object
   destructor fires at the final owner, which is not necessarily the last-declared binding in any
-  single scope. See [AMT Destruction Timing](/docs/language/amt#destruction-timing).
+  single scope. See [Tether Destruction Timing](/docs/language/tether#destruction-timing).
 - `std::Weak<*T>`: invalidated at scope exit. Does not affect the reference count.
 
 There is no drop-at-last-use optimization for observable destructors. Destruction of a value whose
 destructor has side effects (file close, lock release, flush) is tied to lexical scope, so the
 effect is predictable from reading the source. A value whose destructor is trivial may be reclaimed
-at last use, since that is unobservable see [AMT Destruction Timing](/docs/language/amt#destruction-timing)
+at last use, since that is unobservable see [Tether Destruction Timing](/docs/language/tether#destruction-timing)
 for the trivial / non-trivial split.
 
 ---
@@ -9159,7 +9330,7 @@ a.handle               // ok: a is live again
 A moved-from binding can be reassigned. After reassignment, it is live again with the new value.
 But between the move and the reassignment, any access is a hard error.
 
-This is enforced by AMT in both debug and release builds, and it is a **static** determination, not
+This is enforced by Tether in both debug and release builds, and it is a **static** determination, not
 a runtime check there is no runtime fallback for a moved-from access the way there is for an
 unprovable bounds access. A use-after-move is a logic error the compiler proves at compile time, not
 a safety property discharged at runtime; the compiler statically tracks which bindings are live and
@@ -9179,7 +9350,7 @@ which have been moved.
 Escape and ownership violations resolve by *transforming the program* in debug (heap-lift, smart
 pointer promotion) and a *hard error with the fix* in release. They are never runtime checks that
 is reserved for access obligations like bounds. See
-[AMT The Residual Table](/docs/language/amt#the-residual-table).
+[Tether The Residual Table](/docs/language/tether#the-residual-table).
 
 ```kairo
 // COPY: both sides live after transfer
@@ -9194,34 +9365,34 @@ var y = x              // move
 // x.method()          // compile error
 y.method()             // ok
 
-// Pointer aliasing (single-threaded): allowed, AMT checks provenance
+// Pointer aliasing (single-threaded): allowed, Tether checks provenance
 var val = 42
 var p = &val
 var q = &val
 *p = 100
 std::println(*q)       // 100
 
-// Closure capture by transfer
+// Closure capture by value (default)
 var m = Moveable()
-var f = fn ()|=| { m.use() }
+var f = fn () { m.use() }
 // m is moved into f
 
-// Closure capture by address
+// Closure capture by pointer
 var n = 0
-var g = fn ()|&| { n += 1 }
+var g = fn ()|*| { *n += 1 }
 g()
 // n is 1
 ```
 
 ---
 
-## AMT
+## Tether
 
-<sub>https://www.kairolang.org/docs/language/amt/</sub>
+<sub>https://www.kairolang.org/docs/language/tether/</sub>
 
-## AMT (Automatic Memory Tracking)
+## Tether
 
-AMT is a compile-time proof engine. For every pointer dereference in the program, it attempts to
+Tether is a compile-time proof engine. For every pointer dereference in the program, it attempts to
 prove that the access is safe. When it succeeds, no runtime code is emitted. When it can prove
 everything except one residual property, it emits the minimal runtime code required to discharge
 exactly that property and nothing else. When it cannot prove the access safe and no runtime check
@@ -9232,21 +9403,21 @@ asks one question at every dereference:
 
 > What is the strongest proof I have that this access is safe?
 
-The answer to that question and only the answer determines what code is generated. AMT never
+The answer to that question and only the answer determines what code is generated. Tether never
 asks "should I insert a check here." It asks "which proof obligations remain after static analysis,"
 and emits code for the residual.
 
-AMT operates on safe pointers (`*T`) only. Raw pointers (`unsafe *T`) carry no obligations and are
+Tether operates on safe pointers (`*T`) only. Raw pointers (`unsafe *T`) carry no obligations and are
 never analyzed. The programmer owns their correctness.
 
 > [!WARNING]
-> AMT is not yet implemented. The compiler is currently in the **Stage 1** parsing phase.
-> AMT development begins at **Stage 2**. The roadmap:
+> Tether is not yet implemented. The compiler is currently in the **Stage 1** parsing phase.
+> Tether development begins at **Stage 2**. The roadmap:
 >
 > - **Stage 0** (stable): C++ compiler, transpiles Kairo to C++.
 > - **Stage 1** (current): self-hosted compiler frontend parser, AST, diagnostics.
 > - **Stage 1.5**: Stage 1 migrated to Kairo's standard library, fully self-hosting.
-> - **Stage 2**: compiler rewritten using Kairo's extended feature set. **AMT work begins here.**
+> - **Stage 2**: compiler rewritten using Kairo's extended feature set. **Tether work begins here.**
 >
 > This page describes the intended design and target semantics. The analysis is the target, not the
 > current state. A separate formal paper will carry the full proofs; this page states the model and
@@ -9279,14 +9450,14 @@ Where:
   `sizeof T` scaling in C3 is explicit and the element-count-times-size multiply cannot silently
   overflow.
 
-Each clause is a distinct **proof domain** with its own analysis. AMT discharges as many clauses as
+Each clause is a distinct **proof domain** with its own analysis. Tether discharges as many clauses as
 it can statically. The clauses that remain the **residual** determine what is generated. The
-mapping from a residual clause to a code-generation response is the entire specification of AMT's
+mapping from a residual clause to a code-generation response is the entire specification of Tether's
 behavior, and it is given in [The Residual Table](#the-residual-table).
 
 The critical design point: the obligation is checked at the **dereference**, never at pointer
 arithmetic. Forming a pointer value (`var q = p + i`) computes a new provenance fact and emits no
-code. Only `*q` discharges the obligation against that provenance. This lets AMT carry symbolic
+code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic
 offset information through arbitrarily many SSA transformations and discharge or eliminate the
 obligation as late as possible see [Pointer Arithmetic](#pointer-arithmetic).
 
@@ -9294,7 +9465,7 @@ obligation as late as possible see [Pointer Arithmetic](#pointer-arithmetic).
 
 ### The Proof Lattice
 
-AMT is a forward dataflow analysis over the program's SSA graph. For each pointer at each program
+Tether is a forward dataflow analysis over the program's SSA graph. For each pointer at each program
 point it computes a **fact tuple**: one element per clause domain, recording how strongly that
 clause is currently proven.
 
@@ -9339,14 +9510,14 @@ at control-flow merge points takes the weaker (less proven) state.
 
 Monotone transfer functions over a finite-height lattice means the Kleene iteration reaches a fixed
 point in a bounded number of passes (bounded by the lattice height times the number of program
-points). **The analysis always terminates.** This is the only termination argument AMT needs;
+points). **The analysis always terminates.** This is the only termination argument Tether needs;
 there is no widening, no heuristic iteration cap required for soundness. (A pass ceiling exists for
-*interprocedural* recursion, see [Summaries](#amt-summaries) but it degrades precision, never
+*interprocedural* recursion, see [Summaries](#tether-summaries) but it degrades precision, never
 soundness: hitting it demotes clauses to Residual, which is always safe.)
 
 #### Classifying a dereference
 
-The four named proof states from AMT's vocabulary `PROVEN_STATIC`, `PROVEN_RANGE`,
+The four named proof states from Tether's vocabulary `PROVEN_STATIC`, `PROVEN_RANGE`,
 `REQUIRES_DYNAMIC`, `UNSAFE` are not elements of the lattice. They are a **classification of the
 residual set** at a dereference site, derived from the fact tuple:
 
@@ -9428,14 +9599,14 @@ prove non-null or handle the null case explicitly.
 ### Pointer Arithmetic
 
 Kairo permits pointer arithmetic on safe pointers. This is a deliberate departure from Rust's safe
-subset, and AMT is what makes it sound.
+subset, and Tether is what makes it sound.
 
 ```kairo
 var a: *i32 = @create i32(120)
 *(a + 10) = 19
 ```
 
-At this dereference AMT knows the allocation base, element type (`i32`), element size (4 bytes), and
+At this dereference Tether knows the allocation base, element type (`i32`), element size (4 bytes), and
 element count (120). The offset 10 is a compile-time constant. C3 reduces to `10 < 120`, proven
 statically. C1, C2, C4, C5, C6 are all proven. Residual set is empty -> `PROVEN_STATIC`:
 
@@ -9460,12 +9631,12 @@ assert((0 <= i) && (i < 120));
 mov [rdi + i*4], 19
 ```
 
-Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof T) <= size`, and AMT emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by a `i >= 0` guard. For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
+Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof T) <= size`, and Tether emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by a `i >= 0` guard. For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
 
 The check is on the **offset**, computed before the pointer is formed never on the resulting
 pointer address. Checking `result_ptr < end` after forming the pointer is the bypassable version:
 if `i * sizeof T` overflowed the address width, the formed pointer can wrap below `end` and pass a
-post-hoc check. AMT checks the offset in a width that cannot wrap for any in-allocation offset
+post-hoc check. Tether checks the offset in a width that cannot wrap for any in-allocation offset
 (the valid offset range is bounded by `size`, which is known), then forms the pointer.
 
 #### Hoisting
@@ -9475,7 +9646,7 @@ for i in 0..<120
     *(a + i) = 0
 ```
 
-AMT proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure. The
+Tether proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure. The
 bounds clause is `HoistableResidual` if it is the only residual -> `PROVEN_RANGE`. The per-iteration
 check is lifted to a single check before the loop:
 
@@ -9493,9 +9664,9 @@ for i in 0..<n
     *(a + i) = 0
 ```
 
-AMT proves `loop_bound == allocation_count` provided `n` and `a` are not mutated between the
+Tether proves `loop_bound == allocation_count` provided `n` and `a` are not mutated between the
 allocation and the loop (see the immutability requirement under [Threading](#threading) and
-[Summaries](#amt-summaries)). The entire loop's bounds obligation collapses to one check:
+[Summaries](#tether-summaries)). The entire loop's bounds obligation collapses to one check:
 
 ```asm
 assert(n <= allocation_count);   ; trivially true here; elided
@@ -9504,7 +9675,7 @@ loop:
 ```
 
 One branch (or zero), discharging millions of accesses. This is the same class of transformation an
-optimizing backend already performs; AMT's contribution is proving it is *sound* to do so under the
+optimizing backend already performs; Tether's contribution is proving it is *sound* to do so under the
 language's safety guarantee, not merely profitable.
 
 #### Forming versus dereferencing, and one-past-the-end
@@ -9524,7 +9695,7 @@ iterators. The safety **guarantee** is the same no out-of-bounds access reaches 
 cost model is pay-only-when-unprovable rather than always-checked-unless-elided, and the surface
 syntax is C-style arithmetic rather than slice methods.
 
-> AMT does not present an unprovable bounds access as a *warning*. The programmer did nothing
+> Tether does not present an unprovable bounds access as a *warning*. The programmer did nothing
 > questionable; the allocation size is simply runtime data. It is reported as an **optimization
 > remark** when remarks are enabled, naming the fact that blocked the proof:
 > `[amt] runtime bounds check at <loc>: allocation size depends on runtime value 'n'; cost: one
@@ -9549,7 +9720,7 @@ free or relocate the allocation increments its epoch:
 A pointer value derived at epoch *e* records *e* in its provenance. Clause C1 requires
 `epoch(prov(p)) == live_epoch(alloc(prov(p)))` at the dereference. Statically, most epochs are
 provably equal there is no intervening freeing operation between derivation and use so C1 is
-`Proven` and emits nothing. When AMT cannot prove the epochs equal (a free *might* have happened on
+`Proven` and emits nothing. When Tether cannot prove the epochs equal (a free *might* have happened on
 some path), C1 is residual:
 
 ```kairo
@@ -9559,9 +9730,9 @@ realloc(buf)        // increments buf's epoch
 *p = 1              // C1 residual: p was derived at the old epoch
 ```
 
-If provenance is intact (AMT still knows which allocation and can read the live epoch), C1 residual
+If provenance is intact (Tether still knows which allocation and can read the live epoch), C1 residual
 is **Tier R**: an epoch comparison at the dereference, in both modes. If provenance has been lost
-entirely (the pointer was laundered through an untracked path and AMT no longer knows the
+entirely (the pointer was laundered through an untracked path and Tether no longer knows the
 allocation), there is nothing to compare against and it is **Tier N**: a hard error.
 
 Folding UAF into the same obligation as bounds is what makes the architecture scale: there is one
@@ -9576,7 +9747,7 @@ Provenance and epochs govern whether an *access* is safe. A separate analysis go
 lives and who frees it*. Its residuals are Tier P (transformable) or Tier N (unfixable), never Tier
 R there is no runtime check for "who owns this."
 
-When AMT determines that a heap pointer needs ownership semantics, it selects a smart pointer type
+When Tether determines that a heap pointer needs ownership semantics, it selects a smart pointer type
 from the pointer's whole-program usage. In **debug** it performs the promotion and warns; in
 **release** it emits a hard error naming the type to annotate.
 
@@ -9664,7 +9835,7 @@ special-cased; they reuse the epoch machinery.
 
 A stack value has no heap allocation behind it, so it cannot be promoted to a smart pointer. But the
 (B) model splits stack escape into two cases by whether the value is **heap-promotable** that is,
-whether AMT can mechanically rewrite the stack allocation into a `@create` call.
+whether Tether can mechanically rewrite the stack allocation into a `@create` call.
 
 **Heap-promotable escape Tier P.** A plain local whose address escapes via return or store, where
 the value's type can be heap-allocated:
@@ -9679,21 +9850,21 @@ fn make() -> *i32 {
 }
 ```
 
-In debug, AMT lifts `x` to the heap and the escape becomes a legal ownership transfer. In release
+In debug, Tether lifts `x` to the heap and the escape becomes a legal ownership transfer. In release
 this is a hard error, because silently turning a stack allocation into a heap allocation in a
 release binary is exactly the hidden allocation the language forbids. The diagnostic shows the fix:
 
 ```
-error[AMT]: address of stack local 'x' escapes its scope
+error[Tether]: address of stack local 'x' escapes its scope
   --> src/m.k:3:12
    3 |     return &x
      |            ^^ 'x' is stack-allocated and destroyed at end of make()
-  note: in debug, AMT would heap-promote: var x = @create i32()
+  note: in debug, Tether would heap-promote: var x = @create i32()
   help: allocate on the heap explicitly, or restructure to avoid the escape
 ```
 
-**Non-promotable escape Tier N.** A borrow with no value to lift (a pointer into a structure AMT
-cannot heap-allocate, an escape into an opaque sink where AMT cannot even establish the
+**Non-promotable escape Tier N.** A borrow with no value to lift (a pointer into a structure Tether
+cannot heap-allocate, an escape into an opaque sink where Tether cannot even establish the
 heap-allocation pattern) is a hard error in both modes. There is nothing to transform.
 
 Dangling within a function is likewise a hard error in both modes the value is gone, there is no
@@ -9720,7 +9891,7 @@ or `spawn` call and is the join point.
 
 This is what makes static race-freedom tractable. Every concurrent edge in the program is a
 syntactic `thread`/`spawn` call site there are no hidden threads, no callbacks invoked from
-another thread, no library spawning work behind your back. AMT knows exactly where every thread
+another thread, no library spawning work behind your back. Tether knows exactly where every thread
 boundary is, which is the precondition for proving the absence of races rather than checking for
 them at runtime.
 
@@ -9728,12 +9899,12 @@ them at runtime.
 > The precise distinction between `thread` and `spawn`, and the synchronization primitives that
 > establish happens-before, depend on Kairo's concurrency runtime, which is not yet finalized. The
 > **analysis shape below is fixed**; the runtime seam is marked where it occurs. A synchronization
-> primitive, when it lands, is anything that injects a happens-before edge AMT can observe; crossing
+> primitive, when it lands, is anything that injects a happens-before edge Tether can observe; crossing
 > one re-permits an otherwise-forbidden access.
 
 #### Strict mode
 
-Between a `thread`/`spawn` and its corresponding `await` (the task's **extent**), AMT enters a
+Between a `thread`/`spawn` and its corresponding `await` (the task's **extent**), Tether enters a
 stricter analysis mode. Any allocation reachable by a pointer captured into the task is a **shared
 allocation** for that extent, and every access to it is analyzed under the rules below instead of
 the single-threaded rules.
@@ -9788,16 +9959,16 @@ checks on it are sound again. Tier R survives only on read-only shared state.
 
 7. **Detached tasks (never awaited).** With no join there is no happens-before edge, so the task's
    captured allocations are shared for the rest of the program (or until the task provably ends,
-   which AMT usually cannot prove). Any allocation a detached task captures by address and that
+   which Tether usually cannot prove). Any allocation a detached task captures by pointer and that
    anyone writes after the spawn is a hard error. The clean pattern detached tasks capture by
-   transfer only, owning everything they touch is recommended explicitly.
+   value only, owning everything they touch is recommended explicitly.
 
 #### Sharing syntax
 
 For **closures and lambdas**, read-only sharing across a thread boundary is expressed by capturing
-with `const &` and nothing else. A `const &` capture is a `*const T` into the captured allocation;
+with `const *` and nothing else. A `const *` capture is a `*const T` into the captured allocation;
 it cannot mutate the target, which is exactly what rule 2 requires for free shared reads. A plain
-`&` (mutating) capture into a task makes the allocation a shared *mutable* allocation and triggers
+`*` (mutating) capture into a task makes the allocation a shared *mutable* allocation and triggers
 the single-writer analysis.
 
 For **functions marked `async`**, the read-only guarantee is carried in the parameter type. The
@@ -9852,15 +10023,15 @@ A pointer allocated through a scoped allocator that escapes the allocator's scop
 
 #### Freestanding allocator
 
-A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. AMT treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
+A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. Tether treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
 
 ---
 
 ### Destruction Timing
 
-Where AMT places a value's destruction depends on whether the destructor is observable.
+Where Tether places a value's destruction depends on whether the destructor is observable.
 
-**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. AMT places the `@destroy`/`@free` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
+**Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. Tether places the `@destroy`/`@free` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
 
 ```kairo
 var foo = @create SomeClass()    // trivial destructor
@@ -9869,7 +10040,7 @@ use(foo)
 std::println(10)
 ```
 
-**Non-trivial destructors** (a user-defined `op delete`, or any member with one file close, lock release, flush, disconnect) run at the **end of the owning binding's lexical scope**, in reverse declaration order. AMT does not move these to last use:
+**Non-trivial destructors** (a user-defined `op delete`, or any member with one file close, lock release, flush, disconnect) run at the **end of the owning binding's lexical scope**, in reverse declaration order. Tether does not move these to last use:
 
 ```kairo
 fn example() {
@@ -9919,31 +10090,31 @@ obj.init() // can re-initialize obj and reuse the memory
 
 ### Copy Elision
 
-For COPY types, AMT may emit a move instead of a copy when it proves the source is unused after the transfer **and** the elision is unobservable. Elision means the source's destructor runs at the transfer point instead of at its own scope exit; AMT performs it only when the destructor's observable effects do not depend on that timing trivial destructors, or effects (a `free`, a refcount decrement) that produce identical observable behavior either way.
+For COPY types, Tether may emit a move instead of a copy when it proves the source is unused after the transfer **and** the elision is unobservable. Elision means the source's destructor runs at the transfer point instead of at its own scope exit; Tether performs it only when the destructor's observable effects do not depend on that timing trivial destructors, or effects (a `free`, a refcount decrement) that produce identical observable behavior either way.
 
-If the destructor has timing-sensitive side effects a flush, a lock release, a log line AMT does not elide. The copy is preserved and the source is destroyed at its lexical scope exit as written. Elision is silent precisely because it is only applied where it cannot be observed. The programmer neither opts in nor controls it, and it is never applied if the move constructor is deleted.
+If the destructor has timing-sensitive side effects a flush, a lock release, a log line Tether does not elide. The copy is preserved and the source is destroyed at its lexical scope exit as written. Elision is silent precisely because it is only applied where it cannot be observed. The programmer neither opts in nor controls it, and it is never applied if the move constructor is deleted.
 
 ---
 
 ### C/C++ Interop
 
-The FFI boundary is where AMT's facts run out, and the cost model has an honest asterisk: pointers crossing the boundary carry no provenance AMT can trust, so accessing them in safe code is not free.
+The FFI boundary is where Tether's facts run out, and the cost model has an honest asterisk: pointers crossing the boundary carry no provenance Tether can trust, so accessing them in safe code is not free.
 
 #### Inbound pointers are tainted
 
-A pointer that enters Kairo from C++ has **no provenance** AMT does not know its allocation, size, or epoch. Such a pointer is *tainted* (clause C6). Dereferencing a tainted pointer in safe code cannot be `PROVEN_STATIC`. If AMT can recover enough provenance to form a check, the dereference is Tier R; if the provenance is fully opaque, it is Tier N a hard error demanding an `unsafe` block or an explicit `assume`/launder that transfers responsibility to the programmer.
+A pointer that enters Kairo from C++ has **no provenance** Tether does not know its allocation, size, or epoch. Such a pointer is *tainted* (clause C6). Dereferencing a tainted pointer in safe code cannot be `PROVEN_STATIC`. If Tether can recover enough provenance to form a check, the dereference is Tier R; if the provenance is fully opaque, it is Tier N a hard error demanding an `unsafe` block or an explicit `assume`/launder that transfers responsibility to the programmer.
 
 A pointer that acquires its provenance *inside* an `unsafe` block carries the same taint when it flows back into safe code: unsafe is allowed to *narrow* where checks vanish, but it does not let an untracked pointer leak into a safe dereference as if it were proven.
 
 #### Outbound pointers freeze their epoch
 
-A Kairo pointer handed to C++ has its allocation's epoch frozen pessimistically: AMT must assume C++ may free, relocate, or retain it. On return from the FFI call, all optimistic facts about that allocation are erased unless an annotation says otherwise. This is unavoidable AMT genuinely lacks the proof and it is where the "as fast as unchecked C++" property does not hold: at the interop boundary you pay, because the proof is on the other side of a wall AMT cannot see through.
+A Kairo pointer handed to C++ has its allocation's epoch frozen pessimistically: Tether must assume C++ may free, relocate, or retain it. On return from the FFI call, all optimistic facts about that allocation are erased unless an annotation says otherwise. This is unavoidable Tether genuinely lacks the proof and it is where the "as fast as unchecked C++" property does not hold: at the interop boundary you pay, because the proof is on the other side of a wall Tether cannot see through.
 
 #### Smart-pointer and reference parameters
 
 C++ functions using smart-pointer or reference types map automatically and require no `unsafe`:
 
-| C++ type             | Kairo AMT type            | Requires `unsafe` |
+| C++ type             | Kairo Tether type            | Requires `unsafe` |
 |----------------------|---------------------------|-------------------|
 | `std::unique_ptr<T>` | `std::Unique<T>`         | No                |
 | `std::shared_ptr<T>` | `std::Shared<T>`         | No                |
@@ -9951,17 +10122,17 @@ C++ functions using smart-pointer or reference types map automatically and requi
 | `T&`, `const T&`     | `*T`, `*const T`          | No                |
 | `T&&` (move ref)     | `*T` (ownership transfer) | No                |
 
-A mismatch between AMT's promotion and the C++ signature is a compile error.
+A mismatch between Tether's promotion and the C++ signature is a compile error.
 
 #### Raw-pointer parameters and shallow analysis
 
-C++ functions taking raw pointers (`T*`, `void*`) require an `unsafe` block; AMT does not track across the boundary. For raw FFI calls where the C++ source is visible via the imported header, AMT performs a **one-level** heuristic: if the function only dereferences the pointer without aliasing, storing, or forwarding it, the call may be classified safe without `unsafe`. The analysis does not recurse. If the body is not visible (forward-declared, compiled library), all raw-pointer parameters are opaque and `unsafe` is required.
+C++ functions taking raw pointers (`T*`, `void*`) require an `unsafe` block; Tether does not track across the boundary. For raw FFI calls where the C++ source is visible via the imported header, Tether performs a **one-level** heuristic: if the function only dereferences the pointer without aliasing, storing, or forwarding it, the call may be classified safe without `unsafe`. The analysis does not recurse. If the body is not visible (forward-declared, compiled library), all raw-pointer parameters are opaque and `unsafe` is required.
 
 ---
 
 ### Generic Code
 
-AMT analyzes each monomorphization with full concrete type information generics are not an opaque boundary:
+Tether analyzes each monomorphization with full concrete type information generics are not an opaque boundary:
 
 ```kairo
 fn <T> take_ownership(x: *T) {
@@ -9975,8 +10146,8 @@ fn caller() {
 }
 ```
 
-If `T` has a `@move` transfer constructor, AMT tracks the transfer through the move; if `T` is
-`@copy`, AMT knows both source and destination are live after the copy. Each instantiation is
+If `T` has a `@move` transfer constructor, Tether tracks the transfer through the move; if `T` is
+`@copy`, Tether knows both source and destination are live after the copy. Each instantiation is
 analyzed as if it were a hand-written concrete function.
 
 ---
@@ -9996,7 +10167,7 @@ A function's summary records four sections per pointer parameter and for the fun
 
 `Escapes` defaults to *everything* and `Preserves` to *nothing* when analysis is incomplete the summary fails **closed**. An incomplete summary costs precision (more residual, more checks or errors), never soundness.
 
-The caller-discharges-obligation model: when a pointer flows into a function, AMT consumes the summary rather than the body. If the caller has already proven the `Requires`, the checks are skipped; if it cannot, AMT emits one assertion before the call to establish the precondition. AMT does not need to look inside the callee.
+The caller-discharges-obligation model: when a pointer flows into a function, Tether consumes the summary rather than the body. If the caller has already proven the `Requires`, the checks are skipped; if it cannot, Tether emits one assertion before the call to establish the precondition. Tether does not need to look inside the callee.
 
 #### Summaries are proof certificates, not caches
 
@@ -10019,7 +10190,7 @@ system and need not be committed to version control.)
 
 ### Soundness and Testing
 
-AMT makes a strong claim `PROVEN_STATIC` means an access is safe with no runtime evidence and a
+Tether makes a strong claim `PROVEN_STATIC` means an access is safe with no runtime evidence and a
 proof engine cannot ship on inspection alone. Two properties pin it down.
 
 #### The soundness property
@@ -10027,12 +10198,12 @@ proof engine cannot ship on inspection alone. Two properties pin it down.
 > If a dereference classifies as `PROVEN_STATIC`, then no clause of its obligation can fail at
 > runtime for any execution.
 
-This is what licenses emitting a bare `mov`. The full proof belongs in the AMT paper, not here; the
+This is what licenses emitting a bare `mov`. The full proof belongs in the Tether paper, not here; the
 property to hold against is that the static classification is an under-approximation of safety the
 analysis only proves a clause when it is genuinely discharged, and every uncertainty is resolved
 toward residual (the monotone "take the weaker state at a merge" rule). Failing closed at every
 boundary interop, threads, summary gaps, non-convergent recursion is what keeps the
-under-approximation honest: optimism is what would make the property false, and AMT is never
+under-approximation honest: optimism is what would make the property false, and Tether is never
 optimistic at a boundary.
 
 #### Paranoid mode the empirical falsifier
@@ -10041,7 +10212,7 @@ The contrapositive of the soundness property is directly testable. **Paranoid mo
 runtime check for *every* dereference regardless of its classification including the ones marked
 `PROVEN_STATIC`. Then:
 
-> If a check fires in paranoid mode at a site AMT classified `PROVEN_STATIC`, the static proof was
+> If a check fires in paranoid mode at a site Tether classified `PROVEN_STATIC`, the static proof was
 > wrong. That is a soundness bug.
 
 Paranoid mode is the fuzzing oracle. It is cheap to build (the check-emission machinery already
@@ -10051,7 +10222,7 @@ instrumentation. **It is the first thing to build,** before trusting any `PROVEN
 
 #### Optimization-level independence
 
-AMT's proof results are **independent of the LLVM optimization level**. The lattice is computed
+Tether's proof results are **independent of the LLVM optimization level**. The lattice is computed
 before, and separately from, the backend optimization passes. A higher opt level may *lower* a check
 more cheaply, but it may never change a dereference's proof *state*. The set of dereferences that
 carry a runtime check is **identical at every opt level**.
@@ -10065,11 +10236,11 @@ assertion.
 
 ---
 
-### What AMT Does Not Do
+### What Tether Does Not Do
 
 - **Garbage collection.** No tracing, no mark-and-sweep, no runtime collector. Reference counting for
   `Shared` is the only runtime ownership cost, and it exists only where multiple ownership is required.
-- **Runtime borrow checking.** Aliasing is resolved at compile time. AMT does not insert runtime
+- **Runtime borrow checking.** Aliasing is resolved at compile time. Tether does not insert runtime
   aliasing checks; it inserts bounds, epoch, and (for tainted/nullable residuals) access checks
   those are clause discharges, not borrow checks.
 - **Lifetime annotations.** No `'a`-style parameters, no lifetime polymorphism. Whole-program analysis
@@ -10077,7 +10248,7 @@ assertion.
 - **Reference counting everywhere.** Single-owner pointers promote to `Unique` (no refcount); contained
   lifetimes are not promoted at all. Refcounting appears only under proven multiple ownership.
 - **Cross-language analysis.** C++ is opaque beyond the one-level heuristic on a visible body. Across
-  the FFI boundary, AMT fails closed (taint inbound, epoch-freeze outbound) rather than guessing.
+  the FFI boundary, Tether fails closed (taint inbound, epoch-freeze outbound) rather than guessing.
 
 ---
 
@@ -10114,7 +10285,7 @@ The whole system, in one table maps each clause's residual to its response:
 | FFI smart ptr    | Yes      | Mapped 1:1                | Type mismatch = error                                 |
 | FFI raw ptr      | No       | Never                     | Tainted; requires unsafe/launder                      |
 
-AMT proves every dereference safe statically when it can, and emits nothing. When only a checkable property remains, it emits the minimal check Tier R, the only runtime cost in a release build. When safety needs a program change it transforms in debug and errors in release (Tier P), and when nothing can establish safety it is a hard error in every mode (Tier N).
+Tether proves every dereference safe statically when it can, and emits nothing. When only a checkable property remains, it emits the minimal check Tier R, the only runtime cost in a release build. When safety needs a program change it transforms in debug and errors in release (Tier P), and when nothing can establish safety it is a hard error in every mode (Tier N).
 
 ---
 
@@ -10128,7 +10299,7 @@ The `unsafe` keyword appears in three distinct contexts in Kairo, each serving a
 
 | Context | Meaning |
 |---|---|
-| `unsafe { ... }` | Block that suspends AMT tracking |
+| `unsafe { ... }` | Block that suspends Tether tracking |
 | `unsafe *T` | Raw pointer type with no compiler tracking |
 | `fn foo() unsafe -> T` | Separate function overload namespace |
 
@@ -10139,23 +10310,23 @@ raw, and a raw pointer does not require an `unsafe` block to use.
 
 ### Unsafe Blocks
 
-An `unsafe { ... }` block suspends [AMT](/docs/language/amt) for all operations within its scope.
+An `unsafe { ... }` block suspends [Tether](/docs/language/tether) for all operations within its scope.
 Inside an unsafe block:
 
-- AMT does not track pointer lifetimes or provenance
-- AMT does not insert automatic destructors or smart pointer promotions
-- `forget!()` is available to permanently drop pointers from AMT tracking
+- Tether does not track pointer lifetimes or provenance
+- Tether does not insert automatic destructors or smart pointer promotions
+- `forget!()` is available to permanently drop pointers from Tether tracking
 - `unsafe &x` can create raw pointers from safe bindings
 
 ```kairo
-var x = @create i32(42)   // AMT-tracked safe pointer
+var x = @create i32(42)   // Tether-tracked safe pointer
 
 unsafe {
-    forget!(x)                  // drop x from AMT tracking
+    forget!(x)                  // drop x from Tether tracking
     c_function(x as unsafe *i32)  // pass to C++ which will free it
 }
 
-// x is no longer tracked AMT will not auto-free it
+// x is no longer tracked Tether will not auto-free it
 ```
 
 #### When unsafe blocks are required
@@ -10190,9 +10361,9 @@ Calling C/C++ functions that use safe parameter types does not require an `unsaf
 | Raw pointers (`T*`, `void*`) | Yes |
 
 The FFI layer reads C++ declaration signatures and maps C++ smart pointers to Kairo's
-AMT-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Unique<T>`,
+Tether-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Unique<T>`,
 `std::shared_ptr<T>` maps to `std::Shared<T>`, `std::weak_ptr<T>` maps to `std::Weak<*T>`.
-A mismatch between AMT's promotion and the C++ function's expected smart pointer type is a
+A mismatch between Tether's promotion and the C++ function's expected smart pointer type is a
 compile error.
 
 See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
@@ -10201,18 +10372,18 @@ See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
 
 ### Forget
 
-`forget!()` is a compiler intrinsic that permanently removes a pointer from AMT tracking. It is
+`forget!()` is a compiler intrinsic that permanently removes a pointer from Tether tracking. It is
 only valid inside an `unsafe` block:
 
 ```kairo
 var ptr = @create Config(8080)
 
 unsafe {
-    forget!(ptr)   // AMT stops tracking ptr
+    forget!(ptr)   // Tether stops tracking ptr
     // ptr is now the caller's responsibility
 }
 
-// AMT will not auto-free ptr if nothing else frees it, this is a memory leak
+// Tether will not auto-free ptr if nothing else frees it, this is a memory leak
 ```
 
 The primary use case is transferring ownership to C++ code that will manage the pointer's lifetime:
@@ -10232,7 +10403,7 @@ fn init_engine() {
 ```
 
 > [!CAUTION]
-> `forget!()` does not free memory it tells AMT to stop tracking the pointer. If the pointer is
+> `forget!()` does not free memory it tells Tether to stop tracking the pointer. If the pointer is
 > not freed by other means (C++ code, manual `std::free()`, etc.), the memory leaks. Use `forget!()`
 > only when transferring ownership across the FFI boundary.
 
@@ -10240,7 +10411,7 @@ fn init_engine() {
 
 ### Raw Pointers (`unsafe *T`)
 
-`unsafe *T` declares a pointer with no AMT tracking, no null checks, and no bounds checks. It is
+`unsafe *T` declares a pointer with no Tether tracking, no null checks, and no bounds checks. It is
 the Kairo equivalent of a raw C/C++ pointer:
 
 ```kairo
@@ -10285,7 +10456,7 @@ var b = unsafe sort(my_data)    // calls the unsafe version
 
 #### What `unsafe` means on a function
 
-`unsafe` on a function does **not** mean "unsafe memory." AMT still guarantees memory safety in
+`unsafe` on a function does **not** mean "unsafe memory." Tether still guarantees memory safety in
 both safe and unsafe overloads. The `unsafe` qualifier signals that the function may not uphold
 semantic invariants that the safe version does stability, ordering, precision, idempotency,
 or any other contract beyond memory safety.
@@ -10330,25 +10501,25 @@ table.
 
 Kairo's safety model has a clear boundary:
 
-**Inside normal code:** AMT tracks all pointer lifetimes, inserts null checks on safe pointer
+**Inside normal code:** Tether tracks all pointer lifetimes, inserts null checks on safe pointer
 dereference, auto-promotes to smart pointers, and emits compile errors when safety cannot be
 guaranteed. Memory safety is the compiler's responsibility.
 
-**Inside `unsafe { }` blocks:** AMT is suspended. The programmer is responsible for pointer
+**Inside `unsafe { }` blocks:** Tether is suspended. The programmer is responsible for pointer
 lifetimes, null safety, and deallocation. The compiler trusts the programmer.
 
 **With `unsafe *T` pointers:** No tracking regardless of whether the code is inside an `unsafe`
 block. The pointer is permanently untracked by its type.
 
-**With `unsafe` function overloads:** Memory safety is still guaranteed by AMT. Only semantic
+**With `unsafe` function overloads:** Memory safety is still guaranteed by Tether. Only semantic
 invariants beyond memory safety are relaxed.
 
 ```
-                    Memory safe?    AMT tracked?    Who manages lifetime?
-Normal code         Yes             Yes             Compiler (AMT)
+                    Memory safe?    Tether tracked?    Who manages lifetime?
+Normal code         Yes             Yes             Compiler (Tether)
 unsafe { }          Programmer      No              Programmer
 unsafe *T           Programmer      No              Programmer
-fn foo() unsafe     Yes             Yes             Compiler (AMT)
+fn foo() unsafe     Yes             Yes             Compiler (Tether)
 ```
 
 ---
@@ -10407,7 +10578,7 @@ fn bounds_check(arr: [i32], index: i32) unsafe -> i32 {
 ### Summary
 
 ```kairo
-// Unsafe block suspends AMT
+// Unsafe block suspends Tether
 var ptr = @create i32(42)
 unsafe {
     forget!(ptr)
@@ -10425,7 +10596,7 @@ fn compute(x: f64) unsafe -> f64 { /* fast approximation */ }
 var precise = compute(3.14)
 var fast = unsafe compute(3.14)
 
-// forget!() drop pointer from AMT
+// forget!() drop pointer from Tether
 var data = @create Buffer(1024)
 unsafe {
     forget!(data)
@@ -10636,8 +10807,8 @@ finally { // identical to standalone `finally`
 
 #### Standalone `finally` (scope exit)
 
-`finally` can appear without a preceding `try`. In this form it runs when the enclosing function
-exits, regardless of how normal return, panic, or early return:
+`finally` can appear without a preceding `try`. In this form it runs when control leaves the
+enclosing scope, however it leaves: normal exit, `return`, `break`, `continue`, or a panic:
 
 ```kairo
 fn process_file(path: string) panic {
@@ -10656,7 +10827,9 @@ fn process_file(path: string) panic {
 }
 ```
 
-Multiple `finally` blocks in the same function execute in reverse declaration order (LIFO).
+A standalone `finally` behaves like the destructor of a local declared at the same point. It belongs to
+its enclosing block rather than the function, runs only if execution reached it, and runs in reverse
+declaration order (LIFO) together with the scope's destructors.
 
 See [Control Flow](/docs/language/control-flow#finally) for full `finally` semantics.
 
@@ -10683,7 +10856,7 @@ fn fatal(msg: string) -> ! {
 }
 ```
 
-See [Functions](/docs/language/functions#no-return) and
+See [Functions](/docs/language/functions#no-return-) and
 [Type System](/docs/language/type-system#the-never-type-) for `!` semantics.
 
 ---
@@ -10694,16 +10867,21 @@ Panics compile to zero-cost tagged return values. There are no unwinding tables,
 exception handler, and no stack unwinding. A function marked `panic` returns a tagged union
 containing either the success value or an error with source location metadata.
 
-At the call site, `try`/`catch` compiles to a branch on the tag. If the tag indicates an error,
-the catch block executes. If it indicates success, the value is extracted and execution continues.
+At the call site, the compiler lowers `try`/`catch` to a `match` on the tagged union. If the tag
+indicates an error, the matching catch block executes. If it indicates success, the value is
+extracted and execution continues.
 
 This means:
 
 - No runtime overhead on the success path beyond a single branch (which the branch predictor
   handles efficiently)
 - No stack unwinding errors propagate via normal return values
-- No unwinding tables in the binary smaller executables
-- All functions in Kairo are trivially `noexcept` at the ABI level
+- No unwinding tables for panics smaller executables
+- All functions in Kairo are `noexcept` at the ABI level
+
+> [!NOTE]
+> The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use
+> the platform unwinder. See [Exceptions](/docs/language/c-cpp#exceptions) in C/C++ Interop.
 
 > [!NOTE]
 > The `panic` statement inside a function body (`panic SomeError(...)`) does not halt the program.
@@ -11526,8 +11704,7 @@ The rules differ by type:
 | Methods | Constructors |
 | Static functions | Destructors (`fn op delete`) |
 | Arithmetic / comparison operators | Copy / move assignment (`fn op =`) |
-| `fn op as` (type conversion) | |
-| `fn op in` (iteration) | |
+| `fn op in` (iteration) | Member-only operators (`as`, `[]`, `->`) |
 
 Structs are trivially copyable. Extending lifecycle operations (destructors, copy/move) would break
 that guarantee. See [Structures](/docs/language/structures#copy-semantics).
@@ -11539,7 +11716,7 @@ that guarantee. See [Structures](/docs/language/structures#copy-semantics).
 | Methods | Constructors |
 | Static functions | Destructors |
 | Comparison / arithmetic operators | Copy / move assignment |
-| `fn op as` (type conversion) | |
+| | Member-only operators (`as`, `[]`, `->`) |
 
 #### Classes
 
@@ -11547,14 +11724,16 @@ that guarantee. See [Structures](/docs/language/structures#copy-semantics).
 |---|---|
 | Methods | Constructors |
 | Static functions | Destructors |
-| All operators | Copy / move assignment |
+| Operators other than the member-only ones | Copy / move assignment |
+| | Member-only operators (`as`, `[]`, `->`, `delete`) |
 
 Classes already support methods and operators in their body. `extend` on a class is useful for
 separating interface conformance or adding functionality in a different section of the codebase
 (within the same file).
 
 > [!NOTE]
-> Constructors, destructors, and copy/move assignment cannot be added via `extend` on any type.
+> Constructors, destructors, and copy/move assignment cannot be added via `extend` on any type. Neither
+> can the member-only operators `as`, `[]`, `->`, and `delete`; declare them in the type's own body.
 > If you need construction logic on a struct, extend a static factory function instead. If you need
 > a destructor, use a [class](/docs/language/classes).
 
@@ -11644,7 +11823,7 @@ extend <T> Pair<T> impl Container<T> {
 }
 ```
 
-See [Bounds](/docs/language/bounds) for the full constraint system.
+See [Requires Clauses](/docs/language/requires) for the full constraint system.
 
 ---
 
@@ -12021,7 +12200,7 @@ Kairo provides built-in attributes that are handled directly by the compiler:
 | `@packed` | Remove padding between members | Classes, structs, unions |
 | `@align(N)` | Set minimum alignment to N bytes | Classes, structs, unions |
 
-See [Classes](/docs/language/classes#memory-layout) and
+See [Classes](/docs/language/classes#memory-layout-and-allocation) and
 [Structures](/docs/language/structures#memory-layout) for layout details.
 
 #### Branch hints
@@ -12047,7 +12226,7 @@ See [Control Flow](/docs/language/control-flow#branch-hints) for branch predicti
 |---|---|---|
 | `@core::where_handler` | Custom handler for where-clause failures | Functions |
 
-See [Where Clauses](/docs/language/bounds) for the where handler system.
+See [Where Clauses](/docs/language/where) for the where handler system.
 
 ---
 
@@ -12434,9 +12613,9 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 |---|---|---|
 | `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow#jumps) |
 | `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow#jumps) |
-| `forget!(ptr)` | Drop a pointer from AMT tracking | [Unsafe](/docs/language/unsafe#forget) |
+| `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe#forget) |
 | `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/variables#force-unwrap) |
-| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Classes](/docs/language/classes#the-rule-of-five) |
+| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence) |
 
 These use macro syntax (`name!`) to make their usage explicit and searchable in a codebase, but
 they are not user-definable they are built into the compiler.
@@ -12624,18 +12803,18 @@ The table below summarizes which C and C++ features Kairo can consume and expose
 | Feature | Direction | Notes |
 |---|---|---|
 | Functions | Bidirectional | Includes variadic functions |
-| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/structs) |
-| Unions | Bidirectional | See [Unions](/docs/unions) |
-| Enums | Bidirectional | See [Enums](/docs/enums) |
-| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/classes) |
+| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/language/structures) |
+| Unions | Bidirectional | See [Unions](/docs/language/unions) |
+| Enums | Bidirectional | See [Enums](/docs/language/enums) |
+| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/language/classes) |
 | Tuples | Bidirectional | Emitted as named structs; see [Tuples across the boundary](#tuples-across-the-boundary) |
 | Templates | Bidirectional | Instantiation across the boundary; see [below](#templates-and-concepts) |
 | Concepts | Bidirectional | Kairo's `impl` constraints map to C++20 concepts |
 | Namespaces | Bidirectional | |
 | Pointers & References | Bidirectional | Requires `unsafe` on the Kairo side; see [below](#pointers-and-references) |
-| Operator Overloading | Bidirectional | See [Operators](/docs/operators) |
+| Operator Overloading | Bidirectional | See [Operators](/docs/language/operators) |
 | Lambdas | Bidirectional | |
-| Exceptions | C++ → Kairo only | Kairo never unwinds; errors are values. See [Exceptions](#exceptions) |
+| Exceptions | C++ → Kairo only | Kairo never throws; its errors are values. See [Exceptions](#exceptions) |
 | Macros | C++ → Kairo | Preprocessor macros are expanded before Kairo sees them |
 | Preprocessor Directives | C++ → Kairo | |
 | Inline Assembly | Kairo → C++ | Via `inline "asm"` blocks |
@@ -13001,16 +13180,16 @@ the boundary, and there is no second implementation to drift.
 | Spelling | On the Kairo side | On the C++ side |
 |---|---|---|
 | `std::` | Kairo's standard library | C++'s standard library |
-| `cxx::` | C++'s standard library | — |
+| `cxx::std::` | C++'s standard library | — |
 | `kairo::` | — | Kairo's own namespace, including its standard library |
 
-From Kairo, the C++ standard library is always reached through `cxx::`:
+From Kairo, the C++ standard library is always reached through `cxx::std::`:
 
 ```kairo
 ffi "c++" import <vector>;
 
 fn example() {
-    var v: cxx::vector<i32>
+    var v: cxx::std::vector<i32>
     v.push_back(42)
 }
 ```
@@ -13077,7 +13256,7 @@ fn syscall_example(fd: i32, buf: *u8, len: usize) -> isize {
 
 ### Pointers and References
 
-Kairo's [pointer model](/docs/pointers) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
+Kairo's [pointer model](/docs/language/pointers) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
 pointers (`unsafe *T`, no tracking). Passing any pointer or reference across the FFI boundary requires explicit
 `unsafe` context because the compiler cannot enforce safety guarantees on the C/C++ side.
 
@@ -13093,7 +13272,7 @@ and as the target of an assignment:
 ffi "c++" import <vector>;
 
 fn main() {
-    var v: cxx::vector<i32>
+    var v: cxx::std::vector<i32>
     v.push_back(1)
 
     v.at(0) = 3             // assign through int&
@@ -13185,7 +13364,7 @@ delete p;   // runs Kairo's destructor, then returns memory to Kairo's global al
 
 This works because Kairo emits the class, and therefore emits the destructor. `~MyKairoClass` performs Kairo's
 destruction semantics; C++'s `delete` merely sequences destructor-then-deallocate, which is the same pair of
-operations Kairo spells as [`delete obj`](/docs/allocators#delete-operation) followed by `@free`.
+operations Kairo spells as [`delete obj`](/docs/language/tether#delete-operation) followed by `@free`.
 
 Pointer parameters and return values stay raw `*T` — there is no wrapper type, no ABI change, and no cost at the
 call boundary.
@@ -13198,7 +13377,7 @@ allocations. The isolation is structural, not a restriction.
 
 #### The operators bind to the *global* allocator, always
 
-Kairo's [scoped allocator](/docs/allocators#scoped-allocator) mechanism works by swapping the allocator the
+Kairo's [scoped allocator](/docs/language/tether#scoped-allocator) mechanism works by swapping the allocator the
 process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that
 indirection and address the global allocator directly.
 
@@ -13217,7 +13396,7 @@ of what is active at the call site.
 
 The invariant that makes this sound: **objects reachable from C++ were allocated by the global allocator.** A
 pointer allocated through a scoped allocator that escapes the allocator's scope is a hard error under
-[Tether](/docs/tether), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
+[Tether](/docs/language/tether), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
 
 #### What is still an error
 
@@ -13238,7 +13417,7 @@ override does apply to them — `core` provides `CxxNewAllocator`:
 @mem::set_allocator(core::CxxNewAllocator)
 ```
 
-This is the unusual case, not the default. The [intentional friction](/docs/allocators#global-allocator) rule
+This is the unusual case, not the default. The [intentional friction](/docs/language/tether#global-allocator) rule
 applies: the annotation must appear at the top of every file in the affected dependency graph.
 
 #### Ownership annotations in generated headers
@@ -13349,6 +13528,14 @@ which is deliberately TU-local.
 
 ### Exceptions
 
+Kairo and C++ signal failure differently, and the two models meet at one place: a Kairo `try`/`catch`.
+
+- **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic): a tagged union value returned to
+  the caller. Every Kairo function is `noexcept`.
+- **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
+- **`try`/`catch` handles both.** Around a Kairo call it lowers to a `match` on the returned tagged union.
+  Around a C++ call it catches C++ exceptions through the unwinder.
+
 #### C++ → Kairo
 
 Kairo can catch C++ exceptions using its standard `try`/`catch` syntax.
@@ -13359,28 +13546,34 @@ ffi "c++" import "my_code.hh";
 fn main() {
     try {
         might_throw(true);
-    } catch e: std::exception {
+    } catch e: cxx::std::exception {
         std::println(f"Caught: {e.what()}")
     }
 }
 ```
 
+The exception does not have to be thrown directly inside the `try`. It can come from a C++ call several Kairo
+frames down, and the unwinder passes through the Kairo frames in between to reach the `catch`. The compiler emits
+unwind info for exactly those frames: a Kairo function gets it only when it sits between a C++ call and a Kairo
+`try` that can catch from that call. Kairo code with no such path carries no unwind tables.
+
 > [!NOTE]
-> Unlike Kairo's [panic system](/docs/panic), the compiler cannot statically determine every exception type a C++
-> function might throw. A `catch` block that doesn't handle a thrown type will propagate the exception up the
-> stack. If nothing catches it, the runtime calls `std::terminate`.
+> Unlike Kairo's [panic system](/docs/language/panic), the compiler cannot statically determine every exception
+> type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue
+> to the next enclosing Kairo `try`. An exception that no Kairo `try` catches reaches a `noexcept` frame, and
+> the runtime calls `std::terminate`.
 
 #### Kairo → C++: every Kairo function is `noexcept`
 
-Kairo does not throw. `panic` is a checked effect with a typed, inferred set — a Kairo error is a tagged union
-value returned to the caller, not an object propagated by the unwinder. There are no unwinding edges out of Kairo
-code.
+Kairo does not throw. `panic` is a checked effect with a typed, inferred set: a Kairo error is a tagged union
+value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
 Emitted declarations are therefore **`noexcept` unconditionally**, and this is a structural property rather than
 a promise:
 
 - A C++ caller never needs a `try`/`catch` around a Kairo call.
-- No unwind tables are generated at the boundary.
+- A C++ exception cannot leave Kairo code through a Kairo entry point. It is either caught by a Kairo `try` or
+  ends in `std::terminate`.
 - `noexcept`-conditional C++ code that calls into Kairo takes the `noexcept(true)` branch.
 
 ##### The value API
@@ -13557,7 +13750,7 @@ scope that outlives the slice and use that variable.
 
 > [!NOTE]
 > Passing a slice literal to a function that stores the slice is not diagnosed. Until
-> [AMT](/docs/language/amt) checks it, it is the programmer's responsibility.
+> [Tether](/docs/language/tether) checks it, it is the programmer's responsibility.
 
 ---
 
@@ -13782,7 +13975,7 @@ gfx::RenderContext()
 
 #### C++ `std` Namespace
 
-If a C++ header defines names in the `std` namespace, those collide with Kairo's `std` module. The C++ standard library is accessible through `libcxx`:
+If a C++ header defines names in the `std` namespace, those collide with Kairo's `std` module. The C++ standard library is accessible through `cxx::std`:
 
 ```kairo
 
@@ -13793,10 +13986,10 @@ std::println("Kairo")
 cout << "C++" << endl
 ```
 
-FFI imports of headers that define names in `std` are automatically redirected to `libcxx`:
+FFI imports of headers that define names in `std` are automatically redirected to `cxx::std`:
 
 ```kairo
-ffi "c++" import "iostream"  // imported into libcxx, not std
+ffi "c++" import "iostream"  // imported into cxx::std, not std
 ```
 
 See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.

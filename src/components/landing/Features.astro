@@ -28,7 +28,7 @@ var builder = llvm::IRBuilder(ctx)
 
 // Full C++ API, no wrappers
 var fn_type = llvm::FunctionType::get(builder.getInt32Ty(), false)
-var fn      = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, "main", mod)`,
+var fun     = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, "main", mod)`,
   },
   {
     number: '03',

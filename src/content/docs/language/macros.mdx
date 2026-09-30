@@ -289,9 +289,9 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 |---|---|---|
 | `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow#jumps) |
 | `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow#jumps) |
-| `forget!(ptr)` | Drop a pointer from AMT tracking | [Unsafe](/docs/language/unsafe#forget) |
+| `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe#forget) |
 | `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/variables#force-unwrap) |
-| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Classes](/docs/language/classes#the-rule-of-five) |
+| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence) |
 
 These use macro syntax (`name!`) to make their usage explicit and searchable in a codebase, but
 they are not user-definable they are built into the compiler.

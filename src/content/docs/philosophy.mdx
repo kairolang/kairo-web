@@ -58,7 +58,7 @@ The compiler explains mistakes clearly, preserves programmer intent, and keeps e
 fluid. During development, it helps you move fast. When you ship, it gets stricter. This creates a
 workflow closer to real engineering: prototype freely, refine intentionally, harden for production.
 
-The escape hatches are explicit. `unsafe` blocks suspend AMT tracking. `unsafe *T` pointers bypass
+The escape hatches are explicit. `unsafe` blocks suspend Tether tracking. `unsafe *T` pointers bypass
 null checks and bounds analysis. `unsafe` function overloads relax semantic invariants. Every
 dangerous operation is visible in the source easy to find during review, easy to audit, easy to
 grep.
@@ -130,7 +130,7 @@ High-level features compile to predictable low-level code:
 - Generics are monomorphized at compile time. No boxing, no type erasure, no runtime cost.
 - Panic handling compiles to tagged return values and branches. No unwinding tables, no runtime
   exception handler, no stack unwinding.
-- AMT (Automatic Memory Tracking) runs at compile time. No garbage collector, no reference
+- Tether runs at compile time. No garbage collector, no reference
   counting overhead unless the analysis determines shared ownership is required.
 - Virtual dispatch exists only when you write `virtual`. Non-polymorphic classes have no vtable
   pointer.
