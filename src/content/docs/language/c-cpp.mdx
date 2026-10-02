@@ -162,6 +162,10 @@ Hello from C++! x = 42
 > functions, classes, enums, templates — become available in Kairo's scope with their original names and
 > signatures. No code generation or binding step is visible to the user.
 
+An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
+Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
+ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+
 ---
 
 ## Exposing Kairo to C++

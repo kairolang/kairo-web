@@ -138,6 +138,9 @@ extend Point impl Drawable {
 The compiler verifies at the `extend` declaration that all interface requirements are satisfied.
 Missing methods are a compile error.
 
+> [!NOTE]
+> The current compiler does not report missing methods at the `extend` declaration yet. See [Implementation Status](/docs/status#not-diagnosed).
+
 A type can conform to multiple interfaces through separate `extend` blocks:
 
 ```kairo
@@ -157,7 +160,7 @@ See [Interfaces](/docs/language/interfaces) for interface declarations and struc
 
 ## Generic Extends
 
-When extending a generic type, redeclare the type parameters:
+A generic `extend` declares its own type parameters:
 
 ```kairo
 struct <T> Pair {
@@ -172,8 +175,29 @@ extend <T> Pair<T> {
 }
 ```
 
-The type parameters in the `extend` block must match the original declaration. Constraints can be
-added via `impl`, `derives`, or `where` clauses:
+The parameters belong to the `extend` block, not to the type. Its target can be any instance pattern of
+the type, so an extension can apply to only some instantiations:
+
+```kairo
+struct <T> Box {
+    var value: T
+}
+
+struct <T> Wrap {
+    var inner: T
+}
+
+extend <T> Wrap<Box<T>> {
+    fn unbox(const self) -> T {   // only on Wrap<Box<X>>
+        return self.inner.value
+    }
+}
+```
+
+`Wrap<Box<i32>>` has `unbox`; `Wrap<i32>` does not.
+
+Constraints on an extension's parameters are written with `impl`, `derives`, or a
+[`requires` clause](/docs/language/requires):
 
 ```kairo
 extend <T impl Comparable> Pair<T> {
@@ -184,7 +208,10 @@ extend <T impl Comparable> Pair<T> {
 ```
 
 This `max` method is only available on `Pair<T>` when `T` satisfies `Comparable`. Calling
-`Pair<SomeNonComparable>.max()` is a compile error.
+`pair_of_noncomparable.max()` (or `Pair<SomeNonComparable>::max(p)`) is a compile error.
+
+> [!NOTE]
+> The current compiler does not check an extension's bounds at the call site yet. See [Implementation Status](/docs/status#not-diagnosed).
 
 ### Generic interface conformance
 
@@ -223,8 +250,9 @@ extend Point {
 }
 ```
 
-The default visibility for extended methods matches the type's convention `pub` for struct and
-enum extensions, `pub` for class method extensions.
+An extension member with no modifier is `pub`. A `priv` extension member is visible only inside the
+file that contains the `extend` block, not everywhere the type is visible. `prot` has its usual
+library-internal meaning.
 
 ---
 
@@ -286,6 +314,9 @@ extend Point impl Drawable {
 This prevents conflicts between extensions in different files while still allowing interface
 conformance to be declared where the interface is defined.
 
+> [!NOTE]
+> The current compiler does not reject an `extend` in the wrong file yet. See [Implementation Status](/docs/status#not-diagnosed).
+
 ---
 
 ## Multiple Extend Blocks
@@ -329,8 +360,18 @@ extend Color impl Drawable {
 
 ## Extend vs Class Methods
 
-For classes, there is no semantic difference between a method in the class body and a method in an
-`extend` block both produce the same compiled output. The choice is organizational:
+A method in the class body and a method in an `extend` block are called the same way, but they are
+different entities:
+
+- An extension member is not virtual, cannot override, and cannot be a constructor, destructor, or
+  assignment operator.
+- A same-file `extend` can read the type's private members. An `extend ... impl` placed in the
+  interface's file cannot.
+- C++ code calling a Kairo type sees body methods as member functions, and extension members as static
+  functions of a companion scope.
+
+Put anything that needs dynamic dispatch, overriding, or lifecycle behavior in the body. Use `extend`
+for the rest, such as interface conformance kept apart from the core type:
 
 ```kairo
 class Server {

@@ -110,6 +110,8 @@ function stripMdxComponents(content) {
   content = content.replace(/<([A-Z]\w+)[^>]*>([\s\S]*?)<\/\1>/g, '$2');
   // Remove {expressions} that are JSX
   content = content.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+  // Drop fence options (e.g. ```kairo hints), they only matter to the site renderer
+  content = content.replace(/^(```[\w+-]+)[ \t]+.*$/gm, '$1');
   return content.trim();
 }
 

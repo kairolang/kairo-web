@@ -226,7 +226,9 @@ var q: *const i32 = &x
 std::println(*q)   // 100 *const prevents mutation through q, not through p
 ```
 
-`const` is a **semantic check on the binding**, not an aliasing constraint. `*const T` prevents
+`const` is a **semantic check on the binding**, not an aliasing constraint. Of the
+[two questions a pointer declaration answers](/docs/language/variables#the-const-binding-rule),
+"can I change the pointee?" is asked about one pointer only. `*const T` prevents
 the holder from mutating through that pointer. It does not prevent other pointers from mutating
 the same value. Tether does not change behavior based on `const` qualifiers it tracks provenance
 and lifetime independently of mutability.
