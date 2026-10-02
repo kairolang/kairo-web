@@ -588,6 +588,10 @@ var n = 0
 f(g(&n), g(&n))     // always f(10, 20)
 ```
 
+Named arguments follow the same rule: they run in the order written, not parameter order. Defaults for
+omitted arguments run after all explicit arguments, in parameter order. See
+[Functions](/docs/language/functions#evaluation-order).
+
 `&&` and `||` are also left to right, with short-circuiting. See
 [Control Flow](/docs/language/control-flow).
 

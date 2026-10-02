@@ -1,7 +1,7 @@
 ---
 order: 27
 title: Diagnostics
-description: Compiler error messages for arrays, slices, vectors, list literals, and overload resolution in Kairo, what each one means, and how to fix it.
+description: Compiler error messages for arrays, slices, vectors, list literals, overload resolution, and default arguments in Kairo, what each one means, and how to fix it.
 ---
 
 # Diagnostics
@@ -136,3 +136,32 @@ f([1, 2, 3] as [i32])          // ok
 
 **Fix:** make the argument's type explicit with `as` or a typed local. See
 [Primitives](/docs/language/primitives#list-literal-arguments).
+
+---
+
+## Default Arguments
+
+### SC106E: a default argument refers to another parameter or `self`
+
+A default is evaluated with no access to the call's other arguments, so it cannot name them.
+
+```kairo
+fn a(x: i32, y: i32 = x) { }          // error SC106E
+fn m(self, y: i32 = self.v) { }       // error SC106E
+```
+
+**Fix:** add an overload that leaves the parameter out and forwards the value. See
+[Functions](/docs/language/functions#a-default-stands-alone).
+
+### SC107E: a named argument skips a defaulted parameter of an imported C++ function
+
+C++ applies an imported function's defaults and can only leave out trailing arguments. A call that names a
+later parameter while an earlier defaulted one is omitted cannot be expressed.
+
+```kairo
+// C++: void blit(int x, int y = 0, int scale = 1);
+blit(4, scale: 2)            // error SC107E
+```
+
+**Fix:** pass the earlier arguments explicitly: `blit(4, y: 0, scale: 2)`. See
+[Functions](/docs/language/functions#defaults-on-imported-c-functions).

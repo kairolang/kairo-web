@@ -37,6 +37,15 @@ the statement, so the stored slice dangles. This becomes an error when [Tether](
 then, pass a `var` or a `[T]` to any function that keeps what it is given. See
 [Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
 
+Three [`extend`](/docs/language/extends) rules are not diagnosed yet:
+
+- A plain `extend` outside the type's file, or an `extend ... impl` in neither the type's nor the interface's
+  file, is accepted. See [Same-File Restriction](/docs/language/extends#same-file-restriction).
+- Calling an extension member whose bounds the type arguments do not satisfy is not reported at the call site.
+  See [Generic Extends](/docs/language/extends#generic-extends).
+- An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See
+  [Interface Conformance](/docs/language/extends#interface-conformance).
+
 ---
 
 ## Language Gaps

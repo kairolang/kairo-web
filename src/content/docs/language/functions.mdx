@@ -68,7 +68,88 @@ greet()          // "Hello, world!"
 greet("Alice")   // "Hello, Alice!"
 ```
 
-Defaults are evaluated at the call site. Parameters with defaults must appear after non-defaulted parameters.
+A default is evaluated once per call that omits that argument. Any parameter may have a default, not only
+trailing ones; a defaulted parameter that comes before a required one is skipped by naming the later
+argument (see [Named arguments](#named-arguments)).
+
+#### A default stands alone
+
+A default argument may not mention another parameter or `self`. It is evaluated with no access to the
+call's other arguments:
+
+```kairo
+fn a(x: i32, y: i32 = x) { }          // compile error (SC106E)
+fn m(self, y: i32 = self.v) { }       // compile error (SC106E)
+```
+
+When a default depends on another argument, use an overload instead:
+
+```kairo
+fn a(x: i32, y: i32) { }
+fn a(x: i32) { a(x, x) }
+```
+
+A default also may not be a slice literal (`[T;]`), since the slice would view a temporary. Use an owning
+`[T]`:
+
+```kairo
+fn f(xs: [i32;] = [1, 2]) { }         // compile error
+fn f(xs: [i32]  = [1, 2]) { }         // ok
+```
+
+#### Defaults apply to the whole function
+
+Defaults belong to the function, not to a point in the file. A default added by a later declaration
+applies to every call, including calls written above that declaration. This differs from C++, where a
+default is only visible after the declaration that introduces it.
+
+Each parameter may be given a default on any one declaration of the function. Defaults from different
+declarations accumulate:
+
+```kairo
+fn f0(i: i32, j: i32, k: i32 = 3) -> i32
+fn f0(i: i32, j: i32 = 2, k: i32) -> i32
+fn f0(i: i32 = 1, j: i32, k: i32) -> i32
+
+f0()        // same as f0(1, 2, 3)
+f0(7)       // same as f0(7, 2, 3)
+```
+
+Out-of-line class methods have one more restriction: their defaults go on the in-class declaration. See
+[Classes](/docs/language/classes#rules).
+
+#### Evaluation order
+
+Explicit arguments are evaluated left to right in the order they are written at the call site, whichever
+parameter each one names. Defaults for omitted arguments are evaluated after every explicit argument, in
+parameter order:
+
+```kairo
+fn g(a: i32 = stamp(1), b: i32) -> i32
+
+g(b: stamp(4))               // stamp(4) runs first, then the default stamp(1)
+
+fn h(a: i32, b: i32) -> i32
+h(b: stamp(1), a: stamp(2))  // stamp(1) runs first: written order, not parameter order
+```
+
+#### Defaults on imported C++ functions
+
+An imported C++ function keeps its C++ defaults, and C++ applies them. C++ can only leave out trailing
+arguments, so naming a later parameter while an earlier defaulted one is omitted is an error (SC107E):
+
+```cpp
+// lib.hh
+void blit(int x, int y = 0, int scale = 1);
+```
+
+```kairo
+blit(4, scale: 2)            // compile error (SC107E): 'y' would be skipped
+blit(4, y: 0, scale: 2)      // ok
+blit(4)                      // ok: trailing defaults left to C++
+```
+
+Pass the earlier arguments explicitly.
 
 ### Named arguments
 
@@ -538,20 +619,31 @@ class Foo {
 
 ## Variadic Functions
 
-The `...` prefix on a parameter name accepts an arbitrary number of arguments of the same type. The parameter
-is accessible as a tuple inside the function body:
+The `...` prefix on a parameter name accepts any number of arguments of the same type. Inside the body,
+`...xs: T` is a slice `[T;]` over the run of arguments. The slice is passed by value and is valid for the
+duration of the call; it views the arguments, so do not store it or return it.
 
 ```kairo
-fn sum(...numbers: i32) -> i32 {
+fn sum(...xs: i32) -> i32 {
     var total = 0
-    for num in numbers {
-        total += num
+    for i in 0..xs.len {
+        total += xs.data[i]
     }
     return total
 }
 
 sum(1, 2, 3)        // 6
 sum(10, 20, 30, 40) // 100
+sum()               // 0: an empty pack is a zero-length slice
+```
+
+Parameters after a pack are keyword-only, since every positional argument goes into the pack:
+
+```kairo
+fn join(...parts: string, sep: string = " ") -> string { /* ... */ }
+
+join("a", "b", "c")             // "a b c"
+join("a", "b", sep: ", ")       // "a, b"
 ```
 
 ### Generic variadic functions
@@ -850,9 +942,10 @@ When a definition follows a forward declaration, the two must match exactly:
 - Visibility (`pub`, `priv`, `prot`)
 - ABI linkage (`ffi "c"`, `ffi "c++"`, `static`, `virtual`, `override`)
 
-Parameter names and default values may differ the declaration's names and
-defaults are used at call sites that see only the declaration; the definition's
-are used everywhere else. For consistency, keep them the same.
+Parameter names may differ; the definition's names are used in the body. Defaults
+are not part of the match: each parameter's default may be written on any one
+declaration, and it applies to every call (see
+[Defaults apply to the whole function](#defaults-apply-to-the-whole-function)).
 
 A mismatch in any other element is a compile error.
 

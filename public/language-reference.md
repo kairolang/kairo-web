@@ -4,7 +4,7 @@
 > Kairo is a statically typed, compiled systems language with native
 > bidirectional C++ interoperability.
 >
-> Source: https://www.kairolang.org/docs/  ·  Generated: 2026-09-28
+> Source: https://www.kairolang.org/docs/  ·  Generated: 2026-10-02
 
 ## Contents
 
@@ -35,7 +35,7 @@
 - [Macros](#macros) Token-level macros, macro definitions, built-in macros, variadic helpers, source location, diagnostics, code generation, and macro hygiene in Kairo.
 - [Concurrency](#concurrency) Async/await, spawn, yield, coroutines, atomic types, thread-local storage, and synchronization primitives in Kairo.
 - [C & C++ Interoperability](#c-c-interoperability) Native bidirectional interop between Kairo and C/C++ — the kairo and kcc drivers, the pinned toolchain, FFI declarations, inline C++, pointer safety, templates, allocators, ownership, and the ABI contract enforced by kld.
-- [Diagnostics](#diagnostics) Compiler error messages for arrays, slices, vectors, list literals, and overload resolution in Kairo, what each one means, and how to fix it.
+- [Diagnostics](#diagnostics) Compiler error messages for arrays, slices, vectors, list literals, overload resolution, and default arguments in Kairo, what each one means, and how to fix it.
 - [Imports](#imports) Bringing names from other modules into scope. Import forms, resolution semantics, visibility, FFI header imports.
 
 ---
@@ -1242,46 +1242,81 @@ See [Pointers](/docs/language/pointers) for the full pointer model and how
 
 ### The `const` Binding Rule
 
-`const` in Kairo follows a strict **left-to-right binding rule**: one `const` applies to the thing immediately
-to its right. This eliminates the ambiguity that plagues C/C++ `const` placement.
+Every `const` in Kairo answers one yes-or-no question about one thing: *can this be changed?*
+
+A plain value is one thing, so it has one question. A pointer is two things, the pointer and the
+value it points at, so it has two:
+
+1. **Can I change the pointer?** That is, can it be made to point somewhere else.
+2. **Can I change the pointee?** That is, can the value it points at be written through it.
+
+The two answers are independent, and each one is written in its own place:
+
+| Question | Where it is written | Yes | No |
+|---|---|---|---|
+| Can I change the pointer? | The declaration keyword | `var ptr` | `const ptr` |
+| Can I change the pointee? | Directly after the `*` | `*T` | `*const T` |
+
+Those are the only places a `const` can go, and a `const` always applies to the thing immediately
+to its right. You read a declaration left to right and each `const` you meet answers one question.
+There is never a puzzle about which part of the type a `const` belongs to, the way there is with
+`const int*` and `int* const` in C and C++.
 
 #### On simple variables
 
+A plain value has only the first question:
+
 ```kairo
 const x: i32 = 42
-//    ^ x cannot be reassigned
-//       ^^^ i32 is the type immediately right of const the value is immutable
+x = 10    // compile error: x is const
 ```
 
 #### On pointers
 
-`const` on the binding and `const` on the pointed-to type are independent axes:
+Two questions with two answers each gives four combinations:
+
+| Declaration | Change the pointer? | Change the pointee? |
+|---|---|---|
+| `var ptr: *i32` | Yes | Yes |
+| `const ptr: *i32` | No | Yes |
+| `var ptr: *const i32` | Yes | No |
+| `const ptr: *const i32` | No | No |
 
 ```kairo
-var ptr: *i32 = &x
-// ptr is mutable, *ptr is mutable can reassign ptr and modify the target
+var a: *i32 = &x
+a = &y       // ok
+*a = 10      // ok
 
-const ptr: *i32 = &x
-// ptr is const cannot reassign ptr to point elsewhere
-// *ptr is mutable can still modify the target value
-*ptr = 10    // ok: allowed
-ptr = &y     // compile error:
+const b: *i32 = &x
+b = &y       // compile error: b is const, it cannot point anywhere else
+*b = 10      // ok: the pointee is still writable
 
-const ptr: *const i32 = &x
-// ptr is const cannot reassign
-// *ptr is const cannot modify the target
-*ptr = 10    // compile error:
-ptr = &y     // compile error:
+var c: *const i32 = &x
+c = &y       // ok: c can point somewhere else
+*c = 10      // compile error: cannot write through a *const pointer
+
+const d: *const i32 = &x
+d = &y       // compile error
+*d = 10      // compile error
 ```
 
-The rule scales to any depth:
+> [!TIP]
+> `var ptr: *const T` is the one you will reach for most: a read-only view of something that you
+> can still re-point. Add `const` on the binding only when the pointer itself must never move.
+
+The rule scales to any depth. Every `*` adds one more thing that can be pointed at, and so one more
+place a `const` can go:
 
 ```kairo
 const ptr: *const *i32 = &ptr2
-ptr = &ptr3    // ptr is: const
-*ptr = &x      // *ptr is: const
+ptr = &ptr3    // compile error: ptr is const
+*ptr = &x      // compile error: the inner pointer is const
 **ptr = 10     // ok: the i32 at the end is not const
 ```
+
+`*const T` answers "can I write through *this* pointer?". It does not answer "can anyone change
+this value?". Another pointer to the same value may still be writable. See
+[Ownership](/docs/language/ownership#pointer-aliasing).
 
 #### A practical example
 
@@ -1308,19 +1343,16 @@ class Config {
 
 var config = Config("localhost", 8080)
 
-const ptr: *const Config = &config
+var ptr: *const Config = &config
 ptr->address()       // ok: address() is a const method
 ptr->set_port(9090)  // compile error: set_port() mutates, ptr points to const Config
-
-// in most cases tho you would only want this:
-var ptr: *const Config = &config
-// cause you would have a const type but still be able to reassign the pointer if needed.
 ```
 
-#### On types
+#### On objects and methods
 
-`const` applied to a type restricts the instance to const methods only methods not marked `const` cannot be
-called.
+`const self` is the pointee question asked about the receiver: can this method change the object it
+is called on? A `const` object, or one reached through a `*const T`, only allows methods that
+answer no.
 
 ```kairo
 const server = Config("localhost", 8080)
@@ -1329,9 +1361,11 @@ server.set_port(9090)  // compile error: set_port() is not const
 ```
 
 > [!WARNING]
-> `var x: const i32 = 42` is a compile error. The `const` binding rule is strictly left-to-right from the
-> declaration keyword position. Use `const x: i32 = 42` instead. This avoids the `const int* x` vs
-> `int* const x` confusion that C++ is notorious for.
+> `var x: const i32 = 42` is a compile error. A plain value has one question, and the declaration
+> keyword already answers it, so write `const x: i32 = 42`. For the same reason
+> `var ptr: const *const i32` is rejected: the pointer question belongs to the keyword, so write
+> `const ptr: *const i32`. This avoids the `const int* x` vs `int* const x` confusion that C++ is
+> notorious for.
 
 ---
 
@@ -1956,6 +1990,10 @@ fn g(@inout n: i32) -> i32 { n += 1; return n * 10 }
 var n = 0
 f(g(&n), g(&n))     // always f(10, 20)
 ```
+
+Named arguments follow the same rule: they run in the order written, not parameter order. Defaults for
+omitted arguments run after all explicit arguments, in parameter order. See
+[Functions](/docs/language/functions#evaluation-order).
 
 `&&` and `||` are also left to right, with short-circuiting. See
 [Control Flow](/docs/language/control-flow).
@@ -2839,7 +2877,88 @@ greet()          // "Hello, world!"
 greet("Alice")   // "Hello, Alice!"
 ```
 
-Defaults are evaluated at the call site. Parameters with defaults must appear after non-defaulted parameters.
+A default is evaluated once per call that omits that argument. Any parameter may have a default, not only
+trailing ones; a defaulted parameter that comes before a required one is skipped by naming the later
+argument (see [Named arguments](#named-arguments)).
+
+##### A default stands alone
+
+A default argument may not mention another parameter or `self`. It is evaluated with no access to the
+call's other arguments:
+
+```kairo
+fn a(x: i32, y: i32 = x) { }          // compile error (SC106E)
+fn m(self, y: i32 = self.v) { }       // compile error (SC106E)
+```
+
+When a default depends on another argument, use an overload instead:
+
+```kairo
+fn a(x: i32, y: i32) { }
+fn a(x: i32) { a(x, x) }
+```
+
+A default also may not be a slice literal (`[T;]`), since the slice would view a temporary. Use an owning
+`[T]`:
+
+```kairo
+fn f(xs: [i32;] = [1, 2]) { }         // compile error
+fn f(xs: [i32]  = [1, 2]) { }         // ok
+```
+
+##### Defaults apply to the whole function
+
+Defaults belong to the function, not to a point in the file. A default added by a later declaration
+applies to every call, including calls written above that declaration. This differs from C++, where a
+default is only visible after the declaration that introduces it.
+
+Each parameter may be given a default on any one declaration of the function. Defaults from different
+declarations accumulate:
+
+```kairo
+fn f0(i: i32, j: i32, k: i32 = 3) -> i32
+fn f0(i: i32, j: i32 = 2, k: i32) -> i32
+fn f0(i: i32 = 1, j: i32, k: i32) -> i32
+
+f0()        // same as f0(1, 2, 3)
+f0(7)       // same as f0(7, 2, 3)
+```
+
+Out-of-line class methods have one more restriction: their defaults go on the in-class declaration. See
+[Classes](/docs/language/classes#rules).
+
+##### Evaluation order
+
+Explicit arguments are evaluated left to right in the order they are written at the call site, whichever
+parameter each one names. Defaults for omitted arguments are evaluated after every explicit argument, in
+parameter order:
+
+```kairo
+fn g(a: i32 = stamp(1), b: i32) -> i32
+
+g(b: stamp(4))               // stamp(4) runs first, then the default stamp(1)
+
+fn h(a: i32, b: i32) -> i32
+h(b: stamp(1), a: stamp(2))  // stamp(1) runs first: written order, not parameter order
+```
+
+##### Defaults on imported C++ functions
+
+An imported C++ function keeps its C++ defaults, and C++ applies them. C++ can only leave out trailing
+arguments, so naming a later parameter while an earlier defaulted one is omitted is an error (SC107E):
+
+```cpp
+// lib.hh
+void blit(int x, int y = 0, int scale = 1);
+```
+
+```kairo
+blit(4, scale: 2)            // compile error (SC107E): 'y' would be skipped
+blit(4, y: 0, scale: 2)      // ok
+blit(4)                      // ok: trailing defaults left to C++
+```
+
+Pass the earlier arguments explicitly.
 
 #### Named arguments
 
@@ -3309,20 +3428,31 @@ class Foo {
 
 ### Variadic Functions
 
-The `...` prefix on a parameter name accepts an arbitrary number of arguments of the same type. The parameter
-is accessible as a tuple inside the function body:
+The `...` prefix on a parameter name accepts any number of arguments of the same type. Inside the body,
+`...xs: T` is a slice `[T;]` over the run of arguments. The slice is passed by value and is valid for the
+duration of the call; it views the arguments, so do not store it or return it.
 
 ```kairo
-fn sum(...numbers: i32) -> i32 {
+fn sum(...xs: i32) -> i32 {
     var total = 0
-    for num in numbers {
-        total += num
+    for i in 0..xs.len {
+        total += xs.data[i]
     }
     return total
 }
 
 sum(1, 2, 3)        // 6
 sum(10, 20, 30, 40) // 100
+sum()               // 0: an empty pack is a zero-length slice
+```
+
+Parameters after a pack are keyword-only, since every positional argument goes into the pack:
+
+```kairo
+fn join(...parts: string, sep: string = " ") -> string { /* ... */ }
+
+join("a", "b", "c")             // "a b c"
+join("a", "b", sep: ", ")       // "a, b"
 ```
 
 #### Generic variadic functions
@@ -3621,9 +3751,10 @@ When a definition follows a forward declaration, the two must match exactly:
 - Visibility (`pub`, `priv`, `prot`)
 - ABI linkage (`ffi "c"`, `ffi "c++"`, `static`, `virtual`, `override`)
 
-Parameter names and default values may differ the declaration's names and
-defaults are used at call sites that see only the declaration; the definition's
-are used everywhere else. For consistency, keep them the same.
+Parameter names may differ; the definition's names are used in the body. Defaults
+are not part of the match: each parameter's default may be written on any one
+declaration, and it applies to every call (see
+[Defaults apply to the whole function](#defaults-apply-to-the-whole-function)).
 
 A mismatch in any other element is a compile error.
 
@@ -4862,8 +4993,10 @@ at program startup. Static methods do not take `self` and cannot access instance
 
 ### Const Methods
 
-A method that takes `const self` promises not to modify the object (except `mutable` members). Only
-`const` methods can be called through a `*const T` pointer or on a `const` binding:
+A method that takes `const self` promises not to modify the object (except `mutable` members). It is
+the ["can I change the pointee?"](/docs/language/variables#the-const-binding-rule) question asked
+about the receiver. Only `const` methods can be called through a `*const T` pointer or on a `const`
+binding:
 
 ```kairo
 class Sensor {
@@ -8514,28 +8647,39 @@ var raw: unsafe *i32 = &null
 
 ### Const Pointers
 
-The `const` binding rule applies to pointers left-to-right. `const` on the binding prevents
-reassigning the pointer. `*const T` prevents modifying the pointed-to value:
+A pointer declaration makes two independent properties visible:
+
+1. **Can I change the pointer?** Answered by the declaration keyword: `var ptr` or `const ptr`.
+2. **Can I change the pointee?** Answered directly after the `*`: `*T` or `*const T`.
+
+| Declaration | Change the pointer? | Change the pointee? |
+|---|---|---|
+| `var ptr: *i32` | Yes | Yes |
+| `const ptr: *i32` | No | Yes |
+| `var ptr: *const i32` | Yes | No |
+| `const ptr: *const i32` | No | No |
 
 ```kairo
-var ptr: *i32 = &x
-// ptr is mutable, *ptr is mutable
+var a: *i32 = &x
+a = &y       // ok
+*a = 10      // ok
 
-const ptr: *i32 = &x
-// ptr is const (cannot reassign), *ptr is mutable
-*ptr = 10    // ok
-ptr = &y     // compile error
+const b: *i32 = &x
+b = &y       // compile error: the pointer is const
+*b = 10      // ok
 
-var ptr: *const i32 = &x
-// ptr is mutable (can reassign), *ptr is const
-*ptr = 10    // compile error
-ptr = &y     // ok
+var c: *const i32 = &x
+c = &y       // ok
+*c = 10      // compile error: the pointee is const
 
-const ptr: *const i32 = &x // also remember this is semantically identical to `var ptr: const *const i32 = &x`, but the parser would error on this since this goes against readability and is not idiomatic Kairo.
-// both const
-*ptr = 10    // compile error
-ptr = &y     // compile error
+const d: *const i32 = &x
+d = &y       // compile error
+*d = 10      // compile error
 ```
+
+Each question has exactly one place it can be answered. `var ptr: const *const i32` would mean the
+same thing as `const ptr: *const i32`, but it is rejected, because the pointer question belongs to
+the declaration keyword.
 
 See [Variables](/docs/language/variables#the-const-binding-rule) for the full `const` model.
 
@@ -8625,7 +8769,7 @@ var pp: **i32 = &p
 **pp = 100   // x is now 100
 ```
 
-`const` applies at each level independently:
+`const` applies at each level independently, one question per level:
 
 ```kairo
 const pp: *const *i32 = &p
@@ -8791,8 +8935,8 @@ if maybe? {
 }
 
 // Const pointer
-var ptr: *const i32 = &x    // mutable pointer to const value
-const ptr: *i32 = &x        // const pointer to mutable value
+var ptr: *const i32 = &x    // can change the pointer, cannot change the pointee
+const ptr: *i32 = &x        // cannot change the pointer, can change the pointee
 
 // Pointer arithmetic
 var arr: [i32; 4] = [10, 20, 30, 40]
@@ -9047,7 +9191,9 @@ var q: *const i32 = &x
 std::println(*q)   // 100 *const prevents mutation through q, not through p
 ```
 
-`const` is a **semantic check on the binding**, not an aliasing constraint. `*const T` prevents
+`const` is a **semantic check on the binding**, not an aliasing constraint. Of the
+[two questions a pointer declaration answers](/docs/language/variables#the-const-binding-rule),
+"can I change the pointee?" is asked about one pointer only. `*const T` prevents
 the holder from mutating through that pointer. It does not prevent other pointers from mutating
 the same value. Tether does not change behavior based on `const` qualifiers it tracks provenance
 and lifetime independently of mutability.
@@ -11758,6 +11904,9 @@ extend Point impl Drawable {
 The compiler verifies at the `extend` declaration that all interface requirements are satisfied.
 Missing methods are a compile error.
 
+> [!NOTE]
+> The current compiler does not report missing methods at the `extend` declaration yet. See [Implementation Status](/docs/status#not-diagnosed).
+
 A type can conform to multiple interfaces through separate `extend` blocks:
 
 ```kairo
@@ -11777,7 +11926,7 @@ See [Interfaces](/docs/language/interfaces) for interface declarations and struc
 
 ### Generic Extends
 
-When extending a generic type, redeclare the type parameters:
+A generic `extend` declares its own type parameters:
 
 ```kairo
 struct <T> Pair {
@@ -11792,8 +11941,29 @@ extend <T> Pair<T> {
 }
 ```
 
-The type parameters in the `extend` block must match the original declaration. Constraints can be
-added via `impl`, `derives`, or `where` clauses:
+The parameters belong to the `extend` block, not to the type. Its target can be any instance pattern of
+the type, so an extension can apply to only some instantiations:
+
+```kairo
+struct <T> Box {
+    var value: T
+}
+
+struct <T> Wrap {
+    var inner: T
+}
+
+extend <T> Wrap<Box<T>> {
+    fn unbox(const self) -> T {   // only on Wrap<Box<X>>
+        return self.inner.value
+    }
+}
+```
+
+`Wrap<Box<i32>>` has `unbox`; `Wrap<i32>` does not.
+
+Constraints on an extension's parameters are written with `impl`, `derives`, or a
+[`requires` clause](/docs/language/requires):
 
 ```kairo
 extend <T impl Comparable> Pair<T> {
@@ -11804,7 +11974,10 @@ extend <T impl Comparable> Pair<T> {
 ```
 
 This `max` method is only available on `Pair<T>` when `T` satisfies `Comparable`. Calling
-`Pair<SomeNonComparable>.max()` is a compile error.
+`pair_of_noncomparable.max()` (or `Pair<SomeNonComparable>::max(p)`) is a compile error.
+
+> [!NOTE]
+> The current compiler does not check an extension's bounds at the call site yet. See [Implementation Status](/docs/status#not-diagnosed).
 
 #### Generic interface conformance
 
@@ -11843,8 +12016,9 @@ extend Point {
 }
 ```
 
-The default visibility for extended methods matches the type's convention `pub` for struct and
-enum extensions, `pub` for class method extensions.
+An extension member with no modifier is `pub`. A `priv` extension member is visible only inside the
+file that contains the `extend` block, not everywhere the type is visible. `prot` has its usual
+library-internal meaning.
 
 ---
 
@@ -11906,6 +12080,9 @@ extend Point impl Drawable {
 This prevents conflicts between extensions in different files while still allowing interface
 conformance to be declared where the interface is defined.
 
+> [!NOTE]
+> The current compiler does not reject an `extend` in the wrong file yet. See [Implementation Status](/docs/status#not-diagnosed).
+
 ---
 
 ### Multiple Extend Blocks
@@ -11949,8 +12126,18 @@ extend Color impl Drawable {
 
 ### Extend vs Class Methods
 
-For classes, there is no semantic difference between a method in the class body and a method in an
-`extend` block both produce the same compiled output. The choice is organizational:
+A method in the class body and a method in an `extend` block are called the same way, but they are
+different entities:
+
+- An extension member is not virtual, cannot override, and cannot be a constructor, destructor, or
+  assignment operator.
+- A same-file `extend` can read the type's private members. An `extend ... impl` placed in the
+  interface's file cannot.
+- C++ code calling a Kairo type sees body methods as member functions, and extension members as static
+  functions of a companion scope.
+
+Put anything that needs dynamic dispatch, overriding, or lifecycle behavior in the body. Use `extend`
+for the rest, such as interface conformance kept apart from the core type:
 
 ```kairo
 class Server {
@@ -12936,6 +13123,10 @@ Hello from C++! x = 42
 > functions, classes, enums, templates — become available in Kairo's scope with their original names and
 > signatures. No code generation or binding step is visible to the user.
 
+An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
+Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
+ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+
 ---
 
 ### Exposing Kairo to C++
@@ -13809,6 +14000,35 @@ f([1, 2, 3] as [i32])          // ok
 
 **Fix:** make the argument's type explicit with `as` or a typed local. See
 [Primitives](/docs/language/primitives#list-literal-arguments).
+
+---
+
+### Default Arguments
+
+#### SC106E: a default argument refers to another parameter or `self`
+
+A default is evaluated with no access to the call's other arguments, so it cannot name them.
+
+```kairo
+fn a(x: i32, y: i32 = x) { }          // error SC106E
+fn m(self, y: i32 = self.v) { }       // error SC106E
+```
+
+**Fix:** add an overload that leaves the parameter out and forwards the value. See
+[Functions](/docs/language/functions#a-default-stands-alone).
+
+#### SC107E: a named argument skips a defaulted parameter of an imported C++ function
+
+C++ applies an imported function's defaults and can only leave out trailing arguments. A call that names a
+later parameter while an earlier defaulted one is omitted cannot be expressed.
+
+```kairo
+// C++: void blit(int x, int y = 0, int scale = 1);
+blit(4, scale: 2)            // error SC107E
+```
+
+**Fix:** pass the earlier arguments explicitly: `blit(4, y: 0, scale: 2)`. See
+[Functions](/docs/language/functions#defaults-on-imported-c-functions).
 
 ---
 

@@ -31,7 +31,16 @@ how you structure it.
 
 ## Design Principles
 
-Four ideas drive every decision in the language.
+Four ideas drive every decision in the language, and one trade sits underneath all of them: move
+accidental complexity out of the programmer's head and into the compiler, but keep enough explicit
+information in the source that a human can still understand the code locally.
+
+The compiler should carry the bookkeeping that has nothing to do with your actual problem, like
+lifetimes, ownership, null states, and panic paths. What it must not do is take the meaning of the
+code with it. If the only way to know what a line does is to ask the compiler, or to read five
+other files first, the complexity was hidden rather than removed. So inference handles the tedious
+parts, and anything that changes how you reason about a piece of code stays written down where you
+are reading it.
 
 ### Control should exist
 
@@ -66,7 +75,8 @@ grep.
 ### Code should explain itself
 
 A developer should not need IDE magic, hidden compiler behavior, or dense metaprogramming to
-understand what code does.
+understand what code does. The more work the compiler does on your behalf, the more this matters:
+what the compiler knows is no substitute for what a reader can see.
 
 - `self` is always visible in method signatures
 - Inheritance uses the `derives` keyword no implicit resolution

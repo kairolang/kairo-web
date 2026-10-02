@@ -844,10 +844,12 @@ at program startup. Static methods do not take `self` and cannot access instance
 
 ## Const Methods
 
-A method that takes `const self` promises not to modify the object (except `mutable` members). Only
-`const` methods can be called through a `*const T` pointer or on a `const` binding:
+A method that takes `const self` promises not to modify the object (except `mutable` members). It is
+the ["can I change the pointee?"](/docs/language/variables#the-const-binding-rule) question asked
+about the receiver. Only `const` methods can be called through a `*const T` pointer or on a `const`
+binding:
 
-```kairo
+```kairo hints
 class Sensor {
     var reading: f64
     mutable var read_count: i32

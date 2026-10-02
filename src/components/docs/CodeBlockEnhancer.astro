@@ -47,6 +47,84 @@
 
   enhanceCodeBlocks();
   document.addEventListener('astro:page-load', enhanceCodeBlocks);
+
+  // ── Code hints ────────────────────────────────────────────────
+  // Popover for `.code-hint` spans emitted by shiki-code-hints.mjs. One shared
+  // element on <body>, fixed-positioned so the code block's overflow can't clip it.
+  let pop: HTMLDivElement | null = null;
+  let shownFor: HTMLElement | null = null;
+  let pinned = false;
+
+  const escapeHtml = (s: string) =>
+    s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+  const inlineCode = (s: string) => escapeHtml(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  function showHint(el: HTMLElement) {
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.className = 'code-hint-pop';
+      pop.id = 'code-hint-pop';
+      pop.setAttribute('role', 'tooltip');
+      document.body.appendChild(pop);
+    }
+    pop.innerHTML = `
+      <p class="code-hint-title">${inlineCode(el.dataset.hintTitle ?? '')}</p>
+      <p class="code-hint-body">${inlineCode(el.dataset.hintBody ?? '')}</p>
+    `;
+    pop.classList.add('visible');
+
+    const gap = 9;
+    const edge = 12;
+    const r = el.getBoundingClientRect();
+    const left = Math.max(edge, Math.min(r.left, window.innerWidth - pop.offsetWidth - edge));
+    const below = r.top - pop.offsetHeight - gap < edge;
+    pop.classList.toggle('below', below);
+    pop.style.left = `${left}px`;
+    pop.style.top = `${below ? r.bottom + gap : r.top - pop.offsetHeight - gap}px`;
+    pop.style.setProperty('--pole-x', `${Math.min(r.left - left, pop.offsetWidth - 14)}px`);
+
+    shownFor?.removeAttribute('aria-describedby');
+    el.setAttribute('aria-describedby', pop.id);
+    shownFor = el;
+  }
+
+  function hideHint() {
+    pop?.classList.remove('visible');
+    shownFor?.removeAttribute('aria-describedby');
+    shownFor = null;
+    pinned = false;
+  }
+
+  const hintFrom = (e: Event) => (e.target as Element | null)?.closest?.<HTMLElement>('.code-hint') ?? null;
+
+  document.addEventListener('mouseover', e => {
+    const el = hintFrom(e);
+    if (el && el !== shownFor) { pinned = false; showHint(el); }
+  });
+  document.addEventListener('mouseout', e => {
+    if (hintFrom(e) && !pinned) hideHint();
+  });
+  document.addEventListener('focusin', e => {
+    const el = hintFrom(e);
+    if (el) showHint(el);
+  });
+  document.addEventListener('focusout', e => {
+    if (hintFrom(e)) hideHint();
+  });
+  // Tap / click pins the hint open (touch has no hover); a second one closes it.
+  document.addEventListener('click', e => {
+    const el = hintFrom(e);
+    if (!el) return hideHint();
+    if (pinned && el === shownFor) return hideHint();
+    showHint(el);
+    pinned = true;
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hideHint();
+  });
+  window.addEventListener('scroll', hideHint, { passive: true, capture: true });
+  window.addEventListener('resize', hideHint);
+  document.addEventListener('astro:before-swap', hideHint);
 </script>
 
 <style is:global>
@@ -112,5 +190,116 @@
   .prose .code-block-wrap pre {
     margin: 0 !important;
     border: none !important;
+  }
+
+  /* ── Code hints ──────────────────────────────────────────────── */
+  /* The marker is absolutely positioned so it never shifts the code's columns. */
+  .astro-code .code-hint {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted var(--text-3);
+    border-radius: 2px;
+    outline: none;
+    transition: border-color var(--dur-fast) var(--ease);
+  }
+  .astro-code .code-hint::before {
+    content: '';
+    position: absolute;
+    left: -3.5px;
+    top: 0;
+    border-left: 3.5px solid transparent;
+    border-right: 3.5px solid transparent;
+    border-top: 4.5px solid var(--accent);
+    opacity: 0.75;
+    transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  }
+  .astro-code .code-hint:hover,
+  .astro-code .code-hint:focus-visible,
+  .astro-code .code-hint[aria-describedby] {
+    border-bottom-color: var(--accent);
+  }
+  .astro-code .code-hint:hover::before,
+  .astro-code .code-hint:focus-visible::before,
+  .astro-code .code-hint[aria-describedby]::before {
+    opacity: 1;
+    transform: translateY(1px);
+  }
+  .astro-code .code-hint:focus-visible {
+    box-shadow: 0 0 0 2px var(--red-glow);
+  }
+
+  /* Flag: a card hanging off a short pole planted on the marker. */
+  .code-hint-pop {
+    position: fixed;
+    z-index: 200;
+    top: 0;
+    left: 0;
+    width: max-content;
+    max-width: min(340px, calc(100vw - 24px));
+    padding: 10px 14px 11px;
+    background: var(--bg-3);
+    border: 1px solid var(--border-hi);
+    border-left: 2px solid var(--accent);
+    border-radius: 3px var(--r-md) var(--r-md) 3px;
+    box-shadow: var(--shadow-md);
+    font-family: var(--font-sans);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition:
+      opacity var(--dur-fast) var(--ease),
+      transform var(--dur-fast) var(--ease),
+      visibility 0s linear var(--dur-fast);
+  }
+  .code-hint-pop.below { transform: translateY(-4px); }
+  .code-hint-pop.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+  }
+  .code-hint-pop::after {
+    content: '';
+    position: absolute;
+    left: calc(var(--pole-x, 0px) - 2px);
+    top: 100%;
+    width: 2px;
+    height: 9px;
+    background: var(--accent);
+  }
+  .code-hint-pop.below::after {
+    top: auto;
+    bottom: 100%;
+  }
+  .code-hint-title {
+    margin: 0 0 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text);
+  }
+  .code-hint-body {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: var(--text-2);
+  }
+  .code-hint-pop code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    color: var(--text);
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .astro-code .code-hint,
+    .astro-code .code-hint::before,
+    .code-hint-pop {
+      transition: none;
+      transform: none;
+    }
   }
 </style>
