@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-04T00:26:14.757Z
+> Generated: 2026-10-04T22:48:00.650Z
 
 ---
 
@@ -2886,7 +2886,7 @@ fn op r++ (self) -> T    // postfix: x++ the ++ is on the right of the operand
 
 # Const Overloading Operators
 
-Place-returning operators (`[]`, `->`) may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. The `const self` overload must return `*const T` where the `self` overload returns `*T`. This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions#const-overloading-restriction) for details.
+`op []`, `op .*`, `op ->*` and `op ->` may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. For a place overload, the `const self` version returns `*const T` where the `self` version returns `*T` (see [Places and values](#places-and-values------)). This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions#const-overloading-restriction) for details.
 
 ```kairo
 class Buffer {
@@ -2922,7 +2922,7 @@ the same as for a named method.
 struct V {
     var x: i32
     fn op + (self, o: V) -> V { /* ... */ }
-    fn op + (const self, o: V) -> V { /* ... */ }   // error: only place operators overload on const-ness
+    fn op + (const self, o: V) -> V { /* ... */ }   // error: only [], .*, ->* and -> overload on const-ness
 }
 ```
 
@@ -2965,6 +2965,43 @@ if 2 in s { /* ... */ }      // calls the bool variant
 for x in s {                 // calls the yield variant
     std::println(f"{x}")
 }
+```
+
+### Places and values: `[]`, `.*`, `->*`, `->`
+
+`op []`, `op .*` and `op ->*` are either **place** or **value** operators. The declared return type
+decides which.
+
+A safe pointer return (`*T` or `*const T`) makes it a place:
+
+- `a[i]` is the `T` the pointer points at. It is an lvalue, and `const` if the pointer was.
+- `a[i] = x` and `a[i] += 1` write into `self`, and `&a[i]` gives the pointer back.
+- C++ sees the operator as returning `T&` / `const T&`.
+
+Any other return makes it a value operator: `a[i]` is the returned value, an rvalue. You can read it but
+not assign to it, and `&a[i]` is an error.
+
+`unsafe *T` is rejected as a return type, because it is neither a place nor a value. A pointer return from
+`[]`, `.*` or `->*` always means a place, so these operators cannot return a pointer by value. Use a named
+method to hand out a pointer.
+
+`op ->` isn't part of this rule. It must return `*T` or `*const T`, and `->` is then applied to that
+result, as with C++'s `operator->`. `unsafe *T` is rejected there too.
+
+Both kinds can be overloaded on a `const self` receiver.
+
+```kairo
+struct <T> Buf {
+    var data: [T; 4]
+    fn op [](self, i: usize) -> *T { return &self.data[i] }                  // place
+    fn op [](const self, i: usize) -> *const T { return &self.data[i] }      // place, const receiver
+    fn op [](self, r: Range<usize>) -> [T;] { ... }                          // value: a slice
+}
+
+var b = Buf<i32>{ data: [1, 2, 3, 4] }
+b[0] = 10          // through the place
+var s = b[0..2]    // a new value
+var p = &b[1]      // *i32 into b.data
 ```
 
 ### Delete Operator

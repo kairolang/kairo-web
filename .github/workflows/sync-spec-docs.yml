@@ -1,0 +1,53 @@
+name: Sync Language Docs to Spec
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/content/docs/language/**']
+  workflow_dispatch:
+
+concurrency:
+  group: sync-spec-docs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout kairo-web
+        uses: actions/checkout@v4
+
+      - name: Checkout kairo
+        uses: actions/checkout@v4
+        with:
+          repository: kairolang/kairo
+          path: kairo
+          token: ${{ secrets.WIKI_SYNC_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Copy and convert language docs
+        run: |
+          set -euo pipefail
+          dst=kairo/Spec/Docs
+
+          # Drop old docs; __convert.py and README stay
+          find "$dst" -maxdepth 1 \( -name '*.md' -o -name '*.mdx' \) -delete
+          cp src/content/docs/language/*.mdx "$dst"/
+
+          (cd "$dst" && python __convert.py)
+
+      - name: Commit and push
+        working-directory: kairo
+        run: |
+          git config user.name "kairo-docs-bot"
+          git config user.email "docs@kairolang.org"
+          git add -A Spec/Docs
+          git diff --staged --quiet || {
+            git commit -m "[docs] sync language docs from kairo-web@${GITHUB_SHA:0:7}"
+            git push
+          }
