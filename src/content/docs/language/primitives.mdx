@@ -69,7 +69,7 @@ Extended-width integers are always stack-allocated they are value types, not hea
 
 ## Floating-Point
 
-All floating-point types follow the IEEE 754 standard. The default float type is `f64` if a literal doesn't
+All floating-point types except `f80` follow the IEEE 754 standard. The default float type is `f64` if a literal doesn't
 fit in `f64`, the compiler promotes to the smallest float type that can hold the value, up to `f512`.
 
 | Type | Size | Precision | C++ Equivalent |
@@ -77,6 +77,7 @@ fit in `f64`, the compiler promotes to the smallest float type that can hold the
 | `f16` | 2 bytes | Half (IEEE 754-2008) | `_Float16` |
 | `f32` | 4 bytes | Single | `float` |
 | `f64` | 8 bytes | Double | `double` |
+| `f80` | 16 bytes (12 on i386); 10 hold the value | x87 extended; only on some targets, see below | `long double` |
 | `f128` | 16 bytes | Quadruple | `__float128` |
 | `f256` | 32 bytes | Extended (software) |   |
 | `f512` | 64 bytes | Extended (software) |   |
@@ -95,6 +96,32 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 > `f256` and `f512` are not natively supported on any current hardware and are implemented entirely in software,
 > using SIMD instructions when available. Like extended-width integers, they are stack-allocated value types.
 > Expect significantly lower performance compared to hardware-backed float types.
+
+### `f80` follows the target's `long double`
+
+`f80` is the x87 80-bit extended format, and it is C's `long double`. It exists only where the target ABI's
+`long double` is x87 extended precision. That is a property of the ABI, not the CPU:
+
+| Target | `long double` | `f80` |
+|---|---|---|
+| x86_64 Linux, BSD, macOS | x87 extended | available |
+| i386 Linux | x87 extended | available |
+| x86_64 Windows (MSVC) | binary64, despite the x87 hardware | not available |
+| x86_64 Android | binary128 | not available |
+| AArch64 and RISC-V Linux | binary128 | not available |
+| Apple ARM, Windows on ARM | binary64 | not available |
+
+Anywhere else, writing `f80` is an error (P003E). The error names the target and what its `long double` is,
+and suggests `f64` where `long double` is binary64 and `f128` where it is binary128. Kairo never silently
+substitutes another float type for `f80`.
+
+```kairo
+// building for x86_64-unknown-linux-gnu
+var x: f80 = 1.0    // ok
+
+// building for aarch64-unknown-linux-gnu
+var y: f80 = 1.0    // error P003E: long double is binary128 here; use f128
+```
 
 ---
 

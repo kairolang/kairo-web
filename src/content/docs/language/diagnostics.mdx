@@ -165,3 +165,63 @@ blit(4, scale: 2)            // error SC107E
 
 **Fix:** pass the earlier arguments explicitly: `blit(4, y: 0, scale: 2)`. See
 [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+
+---
+
+## Lifecycle
+
+### SC110E: a constructor has the shape of a transfer constructor but is not declared as one
+
+A constructor that takes `Self` first and defaults every later parameter is a transfer constructor, and is
+written only as `@copy fn X(self, const other: Self)` or `@move fn X(self, other: Self)`.
+
+```kairo
+fn X(self, other: Self) { }               // error SC110E: no marker
+fn X(self, @move other: Self) { }         // error SC110E: a mode on the parameter
+fn X(self, other: Self, k: i32 = 0) { }   // error SC110E: a defaulted extra parameter
+```
+
+**Fix:** put `@copy` or `@move` on the constructor and write the parameter bare. See
+[Classes](/docs/language/classes#the-transfer-constructor).
+
+---
+
+## Generators
+
+### SC111E: `yield` where nothing can yield
+
+`yield` is allowed only in a function declared `-> yield T`. It is an error outside a function, inside a
+closure, or in a function with any other return type.
+
+```kairo
+fn count() -> i32 {
+    yield 1          // error SC111E
+    return 0
+}
+```
+
+**Fix:** declare the function `-> yield T`, or remove the `yield`. See
+[Generators](/docs/language/functions#generators).
+
+### SC112E: this kind of function cannot be a generator
+
+`main`, constructors, destructors (`op delete`), `eval` functions, C-variadic functions, and functions
+returning `!` cannot be declared `-> yield T`.
+
+```kairo
+fn main() -> yield i32 { }   // error SC112E
+```
+
+**Fix:** move the sequence into a separate `-> yield T` function and call it from here.
+
+---
+
+## Portability
+
+### P003E: a primitive type is not available on the target
+
+`f80` exists only where the target ABI's `long double` is x87 extended precision. The error names the target
+and what its `long double` is.
+
+**Fix:** use `f64` where `long double` is binary64, or `f128` where it is binary128. See
+[Primitives](/docs/language/primitives#f80-follows-the-targets-long-double).

@@ -257,6 +257,10 @@ Every non-entry module can emit a C++ header. `--emit-headers <dir>` writes one 
 
 A header contains the module's `pub` declarations in their canonical namespaces, declarations only: class layouts, function signatures, enum definitions. Function bodies are in the module's object file; you compile the module with Kairo and link the result. A header `#include`s the headers of modules its layouts depend on and forward-declares everything else, so including one module does not drag in the tree.
 
+A module that defines nothing (only comments, or only `pub import` re-exports) produces no object file and no
+header. C++ code that would include the header of a re-export-only module includes the headers of the modules
+it re-exports instead.
+
 ### What a Kairo declaration looks like in C++
 
 | Kairo | C++ |
@@ -270,8 +274,13 @@ A header contains the module's `pub` declarations in their canonical namespaces,
 | `x: i32`, `x: f64`, `x: usize` | `std::int32_t`, `double`, `std::size_t` |
 | `p: *T` | `T*` |
 | `@inout x: T`, `@move x: T` | `T&`, `T&&` |
+| `type Name = T` inside a class | `using Name = T;` member, under the same access level |
+| `@no_unwind fn f()` | `void f() noexcept` |
 
 Extension methods are not C++ member functions. Kairo keeps a class's C++ definition identical everywhere it appears, so a method added by `extend` — even in the same file — is a free function taking the receiver as its first parameter. Call it as `geo::vec::len(&v)`.
+
+Member type aliases are visible to C++: a class's `type promise_type = ...` is the C++ member
+`promise_type`, so C++ code that looks a member type up by name finds it.
 
 ### Generics
 
@@ -761,7 +770,7 @@ which is deliberately TU-local.
 Kairo and C++ signal failure differently, and the two models meet at one place: a Kairo `try`/`catch`.
 
 - **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic): a tagged union value returned to
-  the caller. Every Kairo function is `noexcept`.
+  the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
 - **`try`/`catch` handles both.** Around a Kairo call it lowers to a `match` on the returned tagged union.
   Around a C++ call it catches C++ exceptions through the unwinder.
@@ -790,21 +799,21 @@ unwind info for exactly those frames: a Kairo function gets it only when it sits
 > [!NOTE]
 > Unlike Kairo's [panic system](/docs/language/panic), the compiler cannot statically determine every exception
 > type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue
-> to the next enclosing Kairo `try`. An exception that no Kairo `try` catches reaches a `noexcept` frame, and
-> the runtime calls `std::terminate`.
+> to the next enclosing Kairo `try`. An exception that no Kairo `try` catches keeps unwinding like any C++
+> exception. If it reaches a [`@no_unwind`](/docs/language/attributes#unwinding) function, the program
+> terminates (`std::terminate`).
 
-### Kairo → C++: every Kairo function is `noexcept`
+### Kairo → C++: Kairo never throws
 
 Kairo does not throw. `panic` is a checked effect with a typed, inferred set: a Kairo error is a tagged union
 value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
-Emitted declarations are therefore **`noexcept` unconditionally**, and this is a structural property rather than
-a promise:
-
-- A C++ caller never needs a `try`/`catch` around a Kairo call.
-- A C++ exception cannot leave Kairo code through a Kairo entry point. It is either caught by a Kairo `try` or
-  ends in `std::terminate`.
-- `noexcept`-conditional C++ code that calls into Kairo takes the `noexcept(true)` branch.
+- A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
+- A C++ exception thrown by C++ code that Kairo calls can unwind through Kairo frames, unless a Kairo `try`
+  catches it.
+- A function marked [`@no_unwind`](/docs/language/attributes#unwinding) has `noexcept` on its generated C++
+  declaration and definition, so `noexcept`-conditional C++ code that calls it takes the `noexcept(true)`
+  branch. An exception that reaches it terminates the program.
 
 #### The value API
 
@@ -818,7 +827,7 @@ exception. The conversion is a method on the result type rather than a second en
 generated symbol, no name collisions, and it composes with the rest of an expression.
 
 The conversion is **generated C++**. It inspects the tag and throws from the C++ side of the boundary. Kairo
-itself still never unwinds, and the `noexcept` guarantee on the real entry point is unaffected. C++ callers who
+itself still never throws, and the real entry point is unaffected. C++ callers who
 want exceptions get them; callers who want values keep the value API.
 
 Throwing a Kairo error *out of Kairo* is not a roadmap item — it is excluded by the effect system. The conversion
@@ -844,7 +853,7 @@ the behavior of `extern "C++"` and `extern "C"` in C++.
 
 Two Kairo-specific guarantees strengthen the baseline:
 
-- **Every Kairo function is `noexcept`.** See [above](#kairo--c-every-kairo-function-is-noexcept).
+- **Kairo never throws.** See [above](#kairo--c-kairo-never-throws).
 - **ABI settings are recorded in the object and verified at link.** See
   [Link-time ABI verification](#link-time-abi-verification).
 

@@ -207,7 +207,7 @@ interface Copyable {
     fn Copyable(self)               // default ctor
 
     @copy
-    fn Copyable(self, other: Self)
+    fn Copyable(self, const other: Self)
 }
 
 interface Moveable {
