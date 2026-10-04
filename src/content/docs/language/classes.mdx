@@ -304,21 +304,26 @@ above the declaration:
 
 ```kairo
 @copy
-fn Buffer(self, other: Self) = default
+fn Buffer(self, const other: Self) = default
 ```
 
-Inline placement (`@copy fn Buffer(self, other: Self) = default`) is permitted but discouraged. See
+Inline placement (`@copy fn Buffer(self, const other: Self) = default`) is permitted but discouraged. See
 [Attributes](/docs/language/attributes) for the full attribute syntax.
 
 ### The transfer constructor
 
-A constructor with the signature `fn Class(self, other: Self)` is the **transfer constructor**. It governs
-how instances of the class are passed by value. The attribute on this constructor selects the category:
+The **transfer constructor** governs how instances of the class are passed by value. It is written in
+exactly one of two forms, with the marker on the constructor and the parameter otherwise bare:
+
+| Form | Meaning | C++ |
+|---|---|---|
+| `@copy fn X(self, const other: Self)` | the usual copy | `X(const X&)` |
+| `@move fn X(self, other: Self)` | move | `X(X&&)` |
 
 ```kairo
 class Buffer {
     @copy
-    fn Buffer(self, other: Self) = default
+    fn Buffer(self, const other: Self) = default
 }
 
 class UniqueFile {
@@ -327,14 +332,40 @@ class UniqueFile {
 }
 ```
 
-A transfer constructor without an attribute defaults to `@copy`. A class with no transfer constructor at
-all is implicitly **COPY** with all four special members compiler-generated.
+`@copy` without `const` (`@copy fn X(self, other: Self)`, C++ `X(X&)`) is allowed, but it cannot copy from a
+`const` object or from a temporary. `@move` cannot take `const`: a move leaves its source empty.
+
+Any other constructor that takes `Self` first and defaults every later parameter is a compile error
+(SC110E):
+
+```kairo
+class X {
+    fn X(self, other: Self) { }                 // error: no marker
+    fn X(self, @move other: Self) { }           // error: a mode on the parameter is not a marker
+    fn X(self, other: Self, k: i32 = 0) { }     // error: a defaulted extra parameter
+    @move fn X(self, const other: Self) { }     // error: @move cannot take const
+}
+```
+
+A constructor that takes `Self` first and then a parameter **without** a default is an ordinary
+constructor:
+
+```kairo
+class X {
+    fn X(self, other: Self, extra: i32) { }     // ok: not a transfer constructor
+}
+```
+
+A move is written bare at the call site, `X(h)`, with no marker on the argument.
+
+A class with no transfer constructor at all is implicitly **COPY** with all four special members
+compiler-generated.
 
 A class cannot define both `@copy` and `@move` transfer constructors pick one:
 
 ```kairo
 class Bad {
-    @copy fn Bad(self, other: Self) = default
+    @copy fn Bad(self, const other: Self) = default
     @move fn Bad(self, other: Self) = default   // compile error
 }
 ```
@@ -357,7 +388,7 @@ class ScopeLock {
     fn ScopeLock(self) = default
 
     @copy
-    fn ScopeLock(self, other: Self) = delete
+    fn ScopeLock(self, const other: Self) = delete
 
     @move
     fn ScopeLock(self, other: Self) = delete
@@ -432,7 +463,7 @@ class UniqueFile {
     //   help: declare as @move:
     //           @move fn UniqueFile(self, other: Self) = default
     //   help: or explicitly delete copy:
-    //           @copy fn UniqueFile(self, other: Self) = delete
+    //           @copy fn UniqueFile(self, const other: Self) = delete
 }
 ```
 
@@ -804,7 +835,7 @@ interface Copyable {
     fn Copyable(self)               // default ctor
 
     @copy
-    fn Copyable(self, other: Self)
+    fn Copyable(self, const other: Self)
 }
 
 fn <T impl Copyable> store(item: T) -> T { ... }
@@ -900,6 +931,30 @@ top-level variables, local variables, or `const`/`eval`/`static` declarations.
 > `mutable` breaks the semantic guarantee that `const` methods do not modify the object. Use it sparingly
 > caching, reference counting, and lazy initialization are the canonical use cases. If you find
 > yourself marking many members `mutable`, reconsider the `const` boundary.
+
+---
+
+## `inline` Methods
+
+`inline` puts the body in the interface: importers compile it themselves. Use it for small functions on
+hot paths, and for functions the C++ compiler calls on your behalf (coroutine promises and awaiters).
+
+```kairo
+pub class Gate {
+    pub var open: bool
+    pub inline fn is_open(self) -> bool { return self.open }
+}
+```
+
+Every module that uses `Gate` compiles `is_open` itself, so a call to it can be inlined there. Every
+`inline` method of a class goes with the class, whether or not Kairo code calls it, because the C++
+compiler may call methods Kairo never sees (`await_ready`, `initial_suspend`, ...). The class definition
+itself is unchanged: the bodies are emitted after it, outside it. See [Functions](/docs/language/functions#inline)
+for the rules.
+
+`inline` is allowed on `virtual` and `override` methods. If every virtual method of a class is `inline`, the
+class has no key function, so its vtable is emitted in every object that uses the class. That is correct;
+it costs only size.
 
 ---
 

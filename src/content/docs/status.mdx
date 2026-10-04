@@ -46,6 +46,11 @@ Three [`extend`](/docs/language/extends) rules are not diagnosed yet:
 - An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See
   [Interface Conformance](/docs/language/extends#interface-conformance).
 
+A [generator](/docs/language/functions#generator-lifetimes) that outlives the object it was created from, or
+an `@inout` argument it was given, is not caught; it dangles. This becomes an error when
+[Tether](/docs/language/tether) covers generators. Until then, do not keep a generator longer than the object
+it came from.
+
 ---
 
 ## Language Gaps

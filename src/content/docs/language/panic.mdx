@@ -271,7 +271,7 @@ This means:
   handles efficiently)
 - No stack unwinding errors propagate via normal return values
 - No unwinding tables for panics smaller executables
-- All functions in Kairo are `noexcept` at the ABI level
+- No Kairo function throws; only a C++ exception can unwind through Kairo code
 
 > [!NOTE]
 > The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use

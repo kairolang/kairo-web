@@ -49,7 +49,7 @@ class Buffer {
     var data: [i32]
 
     @copy
-    fn Buffer(self, other: Self) = default
+    fn Buffer(self, const other: Self) = default
 }
 
 var a = Buffer()
@@ -98,7 +98,7 @@ are created:
 
 ```kairo
 class ScopeLock {
-    @copy fn ScopeLock(self, other: Self) = delete
+    @copy fn ScopeLock(self, const other: Self) = delete
     @move fn ScopeLock(self, other: Self) = delete
 }
 

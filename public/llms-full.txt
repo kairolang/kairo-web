@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-02T13:51:30.427Z
+> Generated: 2026-10-04T00:26:14.757Z
 
 ---
 
@@ -933,15 +933,15 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   support overloading and seamless interop with Clang-compiled C++ code.
   Explicit `ffi "C"` linkage (no mangling) is only used for C interop or
   when specifically requested.
-- Every Kairo function is `noexcept` at the ABI level. Kairo never throws:
+- Kairo never throws:
   panics are returned as tagged union values, and a Kairo `try`/`catch` around
   a Kairo call lowers to a `match` on that union.
 - A C++ exception can be caught by a Kairo `try`/`catch`. It is unwound by the
   platform unwinder (libunwind on Unix-like systems) using the standard
   unwind tables (`.eh_frame` / `__eh_frame`). The compiler emits unwind info
   only for Kairo frames between a C++ call and a Kairo `try` that can catch
-  from it. A C++ exception that no Kairo `try` catches reaches a `noexcept`
-  frame and calls `std::terminate`.
+  from it. A C++ exception that no Kairo `try` catches keeps unwinding; if it
+  reaches a `@no_unwind` function, the program calls `std::terminate`.
 - Virtual dispatch into C++ classes works without special handling because Kairo
   lowers method calls on C++ objects directly to Clang, which handles vtable
   dispatch normally.
@@ -1078,6 +1078,11 @@ Three [`extend`](/docs/language/extends) rules are not diagnosed yet:
 - An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See
   [Interface Conformance](/docs/language/extends#interface-conformance).
 
+A [generator](/docs/language/functions#generator-lifetimes) that outlives the object it was created from, or
+an `@inout` argument it was given, is not caught; it dangles. This becomes an error when
+[Tether](/docs/language/tether) covers generators. Until then, do not keep a generator longer than the object
+it came from.
+
 ---
 
 ## Language Gaps
@@ -1164,7 +1169,7 @@ Extended-width integers are always stack-allocated they are value types, not hea
 
 ## Floating-Point
 
-All floating-point types follow the IEEE 754 standard. The default float type is `f64` if a literal doesn't
+All floating-point types except `f80` follow the IEEE 754 standard. The default float type is `f64` if a literal doesn't
 fit in `f64`, the compiler promotes to the smallest float type that can hold the value, up to `f512`.
 
 | Type | Size | Precision | C++ Equivalent |
@@ -1172,6 +1177,7 @@ fit in `f64`, the compiler promotes to the smallest float type that can hold the
 | `f16` | 2 bytes | Half (IEEE 754-2008) | `_Float16` |
 | `f32` | 4 bytes | Single | `float` |
 | `f64` | 8 bytes | Double | `double` |
+| `f80` | 16 bytes (12 on i386); 10 hold the value | x87 extended; only on some targets, see below | `long double` |
 | `f128` | 16 bytes | Quadruple | `__float128` |
 | `f256` | 32 bytes | Extended (software) |   |
 | `f512` | 64 bytes | Extended (software) |   |
@@ -1190,6 +1196,32 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 > `f256` and `f512` are not natively supported on any current hardware and are implemented entirely in software,
 > using SIMD instructions when available. Like extended-width integers, they are stack-allocated value types.
 > Expect significantly lower performance compared to hardware-backed float types.
+
+### `f80` follows the target's `long double`
+
+`f80` is the x87 80-bit extended format, and it is C's `long double`. It exists only where the target ABI's
+`long double` is x87 extended precision. That is a property of the ABI, not the CPU:
+
+| Target | `long double` | `f80` |
+|---|---|---|
+| x86_64 Linux, BSD, macOS | x87 extended | available |
+| i386 Linux | x87 extended | available |
+| x86_64 Windows (MSVC) | binary64, despite the x87 hardware | not available |
+| x86_64 Android | binary128 | not available |
+| AArch64 and RISC-V Linux | binary128 | not available |
+| Apple ARM, Windows on ARM | binary64 | not available |
+
+Anywhere else, writing `f80` is an error (P003E). The error names the target and what its `long double` is,
+and suggests `f64` where `long double` is binary64 and `f128` where it is binary128. Kairo never silently
+substitutes another float type for `f80`.
+
+```kairo
+// building for x86_64-unknown-linux-gnu
+var x: f80 = 1.0    // ok
+
+// building for aarch64-unknown-linux-gnu
+var y: f80 = 1.0    // error P003E: long double is binary128 here; use f128
+```
 
 ---
 
@@ -3883,11 +3915,12 @@ fn name(param1: Type1, param2: Type2) -> ReturnType {
 The full grammar:
 
 ```bnf
-function_declaration ::= visibility? abi_mod? "fn" generics? identifier
+function_declaration ::= visibility? abi_mod? leading_mods? "fn" generics? identifier
                          "(" parameter_list? ")" function_mods? ("->" return_type)? constraint? body
 
 visibility    ::= "pub" | "priv" | "prot"
 abi_mod       ::= ("ffi" string_literal) | "static" | "virtual" | "override"
+leading_mods  ::= ("inline" | "eval")*       ; same meaning as in function_mods
 generics      ::= "<" generic_param_list ">"
 function_mods ::= ("const" | "volatile" | "unsafe" | "eval" | "async" | "final" | "panic" | "inline")*
 constraint    ::= "requires" expression
@@ -4332,21 +4365,77 @@ its respective page:
 
 | Return type | Description | Details |
 |---|---|---|
-| `yield T` | Coroutine yields values of type `T` cooperatively | [Concurrency](/docs/language/concurrency) |
+| `yield T` | Generator: produces a sequence of `T` values | [Generators](#generators) |
 | `atomic T` | Atomic wrapper thread-safe operations | [Concurrency](/docs/language/concurrency) |
 | `thread T` | Thread-local storage | [Concurrency](/docs/language/concurrency) |
+
+### Generators
+
+A function is a **generator** when its return type is written `-> yield T`. Calling it does not run the body;
+it returns a sequence that runs the body a step at a time as values are asked for, most often by a `for` loop.
 
 ```kairo
 fn generate_numbers() -> yield i32 {
     for i in 0..10 {
-        yield i   // yield, not return function must have a yield return type
+        yield i
     }
+}
+
+for n in generate_numbers() {
+    std::println(n)
 }
 ```
 
+Only the written return type makes a generator. A spelled-out `-> Yield<T>` is an ordinary function that
+returns a `Yield<T>` value, and a `yield` in the body does not turn a function into a generator.
+
+In a generator's body:
+
+- `yield e` produces the next value. `e` must convert to `T`.
+- Yielding a slice literal is an error: its backing array ends at the suspension, before the caller sees the
+  value.
+- A bare `return` ends the sequence early. `return e` is an error, since a generator has no return value.
+- Falling off the end of the body also ends the sequence. There is no missing-return error.
+- A generator with no `yield` at all is valid and produces nothing.
+
+```kairo
+fn first_positive(xs: [i32;]) -> yield i32 {
+    for x in xs {
+        if x > 0 {
+            yield x
+            return      // ok: ends the sequence
+        }
+    }
+}                       // ok: falling off the end also ends it
+```
+
+`yield` is an error (SC111E):
+
+- outside a function;
+- inside a closure (closures cannot yield yet);
+- in a function not declared `-> yield T`.
+
+These functions cannot be generators (SC112E): `main`, constructors, destructors (`op delete`), `eval`
+functions, C-variadic functions, and functions returning `!`.
+
+#### Generator lifetimes
+
+A generator can do one thing an ordinary function cannot: its suspended body keeps references to `self` and
+to `@inout` arguments after the call that created it has returned.
+
+- A loop like `for x in xs.gen()` keeps `xs` alive for the whole loop, so it is safe.
+- A generator stored in a variable can outlive what it refers to, and then dangles.
+
+Do not keep a generator longer than the object it was created from.
+
+```kairo
+var it = make_list().gen()   // the list is destroyed at the end of this statement
+for x in it { }              // it reads a destroyed list
+```
+
 > [!NOTE]
-> Functions with a `yield` return type cannot use `return` to produce values only `yield`. A bare `return`
-> (no operand) is permitted to terminate the coroutine early.
+> The current compiler does not report a generator that outlives what it refers to. See
+> [Implementation Status](/docs/status#not-diagnosed).
 
 ---
 
@@ -4587,7 +4676,8 @@ dispatch.
 ## Function Modifiers
 
 Modifiers appear after the parameter list and before the return type arrow. Multiple modifiers can be
-combined, subject to the compatibility rules below.
+combined, subject to the compatibility rules below. `inline` and `eval` may also be written before `fn`
+(`pub inline fn twice(x: i32) -> i32`); both positions mean the same thing.
 
 ```kairo
 fn compute(x: i32) inline -> i32       { return x * x }
@@ -4607,8 +4697,26 @@ fn background() async -> Data          { /* ... */ }
 | `eval` | Yes | Yes | Must be evaluable at compile time. See [Eval](/docs/language/eval) |
 | `async` | Yes | Yes | Asynchronous execution. See [Concurrency](/docs/language/concurrency) |
 | `panic` | Yes | Yes | May panic; callers must handle. See [Panic](/docs/language/panic) |
-| `inline` | Yes | Yes | Hint to inline at call sites |
+| `inline` | Yes | Yes | Puts the body in the interface. See [`inline`](#inline) |
 | `final` | | Yes | Prevents override in subclasses. See [Classes](/docs/language/classes) |
+
+### `inline`
+
+`inline` puts the body in the interface: importers compile it themselves. Use it for small functions on
+hot paths, and for functions the C++ compiler calls on your behalf (coroutine promises and awaiters).
+
+```kairo
+pub inline fn twice(x: i32) -> i32 { return x * 2 }
+```
+
+Every module that can see the declaration gets the definition and compiles it, so the optimizer can inline
+the call there. In C++ terms it is an `inline` function: one shared definition that the linker merges across
+objects. It is not a request to force inlining.
+
+- An `inline` function must have a body, in the same file as its declaration (an in-class declaration may be
+  defined out of line in that file). An `inline` declaration with no body is an error.
+- Every declaration of the function must agree on `inline`.
+- Unused `inline` bodies cost parse time only: no code is generated for one nothing calls.
 
 ### Modifier compatibility
 
@@ -5502,21 +5610,26 @@ above the declaration:
 
 ```kairo
 @copy
-fn Buffer(self, other: Self) = default
+fn Buffer(self, const other: Self) = default
 ```
 
-Inline placement (`@copy fn Buffer(self, other: Self) = default`) is permitted but discouraged. See
+Inline placement (`@copy fn Buffer(self, const other: Self) = default`) is permitted but discouraged. See
 [Attributes](/docs/language/attributes) for the full attribute syntax.
 
 ### The transfer constructor
 
-A constructor with the signature `fn Class(self, other: Self)` is the **transfer constructor**. It governs
-how instances of the class are passed by value. The attribute on this constructor selects the category:
+The **transfer constructor** governs how instances of the class are passed by value. It is written in
+exactly one of two forms, with the marker on the constructor and the parameter otherwise bare:
+
+| Form | Meaning | C++ |
+|---|---|---|
+| `@copy fn X(self, const other: Self)` | the usual copy | `X(const X&)` |
+| `@move fn X(self, other: Self)` | move | `X(X&&)` |
 
 ```kairo
 class Buffer {
     @copy
-    fn Buffer(self, other: Self) = default
+    fn Buffer(self, const other: Self) = default
 }
 
 class UniqueFile {
@@ -5525,14 +5638,40 @@ class UniqueFile {
 }
 ```
 
-A transfer constructor without an attribute defaults to `@copy`. A class with no transfer constructor at
-all is implicitly **COPY** with all four special members compiler-generated.
+`@copy` without `const` (`@copy fn X(self, other: Self)`, C++ `X(X&)`) is allowed, but it cannot copy from a
+`const` object or from a temporary. `@move` cannot take `const`: a move leaves its source empty.
+
+Any other constructor that takes `Self` first and defaults every later parameter is a compile error
+(SC110E):
+
+```kairo
+class X {
+    fn X(self, other: Self) { }                 // error: no marker
+    fn X(self, @move other: Self) { }           // error: a mode on the parameter is not a marker
+    fn X(self, other: Self, k: i32 = 0) { }     // error: a defaulted extra parameter
+    @move fn X(self, const other: Self) { }     // error: @move cannot take const
+}
+```
+
+A constructor that takes `Self` first and then a parameter **without** a default is an ordinary
+constructor:
+
+```kairo
+class X {
+    fn X(self, other: Self, extra: i32) { }     // ok: not a transfer constructor
+}
+```
+
+A move is written bare at the call site, `X(h)`, with no marker on the argument.
+
+A class with no transfer constructor at all is implicitly **COPY** with all four special members
+compiler-generated.
 
 A class cannot define both `@copy` and `@move` transfer constructors pick one:
 
 ```kairo
 class Bad {
-    @copy fn Bad(self, other: Self) = default
+    @copy fn Bad(self, const other: Self) = default
     @move fn Bad(self, other: Self) = default   // compile error
 }
 ```
@@ -5555,7 +5694,7 @@ class ScopeLock {
     fn ScopeLock(self) = default
 
     @copy
-    fn ScopeLock(self, other: Self) = delete
+    fn ScopeLock(self, const other: Self) = delete
 
     @move
     fn ScopeLock(self, other: Self) = delete
@@ -5630,7 +5769,7 @@ class UniqueFile {
     //   help: declare as @move:
     //           @move fn UniqueFile(self, other: Self) = default
     //   help: or explicitly delete copy:
-    //           @copy fn UniqueFile(self, other: Self) = delete
+    //           @copy fn UniqueFile(self, const other: Self) = delete
 }
 ```
 
@@ -6002,7 +6141,7 @@ interface Copyable {
     fn Copyable(self)               // default ctor
 
     @copy
-    fn Copyable(self, other: Self)
+    fn Copyable(self, const other: Self)
 }
 
 fn <T impl Copyable> store(item: T) -> T { ... }
@@ -6098,6 +6237,30 @@ top-level variables, local variables, or `const`/`eval`/`static` declarations.
 > `mutable` breaks the semantic guarantee that `const` methods do not modify the object. Use it sparingly
 > caching, reference counting, and lazy initialization are the canonical use cases. If you find
 > yourself marking many members `mutable`, reconsider the `const` boundary.
+
+---
+
+## `inline` Methods
+
+`inline` puts the body in the interface: importers compile it themselves. Use it for small functions on
+hot paths, and for functions the C++ compiler calls on your behalf (coroutine promises and awaiters).
+
+```kairo
+pub class Gate {
+    pub var open: bool
+    pub inline fn is_open(self) -> bool { return self.open }
+}
+```
+
+Every module that uses `Gate` compiles `is_open` itself, so a call to it can be inlined there. Every
+`inline` method of a class goes with the class, whether or not Kairo code calls it, because the C++
+compiler may call methods Kairo never sees (`await_ready`, `initial_suspend`, ...). The class definition
+itself is unchanged: the bodies are emitted after it, outside it. See [Functions](/docs/language/functions#inline)
+for the rules.
+
+`inline` is allowed on `virtual` and `override` methods. If every virtual method of a class is `inline`, the
+class has no key function, so its vtable is emitted in every object that uses the class. That is correct;
+it costs only size.
 
 ---
 
@@ -7769,7 +7932,7 @@ interface Copyable {
     fn Copyable(self)               // default ctor
 
     @copy
-    fn Copyable(self, other: Self)
+    fn Copyable(self, const other: Self)
 }
 
 interface Moveable {
@@ -10053,7 +10216,7 @@ class Buffer {
     var data: [i32]
 
     @copy
-    fn Buffer(self, other: Self) = default
+    fn Buffer(self, const other: Self) = default
 }
 
 var a = Buffer()
@@ -10102,7 +10265,7 @@ are created:
 
 ```kairo
 class ScopeLock {
-    @copy fn ScopeLock(self, other: Self) = delete
+    @copy fn ScopeLock(self, const other: Self) = delete
     @move fn ScopeLock(self, other: Self) = delete
 }
 
@@ -12059,7 +12222,7 @@ This means:
   handles efficiently)
 - No stack unwinding errors propagate via normal return values
 - No unwinding tables for panics smaller executables
-- All functions in Kairo are `noexcept` at the ABI level
+- No Kairo function throws; only a C++ exception can unwind through Kairo code
 
 > [!NOTE]
 > The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use
@@ -13386,8 +13549,8 @@ Attributes can be attached to any AST node:
 
 ```kairo
 // On a function
-@inline
-fn hot_path(x: i32) -> i32 { ... }
+@no_unwind
+fn checksum(data: [u8;]) -> u32 { ... }
 
 // On a class
 @packed
@@ -13438,6 +13601,35 @@ See [Control Flow](/docs/language/control-flow#branch-hints) for branch predicti
 |---|---|---|
 | `@no_warn(CODE)` | Suppress a specific compiler warning | Any declaration |
 | `@deprecated(msg)` | Mark a declaration as deprecated | Any declaration |
+
+### Unwinding
+
+| Attribute | Description | Applies to |
+|---|---|---|
+| `@no_unwind` | Promise that the function never unwinds | Functions |
+
+`@no_unwind` marks the function's generated C++ declaration and definition `noexcept`. That is all it
+does: nothing checks the promise. If a `@no_unwind` function does unwind, for example because a C++
+exception passes through it, the program terminates (`std::terminate`).
+
+```kairo
+@no_unwind
+fn add(a: i32, b: i32) -> i32 { return a + b }   // C++: int add(int a, int b) noexcept
+```
+
+Writing `@no_unwind` on any one declaration of a function covers all of them: a forward declaration, the
+declaration inside a class, or the out-of-line definition.
+
+```kairo
+class Counter {
+    var n: i32
+    @no_unwind fn get(const self) -> i32     // declared here...
+}
+
+fn Counter::get(const self) -> i32 { return self.n }   // ...so this definition is noexcept too
+```
+
+See [Exceptions](/docs/language/c-cpp#exceptions) for how C++ exceptions move through Kairo code.
 
 ### Other
 
@@ -13939,9 +14131,9 @@ See [Functions](/docs/language/functions#function-modifiers) for the `async` mod
 
 ### Coroutines (`yield`)
 
-Functions with a `yield T` return type produce values cooperatively. The `yield` keyword suspends
-the function and produces a value to the caller. See
-[Functions](/docs/language/functions#special-return-types) for yield return types.
+Functions with a `yield T` return type are generators: they produce values cooperatively. The `yield`
+keyword suspends the function and produces a value to the caller. See
+[Generators](/docs/language/functions#generators) for the rules.
 
 ### `spawn`
 
@@ -14247,6 +14439,10 @@ Every non-entry module can emit a C++ header. `--emit-headers <dir>` writes one 
 
 A header contains the module's `pub` declarations in their canonical namespaces, declarations only: class layouts, function signatures, enum definitions. Function bodies are in the module's object file; you compile the module with Kairo and link the result. A header `#include`s the headers of modules its layouts depend on and forward-declares everything else, so including one module does not drag in the tree.
 
+A module that defines nothing (only comments, or only `pub import` re-exports) produces no object file and no
+header. C++ code that would include the header of a re-export-only module includes the headers of the modules
+it re-exports instead.
+
 ### What a Kairo declaration looks like in C++
 
 | Kairo | C++ |
@@ -14260,8 +14456,13 @@ A header contains the module's `pub` declarations in their canonical namespaces,
 | `x: i32`, `x: f64`, `x: usize` | `std::int32_t`, `double`, `std::size_t` |
 | `p: *T` | `T*` |
 | `@inout x: T`, `@move x: T` | `T&`, `T&&` |
+| `type Name = T` inside a class | `using Name = T;` member, under the same access level |
+| `@no_unwind fn f()` | `void f() noexcept` |
 
 Extension methods are not C++ member functions. Kairo keeps a class's C++ definition identical everywhere it appears, so a method added by `extend` — even in the same file — is a free function taking the receiver as its first parameter. Call it as `geo::vec::len(&v)`.
+
+Member type aliases are visible to C++: a class's `type promise_type = ...` is the C++ member
+`promise_type`, so C++ code that looks a member type up by name finds it.
 
 ### Generics
 
@@ -14751,7 +14952,7 @@ which is deliberately TU-local.
 Kairo and C++ signal failure differently, and the two models meet at one place: a Kairo `try`/`catch`.
 
 - **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic): a tagged union value returned to
-  the caller. Every Kairo function is `noexcept`.
+  the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
 - **`try`/`catch` handles both.** Around a Kairo call it lowers to a `match` on the returned tagged union.
   Around a C++ call it catches C++ exceptions through the unwinder.
@@ -14780,21 +14981,21 @@ unwind info for exactly those frames: a Kairo function gets it only when it sits
 > [!NOTE]
 > Unlike Kairo's [panic system](/docs/language/panic), the compiler cannot statically determine every exception
 > type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue
-> to the next enclosing Kairo `try`. An exception that no Kairo `try` catches reaches a `noexcept` frame, and
-> the runtime calls `std::terminate`.
+> to the next enclosing Kairo `try`. An exception that no Kairo `try` catches keeps unwinding like any C++
+> exception. If it reaches a [`@no_unwind`](/docs/language/attributes#unwinding) function, the program
+> terminates (`std::terminate`).
 
-### Kairo → C++: every Kairo function is `noexcept`
+### Kairo → C++: Kairo never throws
 
 Kairo does not throw. `panic` is a checked effect with a typed, inferred set: a Kairo error is a tagged union
 value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
-Emitted declarations are therefore **`noexcept` unconditionally**, and this is a structural property rather than
-a promise:
-
-- A C++ caller never needs a `try`/`catch` around a Kairo call.
-- A C++ exception cannot leave Kairo code through a Kairo entry point. It is either caught by a Kairo `try` or
-  ends in `std::terminate`.
-- `noexcept`-conditional C++ code that calls into Kairo takes the `noexcept(true)` branch.
+- A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
+- A C++ exception thrown by C++ code that Kairo calls can unwind through Kairo frames, unless a Kairo `try`
+  catches it.
+- A function marked [`@no_unwind`](/docs/language/attributes#unwinding) has `noexcept` on its generated C++
+  declaration and definition, so `noexcept`-conditional C++ code that calls it takes the `noexcept(true)`
+  branch. An exception that reaches it terminates the program.
 
 #### The value API
 
@@ -14808,7 +15009,7 @@ exception. The conversion is a method on the result type rather than a second en
 generated symbol, no name collisions, and it composes with the rest of an expression.
 
 The conversion is **generated C++**. It inspects the tag and throws from the C++ side of the boundary. Kairo
-itself still never unwinds, and the `noexcept` guarantee on the real entry point is unaffected. C++ callers who
+itself still never throws, and the real entry point is unaffected. C++ callers who
 want exceptions get them; callers who want values keep the value API.
 
 Throwing a Kairo error *out of Kairo* is not a roadmap item — it is excluded by the effect system. The conversion
@@ -14834,7 +15035,7 @@ the behavior of `extern "C++"` and `extern "C"` in C++.
 
 Two Kairo-specific guarantees strengthen the baseline:
 
-- **Every Kairo function is `noexcept`.** See [above](#kairo--c-every-kairo-function-is-noexcept).
+- **Kairo never throws.** See [above](#kairo--c-kairo-never-throws).
 - **ABI settings are recorded in the object and verified at link.** See
   [Link-time ABI verification](#link-time-abi-verification).
 
@@ -15057,6 +15258,66 @@ blit(4, scale: 2)            // error SC107E
 
 **Fix:** pass the earlier arguments explicitly: `blit(4, y: 0, scale: 2)`. See
 [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+
+---
+
+## Lifecycle
+
+### SC110E: a constructor has the shape of a transfer constructor but is not declared as one
+
+A constructor that takes `Self` first and defaults every later parameter is a transfer constructor, and is
+written only as `@copy fn X(self, const other: Self)` or `@move fn X(self, other: Self)`.
+
+```kairo
+fn X(self, other: Self) { }               // error SC110E: no marker
+fn X(self, @move other: Self) { }         // error SC110E: a mode on the parameter
+fn X(self, other: Self, k: i32 = 0) { }   // error SC110E: a defaulted extra parameter
+```
+
+**Fix:** put `@copy` or `@move` on the constructor and write the parameter bare. See
+[Classes](/docs/language/classes#the-transfer-constructor).
+
+---
+
+## Generators
+
+### SC111E: `yield` where nothing can yield
+
+`yield` is allowed only in a function declared `-> yield T`. It is an error outside a function, inside a
+closure, or in a function with any other return type.
+
+```kairo
+fn count() -> i32 {
+    yield 1          // error SC111E
+    return 0
+}
+```
+
+**Fix:** declare the function `-> yield T`, or remove the `yield`. See
+[Generators](/docs/language/functions#generators).
+
+### SC112E: this kind of function cannot be a generator
+
+`main`, constructors, destructors (`op delete`), `eval` functions, C-variadic functions, and functions
+returning `!` cannot be declared `-> yield T`.
+
+```kairo
+fn main() -> yield i32 { }   // error SC112E
+```
+
+**Fix:** move the sequence into a separate `-> yield T` function and call it from here.
+
+---
+
+## Portability
+
+### P003E: a primitive type is not available on the target
+
+`f80` exists only where the target ABI's `long double` is x87 extended precision. The error names the target
+and what its `long double` is.
+
+**Fix:** use `f64` where `long double` is binary64, or `f128` where it is binary128. See
+[Primitives](/docs/language/primitives#f80-follows-the-targets-long-double).
 
 ---
 

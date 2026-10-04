@@ -288,15 +288,15 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   support overloading and seamless interop with Clang-compiled C++ code.
   Explicit `ffi "C"` linkage (no mangling) is only used for C interop or
   when specifically requested.
-- Every Kairo function is `noexcept` at the ABI level. Kairo never throws:
+- Kairo never throws:
   panics are returned as tagged union values, and a Kairo `try`/`catch` around
   a Kairo call lowers to a `match` on that union.
 - A C++ exception can be caught by a Kairo `try`/`catch`. It is unwound by the
   platform unwinder (libunwind on Unix-like systems) using the standard
   unwind tables (`.eh_frame` / `__eh_frame`). The compiler emits unwind info
   only for Kairo frames between a C++ call and a Kairo `try` that can catch
-  from it. A C++ exception that no Kairo `try` catches reaches a `noexcept`
-  frame and calls `std::terminate`.
+  from it. A C++ exception that no Kairo `try` catches keeps unwinding; if it
+  reaches a `@no_unwind` function, the program calls `std::terminate`.
 - Virtual dispatch into C++ classes works without special handling because Kairo
   lowers method calls on C++ objects directly to Clang, which handles vtable
   dispatch normally.
