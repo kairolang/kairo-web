@@ -374,6 +374,13 @@ sum(a)       // 6
 zero(&a)     // a is now [0, 0, 0]
 ```
 
+Indexing an array with a range, `a[i..j]`, gives a slice over those elements:
+
+```kairo
+var a = [1, 2, 3, 4]
+var mid = a[1..3]    // [i32;] viewing a[1] and a[2]
+```
+
 #### Slices `[T;]`
 
 A view over contiguous elements: a pointer and a length. A slice does not own the storage it points into and
@@ -384,7 +391,15 @@ var s: [i32;] = [1, 2, 3]      // the storage lives as long as s
 s[0]                           // 1
 ```
 
-An array variable does not convert to a slice implicitly yet. Build the slice explicitly from the array.
+An array converts to a slice implicitly. The slice is a view of the array, so nothing is copied. A `const`
+array converts only to `[const T;]`. A vector also converts to a slice implicitly.
+
+```kairo
+fn total(xs: [i32;]) -> i32 { ... }
+
+var a = [1, 2, 3]
+total(a)                       // a viewed as [i32;]
+```
 
 #### Vectors `[T]`
 
@@ -481,7 +496,8 @@ struct Packet {
 |---|---|---|
 | list literal | `[T; N]`, `[T;]`, `[T]` | implicit, when the target asks for it |
 | slice `[T;]` | vector `[T]` | explicit only: `s as [T]` (allocates) |
-| array variable `[T; N]` | slice `[T;]` | not implicit yet; build the slice explicitly |
+| array `[T; N]` | slice `[T;]` | implicit, a view (no copy); a `const` array only to `[const T;]` |
+| vector `[T]` | slice `[T;]` | implicit, a view (no copy) |
 | array `[T; N]` | array `[T; N]` | never: arrays are not copyable |
 
 #### Maps `{K: V}`
@@ -1908,6 +1924,39 @@ for x in s {                 // calls the yield variant
     std::println(f"{x}")
 }
 ```
+
+##### Implicit `op as`
+
+An `@implicit fn op as (self) -> T` is applied automatically where a `T` is wanted, so the caller does not
+write `as`:
+
+- The result type must match exactly. A `T` produced this way is not converted any further, so it does not
+  fill a `T?` or a wider numeric type.
+- Conversions never chain: at most one `@implicit` operator applies, and never on top of another implicit
+  conversion.
+- `if`/`match` arms and operator operands are never converted this way.
+
+```kairo
+struct Name {
+    var first: string
+    var last: string
+
+    @implicit fn op as (const self) -> string {
+        return f"{self.first} {self.last}"
+    }
+}
+
+fn greet(who: string) { ... }
+fn maybe_greet(who: string?) { ... }
+
+var n = Name { first: "Ada", last: "Lovelace" }
+greet(n)                 // n as string, applied implicitly
+var s: string = n        // also implicit
+maybe_greet(n)           // error: string? is not an exact match
+var t = n + "!"          // error: operands are not converted; write (n as string) + "!"
+```
+
+Without `@implicit`, `op as` only runs on an explicit `as`.
 
 #### Places and values: `[]`, `.*`, `->*`, `->`
 
@@ -7414,7 +7463,28 @@ total([1, 2, 3])               // the literal becomes a slice for this call
 var v: [i32] = [1, 2, 3]       // the literal becomes a vector
 ```
 
-This applies to the literal only. A slice or array *variable* does not convert to anything implicitly.
+This applies to the literal only. Array and vector variables convert only to a slice, below.
+
+#### Array or vector to slice
+
+An array `[T; N]` converts to a slice `[T;]` implicitly. The slice is a view of the array; nothing is copied.
+A `const` array converts only to `[const T;]`. A vector `[T]` also converts to a slice implicitly.
+
+```kairo
+fn total(xs: [i32;]) -> i32 { ... }
+
+var a = [1, 2, 3]
+total(a)                       // a viewed as [i32;]
+var v: [i32] = [4, 5]
+total(v)                       // v viewed as [i32;]
+```
+
+The other direction, `[T;]` to `[T]`, stays explicit because it allocates.
+
+#### `@implicit` conversion operators
+
+A type's `op as` marked `@implicit` applies without `as` where its exact result type is wanted. See
+[Implicit `op as`](/docs/language/operators#implicit-op-as).
 
 #### No other implicit conversions
 
@@ -7426,8 +7496,6 @@ The following conversions are all explicit (require `as`):
 - Any pointer to a different pointer type
 - Integer narrowing or float-to-integer
 - Slice to vector (`s as [T]`; it allocates)
-
-An array variable does not convert to a slice implicitly yet; build the slice explicitly.
 
 ---
 
@@ -8118,6 +8186,9 @@ var s = temp as string   // "100.0C"
 `op as` can be overloaded for multiple target types. The compiler selects the overload based on
 the target type in the `as` expression. `op as` must take only `self` as a parameter and return
 the target type.
+
+Marking an `op as` with `@implicit` lets it apply without `as` where its exact result type is wanted. See
+[Implicit `op as`](/docs/language/operators#implicit-op-as).
 
 See [Operators](/docs/language/operators#special-operators) for the full operator overloading
 reference.
@@ -12630,6 +12701,14 @@ fn Counter::get(const self) -> i32 { return self.n }   // ...so this definition 
 ```
 
 See [Exceptions](/docs/language/c-cpp#exceptions) for how C++ exceptions move through Kairo code.
+
+#### Conversions
+
+| Attribute | Description | Applies to |
+|---|---|---|
+| `@implicit` | Lets a conversion operator apply without `as` | `fn op as` in a type's body |
+
+See [Implicit `op as`](/docs/language/operators#implicit-op-as) for the rules.
 
 #### Other
 
