@@ -166,6 +166,15 @@ An imported function's default arguments are applied by C++, which can only leav
 Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
 ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
 
+### Argument conversions
+
+C and C++ signatures are judged by Kairo's conversion rules, with one addition: a
+fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or
+`intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one,
+whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t`
+directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
+[Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
+
 ---
 
 ## Exposing Kairo to C++
