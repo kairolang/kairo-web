@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-04T23:45:58.966Z
+> Generated: 2026-10-08T16:43:23.991Z
 
 ---
 
@@ -1735,6 +1735,8 @@ lattice target-independent.
 
 Everything else — `bool`, `char`, `byte`, `usize`, `isize`, `string`, `void`, pointers,
 aggregates — participates in **no** W conversion in either direction. Reasons in §4.
+The single exception is an argument to an imported C/C++ function, where
+`usize`/`isize` widen by the boundary rule in §4.1.
 
 ---
 
@@ -1811,6 +1813,40 @@ is U. Pointer↔integer is U in both directions. No pointer conversion is ever W
 `(i32, i32) → (i64, i64)`, `{string: i32} → {string: i64}` are all X. Function pointers
 are invariant in both parameter and return position — no variance, no exceptions. If you
 want element-wise conversion it is a library `map`, not a coercion.
+
+### 4.1 The C/C++ boundary
+
+An argument to an **imported** C/C++ function may widen to or from `usize`/`isize`
+without `as`. Nothing else uses this rule: Kairo functions, assignments, `if`/`match`
+arms and operator operands keep §4 alone.
+
+The rule reads the target only below 32 bits. `usize` and `isize` are taken as
+[32, 64] bits wide, or [P, 64] on a target whose pointer width P is below 32; a
+fixed-width integer of N bits is [N, N]. `S → D` is implicit iff:
+
+- same signedness: `max(S) ≤ min(D)`
+- unsigned → signed: `max(S) < min(D)`
+- signed → unsigned: never
+
+| Accepted | Refused |
+|---|---|
+| `u8`/`u16`/`u32` → `usize` | `u64` → `usize` (narrows on 32-bit) |
+| `i8`/`i16`/`i32` → `isize` | `i64` → `isize` (narrows on 32-bit) |
+| `u8`/`u16` → `isize` | `u32` → `isize` (same width on 32-bit) |
+| `usize` → `u64`, `isize` → `i64` | `usize` → `u32`, `isize` → `i32` (narrow on 64-bit) |
+| | `usize` → `i64` (same width on 64-bit) |
+| | `i32` → `usize`, `isize` → `u64` (signed → unsigned) |
+
+Because the rule judges against the narrowest and widest target at once, every 32- and
+64-bit target accepts the same set of programs; a 16-bit target accepts a subset. This
+keeps the property §4 protects. A conversion accepted by this rule is considered only
+when §3 would require `as`, and ranks like any other implicit conversion in overload
+resolution. Extended-width types (R5), floats and
+non-numeric types never take it, and `-fno-implicit-conv` turns it off like any other W.
+
+The importer reads `size_t`/`uintptr_t` as `usize`, and `ptrdiff_t`/`intptr_t`/`ssize_t`
+as `isize`. A plain `unsigned long` stays a fixed-width type (`u64` on LP64 targets) and
+is judged by §3.
 
 ---
 
@@ -1961,7 +1997,9 @@ is otherwise found by users.
    yields the original. Any failure is a mis-classified cell, not a codegen bug.
 5. **Target independence.** The full class matrix is byte-identical across every
    supported triple. `usize`/`isize` rows and columns are the ones this is really
-   testing.
+   testing. The §4.1 boundary relation is held to the same standard: it is computed from
+   the [32, 64] ranges, not the target's width, so it too is identical on every
+   32/64-bit triple.
 6. **Totality.** Every ordered pair over the full primitive set has exactly one class.
    No `default:` fallthrough in the decision function.
 
@@ -8468,6 +8506,23 @@ var y: f64 = x       // ok: f32 to f64
 
 Narrowing conversions require an explicit `as` cast. See [Casting](/docs/language/casting).
 
+### Integer widening into C/C++ parameters
+
+An argument to an imported C/C++ function widens into a `size_t`/`ptrdiff_t` parameter
+when no 32- or 64-bit target could lose a value:
+
+```kairo
+// buf.h: void buf_reserve(size_t n);
+ffi "c" import "buf.h"
+
+fn grow(n: u32) {
+    buf_reserve(n)    // ok: u32 to usize (size_t)
+}
+```
+
+`u64` to `usize` still needs `as`, because it narrows on 32-bit targets; on 16-bit
+targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
+
 ### `T` to `T?` - Non-nullable to Nullable
 
 A non-nullable value is implicitly convertible to its nullable counterpart:
@@ -14462,6 +14517,15 @@ Hello from C++! x = 42
 An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
 Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
 ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+
+### Argument conversions
+
+C and C++ signatures are judged by Kairo's conversion rules, with one addition: a
+fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or
+`intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one,
+whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t`
+directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
+[Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
 
 ---
 
