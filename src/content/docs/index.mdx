@@ -118,11 +118,7 @@ match try_parse_point("1.5, 2.5") {
     }
 }
 
-var origin = try {
-    load_config("origin.conf")
-} catch {
-    Point { x: 0.0, y: 0.0 }
-}
+var origin = try load_config("origin.conf") catch => Point { x: 0.0, y: 0.0 }
 
 std::println(f"origin: ({origin.x}, {origin.y})")
 ```

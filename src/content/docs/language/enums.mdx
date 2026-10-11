@@ -164,21 +164,16 @@ See [Control Flow](/docs/language/control-flow#match) for the full `match` synta
 
 ### `match` as an expression
 
-ADT enums work in expression-form `match`. Each branch must produce the same type:
-
 ```kairo
 var description = match result {
-    case .Success(var value, var bytes_consumed) {
-        f"parsed {value} ({bytes_consumed} bytes)"
-    }
-    case .Error(var message, var position) {
-        f"error at {position}: {message}"
-    }
-    case .EndOfInput {
-        "end of input"
-    }
+    case .Success(var value, var bytes_consumed) => f"parsed {value} ({bytes_consumed} bytes)"
+    case .Error(var message, var position) => f"error at {position}: {message}"
+    case .EndOfInput => "end of input"
 }
 ```
+
+ADT enums work in expression-form `match`. Each arm is `case pattern => value`, and every arm must produce
+the same type.
 
 See [Control Flow](/docs/language/control-flow#match-as-an-expression) for the full expression-form
 rules.

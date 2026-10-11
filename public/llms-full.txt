@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-04T23:45:58.923Z
+> Generated: 2026-10-10T20:44:37.269Z
 
 ---
 
@@ -129,11 +129,7 @@ match try_parse_point("1.5, 2.5") {
     }
 }
 
-var origin = try {
-    load_config("origin.conf")
-} catch {
-    Point { x: 0.0, y: 0.0 }
-}
+var origin = try load_config("origin.conf") catch => Point { x: 0.0, y: 0.0 }
 
 std::println(f"origin: ({origin.x}, {origin.y})")
 ```
@@ -1735,6 +1731,8 @@ lattice target-independent.
 
 Everything else — `bool`, `char`, `byte`, `usize`, `isize`, `string`, `void`, pointers,
 aggregates — participates in **no** W conversion in either direction. Reasons in §4.
+The single exception is an argument to an imported C/C++ function, where
+`usize`/`isize` widen by the boundary rule in §4.1.
 
 ---
 
@@ -1811,6 +1809,40 @@ is U. Pointer↔integer is U in both directions. No pointer conversion is ever W
 `(i32, i32) → (i64, i64)`, `{string: i32} → {string: i64}` are all X. Function pointers
 are invariant in both parameter and return position — no variance, no exceptions. If you
 want element-wise conversion it is a library `map`, not a coercion.
+
+### 4.1 The C/C++ boundary
+
+An argument to an **imported** C/C++ function may widen to or from `usize`/`isize`
+without `as`. Nothing else uses this rule: Kairo functions, assignments, `if`/`match`
+arms and operator operands keep §4 alone.
+
+The rule reads the target only below 32 bits. `usize` and `isize` are taken as
+[32, 64] bits wide, or [P, 64] on a target whose pointer width P is below 32; a
+fixed-width integer of N bits is [N, N]. `S → D` is implicit iff:
+
+- same signedness: `max(S) ≤ min(D)`
+- unsigned → signed: `max(S) < min(D)`
+- signed → unsigned: never
+
+| Accepted | Refused |
+|---|---|
+| `u8`/`u16`/`u32` → `usize` | `u64` → `usize` (narrows on 32-bit) |
+| `i8`/`i16`/`i32` → `isize` | `i64` → `isize` (narrows on 32-bit) |
+| `u8`/`u16` → `isize` | `u32` → `isize` (same width on 32-bit) |
+| `usize` → `u64`, `isize` → `i64` | `usize` → `u32`, `isize` → `i32` (narrow on 64-bit) |
+| | `usize` → `i64` (same width on 64-bit) |
+| | `i32` → `usize`, `isize` → `u64` (signed → unsigned) |
+
+Because the rule judges against the narrowest and widest target at once, every 32- and
+64-bit target accepts the same set of programs; a 16-bit target accepts a subset. This
+keeps the property §4 protects. A conversion accepted by this rule is considered only
+when §3 would require `as`, and ranks like any other implicit conversion in overload
+resolution. Extended-width types (R5), floats and
+non-numeric types never take it, and `-fno-implicit-conv` turns it off like any other W.
+
+The importer reads `size_t`/`uintptr_t` as `usize`, and `ptrdiff_t`/`intptr_t`/`ssize_t`
+as `isize`. A plain `unsigned long` stays a fixed-width type (`u64` on LP64 targets) and
+is judged by §3.
 
 ---
 
@@ -1961,7 +1993,9 @@ is otherwise found by users.
    yields the original. Any failure is a mis-classified cell, not a codegen bug.
 5. **Target independence.** The full class matrix is byte-identical across every
    supported triple. `usize`/`isize` rows and columns are the ones this is really
-   testing.
+   testing. The §4.1 boundary relation is held to the same standard: it is computed from
+   the [32, 64] ranges, not the target's width, so it too is identical on every
+   32/64-bit triple.
 6. **Totality.** Every ordered pair over the full primitive set has exactly one class.
    No `default:` fallthrough in the decision function.
 
@@ -3104,8 +3138,9 @@ The form is `({ statements... expression })`. Its value and type are those of th
 `({` always opens a statement expression. A set or map literal, or an anonymous initializer, is written
 without surrounding parentheses.
 
-This is the only place a block yields a value. The arms of an `if` or `match` expression are single
-expressions, and no other block returns its last expression implicitly.
+This is the only place a block yields a value. The arms of an `if`, `match`, or `try` expression are
+single `=> expr` values, and no other block returns its last expression implicitly. A statement expression
+is how an arm holds several statements: `if ready => ({ var t = load(); (t.value); }) else => 0`.
 
 ---
 
@@ -3116,7 +3151,7 @@ equal precedence and associate in the direction shown.
 
 | Precedence | Operators | Associativity | Description |
 |---|---|---|---|
-| 1 | Literals, names, `( )` grouping, `({ ... })` | | Primary expressions |
+| 1 | Literals, names, `( )` grouping, `({ ... })`, `match` | | Primary expressions |
 | 2 | `::` | Left | Scope resolution |
 | 3 | `()` `[]` `.` `->` `?.` `?->` | Left | Postfix / member access |
 | 4 | `++` `--` (postfix) | Left | Postfix increment/decrement |
@@ -3136,6 +3171,19 @@ equal precedence and associate in the direction shown.
 | 18 | `..` `..=` | None | Range |
 | 19 | `??` | Right | Null coalescing |
 | 20 | `=` `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` | Right | Assignment |
+| 21 | `if` / `try` expressions | | Value-form `if` and `try` |
+
+`if` and `try` expressions bind looser than every operator. Their last arm extends as far right as it can, so
+`x + if c => 1 else => 2 + 5` is `x + (if c => 1 else => (2 + 5))`. An `if` or `try` used as an operand
+produces a warning ([S078W](/docs/language/diagnostics#s078w-if-or-try-expression-as-an-operators-operand));
+parenthesize it: `x + (if c => 1 else => 2) + 5`.
+
+A `match` expression closes with `}` and binds as a primary expression: `match k { ... } + 1` needs no
+parentheses.
+
+`=>` is punctuation, not an operator: it has no precedence and cannot be overloaded. It introduces the value
+of an arm in the value forms of `if`, `match`, and `try`. See
+[Control Flow](/docs/language/control-flow#if-as-an-expression-ternary-equivalent).
 
 `as` binds looser than every prefix operator and tighter than every binary one: `-1 as u8` casts `-1`,
 `&x as *const T` casts the address, and `x as i64 + 1` is `(x as i64) + 1`.
@@ -3144,8 +3192,8 @@ equal precedence and associate in the direction shown.
 > `==` binds tighter than `&&` and `||` compound conditions like `a == b && c == d` do not require
 > explicit parentheses. This matches C/C++ precedence.
 
-When in doubt, use parentheses. The compiler does not warn about precedence ambiguity, but explicit grouping
-improves readability.
+When in doubt, use parentheses. Apart from an `if` or `try` expression used as an operand, the compiler
+does not warn about precedence ambiguity, but explicit grouping improves readability.
 
 ---
 
@@ -3195,9 +3243,12 @@ URL: https://www.kairolang.org/docs/language/control-flow/
 
 # Control Flow
 
-Kairo's control flow is block-scoped and brace-delimited. Every branch, loop, and error-handling construct
-uses `{ ... }` there are no single-statement bodies. Conditions are bare expressions (no parentheses required,
-though permitted for clarity).
+Kairo's control flow is block-scoped and brace-delimited. Every statement-form branch, loop, and
+error-handling construct uses `{ ... }` there are no single-statement bodies. The value forms of `if`,
+`match`, and `try` write each arm as `=> expr` instead. Conditions are bare expressions (no parentheses
+required, though permitted for clarity).
+
+`=>` introduces exactly one value; `{ }` after a control keyword is always a statement block.
 
 ---
 
@@ -3220,17 +3271,83 @@ integers or pointers.
 
 ### `if` as an expression (ternary equivalent)
 
-Kairo has no ternary `? :` operator. Use `if`/`else` as an expression instead. Each branch holds a single
-expression, which is the result:
+Kairo has no ternary `? :` operator. Use `if` as an expression instead:
 
 ```kairo
-var x = if condition { 10 } else { 20 }
+var x = if condition => 10 else => 20
 
-var y = if a > b { a } else if a == b { 0 } else { b }
+var z = if a == b => 2 else if b > 2 => 1 else => 0
 ```
 
-When used as an expression, the `else` branch is required and all branches must produce the same type. Empty
-branches are not permitted in expression form.
+The form is `if cond => value else if cond => value else => value`. Every arm is one expression, and the
+final `else` is mandatory. All arms must produce the same type.
+
+#### Arms are expressions, not blocks
+
+A braced arm is an error ([S073E](/docs/language/diagnostics#s073e-braced-value-arm-in-an-if-try-or-match-expression)),
+and the compiler offers a fix-it. An arm needs a value: `=>` with nothing after it is an error. For several
+statements, use a [statement expression](/docs/language/operators#statement-expressions):
+
+```kairo
+var v = if ready => ({ var t = load(); t.normalize(); (t.value); }) else => 0
+```
+
+#### How far an arm extends
+
+The last arm takes everything to its right that is part of the same expression:
+
+```kairo
+var z = if c => 1 else => 0 + 5     // else => (0 + 5)
+```
+
+An arm stops at `,`, `)`, `]`, `}`, and the end of the line, so call arguments work without parentheses:
+
+```kairo
+draw(if wide => 80 else => 40, height)
+```
+
+Using an `if` as the operand of an operator is legal, but it produces a warning
+([S078W](/docs/language/diagnostics#s078w-if-or-try-expression-as-an-operators-operand)). Parenthesize it:
+
+```kairo
+var w = base + (if wide => 80 else => 40)
+```
+
+#### Line breaks
+
+You may break before or after `=>`, and before `else`:
+
+```kairo
+var z = if a == b
+    => 2
+    else if b > 2
+    => 1
+    else
+    => 0
+```
+
+Inside an arm the ordinary rule applies: break after an operator, not before it.
+
+#### Nesting
+
+A nested `if` in any arm except the last must be in parentheses, and so must an `if` used as a condition.
+Otherwise it is a compile error
+([S077E](/docs/language/diagnostics#s077e-nested-if-or-try-expression-must-be-parenthesized)), and the
+compiler offers a fix-it. A nested `if` in the final `else` arm is allowed, but write it as `else if`:
+`else => if` produces a warning ([S079W](/docs/language/diagnostics#s079w--between-else-and-if-is-redundant)).
+
+```kairo
+var r = if a => (if b => 1 else => 2) else => 3     // ok
+var r = if a => if b => 1 else => 2 else => 3       // error: parenthesize the inner if
+```
+
+#### In statement position
+
+A value-form `if` in statement position is an ordinary expression statement. Its value is discarded:
+
+```kairo
+if verbose => log_full(e) else => log_short(e)
+```
 
 > [!TIP]
 > The compiler warns if `else if` nesting exceeds 3 levels. Consider restructuring deeply nested conditionals
@@ -3355,6 +3472,15 @@ match result {
 }
 ```
 
+Guards work the same way in a value-form `match`, written before the arrow:
+
+```kairo
+var amount = match result {
+    case .Found(var key, var value) where value > 0 => value
+    default => 0
+}
+```
+
 Guards are evaluated after the pattern matches. A case with a guard that fails falls through to the
 next case this is the only situation where control moves between cases.
 
@@ -3397,33 +3523,54 @@ match http_status {
 }
 ```
 
-### `match` as an expression
+The same ranges in a value-form `match`:
 
-Like `if`, `match` can be used as an expression. Each branch holds a single expression, which is the result
-value. All branches must produce the same type:
+```kairo
+var kind = match http_status {
+    case 200..=299 => "success"
+    case 300..=399 => "redirect"
+    case 400..=599 => "error"
+    default => "unknown"
+}
+```
+
+### `match` as an expression
 
 ```kairo
 var label = match level {
-    case .Debug   { "debug" }
-    case .Info    { "info" }
-    case .Warning { "warning" }
-    case .Error   { "error" }
-    case .Fatal   { "fatal" }
+    case .Debug   => "debug"
+    case .Info    => "info"
+    case .Warning => "warning"
+    case .Error   => "error"
+    case .Fatal   => "fatal"
 }
 
 var priority = match code {
-    case 200..=299 { 0 }
-    case 400..=499 { 1 }
-    case 500..=599 { 2 }
-    default        { -1 }
+    case 200..=299 => 0
+    case 400..=499 => 1
+    case 500..=599 => 2
+    default        => -1
 }
 
 var message = match result {
-    case .Found(var key, var value) { f"{key}: {value}" }
-    case .NotFound(var key)        { f"{key} not found" }
-    case .Error(var message)       { message }
+    case .Found(var key, var value) => f"{key}: {value}"
+    case .NotFound(var key)         => f"{key} not found"
+    case .Error(var message)        => message
 }
 ```
+
+Each arm is `case pattern => value` or `default => value`. All arms must produce the same type.
+
+- Arms are not separated by commas. A comma between arms is an error
+  ([S076E](/docs/language/diagnostics#s076e-match-arms-separated-by-a-comma)).
+- Guards come before the arrow: `case .Found(var v) where v > 0 => v`.
+- You may break before or after `=>`.
+- A `match` closes with `}`, so it can be used directly as an operand: `var n = match k { ... } + 1`. The
+  parentheses rule for `if` and `try` does not apply to it.
+- All arms of one `match` use the same form, either all `=>` or all `{ }`. Mixing the two is an error
+  ([S075E](/docs/language/diagnostics#s075e-match-arms-mix--and---forms)).
+- In statement position, a `match` whose arms are all `=>` is an expression, and exhaustiveness is
+  required as for any `match` expression. A `match` with block arms is a statement.
 
 In expression form, exhaustiveness is required every possible value must be covered. For integers
 and strings, this means `default` is mandatory.
@@ -3441,6 +3588,8 @@ The compiler verifies that all possible values are covered:
 | Structs | `default` always required |
 
 A `default` case matches any value not covered by preceding cases. It must be the last case.
+
+A match whose arms are all `=>` is an expression, wherever it appears.
 
 ### No fall-through
 
@@ -3625,19 +3774,47 @@ A bare `catch` (no type) acts as a catch-all and satisfies exhaustiveness for an
 
 ### `try`/`catch` as an expression
 
-Like `if`, `try`/`catch` can be used as an expression. Each block holds a single expression, which is the result value:
-
 ```kairo
-var result = try {
-    parse_int("42")
-} catch e: std::Error::Runtime {
-    -1   // fallback value
-} catch {
-    0    // default for any other error
-}
+var n = try parse(s) catch e: ParseError => -1 catch => 0
 ```
 
-All branches must produce the same type. `finally` is not permitted in expression form.
+The form is `try operand catch ... => value`. There is no arrow after `try` itself; the operand runs until
+the first `catch`. Every catch arm takes one of these forms:
+
+```kairo
+var a = try f() catch => v               // catch-all
+var b = try f() catch e => v             // catch-all, binds e
+var c = try f() catch var e => v         // binds e as var
+var d = try f() catch const e => v       // binds e as const
+var g = try f() catch e: ParseError => v // only ParseError
+```
+
+A bare name after `catch` is a binding, not a type: `catch ParseError => v` binds a variable named
+`ParseError`. Filter by type with `catch e: T`. At least one arm is required, and a default arm must be last.
+All arms must produce the same type. `finally` is not permitted in expression form.
+
+Each `catch` may start a new line:
+
+```kairo
+var n = try parse(s)
+    catch e: ParseError => -1
+    catch => 0
+```
+
+A bare `try {` always begins a statement-form `try`. To `try` several statements as a value, use a
+statement expression: `try ({ ...; (value); }) catch => ...`.
+
+
+
+A `try` inside another `try`'s operand or arms must be parenthesized. Without the parentheses, the inner
+`try` would take every following `catch`:
+
+```kairo
+var n = try (try f() catch => 1) catch => 2
+```
+
+The last arm of a `try` extends as far right as it can, like the last arm of an `if`. See
+[How far an arm extends](#how-far-an-arm-extends).
 
 ### `finally`
 
@@ -3764,7 +3941,7 @@ and the zero-cost codegen strategy.
 
 ```kairo
 fn max(a: i32, b: i32) -> i32 {
-    return if a > b { a } else { b }
+    return if a > b => a else => b
 }
 ```
 
@@ -3932,7 +4109,7 @@ fn event_loop() -> ! {
 expected. This makes it valid in expression contexts:
 
 ```kairo
-var x: i32 = if valid { compute() } else { fatal("invalid state") }
+var x: i32 = if valid => compute() else => fatal("invalid state")
 // fatal() returns ! which coerces to i32
 ```
 
@@ -4435,7 +4612,7 @@ fn event_loop() -> ! {
 expected:
 
 ```kairo
-var x: i32 = if valid { compute() } else { fatal("bad state") }
+var x: i32 = if valid => compute() else => fatal("bad state")
 // fatal() returns ! which coerces to i32
 ```
 
@@ -4727,7 +4904,7 @@ Constrain type parameters with `impl` (interface conformance) or `derives` (clas
 
 ```kairo
 fn <T impl Comparable> max(a: T, b: T) -> T {
-    return if a > b { a } else { b }
+    return if a > b => a else => b
 }
 
 fn <T derives Serializable> serialize(value: T) -> [byte] {
@@ -4956,8 +5133,8 @@ top-level declarations before type checking, so mutual recursion works without
 them:
 
 ```kairo
-fn is_even(n: u32) -> bool = if n == 0 { true } else { is_odd(n - 1) }
-fn is_odd(n: u32) -> bool  = if n == 0 { false } else { is_even(n - 1) }
+fn is_even(n: u32) -> bool = if n == 0 => true else => is_odd(n - 1)
+fn is_odd(n: u32) -> bool  = if n == 0 => false else => is_even(n - 1)
 ```
 
 Forward declarations are used when the definition lives elsewhere:
@@ -7261,21 +7438,16 @@ See [Control Flow](/docs/language/control-flow#match) for the full `match` synta
 
 ### `match` as an expression
 
-ADT enums work in expression-form `match`. Each branch must produce the same type:
-
 ```kairo
 var description = match result {
-    case .Success(var value, var bytes_consumed) {
-        f"parsed {value} ({bytes_consumed} bytes)"
-    }
-    case .Error(var message, var position) {
-        f"error at {position}: {message}"
-    }
-    case .EndOfInput {
-        "end of input"
-    }
+    case .Success(var value, var bytes_consumed) => f"parsed {value} ({bytes_consumed} bytes)"
+    case .Error(var message, var position) => f"error at {position}: {message}"
+    case .EndOfInput => "end of input"
 }
 ```
+
+ADT enums work in expression-form `match`. Each arm is `case pattern => value`, and every arm must produce
+the same type.
 
 See [Control Flow](/docs/language/control-flow#match-as-an-expression) for the full expression-form
 rules.
@@ -8468,6 +8640,23 @@ var y: f64 = x       // ok: f32 to f64
 
 Narrowing conversions require an explicit `as` cast. See [Casting](/docs/language/casting).
 
+### Integer widening into C/C++ parameters
+
+An argument to an imported C/C++ function widens into a `size_t`/`ptrdiff_t` parameter
+when no 32- or 64-bit target could lose a value:
+
+```kairo
+// buf.h: void buf_reserve(size_t n);
+ffi "c" import "buf.h"
+
+fn grow(n: u32) {
+    buf_reserve(n)    // ok: u32 to usize (size_t)
+}
+```
+
+`u64` to `usize` still needs `as`, because it narrows on 32-bit targets; on 16-bit
+targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
+
 ### `T` to `T?` - Non-nullable to Nullable
 
 A non-nullable value is implicitly convertible to its nullable counterpart:
@@ -8575,7 +8764,7 @@ fn fatal(msg: string) panic -> ! {
 `!` is a subtype of every type, making it valid in expression contexts:
 
 ```kairo
-var x: i32 = if valid { compute() } else { fatal("bad state") }
+var x: i32 = if valid => compute() else => fatal("bad state")
 ```
 
 `!` can only appear as a function return type. It cannot be used as a variable type, type parameter,
@@ -12227,16 +12416,17 @@ Callers of `process` must handle `std::Error::IO`, `std::Error::Runtime`, and
 
 ## Try/Catch as an Expression
 
-`try`/`catch` can produce a value. Each branch must return the same type:
-
 ```kairo
 var port = try parse_port(input)
-           catch e: std::Error::Runtime { 8080 }
-           catch { 3000 }
+    catch e: std::Error::Runtime => 8080
+    catch => 3000
 ```
 
-`finally` is not permitted in expression form. See
-[Control Flow](/docs/language/control-flow#trycatch-as-an-expression) for expression-form rules.
+`try`/`catch` can produce a value. Each arm is `catch ... => value`, and every arm must produce the same
+type. `finally` is not permitted in expression form.
+
+See [Control Flow](/docs/language/control-flow#trycatch-as-an-expression) for the `=>` arm rules: arm
+forms, line breaks, and nesting.
 
 ---
 
@@ -12411,12 +12601,12 @@ fn safe_divide(a: i32, b: i32) -> i32 {
 // Partial handling propagates unhandled types
 fn partial(a: i32, b: i32) panic -> i32 {
     return try complex_operation(a, b)
-           catch e: std::Error::Runtime { -1 }
+        catch e: std::Error::Runtime => -1
     // other error types propagate
 }
 
 // Expression form
-var result = try { divide(10, 0) } catch { 0 }
+var result = try divide(10, 0) catch => 0
 
 // Scope exit
 fn with_cleanup() panic {
@@ -13271,7 +13461,7 @@ Constraints on an extension's parameters are written with `impl`, `derives`, or 
 ```kairo
 extend <T impl Comparable> Pair<T> {
     fn max(const self) -> T {
-        return if self.first > self.second { self.first } else { self.second }
+        return if self.first > self.second => self.first else => self.second
     }
 }
 ```
@@ -13294,7 +13484,7 @@ extend <T> Pair<T> impl Container<T> {
     fn size(const self) -> i32 { return 2 }
 
     fn get(const self, index: i32) -> T {
-        return if index == 0 { self.first } else { self.second }
+        return if index == 0 => self.first else => self.second
     }
 }
 ```
@@ -13494,7 +13684,7 @@ extend Vec2 impl Drawable {
 
 // Generic extend with constraints
 extend <T impl Comparable> Pair<T> {
-    fn max(const self) -> T = if self.first > self.second { self.first } else { self.second }
+    fn max(const self) -> T = if self.first > self.second => self.first else => self.second
 }
 ```
 
@@ -13893,7 +14083,7 @@ comma-separated:
 
 ```kairo
 macro clamp!(value, lo, hi) {
-    if value < lo { lo } else if value > hi { hi } else { value }
+    if value < lo => lo else if value > hi => hi else => value
 }
 
 var x = clamp!(temperature, 0, 100)
@@ -14462,6 +14652,15 @@ Hello from C++! x = 42
 An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
 Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
 ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+
+### Argument conversions
+
+C and C++ signatures are judged by Kairo's conversion rules, with one addition: a
+fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or
+`intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one,
+whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t`
+directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
+[Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
 
 ---
 
@@ -15436,6 +15635,209 @@ and what its `long double` is.
 
 ---
 
+## Value Arms
+
+The value forms of `if`, `match`, and `try`. See
+[Control Flow](/docs/language/control-flow#if-as-an-expression-ternary-equivalent).
+
+### S073E: braced value arm in an 'if', 'try' or 'match' expression
+
+Messages:
+
+- `value arms are written '=> expr'; '{ }' arms are statement-only`
+
+#### value arms are written '=> expr'
+
+the expression forms of `if`, `try` and `match` give each arm its value with `=>`. a `{ }`
+after a control keyword is always a statement block, so braces cannot hold an arm's value.
+`=>` introduces exactly one value expression.
+
+##### example
+
+```kairo
+var z = if a == b { 2 } else { 0 }                  // error
+var n = try { parse(s) } catch { 0 }                // error
+var k = match s { case 2 { x + y } default { 0 } }  // error
+```
+
+##### how to fix
+
+replace each `{` with `=>` and drop its `}`; the fix-it does this when the braces hold a
+single expression:
+
+```kairo
+var z = if a == b => 2 else => 0
+var n = try parse(s) catch => 0
+var k = match s {
+    case 2 => x + y
+    default => 0
+}
+```
+
+an arm that needs several statements belongs in the statement form (`if c { ... }`, a
+statement-form `match`), or in a `({ ... })` statement expression. to `try` a brace
+expression such as a set literal, parenthesize it: `try ({1, 2}) catch => {}`.
+
+### S074E: expected '=>' before a value arm
+
+Messages:
+
+- `expected '=>' after condition`
+- `expected '=>' after 'else'`
+- `expected '=>' after pattern`
+- `expected '=>' after catch arm`
+
+#### expected '=>'
+
+in the expression forms of `if`, `try` and `match`, the condition, the `else`, the case
+pattern and the catch arm are each followed by `=>` and then the arm's value.
+
+##### example
+
+```kairo
+var z = if c 1 else => 2      // missing '=>' after the condition
+var z = if c => 1 else 2      // missing '=>' after 'else'
+```
+
+##### how to fix
+
+insert `=>` where the fix-it points: `var z = if c => 1 else => 2`.
+
+### S075E: match arms mix '=>' and '{ }' forms
+
+Messages:
+
+- `match arms mix '=>' and '{ }' forms`
+
+#### match arms mix '=>' and '{ }' forms
+
+a `match` in statement position is either a statement (every arm is a `{ }` block) or a
+value (every arm is `=> expr`). an arm of each kind in one `match` is neither.
+
+##### example
+
+```kairo
+match s {
+    case 1 { f() }
+    default => g()     // the other arms are blocks
+}
+```
+
+##### how to fix
+
+pick one form for every arm: `default { g() }` for a statement match, or `case 1 => f()`
+for a value match.
+
+### S076E: match arms separated by a comma
+
+Messages:
+
+- `match arms are not separated by ','`
+
+#### match arms are not separated by ','
+
+the arms of a `match` follow each other directly; a value arm ends where its expression
+does. a `,` after an arm (the Rust spelling) is not part of the grammar.
+
+##### example
+
+```kairo
+var k = match s {
+    case 1 => a,       // error
+    default => b
+}
+```
+
+##### how to fix
+
+delete the comma.
+
+### S077E: nested 'if' or 'try' expression must be parenthesized
+
+Messages:
+
+- `an 'if' expression here must be parenthesized`
+- `a 'try' expression here must be parenthesized`
+
+#### nested 'if' or 'try' expression must be parenthesized
+
+the last arm of an `if` or `try` expression runs to the end of the surrounding
+expression. where such an expression sits in front of more of the enclosing construct,
+it is ambiguous to the reader which construct the following `else`, `=>` or `catch`
+belongs to, so it must be parenthesized. the positions are:
+
+- the `then` arm, or an `else if` arm, of an `if` expression
+- the condition of an `if` or `else if`
+- a `where` guard
+- the operand of a `try` expression, or any catch arm except the last
+- a `match` scrutinee
+
+##### example
+
+```kairo
+var z = if a => if b => 1 else => 2 else => 3      // error
+var n = try try f() catch => 1 catch => 2          // error
+```
+
+##### how to fix
+
+parenthesize the inner expression:
+
+```kairo
+var z = if a => (if b => 1 else => 2) else => 3
+var n = try (try f() catch => 1) catch => 2
+```
+
+an inner `try` takes every `catch` that follows it, so in `try try f() ...` the outer
+`try` is left without arms and the intended split cannot be recovered; no fix-it is
+offered there. parenthesize the inner `try` together with its own arms.
+
+an `if` or `try` needs no parentheses as the final `else` arm, the final catch arm, a
+match arm value, a whole initializer, a call argument or a return value.
+
+### S078W: 'if' or 'try' expression as an operator's operand
+
+Messages:
+
+- `this 'if' expression extends to the end of the expression`
+- `this 'try' expression extends to the end of the expression`
+
+#### this 'if'/'try' expression extends to the end of the expression
+
+the last arm of an `if` or `try` expression takes everything up to the end of the
+surrounding expression. as the right operand of a binary operator, or the operand of a
+prefix operator, that is easy to misread:
+
+```kairo
+var z = x + if c => 1 else => 2 + 5     // x + (if c => 1 else => (2 + 5))
+```
+
+the parse is well-defined; the warning is only about readability. assignment operators
+and variable initializers are exempt, since their right side runs to the end of the
+expression anyway.
+
+##### how to fix
+
+parenthesize the `if` or `try`: `x + (if c => 1 else => 2) + 5`.
+
+### S079W: '=>' between 'else' and 'if' is redundant
+
+Messages:
+
+- `write 'else if'`
+
+#### write 'else if'
+
+`else => if c => a else => b` and `else if c => a else => b` parse to the same thing, an
+`if` expression whose final arm is another `if`. only `else if` is idiomatic.
+
+##### how to fix
+
+delete the `=>`; the fix-it does this. to keep a nested `if` as the final arm on purpose,
+parenthesize it: `else => (if c => a else => b)`.
+
+---
+
 ## Imports
 URL: https://www.kairolang.org/docs/language/imports/
 
@@ -16103,20 +16505,13 @@ pub class Server {
 
         var raw = net::tcp_read(fd, 8192)
 
-        var response = try {
+        var response = try ({
             var req = parse_request(raw)
             var handler = self.router.resolve(&req)
-
-            try {
-                handler(&req)
-            } catch {
-                Response::internal_error()
-            }
-        } catch e: ParseError {
-            Response::bad_request(e.message)
-        } catch {
-            Response::internal_error()
-        }
+            (try handler(&req) catch => Response::internal_error())
+        })
+            catch e: ParseError => Response::bad_request(e.message)
+            catch => Response::internal_error()
 
         net::tcp_write(fd, response.serialize())
     }
@@ -22431,59 +22826,79 @@ URL: https://www.kairolang.org/blog/how-ai-is-used-in-kairo/
 
 # AI Workflow/Usage in Kairo
 
-Kairo is being created by a small core team of university students. Most of the AI usage mentioned here is mine, since I (Dhruvan) undertake most of the compiler and language design work. I want to be upfront about where and how AI is employed in this project.
+Kairo is being built by a small core team of university students. I (Dhruvan) do most of the compiler and language design work, so the AI usage described here is mine. I want to be upfront about where and how AI is used in this project.
 
-This is a snapshot as of May 2026. I'll write a follow up if usage changes.
+This was originally a snapshot as of May 2026. My usage has changed since then, so this post was updated in October 2026. See [Integration Work in the Compiler](#integration-work-in-the-compiler-october-2026-update) for what changed and why.
 
-## What Not AI-Assisted
+## Why I'm Writing This
 
-To be clear: the language design, compiler architecture (Stage 0 and Stage 1), memory model, type system, ABI decisions, codegen pipeline, and build system are all human-written and human-designed.
+I know the systems programming community has a lot of opinions about AI in development. I'd rather be straightforward about exactly where it's used than have someone find out later and wonder what else I didn't tell them.
 
-## Why I’m Writing This
+## What Is Not AI-Assisted
 
-I know that the systems programming community has a lot of opinions about AI in development. I'd rather be straightforward about where exactly it's utilized, than have someone find out later and question what else I didn't tell them about it.
+To be clear: the language design, compiler architecture (Stage 0 and Stage 1), memory model, type system, ABI decisions, codegen pipeline, and build system are all designed by me. The core logic is written by hand. The one exception is mechanical integration work in Stage 1, explained [below](#integration-work-in-the-compiler-october-2026-update).
 
 ## Compiler
 
-The compiler is hand written. Every line of code in the lexer, parser, AST, arena allocator, diagnostics engine, preprocessor and codegen pipeline is hand-written. No AI-generated code exists in the compiler, in either Stage 0 or Stage 1.
+The compiler is hand-written. The lexer, parser, AST, arena allocator, diagnostics engine, preprocessor, and codegen pipeline were all written by hand. Stage 0 contains no AI-generated code.
 
-I don’t use Copilot or any kind of inline code completion. Kairo is a novel language, it does not exist in any training data. AI models can’t recommend Kairo code since they have never seen Kairo code. Autocomplete is useless, the compiler is self-hosted. All lines are hand written.
+The original version of this post said the same was true for Stage 1. That's no longer accurate. AI is now used in Stage 1, but not the way most people would assume. It doesn't design or write compiler logic; it does plumbing. Details in the next section.
+
+I don't use inline code completion for compiler code. Kairo is a new language, completion models are bad at predicting it, and the code I'm writing is novel logic, not boilerplate. There's nothing for autocomplete to autocomplete.
+
+## Integration Work in the Compiler (October 2026 Update)
+
+The Stage 1 compiler has passed 130,000 lines of Kairo, and with two people maintaining it, sweeping changes have become a real problem.
+
+A concrete example: say primitive types are hardcoded in seven different places across the compiler, and I want to pull that logic into a single shared helper. Writing the helper is the easy part, and I still do that myself. The hard part is the integration: finding every call site and every slightly different copy of the same logic, and rewiring all of it to the helper without breaking anything.
+
+In a mature language, that's a few minutes of work. Your editor's LSP gives you find-all-references, go-to-definition, and rename, and the refactor is mostly mechanical. Kairo doesn't have that yet. Stage 1 is compiled by Stage 0, and Stage 0's tooling gives me error squiggles and not much else. I added a form of jump-to-definition, but it guesses rather than actually resolving symbols, and it's right about half the time. Without real tooling, a change that should take minutes takes days of grepping and manually tracing code across 130k lines. That gets old fast.
+
+So that's where Claude Code comes in. The split looks like this:
+
+- **I do:** the design, the decision to make the change, and the new code itself (the helper, the new abstraction, the actual logic).
+- **Claude Code does:** the plumbing. It finds the places that need to change and rewires them to the new code.
+- **Then I review everything.** Every change it makes is read, checked against what I intended, and tested before it lands. Anything that's wrong gets fixed or thrown out.
+
+It isn't writing the compiler. It's doing the job an LSP and a refactoring tool would normally do, which Kairo doesn't have yet. Once Stage 1 has a proper LSP, I expect most of this to go back to being done by hand.
 
 ## Debugging
 
-When I encounter deep bugs in the compiler, I use Claude as a debugging partner. Kairo compiles via a C++ codegen layer (stage0 compiler), hence all LLDB symbols are mangled C++ names which are hard to read. My methodology is: I walk through the trace in LLDB, try to find and fix the issue myself - if and only if, I'm not able to - I provide the output with relevant source context to Claude, it tells me what commands to perform or what state to look at, I run them, feed the results back, and we figure out what’s really going on. Then I write the repair.
+When I hit deep bugs in the compiler, I use Claude as a debugging partner. Stage 0 compiles Kairo through C++, so every LLDB symbol is a mangled C++ name, and reading them is miserable. My process: I walk through the trace in LLDB and try to find and fix the issue myself. If, and only if, I can't, I give Claude the output with the relevant source context. It tells me what commands to run or what state to look at, I run them, feed the results back, and we figure out what's really going on. Then I write the fix.
 
-Recent example: empty source files crashed compiler . The debugging session found it was a `file.size() - 1` on a zero-length file. The subtraction underflowed a `usize` into `usize(-1)`. This blew out everything downstream, making a buffer null, and then crashing on a SEGFAULT, the crash never traced back to the underflow, the crash was in a completely unrelated file that I thought was isolated. Then it went from crashing to working but slow (a spin-wait bug), again another underflow in the SourceLineTable then to immediate execution after all the fixes. It was a simple problem, but it's buried by mangled symbols and threaded execution. The AI helped me find the problem faster. It did not write the fix.
+Recent example: empty source files crashed the compiler. The debugging session traced it to a `file.size() - 1` on a zero-length file. The subtraction underflowed a `usize` into `usize(-1)`, which blew out everything downstream, nulled a buffer, and segfaulted in a completely unrelated file that I thought was isolated. Nothing about the crash pointed back to the underflow. Fixing it took the compiler from crashing to working but slow (a spin-wait), which turned out to be another underflow, this time in `SourceLineTable`. After both fixes, it went to immediate execution.
 
-AI is utilized as a second pair of eyes on diagnostic output, not as a code author.
+The bug itself was trivial. Finding it through mangled symbols and threaded execution was not. AI helped me find it faster. It did not write the fix.
+
+AI is a second pair of eyes on diagnostic output, not a code author.
 
 ## Doc Comments Within the Compiler Codebase
 
-Github copilot is used to write doc comments within the compiler codebase. Code itself is hand written, but the prose comments that explain what the code is doing are AI-assisted. This will be replaced with human-written comments eventually (ideally stage2), but for now it helps me write more comments than I would otherwise, and makes the code easier to understand for me looking back at it after a long time or for new contributors.
+This is the one place I use GitHub Copilot: drafting doc comments in the compiler source. The code itself is hand-written, but the prose explaining what it does is AI-assisted, and I review it. Honestly, it means far more of the codebase is documented than it would be if I wrote every comment myself, and future-me (and new contributors) will be grateful for that. I plan to replace these with hand-written comments eventually, ideally in Stage 2.
 
 ## Docs
 
-Every page on kairolang.org was a raw technical dump, syntax examples, ABI lowering information, generated C++ output, invariants, edge cases. The kind of notes that make sense to me and nobody else.
+Every page on kairolang.org started as a raw technical dump: syntax examples, ABI lowering information, generated C++ output, invariants, edge cases. The kind of notes that make perfect sense to me and nobody else.
 
-I handed those dumps to Claude to rework into polished-ish reference documentation. The LLM structures sections, writes prose transitions, formats tables and code blocks, and smooths out phrasing. I do all the technical writing, examine every page for correctness, and change anything that misrepresents the language semantics.
+I handed those dumps to Claude to turn them into something a human other than me can actually read. It structures sections, writes prose transitions, formats tables and code blocks, and smooths out phrasing. I do all the technical writing, review every page for correctness, and change anything that misrepresents the language semantics.
 
-The technical substance, the language itself, how it operates, the invariants are mine. AI helps with the prose refinement. If you see something in the docs that’s a technical error, that’s on me.
+The technical substance (the language itself, how it works, the invariants) is mine. AI helps with the prose. If you see a technical error in the docs, that's on me.
 
-## Web site
+## Website
 
-I'm not a web developer. I've never had a passion. Astro, CSS, HTML and JS are not languages that I work with. The kairolang.org website was built by: Claude. I explained the theme, layout, what the site should include and what is it for. The AI wrote the Astro components, CSS and front end code. I looked over the output, and corrected errors wherever I found them.
+I'm not a web developer. Web dev has never interested me, and I'm not going to pretend otherwise. Astro, CSS, HTML, and JS are not languages I work with. The kairolang.org website was built by Claude. I explained the theme, the layout, what the site should include, and what it's for. The AI wrote the Astro components, CSS, and front-end code. I looked over the output and corrected errors wherever I found them.
 
 The website source is publicly available at [github.com/kairolang/kairo-web](https://github.com/kairolang/kairo-web).
 
 ## Git Commit Messages
 
-I use GitLens AI to write my commit messages. That’s just pure-laziness. The commits are mine, the messages are autogenerated.
+I use GitLens AI to write my commit messages. Writing them is the one part of version control I refuse to care about. The commits are mine; the messages are generated from my diffs.
 
-## LSP and VSCode Extension (Stage 0)
+## LSP and VS Code Extension (Stage 0)
 
-Stage 0 compiler is written entirely by hand. But the LSP integration and VSCode extension were AI helped. I implemented a pseudo-LSP mode in the compiler, pass it `--lsp-mode` and it returns diagnostics as JSON, then I provided Claude the LSP protocol spec. Claude built the Python (pygls) server that connects the compiler output to VSCode and the extension code to wire it up.
+The Stage 0 compiler is written entirely by hand, but the LSP integration and VS Code extension were AI-assisted. I implemented a pseudo-LSP mode in the compiler: pass it `--lsp-mode` and it returns diagnostics as JSON. Then I gave Claude the LSP protocol spec, and it built the Python (pygls) server that connects the compiler output to VS Code, plus the extension code to wire it up.
 
-It's not great but, it was enough to unblock Stage 1 development, without spending weeks on the LSP protocol and VSCode extension API. The Stage 1 LSP server and extension will be developed from scratch.
+It's held together with tape, but it unblocked Stage 1 development without me spending weeks on the LSP protocol and the VS Code extension API. The Stage 1 LSP server and extension will be written from scratch.
 
 If you have questions, open an issue on [GitHub](https://github.com/kairolang/kairo/issues).
 
@@ -22746,11 +23161,11 @@ Try doing this with `switch`. You can't, `switch` dispatches on a single value. 
 
 ```kairo
 var label = match level {
-    case .Debug   { "debug" }
-    case .Info    { "info" }
-    case .Warning { "warning" }
-    case .Error   { "error" }
-    case .Fatal   { "fatal" }
+    case .Debug   => "debug"
+    case .Info    => "info"
+    case .Warning => "warning"
+    case .Error   => "error"
+    case .Fatal   => "fatal"
 }
 ```
 
@@ -22758,10 +23173,10 @@ This works with ranges too:
 
 ```kairo
 var severity = match code {
-    case 200..=299 { 0 }
-    case 400..=499 { 1 }
-    case 500..=599 { 2 }
-    default        { -1 }
+    case 200..=299 => 0
+    case 400..=499 => 1
+    case 500..=599 => 2
+    default        => -1
 }
 ```
 

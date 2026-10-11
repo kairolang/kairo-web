@@ -2,64 +2,85 @@
 title: "How AI Is Used in Kairo"
 description: "Full transparency on where and how AI tooling is used across the Kairo project."
 pubDate: 2026-05-26
+updatedDate: 2026-10-10
 author: dhruvan
 tags: [transparency, process]
 ---
 
 # AI Workflow/Usage in Kairo
 
-Kairo is being created by a small core team of university students. Most of the AI usage mentioned here is mine, since I (Dhruvan) undertake most of the compiler and language design work. I want to be upfront about where and how AI is employed in this project.
+Kairo is being built by a small core team of university students. I (Dhruvan) do most of the compiler and language design work, so the AI usage described here is mine. I want to be upfront about where and how AI is used in this project.
 
-This is a snapshot as of May 2026. I'll write a follow up if usage changes.
+This was originally a snapshot as of May 2026. My usage has changed since then, so this post was updated in October 2026. See [Integration Work in the Compiler](#integration-work-in-the-compiler-october-2026-update) for what changed and why.
 
-## What Not AI-Assisted
+## Why I'm Writing This
 
-To be clear: the language design, compiler architecture (Stage 0 and Stage 1), memory model, type system, ABI decisions, codegen pipeline, and build system are all human-written and human-designed.
+I know the systems programming community has a lot of opinions about AI in development. I'd rather be straightforward about exactly where it's used than have someone find out later and wonder what else I didn't tell them.
 
-## Why I’m Writing This
+## What Is Not AI-Assisted
 
-I know that the systems programming community has a lot of opinions about AI in development. I'd rather be straightforward about where exactly it's utilized, than have someone find out later and question what else I didn't tell them about it.
+To be clear: the language design, compiler architecture (Stage 0 and Stage 1), memory model, type system, ABI decisions, codegen pipeline, and build system are all designed by me. The core logic is written by hand. The one exception is mechanical integration work in Stage 1, explained [below](#integration-work-in-the-compiler-october-2026-update).
 
 ## Compiler
 
-The compiler is hand written. Every line of code in the lexer, parser, AST, arena allocator, diagnostics engine, preprocessor and codegen pipeline is hand-written. No AI-generated code exists in the compiler, in either Stage 0 or Stage 1.
+The compiler is hand-written. The lexer, parser, AST, arena allocator, diagnostics engine, preprocessor, and codegen pipeline were all written by hand. Stage 0 contains no AI-generated code.
 
-I don’t use Copilot or any kind of inline code completion. Kairo is a novel language, it does not exist in any training data. AI models can’t recommend Kairo code since they have never seen Kairo code. Autocomplete is useless, the compiler is self-hosted. All lines are hand written.
+The original version of this post said the same was true for Stage 1. That's no longer accurate. AI is now used in Stage 1, but not the way most people would assume. It doesn't design or write compiler logic; it does plumbing. Details in the next section.
+
+I don't use inline code completion for compiler code. Kairo is a new language, completion models are bad at predicting it, and the code I'm writing is novel logic, not boilerplate. There's nothing for autocomplete to autocomplete.
+
+## Integration Work in the Compiler (October 2026 Update)
+
+The Stage 1 compiler has passed 130,000 lines of Kairo, and with two people maintaining it, sweeping changes have become a real problem.
+
+A concrete example: say primitive types are hardcoded in seven different places across the compiler, and I want to pull that logic into a single shared helper. Writing the helper is the easy part, and I still do that myself. The hard part is the integration: finding every call site and every slightly different copy of the same logic, and rewiring all of it to the helper without breaking anything.
+
+In a mature language, that's a few minutes of work. Your editor's LSP gives you find-all-references, go-to-definition, and rename, and the refactor is mostly mechanical. Kairo doesn't have that yet. Stage 1 is compiled by Stage 0, and Stage 0's tooling gives me error squiggles and not much else. I added a form of jump-to-definition, but it guesses rather than actually resolving symbols, and it's right about half the time. Without real tooling, a change that should take minutes takes days of grepping and manually tracing code across 130k lines. That gets old fast.
+
+So that's where Claude Code comes in. The split looks like this:
+
+- **I do:** the design, the decision to make the change, and the new code itself (the helper, the new abstraction, the actual logic).
+- **Claude Code does:** the plumbing. It finds the places that need to change and rewires them to the new code.
+- **Then I review everything.** Every change it makes is read, checked against what I intended, and tested before it lands. Anything that's wrong gets fixed or thrown out.
+
+It isn't writing the compiler. It's doing the job an LSP and a refactoring tool would normally do, which Kairo doesn't have yet. Once Stage 1 has a proper LSP, I expect most of this to go back to being done by hand.
 
 ## Debugging
 
-When I encounter deep bugs in the compiler, I use Claude as a debugging partner. Kairo compiles via a C++ codegen layer (stage0 compiler), hence all LLDB symbols are mangled C++ names which are hard to read. My methodology is: I walk through the trace in LLDB, try to find and fix the issue myself - if and only if, I'm not able to - I provide the output with relevant source context to Claude, it tells me what commands to perform or what state to look at, I run them, feed the results back, and we figure out what’s really going on. Then I write the repair.
+When I hit deep bugs in the compiler, I use Claude as a debugging partner. Stage 0 compiles Kairo through C++, so every LLDB symbol is a mangled C++ name, and reading them is miserable. My process: I walk through the trace in LLDB and try to find and fix the issue myself. If, and only if, I can't, I give Claude the output with the relevant source context. It tells me what commands to run or what state to look at, I run them, feed the results back, and we figure out what's really going on. Then I write the fix.
 
-Recent example: empty source files crashed compiler . The debugging session found it was a `file.size() - 1` on a zero-length file. The subtraction underflowed a `usize` into `usize(-1)`. This blew out everything downstream, making a buffer null, and then crashing on a SEGFAULT, the crash never traced back to the underflow, the crash was in a completely unrelated file that I thought was isolated. Then it went from crashing to working but slow (a spin-wait bug), again another underflow in the SourceLineTable then to immediate execution after all the fixes. It was a simple problem, but it's buried by mangled symbols and threaded execution. The AI helped me find the problem faster. It did not write the fix.
+Recent example: empty source files crashed the compiler. The debugging session traced it to a `file.size() - 1` on a zero-length file. The subtraction underflowed a `usize` into `usize(-1)`, which blew out everything downstream, nulled a buffer, and segfaulted in a completely unrelated file that I thought was isolated. Nothing about the crash pointed back to the underflow. Fixing it took the compiler from crashing to working but slow (a spin-wait), which turned out to be another underflow, this time in `SourceLineTable`. After both fixes, it went to immediate execution.
 
-AI is utilized as a second pair of eyes on diagnostic output, not as a code author.
+The bug itself was trivial. Finding it through mangled symbols and threaded execution was not. AI helped me find it faster. It did not write the fix.
+
+AI is a second pair of eyes on diagnostic output, not a code author.
 
 ## Doc Comments Within the Compiler Codebase
 
-Github copilot is used to write doc comments within the compiler codebase. Code itself is hand written, but the prose comments that explain what the code is doing are AI-assisted. This will be replaced with human-written comments eventually (ideally stage2), but for now it helps me write more comments than I would otherwise, and makes the code easier to understand for me looking back at it after a long time or for new contributors.
+This is the one place I use GitHub Copilot: drafting doc comments in the compiler source. The code itself is hand-written, but the prose explaining what it does is AI-assisted, and I review it. Honestly, it means far more of the codebase is documented than it would be if I wrote every comment myself, and future-me (and new contributors) will be grateful for that. I plan to replace these with hand-written comments eventually, ideally in Stage 2.
 
 ## Docs
 
-Every page on kairolang.org was a raw technical dump, syntax examples, ABI lowering information, generated C++ output, invariants, edge cases. The kind of notes that make sense to me and nobody else.
+Every page on kairolang.org started as a raw technical dump: syntax examples, ABI lowering information, generated C++ output, invariants, edge cases. The kind of notes that make perfect sense to me and nobody else.
 
-I handed those dumps to Claude to rework into polished-ish reference documentation. The LLM structures sections, writes prose transitions, formats tables and code blocks, and smooths out phrasing. I do all the technical writing, examine every page for correctness, and change anything that misrepresents the language semantics.
+I handed those dumps to Claude to turn them into something a human other than me can actually read. It structures sections, writes prose transitions, formats tables and code blocks, and smooths out phrasing. I do all the technical writing, review every page for correctness, and change anything that misrepresents the language semantics.
 
-The technical substance, the language itself, how it operates, the invariants are mine. AI helps with the prose refinement. If you see something in the docs that’s a technical error, that’s on me.
+The technical substance (the language itself, how it works, the invariants) is mine. AI helps with the prose. If you see a technical error in the docs, that's on me.
 
-## Web site
+## Website
 
-I'm not a web developer. I've never had a passion. Astro, CSS, HTML and JS are not languages that I work with. The kairolang.org website was built by: Claude. I explained the theme, layout, what the site should include and what is it for. The AI wrote the Astro components, CSS and front end code. I looked over the output, and corrected errors wherever I found them.
+I'm not a web developer. Web dev has never interested me, and I'm not going to pretend otherwise. Astro, CSS, HTML, and JS are not languages I work with. The kairolang.org website was built by Claude. I explained the theme, the layout, what the site should include, and what it's for. The AI wrote the Astro components, CSS, and front-end code. I looked over the output and corrected errors wherever I found them.
 
 The website source is publicly available at [github.com/kairolang/kairo-web](https://github.com/kairolang/kairo-web).
 
 ## Git Commit Messages
 
-I use GitLens AI to write my commit messages. That’s just pure-laziness. The commits are mine, the messages are autogenerated.
+I use GitLens AI to write my commit messages. Writing them is the one part of version control I refuse to care about. The commits are mine; the messages are generated from my diffs.
 
-## LSP and VSCode Extension (Stage 0)
+## LSP and VS Code Extension (Stage 0)
 
-Stage 0 compiler is written entirely by hand. But the LSP integration and VSCode extension were AI helped. I implemented a pseudo-LSP mode in the compiler, pass it `--lsp-mode` and it returns diagnostics as JSON, then I provided Claude the LSP protocol spec. Claude built the Python (pygls) server that connects the compiler output to VSCode and the extension code to wire it up.
+The Stage 0 compiler is written entirely by hand, but the LSP integration and VS Code extension were AI-assisted. I implemented a pseudo-LSP mode in the compiler: pass it `--lsp-mode` and it returns diagnostics as JSON. Then I gave Claude the LSP protocol spec, and it built the Python (pygls) server that connects the compiler output to VS Code, plus the extension code to wire it up.
 
-It's not great but, it was enough to unblock Stage 1 development, without spending weeks on the LSP protocol and VSCode extension API. The Stage 1 LSP server and extension will be developed from scratch.
+It's held together with tape, but it unblocked Stage 1 development without me spending weeks on the LSP protocol and the VS Code extension API. The Stage 1 LSP server and extension will be written from scratch.
 
 If you have questions, open an issue on [GitHub](https://github.com/kairolang/kairo/issues).
