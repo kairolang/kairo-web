@@ -312,7 +312,7 @@ fn fatal(msg: string) panic -> ! {
 `!` is a subtype of every type, making it valid in expression contexts:
 
 ```kairo
-var x: i32 = if valid { compute() } else { fatal("bad state") }
+var x: i32 = if valid => compute() else => fatal("bad state")
 ```
 
 `!` can only appear as a function return type. It cannot be used as a variable type, type parameter,

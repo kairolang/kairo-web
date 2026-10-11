@@ -406,20 +406,13 @@ pub class Server {
 
         var raw = net::tcp_read(fd, 8192)
 
-        var response = try {
+        var response = try ({
             var req = parse_request(raw)
             var handler = self.router.resolve(&req)
-
-            try {
-                handler(&req)
-            } catch {
-                Response::internal_error()
-            }
-        } catch e: ParseError {
-            Response::bad_request(e.message)
-        } catch {
-            Response::internal_error()
-        }
+            (try handler(&req) catch => Response::internal_error())
+        })
+            catch e: ParseError => Response::bad_request(e.message)
+            catch => Response::internal_error()
 
         net::tcp_write(fd, response.serialize())
     }

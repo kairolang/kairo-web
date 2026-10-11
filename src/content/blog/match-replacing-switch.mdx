@@ -116,11 +116,11 @@ Try doing this with `switch`. You can't, `switch` dispatches on a single value. 
 
 ```kairo
 var label = match level {
-    case .Debug   { "debug" }
-    case .Info    { "info" }
-    case .Warning { "warning" }
-    case .Error   { "error" }
-    case .Fatal   { "fatal" }
+    case .Debug   => "debug"
+    case .Info    => "info"
+    case .Warning => "warning"
+    case .Error   => "error"
+    case .Fatal   => "fatal"
 }
 ```
 
@@ -128,10 +128,10 @@ This works with ranges too:
 
 ```kairo
 var severity = match code {
-    case 200..=299 { 0 }
-    case 400..=499 { 1 }
-    case 500..=599 { 2 }
-    default        { -1 }
+    case 200..=299 => 0
+    case 400..=499 => 1
+    case 500..=599 => 2
+    default        => -1
 }
 ```
 
