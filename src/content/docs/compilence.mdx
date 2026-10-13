@@ -75,19 +75,11 @@ Kairo source files are **UTF-8** only. No BOM. No other encoding is accepted. Th
 
 ### String Internal Representation
 
-Kairo's `string` type is a 32-byte value type backed exclusively by a `u8` array using UTF-8 encoding internally, with small string optimization (SSO). SShort strings are stored inline without a heap allocation (exact threshold is implementation-defined and subject to change until the standard library is finalized). Longer strings are heap-allocated. All strings are null-terminated internally; conversion to C string types does not add a separate null byte.
+Kairo's `string` is a four-word value (32 bytes on 64-bit): `{data, len, cp_len, cap}`, a UTF-8 byte sequence with the byte count and codepoint count carried alongside. There is no small-string optimization. A literal is a borrowed view of static storage (`cap == 0`) and allocates nothing; an owned string has `cap` bytes of heap behind `data`. Both keep a NUL byte after `len`, so a C string view is O(1).
 
 - **Codepoint indexing:** `s[i]` returns a `char` (a `u32` Unicode scalar value) at codepoint position `i`. For string literals, the compiler pre-populates a breadcrumb cache at codegen time mapping codepoint positions to UTF-8 byte offsets, making indexing O(1) with zero runtime cost. For strings constructed at runtime from a raw `*u8` or `*u32` pointer, no cache is available and indexing is O(n); use sequential iteration or copy into a `string` first if you need repeated random access.
 - **Byte indexing:** `s.bytes[i]` returns a raw `u8` at byte offset `i`. This is O(1) always but returns raw UTF-8 bytes, not characters.
 - **Iteration:** `for ch in s` yields `char` values (decoded codepoints) sequentially.
-
-**Compile-time breadcrumb cache:** For string literals containing multi-byte codepoints, the compiler pre-populates the breadcrumb cache at codegen time. For example, `"hi 🔥"` is emitted as roughly:
-
-```kairo
-string::stack("hi \xf0\x9f\x94\xa5", string::cache{(3, 7)})
-```
-
-The codepoint-to-byte mapping is fully resolved at compile time. No runtime scanning occurs for literals. For pointer-constructed strings, no cache is injected; codepoint indexing falls back to O(n) sequential decode.
 
 See [Primitives](/docs/language/primitives#strings) for the full string API.
 
@@ -169,9 +161,9 @@ files via Clang's backend. The relevant documents per platform:
 
 ### AArch64 Linux
 
-- **ARM64 ELF psABI (AAPCS64)** - 16 general-purpose argument registers (x0-x7
-  for integers, v0-v7 for floats/vectors), caller-saved x0-x17, callee-saved
-  x19-x28.
+- **ARM64 ELF psABI (AAPCS64)** - 8 general-purpose argument registers (x0-x7)
+  and 8 floating-point/SIMD argument registers (v0-v7), caller-saved x0-x17,
+  callee-saved x19-x28.
 - Pointer authentication is not enabled by default. Use `--mbranch-protection`
   to opt in.
 
@@ -188,9 +180,10 @@ files via Clang's backend. The relevant documents per platform:
 - **Microsoft x64 calling convention** - 4 register parameters (rcx, rdx, r8,
   r9 for integers; xmm0-xmm3 for floats), shadow space requirement (32 bytes),
   caller cleans stack.
-- C++ ABI on Windows is MSVC. Set `--cxx-abi=msvc` when interoperating with
-  MSVC-compiled C++ code. The default is Itanium which is what Clang uses on
-  Windows by default for Clang-compiled code.
+- The C++ ABI is decided by the target triple. `*-windows-gnu` (MinGW-w64,
+  the default Windows target) uses the Itanium C++ ABI and links with
+  GCC- and Clang-built MinGW code. `*-windows-msvc` uses the Microsoft C++ ABI
+  and links with MSVC- and clang-cl-built code. There is no separate flag.
 
 ### WASM / WASI
 
@@ -208,11 +201,10 @@ DWARF 4 is available via `--dwarf-version=4` for targets that require it
 
 What Kairo emits:
 
-- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14` in Stage 0 (the current
-  compiler transpiles Kairo to C++, so the DWARF reflects the C++ output). A
+- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14`. Kairo lowers to a
+  Clang token stream and Clang's frontend tags the compilation unit as C++. A
   proper `DW_LANG_Kairo` language tag will be registered with the DWARF
-  committee once the language spec stabilizes and the Stage 1 compiler (which
-  emits LLVM IR directly) is complete.
+  committee once the language spec stabilizes.
 - Source file paths in DWARF use the paths as given to the compiler, resolved
   relative to `--working-dir` if set. Use `--remap-path-prefix` or
   `--debug-prefix-map` to strip build-machine-specific paths for reproducible
@@ -276,14 +268,17 @@ codegen happen on the consumer's machine for their target platform. This makes
 ## C++ Interop ABI
 
 When Kairo calls into C++ via `ffi "c++" import`, the C++ code is compiled by
-Clang using the same backend invocation. Kairo has full native interop for all
-C++ standard versions through C++26.
+Clang using the same backend invocation. Headers are compiled by the pinned
+Clang at the standard `--cxx-std` selects: `c++17`, `c++20` (default), or
+`c++23`. What that covers, and what it does not yet (named modules, for one),
+is listed in the [coverage matrix](/docs/language/c-cpp#coverage-matrix).
 
 The ABI boundary between Kairo-emitted code and C++-emitted code is:
 
-- **Itanium C++ ABI** on all platforms except Windows MSVC targets.
-- **MSVC C++ ABI** on Windows when `--cxx-abi=msvc` is set.
-- Name mangling follows the Itanium C++ ABI scheme by default.
+- **Itanium C++ ABI** on every triple except `*-windows-msvc`, including
+  `*-windows-gnu`.
+- **MSVC C++ ABI** on `*-windows-msvc` triples.
+- Name mangling follows whichever C++ ABI the triple selects.
   Kairo functions exported across the FFI boundary use C++ name mangling to
   support overloading and seamless interop with Clang-compiled C++ code.
   Explicit `ffi "C"` linkage (no mangling) is only used for C interop or
@@ -361,8 +356,8 @@ depending on whether the optimizer's heuristics fire).
   standard in Kairo.
 - **MISRA / CERT / SEI coding standards**: These are auditable properties of
   specific programs, not language-level guarantees. Kairo does not ship a MISRA
-  checker. You can run your Kairo-generated C++ through existing MISRA tools if
-  your target requires this.
+  checker, and there is no generated C++ source to hand to one: the compiler
+  feeds Clang a token stream, not a file.
 - **ISO/IEC 9899 (C standard)**: Same as C++. C interop works through the FFI
   layer. Kairo is not a C compiler.
 
@@ -379,7 +374,7 @@ depending on whether the optimizer's heuristics fire).
 | x86-64 psABI | System V AMD64 v1.0 |
 | AArch64 psABI | AAPCS64 (ARM IHI0055) |
 | Itanium C++ ABI | Current (Clang tracks this) |
-| C++ interop | All versions through C++26 |
+| C++ interop | Pinned Clang, `--cxx-std` c++17/c++20 (default)/c++23 |
 | WASI | preview1 (default), preview2 (opt-in) |
 | WebAssembly binary | MVP + explicit proposals |
 | ELF | System V gABI + platform psABI |

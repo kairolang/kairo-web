@@ -127,8 +127,11 @@ std::println(f"origin: ({origin.x}, {origin.y})")
 
 ## Status
 
-Kairo is in active development. The compiler is currently in **Stage 0** a C++ implementation
-that transpiles Kairo to C++. Stage 1 (self-hosted compiler written in Kairo) is underway.
+Kairo is in active development. The **Stage 1** compiler, written in Kairo, is the current
+compiler: it lowers Kairo to a Clang token stream and compiles it with a pinned Clang, and it
+cross-compiles to every curated sysroot target. See [Implementation Status](/docs/status) for the
+gaps. **Stage 0**, the original C++ implementation that transpiled Kairo to C++, is frozen and
+only kept to bootstrap Stage 1.
 
 Language syntax and standard library APIs may change before 1.0. The documentation on this site
 reflects the current language design.

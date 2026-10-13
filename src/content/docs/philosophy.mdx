@@ -112,7 +112,7 @@ afford full rewrites.
 
 Kairo integrates into existing systems one module at a time. Import C headers directly with
 `ffi "c"`. Import C++ headers with `ffi "c++"`. Kairo emits ABI-compatible object code
-Itanium on Unix, MSVC on Windows so Kairo `.o` files link with GCC, Clang, or MSVC output
+Itanium on Unix and MinGW, MSVC on `*-windows-msvc` so Kairo `.o` files link with GCC, Clang, or MSVC output
 without shims. Object layout, vtable structure, name mangling, and calling conventions all follow
 platform standards.
 

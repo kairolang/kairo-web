@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-10T20:44:37.237Z
+> Generated: 2026-10-13T00:43:09.736Z
 
 ---
 
@@ -138,8 +138,11 @@ std::println(f"origin: ({origin.x}, {origin.y})")
 
 ## Status
 
-Kairo is in active development. The compiler is currently in **Stage 0** a C++ implementation
-that transpiles Kairo to C++. Stage 1 (self-hosted compiler written in Kairo) is underway.
+Kairo is in active development. The **Stage 1** compiler, written in Kairo, is the current
+compiler: it lowers Kairo to a Clang token stream and compiles it with a pinned Clang, and it
+cross-compiles to every curated sysroot target. See [Implementation Status](/docs/status) for the
+gaps. **Stage 0**, the original C++ implementation that transpiled Kairo to C++, is frozen and
+only kept to bootstrap Stage 1.
 
 Language syntax and standard library APIs may change before 1.0. The documentation on this site
 reflects the current language design.
@@ -267,7 +270,7 @@ afford full rewrites.
 
 Kairo integrates into existing systems one module at a time. Import C headers directly with
 `ffi "c"`. Import C++ headers with `ffi "c++"`. Kairo emits ABI-compatible object code
-Itanium on Unix, MSVC on Windows so Kairo `.o` files link with GCC, Clang, or MSVC output
+Itanium on Unix and MinGW, MSVC on `*-windows-msvc` so Kairo `.o` files link with GCC, Clang, or MSVC output
 without shims. Object layout, vtable structure, name mangling, and calling conventions all follow
 platform standards.
 
@@ -716,19 +719,11 @@ Kairo source files are **UTF-8** only. No BOM. No other encoding is accepted. Th
 
 ### String Internal Representation
 
-Kairo's `string` type is a 32-byte value type backed exclusively by a `u8` array using UTF-8 encoding internally, with small string optimization (SSO). SShort strings are stored inline without a heap allocation (exact threshold is implementation-defined and subject to change until the standard library is finalized). Longer strings are heap-allocated. All strings are null-terminated internally; conversion to C string types does not add a separate null byte.
+Kairo's `string` is a four-word value (32 bytes on 64-bit): `{data, len, cp_len, cap}`, a UTF-8 byte sequence with the byte count and codepoint count carried alongside. There is no small-string optimization. A literal is a borrowed view of static storage (`cap == 0`) and allocates nothing; an owned string has `cap` bytes of heap behind `data`. Both keep a NUL byte after `len`, so a C string view is O(1).
 
 - **Codepoint indexing:** `s[i]` returns a `char` (a `u32` Unicode scalar value) at codepoint position `i`. For string literals, the compiler pre-populates a breadcrumb cache at codegen time mapping codepoint positions to UTF-8 byte offsets, making indexing O(1) with zero runtime cost. For strings constructed at runtime from a raw `*u8` or `*u32` pointer, no cache is available and indexing is O(n); use sequential iteration or copy into a `string` first if you need repeated random access.
 - **Byte indexing:** `s.bytes[i]` returns a raw `u8` at byte offset `i`. This is O(1) always but returns raw UTF-8 bytes, not characters.
 - **Iteration:** `for ch in s` yields `char` values (decoded codepoints) sequentially.
-
-**Compile-time breadcrumb cache:** For string literals containing multi-byte codepoints, the compiler pre-populates the breadcrumb cache at codegen time. For example, `"hi 🔥"` is emitted as roughly:
-
-```kairo
-string::stack("hi \xf0\x9f\x94\xa5", string::cache{(3, 7)})
-```
-
-The codepoint-to-byte mapping is fully resolved at compile time. No runtime scanning occurs for literals. For pointer-constructed strings, no cache is injected; codepoint indexing falls back to O(n) sequential decode.
 
 See [Primitives](/docs/language/primitives#strings) for the full string API.
 
@@ -810,9 +805,9 @@ files via Clang's backend. The relevant documents per platform:
 
 ### AArch64 Linux
 
-- **ARM64 ELF psABI (AAPCS64)** - 16 general-purpose argument registers (x0-x7
-  for integers, v0-v7 for floats/vectors), caller-saved x0-x17, callee-saved
-  x19-x28.
+- **ARM64 ELF psABI (AAPCS64)** - 8 general-purpose argument registers (x0-x7)
+  and 8 floating-point/SIMD argument registers (v0-v7), caller-saved x0-x17,
+  callee-saved x19-x28.
 - Pointer authentication is not enabled by default. Use `--mbranch-protection`
   to opt in.
 
@@ -829,9 +824,10 @@ files via Clang's backend. The relevant documents per platform:
 - **Microsoft x64 calling convention** - 4 register parameters (rcx, rdx, r8,
   r9 for integers; xmm0-xmm3 for floats), shadow space requirement (32 bytes),
   caller cleans stack.
-- C++ ABI on Windows is MSVC. Set `--cxx-abi=msvc` when interoperating with
-  MSVC-compiled C++ code. The default is Itanium which is what Clang uses on
-  Windows by default for Clang-compiled code.
+- The C++ ABI is decided by the target triple. `*-windows-gnu` (MinGW-w64,
+  the default Windows target) uses the Itanium C++ ABI and links with
+  GCC- and Clang-built MinGW code. `*-windows-msvc` uses the Microsoft C++ ABI
+  and links with MSVC- and clang-cl-built code. There is no separate flag.
 
 ### WASM / WASI
 
@@ -849,11 +845,10 @@ DWARF 4 is available via `--dwarf-version=4` for targets that require it
 
 What Kairo emits:
 
-- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14` in Stage 0 (the current
-  compiler transpiles Kairo to C++, so the DWARF reflects the C++ output). A
+- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14`. Kairo lowers to a
+  Clang token stream and Clang's frontend tags the compilation unit as C++. A
   proper `DW_LANG_Kairo` language tag will be registered with the DWARF
-  committee once the language spec stabilizes and the Stage 1 compiler (which
-  emits LLVM IR directly) is complete.
+  committee once the language spec stabilizes.
 - Source file paths in DWARF use the paths as given to the compiler, resolved
   relative to `--working-dir` if set. Use `--remap-path-prefix` or
   `--debug-prefix-map` to strip build-machine-specific paths for reproducible
@@ -917,14 +912,17 @@ codegen happen on the consumer's machine for their target platform. This makes
 ## C++ Interop ABI
 
 When Kairo calls into C++ via `ffi "c++" import`, the C++ code is compiled by
-Clang using the same backend invocation. Kairo has full native interop for all
-C++ standard versions through C++26.
+Clang using the same backend invocation. Headers are compiled by the pinned
+Clang at the standard `--cxx-std` selects: `c++17`, `c++20` (default), or
+`c++23`. What that covers, and what it does not yet (named modules, for one),
+is listed in the [coverage matrix](/docs/language/c-cpp#coverage-matrix).
 
 The ABI boundary between Kairo-emitted code and C++-emitted code is:
 
-- **Itanium C++ ABI** on all platforms except Windows MSVC targets.
-- **MSVC C++ ABI** on Windows when `--cxx-abi=msvc` is set.
-- Name mangling follows the Itanium C++ ABI scheme by default.
+- **Itanium C++ ABI** on every triple except `*-windows-msvc`, including
+  `*-windows-gnu`.
+- **MSVC C++ ABI** on `*-windows-msvc` triples.
+- Name mangling follows whichever C++ ABI the triple selects.
   Kairo functions exported across the FFI boundary use C++ name mangling to
   support overloading and seamless interop with Clang-compiled C++ code.
   Explicit `ffi "C"` linkage (no mangling) is only used for C interop or
@@ -1002,8 +1000,8 @@ depending on whether the optimizer's heuristics fire).
   standard in Kairo.
 - **MISRA / CERT / SEI coding standards**: These are auditable properties of
   specific programs, not language-level guarantees. Kairo does not ship a MISRA
-  checker. You can run your Kairo-generated C++ through existing MISRA tools if
-  your target requires this.
+  checker, and there is no generated C++ source to hand to one: the compiler
+  feeds Clang a token stream, not a file.
 - **ISO/IEC 9899 (C standard)**: Same as C++. C interop works through the FFI
   layer. Kairo is not a C compiler.
 
@@ -1020,7 +1018,7 @@ depending on whether the optimizer's heuristics fire).
 | x86-64 psABI | System V AMD64 v1.0 |
 | AArch64 psABI | AAPCS64 (ARM IHI0055) |
 | Itanium C++ ABI | Current (Clang tracks this) |
-| C++ interop | All versions through C++26 |
+| C++ interop | Pinned Clang, `--cxx-std` c++17/c++20 (default)/c++23 |
 | WASI | preview1 (default), preview2 (opt-in) |
 | WebAssembly binary | MVP + explicit proposals |
 | ELF | System V gABI + platform psABI |
@@ -1108,8 +1106,10 @@ hardware-supported representations where possible, falling back to software emul
 
 ## Integers
 
-All integer types have a fixed, guaranteed size. The default integer type is `i32` if a literal doesn't fit
-in `i32`, the compiler promotes it to the smallest signed type that can hold the value, up to `i512`.
+All integer types have a fixed, guaranteed size. An integer literal takes the type expected by its context
+(annotation, parameter, return position, the other operand) and must fit it. With no expected type the default
+is `i32`; only if the value does not fit `i32` does the compiler fall back to the smallest signed type that can
+hold it, up to `i512`. See [Literal inference](#5-literal-inference--a-separate-mechanism).
 
 | Type | Size | Description | C++ Equivalent |
 |---|---|---|---|
@@ -1129,6 +1129,10 @@ in `i32`, the compiler promotes it to the smallest signed type that can hold the
 | `i512` | 64 bytes | [Signed 512-bit integer](#extended-width-integers-u128u512-i128i512) |   |
 | `usize` | Platform-dependent | Unsigned, pointer-width integer | `size_t` |
 | `isize` | Platform-dependent | Signed, pointer-width integer | `ptrdiff_t` |
+
+`i64` and `u64` are spelled as the target's `int64_t` / `uint64_t`, not hard-coded: `long` on 64-bit Linux and
+FreeBSD; `long long` on Windows, on every 32-bit target, and on Darwin (a 64-bit platform that still spells
+`int64_t` as `long long`). This keeps C++ name mangling and header signatures matching on every target.
 
 Integer literals default to signed. Use a type suffix to specify:
 
@@ -1164,8 +1168,9 @@ Extended-width integers are always stack-allocated they are value types, not hea
 
 ## Floating-Point
 
-All floating-point types except `f80` follow the IEEE 754 standard. The default float type is `f64` if a literal doesn't
-fit in `f64`, the compiler promotes to the smallest float type that can hold the value, up to `f512`.
+All floating-point types except `f80` follow the IEEE 754 standard. A float literal takes the type expected by its
+context and must fit it. With no expected type the default is `f64`; only if the value does not fit `f64` does the
+compiler fall back to the smallest float type that can hold it, up to `f512`.
 
 | Type | Size | Precision | C++ Equivalent |
 |---|---|---|---|
@@ -1686,10 +1691,10 @@ Every ordered pair `(S, T)` of primitive types falls into exactly one class:
 | **U** — unsafe | requires an `unsafe` context in addition to `as` | required | no |
 | **X** — forbidden | no cast exists; diagnostic suggests a library function | rejected | no |
 
-I deliberately dropped the "warn" class I floated earlier. A conversion is either
-sound-by-construction or it is not; a third state means the checker has to carry a
-severity through overload resolution, and severities do not compose. Lossy-cast
-detection on known-constant operands belongs in a lint (§8), not in the type relation.
+There is no "warn" class. A conversion is either sound-by-construction or it is not; a
+third state would force the checker to carry a severity through overload resolution, and
+severities do not compose. Lossy-cast detection on known-constant operands is a lint (§8),
+not part of the type relation.
 
 **`-fno-implicit-conv` demotes every W to E.** It changes nothing else. §7 proves this
 cannot alter which overload is selected.
@@ -1774,8 +1779,9 @@ step is required, so `u32 → i32` is E), and the signed→unsigned quadrant is 
 | `string` | X | X | X | X | X | X | X | X |
 | `void` | X | X | X | X | X | X | X | X |
 
-Float→int is E in all cases (truncation toward zero; out-of-range is a saturating
-result, not UB — pick this and state it, C's UB here is a permanent source of bugs).
+Float→int is E in all cases. The cast truncates toward zero and saturates on
+out-of-range values; it is never undefined behavior. See
+[Casting](/docs/language/casting#float-to-integer).
 
 ---
 
@@ -1788,17 +1794,17 @@ compile on `x86_64` and fail on `wasm32`. `usize` and `isize` also do not W-conv
 each other. Literals still work — `var i: usize = 0` is literal inference (§5), not
 conversion.
 
-**`byte`.** No W conversion to or from `u8`. Your docs restrict `byte` to bitwise ops;
-if `byte → u8` were implicit then `b + mask` succeeds by converting both operands and
-the restriction is decorative. E in both directions.
+**`byte`.** No W conversion to or from `u8`. `byte` is restricted to bitwise operations
+([Byte](#byte)); if `byte → u8` were implicit then `b + mask` would succeed by converting
+both operands and the restriction would be decorative. E in both directions.
 
 **`char`.** `char → u32` is bit-identical and technically widening-free, but a codepoint
-is not a number. E. `u32 → char` is E and must range-check (surrogates and `> 0x10FFFF`
-are invalid scalar values) — decide whether that check traps or produces a
-`char?`/result; do not let an invalid `char` exist.
+is not a number. E. `u32 → char` is E and range-checks: surrogates and values above
+`0x10FFFF` are not scalar values, and an invalid `char` never exists. Whether the failed
+check traps or yields a `char?` is not yet specified.
 
-**`bool`.** E in both directions. Your docs already say "no implicit conversion from
-integers"; this extends it to the reverse. `int → bool` is E with `!= 0` semantics.
+**`bool`.** E in both directions. [Bool](#bool) already forbids implicit conversion
+from integers; the reverse is forbidden too. `int → bool` is E with `!= 0` semantics.
 
 **Pointers.** `*T → unsafe *T` is **U**, not W — it is a safety downgrade and Tether loses
 provenance at that point, so it should be visible. `unsafe *T → *T` is U and must be a
@@ -1857,12 +1863,11 @@ does not consult this lattice.
    = 300` — error at the literal, with the range in the diagnostic.
 2. With no expected type, the default is `i32` for integer literals and `f64` for float
    literals. Only if the value does not fit does the "smallest type that holds it" rule
-   in your primitives doc apply.
+   from [Integers](#integers) apply.
 
-State rule 1 explicitly in the docs, because your current text implies the promotion rule
-always fires. Under that reading, `var x = 3000000000` yields `i64`, and a later
-`var y: u32 = x` errors even though the value fits `u32` — the type was chosen before
-anyone knew the destination. Expected-type-first eliminates the whole class.
+Rule 1 comes first on purpose. If promotion fired unconditionally, `var x: u32 = 3000000000`
+would type the literal as `i64` before looking at the annotation, and then fail to narrow
+it. Expected-type-first removes that whole class of error.
 
 Suffixed literals (`42u8`) are typed at the literal and then participate in conversion
 normally.
@@ -1880,7 +1885,7 @@ Given operands of type `A` and `B`, `A ≠ B`:
 - If `W(B → A)` and not `W(A → B)`: result operand type is `A`.
 - Otherwise: **error**, requiring an explicit cast on one side.
 
-Consequences worth confirming you want:
+Consequences:
 
 | Expression | Result | Why |
 |---|---|---|
@@ -1893,9 +1898,8 @@ Consequences worth confirming you want:
 | `i64 + i128` | error | R5 — extended width never silent |
 | `byte & u8` | error | §4 |
 
-The `u32 + i32` error is the single most valuable line in this document. C's answer is
-`u32`, which silently converts every negative `i32` into a huge positive number, and it
-has cost the industry more than any other implicit conversion.
+The `u32 + i32` error is deliberate. C's answer is `u32`, which silently converts every
+negative `i32` into a huge positive number; Kairo refuses rather than guess.
 
 Comparison operators use the same unification. Shift operators are the exception: the
 right operand is unified independently and any integer type is accepted, since the shift
@@ -1916,18 +1920,16 @@ Conversion sequences have exactly two ranks:
 There is deliberately no ordering *within* rank 2. If two candidates are both reachable
 by W, the call is **ambiguous** and errors, even if one conversion is "narrower" in some
 intuitive sense. No `i32 → i64` beats `i32 → f64` tiebreaking. No promotion-vs-conversion
-distinction. This is the property that makes the flag safe:
+distinction. The tie-breaks in [Function Overloading](/docs/language/functions#function-overloading)
+(reference binding, non-generic over generic, most specialized generic) never order conversions, so "no
+ordering within rank 2" still holds, and so does the guarantee below. This is the property that makes the
+flag safe:
 
 > Let `C_on` be the candidate selected with W enabled. `-fno-implicit-conv` demotes every
 > W to E, which removes candidates from the viable set but never adds one and never
 > reorders the two ranks. An exact-match winner stays the winner. A rank-2 winner becomes
 > non-viable, so the call errors. Therefore for all programs: the flag either preserves
 > the selection or produces a diagnostic. It can never select a different candidate.
-
-Write that as a differential test: compile the whole suite both ways, diff the
-`--dump-type-info` output, and assert every difference is `resolved → error` and never
-`resolved(A) → resolved(B)`. If that assertion ever fires you have introduced a ranking
-somewhere, and you want to know the day it happens.
 
 ### List literal arguments
 
@@ -1972,52 +1974,6 @@ Literals other than list literals are unaffected.
   on under a strict profile.
 
 None of these participate in overload resolution or operand unification.
-
----
-
-## 9. Invariants — property tests to write now
-
-These are the properties that keep the relation a well-formed partial order. Each is a
-one-page property test over the full primitive set, and each catches a class of bug that
-is otherwise found by users.
-
-1. **Reflexivity.** `class(T, T) == I` for all `T`.
-2. **Antisymmetry.** `W(A → B) ∧ W(B → A) ⟹ A == B`. A W-cycle means overload resolution
-   can pick either candidate depending on iteration order.
-3. **Transitivity.** `W(A → B) ∧ W(B → C) ⟹ W(A → C)`. The rules in §2 are already
-   transitively closed; the test guards against a future rule addition that breaks it.
-   If this ever fails, conversion becomes chain-length-dependent and results stop being
-   stable under refactoring.
-4. **Value preservation.** For every W pair and a generated corpus of source values
-   (bounds, zero, ±1 around bounds, random), round-tripping through the target and back
-   yields the original. Any failure is a mis-classified cell, not a codegen bug.
-5. **Target independence.** The full class matrix is byte-identical across every
-   supported triple. `usize`/`isize` rows and columns are the ones this is really
-   testing. The §4.1 boundary relation is held to the same standard: it is computed from
-   the [32, 64] ranges, not the target's width, so it too is identical on every
-   32/64-bit triple.
-6. **Totality.** Every ordered pair over the full primitive set has exactly one class.
-   No `default:` fallthrough in the decision function.
-
----
-
-## 10. Implementation shape
-
-Generate everything from one table. A single `conversions.def` X-macro or TOML listing
-`(source, target, class)` for every pair, and from it emit:
-
-- the `ConversionClass classify(TypeId, TypeId)` function used by sema,
-- the docs table in this file,
-- the property-test corpus for §9,
-- the `--dump-type-info` legend.
-
-The alternative — a hand-written `classify` with the docs maintained separately — drifts
-within a month, and the drift is invisible because nothing compares them. One source,
-three consumers, zero drift.
-
-Order of work: land `classify` and its property tests against the current checker *before*
-changing any behavior, so you find out which cells the compiler already disagrees with.
-That diff is the actual work item list.
 
 ---
 
@@ -2841,7 +2797,7 @@ declare any overloadable operator except `as`, `[]`, `->`, `.*`, `->*` and `dele
 | `=` | no | no | Generated by the compiler; cannot be overloaded. |
 | `===` | no | no | Built in; needs a nullable operand. |
 | `.` `::` | no | no | Language syntax; not overloadable. |
-| Unary `&` `*` | no | no | Built-in pointer operations. |
+| Unary `&` `*` | no | no | Built-in pointer operations. Not overloadable on Kairo types. On an imported C++ class, `*x` calls the class's `operator*`, which is how C++ iterators and smart pointers are read. |
 | `&&` `\|\|` `!` | no | no | Preserve built-in short-circuit semantics. |
 | `?.` `?->` | no | no | Derived automatically from the corresponding non-null-safe operator. |
 | `..` `..=` | no | no | Implemented through the `Steppable` interface. |
@@ -3647,9 +3603,12 @@ for item in collection {
 ```
 
 The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type
-that defines `fn op in (self) -> yield T` is iterable. See [Operators](/docs/language/operators#ranges) for
-the `Steppable` interface and [Operators](/docs/language/operators#special-operators) for the `op in`
-overload.
+that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does
+not make it iterable. See [Operators](/docs/language/operators#ranges) for the `Steppable` interface and
+[Operators](/docs/language/operators#special-operators) for the `op in` overload.
+
+An imported C++ class iterates the way a C++ range-based `for` does: through its member `begin()` and
+`end()`, or else through free `begin()` and `end()` functions found by argument-dependent lookup.
 
 ### Multi-variable iteration
 
@@ -4130,7 +4089,7 @@ on return types, `void` returns, and expression-bodied functions.
 if the left operand determines the result:
 
 ```kairo
-if ptr != null || *ptr == 42 {
+if ptr != null && *ptr == 42 {
     // safe: *ptr is only evaluated if ptr is non-null
 }
 ```
@@ -4767,7 +4726,17 @@ Parameter modes also participate in overloading. See [Overloading on mode](#over
 
 A candidate either matches an argument exactly or through a conversion, and there is no ordering among
 conversions: if two candidates both need one, the call is ambiguous (`call to 'f' is ambiguous: more than
-one candidate matches at the same rank`). For a list literal argument, a `[T; N]` parameter with the same
+one candidate matches at the same rank`). Before a tie at the same rank is declared ambiguous, three
+tie-breaks run, in C++'s order:
+
+1. **Reference binding.** An rvalue argument prefers a `T&&` parameter to `const T&`; a non-const lvalue
+   prefers `T&` to `const T&`; a non-const receiver prefers the non-const method.
+2. **Non-generic over generic.** A non-generic candidate beats a generic one.
+3. **Most specialized generic.** Among generic candidates still tied, the most specialized wins:
+   `fn <T> f(a: Box<T>, b: Box<T>)` beats `fn <A, B> f(a: Box<A>, b: Box<B>)` for `f(x, y)` with two
+   `Box<i32>`.
+
+These tie-breaks never order conversions. For a list literal argument, a `[T; N]` parameter with the same
 element count is an exact match, while `[T;]` and `[T]` parameters both need a conversion:
 
 ```kairo
@@ -5142,7 +5111,7 @@ Forward declarations are used when the definition lives elsewhere:
 - **FFI imports** the body is provided by a C or C++ library. See
   [C/C++ Interop](/docs/language/c-cpp).
 - **Separate translation units** the declaration is visible to callers; the
-  definition is linked in from another `.kro` file.
+  definition is linked in from another `.k` file.
 - **Out-of-line class methods** declared in the class body, defined outside it using the `Class::method` qualified-name syntax:
 
     ```kairo
@@ -6008,9 +5977,10 @@ compile error.
 |---|---|
 | `= default` | `= default` |
 | `= delete` | `= delete` |
-| `{ body }` | destroys `self`, then runs the ctor body, then returns `self` |
+| `{ body }` | checks for self-assignment, destroys `self`, runs the ctor body, returns `self` |
 
-The body case handles self-assignment by destroying the current state before reconstructing it.
+The body case first checks for self-assignment: `x = x` does nothing. Otherwise it destroys `self`, runs
+the transfer constructor body with the right-hand side, and returns `self`.
 
 This implies a consistency rule: if the transfer ctor has a body and `op delete` is `= delete`d, the class fails to compile the auto-derived `op =` needs to invoke the destructor and cannot. Fix by providing a destructor or by changing the transfer ctor to `= default` / `= delete`.
 
@@ -6376,13 +6346,17 @@ class <T> Derived derives Base<T> {
 
 ### Type parameter constraints
 
-By default, a type parameter accepts any `T`. Whether a specific `T` is valid for a given instantiation
-depends on what the body does with it by-reference use accepts anything, copying requires a COPY type,
-moving requires COPY or MOVE, returning by value requires COPY or MOVE. Instantiation errors point at
-both the body operation that required the capability and the type that lacks it.
+A generic body may use only what its bounds grant. The body is checked once, where it is defined,
+against its bounds, not against each type it is instantiated with. Calling a method no bound declares,
+copying a `T` without a copy bound, or declaring `var x: T` without a constructor bound is a compile
+error in the generic itself.
 
-Explicit bounds document intent and fail fast at the constraint check rather than mid-body. Two kinds of
-bounds exist:
+**Implicit capabilities.** Every type parameter may be destroyed and moved without saying so.
+Instantiating with a type whose `op delete` is `= delete`, or whose category is NON_TRANSFER, is an
+error at the instantiation site. It names the generic's implicit requirement, not a line inside its
+body. (Opt-out syntax: TBD.)
+
+Two kinds of bounds exist:
 
 **Kind bounds** restrict `T` to a specific category of type declaration:
 
@@ -6400,10 +6374,12 @@ still being finalized in `std` write your own if you need them now:
 
 ```kairo
 interface Copyable {
-    fn Copyable(self)               // default ctor
-
     @copy
     fn Copyable(self, const other: Self)
+}
+
+interface Defaultable {
+    fn Defaultable(self)
 }
 
 fn <T impl Copyable> store(item: T) -> T { ... }
@@ -7318,7 +7294,10 @@ enum HttpStatus {
 }
 ```
 
-Discriminant expressions must be compile-time constants. Duplicate values are a compile error.
+Discriminants are integer constant expressions. Duplicate values are a compile error. A discriminant
+may refer to variants declared before it; inside a discriminant expression, an earlier variant has
+the enum's [underlying type](#underlying-type), not the enum type. Referring to a later variant, or to
+anything that is not an integer constant, is a compile error.
 
 Compound expressions are valid for bit flags:
 
@@ -7380,6 +7359,14 @@ Variants without a payload (`EndOfInput` above) are plain discriminants. Variant
 an anonymous struct alongside the discriminant. A single enum can freely mix both.
 
 ### Construction
+
+There are three construction forms:
+
+| Form | Use |
+|---|---|
+| `Enum::V { f: e }` | Payload variant, fully qualified |
+| `.V { f: e }` | Payload variant, enum type inferred from context |
+| `.V` (or `Enum::V`) | Variant with no payload |
 
 ADT variants are constructed with the variant name followed by brace-delimited field assignment,
 matching [struct](/docs/language/structures) aggregate initialization:
@@ -7466,6 +7453,12 @@ ParseResult<f64> layout:
 The compiler generates a destructor that switches on the tag to destroy the active variant's fields.
 Copy and move operations follow the same pattern.
 
+### Lifecycle category
+
+An ADT enum's [lifecycle category](/docs/language/classes#lifecycle-categories) is decided by its payload
+fields: the weakest category wins. If any payload field is NON_TRANSFER, the enum is
+NON_TRANSFER; otherwise, if any is MOVE, the enum is MOVE; otherwise it is COPY. A plain enum is COPY.
+
 ---
 
 ## Generic Enums
@@ -7537,8 +7530,13 @@ if a != b { ... }    // ok
 // if a < b { ... }  // compile error: no ordering defined
 ```
 
-For ADT enums, equality compares the tag only by default. Extend `op ==` to include payload comparison
-if needed. See [Operators](/docs/language/operators#operator-overloading) for operator extension.
+For ADT enums, `==` compares tags only, unless the enum declares `op ==`. Extend `op ==` to include
+payload comparison if needed. See [Operators](/docs/language/operators#operator-overloading) for operator
+extension.
+
+The synthesized `==` is a real operator, so every enum satisfies an interface that requires
+`fn op ==(const self, other: Self) -> bool` (such as `Equatable`) structurally, without declaring
+anything.
 
 ---
 
@@ -7988,13 +7986,15 @@ URL: https://www.kairolang.org/docs/language/interfaces/
 
 # Interfaces
 
-Interfaces define a set of method signatures that a type must satisfy. They are zero-cost conformance
-contracts no vtable, no runtime dispatch, no storage overhead. A type conforms to an interface if it
-has all the required methods with matching signatures, whether or not it explicitly declares conformance.
+Interfaces define a set of method signatures that a type must satisfy. An interface used as a bound
+is zero-cost: it is checked at compile time and leaves nothing in the binary. Using an interface for
+runtime dispatch, via a witness table, is described in [Virtual Interfaces](#virtual-interfaces). A
+type conforms to an interface if it has all the required methods with matching signatures, whether or
+not it explicitly declares conformance.
 
-Interfaces are a compile-time mechanism. For runtime polymorphism, use a base
-[class](/docs/language/classes) with `virtual` methods and dispatch through a base pointer. Interfaces
-and virtual dispatch solve different problems and can be used together on the same type.
+For runtime polymorphism over a class hierarchy, use a base [class](/docs/language/classes) with
+`virtual` methods and dispatch through a base pointer. Interfaces and virtual dispatch solve different
+problems and can be used together on the same type.
 
 ---
 
@@ -8007,8 +8007,9 @@ interface Serializable {
 }
 ```
 
-An interface body contains method signatures, static function signatures, and operator signatures. No
-method bodies, no variables, no constants, no nested types. Every member is implicitly `pub` the
+An interface body contains method signatures (including generic methods), static function signatures,
+operator signatures, constructor requirements, and [associated types](#associated-types). It has no
+method bodies, variables, constants, or nested classes, structs, enums or interfaces. Every member is implicitly `pub` the
 `priv` and `prot` modifiers are compile errors on interface members. Explicit `pub` is permitted but
 has no effect.
 
@@ -8083,6 +8084,22 @@ write_to_disk(Logger())   // compiles: Logger has serialize() and byte_size()
 The difference between explicit and implicit conformance is when the check happens at declaration
 time (`class Foo impl Bar`) or at first use (`fn <T impl Bar>`). The runtime behavior is identical.
 
+### Signature matching
+
+A generic method requirement is matched by a
+method with the same number of generic parameters, the same bounds, and the same signature after
+renaming them: `fn <U> liz(self)` satisfies `fn <T> liz(self)`.
+
+```kairo
+interface Sink {
+    fn <T impl Serializable> push(self, item: T)
+}
+
+class Buffer impl Sink {
+    fn <U impl Serializable> push(self, item: U) { ... }   // ok: same shape, U renamed from T
+}
+```
+
 ---
 
 ## Generic Interfaces
@@ -8124,9 +8141,84 @@ interface <T impl Comparable, U derives Base> Registry {
 }
 ```
 
-Generic defaults are not permitted on interface type parameters.
+Generic defaults are not permitted on interface type parameters. (An [associated type](#associated-types)
+may have a default; that is a different thing, chosen by the conforming type rather than by the user
+of the interface.)
 
 See [Requires Clauses](/docs/language/requires) for the full constraint system.
+
+---
+
+## Associated Types
+
+An interface can require a type member. A conforming type supplies it with a type alias:
+
+```kairo
+interface Graph {
+    type Node
+    type Edge
+    fn edges(const self, n: Self::Node) -> [Self::Edge]
+}
+
+class RoadMap impl Graph {
+    type Node = CityId
+    type Edge = Road
+
+    fn edges(const self, n: CityId) -> [Road] { ... }
+}
+```
+
+A generic body names it through its parameter: `T::Node`. Associated types can carry bounds, and can
+themselves be generic:
+
+```kairo
+interface Store {
+    type <K impl Hashable> Map
+    fn <K impl Hashable> index(const self) -> Self::Map<K>
+}
+```
+
+### Defaults
+
+An associated type may have a default:
+
+```kairo
+interface Indexed {
+    type Index = usize
+    fn at(const self, i: Self::Index) -> i32
+}
+```
+
+The default applies only when a type conforms explicitly, with `impl` on its declaration or through
+`extend ... impl`, and doesn't declare the type itself. Structural conformance never uses defaults: a
+type that satisfies an interface implicitly must declare every associated type.
+
+A default may refer to `Self` and to associated types declared before it in the same interface. Defaults
+resolve in declaration order; a forward reference, and therefore any cycle, is a compile error:
+
+```kairo
+interface WeightedGraph {
+    type Node
+    type Edge = (Self::Node, Self::Node)   // ok: Node is declared earlier
+    // type Cost = Self::Weight             // compile error: Weight is declared later
+    type Weight
+}
+```
+
+A default must satisfy its own bounds. This is checked once, at the interface declaration, with `Self`
+abstract, not separately for each conforming type.
+
+### Associated types and inheritance
+
+A derived interface may give an inherited associated type a default if it has none. It may not change
+a default that is already given; otherwise which default applies would depend on the inheritance path.
+
+### Name collisions between bounds
+
+Associated types belong to their interface. If `Graph` and `Tree` both declare `Node`, then for the same
+`T`, `Graph`'s `Node` and `Tree`'s `Node` are different types. In a body bounded by both, `T::Node` is
+ambiguous and is a compile error; it must be written with a qualified form that names the interface. The
+qualified syntax is not fixed yet. It is needed only when the names collide.
 
 ---
 
@@ -8161,8 +8253,8 @@ interface Defaultable {
     fn Defaultable(self)
 }
 
-interface <T> Cloneable {
-    fn Cloneable(self, source: T)
+interface <T> ConstructibleFrom {
+    fn ConstructibleFrom(self, source: T)
 }
 ```
 
@@ -8186,22 +8278,26 @@ category. This is how you express "T must be copyable" or "T must be movable" as
 
 ```kairo
 interface Copyable {
-    fn Copyable(self)               // default ctor
-
     @copy
     fn Copyable(self, const other: Self)
 }
 
-interface Moveable {
-    fn Moveable(self)
-
+interface Movable {
     @move
-    fn Moveable(self, other: Self)
+    fn Movable(self, other: Self)
 }
 
 fn <T impl Copyable> store(item: T) -> T { ... }
-fn <T impl Moveable> consume(item: T)    { ... }
+fn <T impl Movable> consume(item: T)     { ... }
 ```
+
+A `@copy` requirement is satisfied only by COPY types. A `@move` requirement is satisfied by COPY and
+MOVE types; a copy is a valid move. NON_TRANSFER types satisfy neither.
+
+Keep lifecycle requirements separate from a default constructor requirement. Putting `fn Copyable(self)`
+in `Copyable` would make "copyable" also mean "default-constructible", and the bound would reject every
+copyable type without a default constructor. Require default construction separately, with
+`Defaultable` above, where a body needs it.
 
 The standard library will provide canonical lifecycle interfaces; these are just examples. See [Lifecycle Categories](/docs/language/classes#lifecycle-categories) for the underlying model.
 
@@ -8212,12 +8308,12 @@ The standard library will provide canonical lifecycle interfaces; these are just
 Interfaces can require static methods:
 
 ```kairo
-interface <T> Parseable {
-    static fn from_string(input: string) -> T
-    static fn from_bytes(data: [byte]) -> T
+interface Parseable {
+    static fn from_string(input: string) -> Self
+    static fn from_bytes(data: [byte]) -> Self
 }
 
-class Timestamp impl Parseable<Timestamp> {
+class Timestamp impl Parseable {
     var epoch: i64
 
     fn Timestamp(self, epoch: i64) {
@@ -8313,7 +8409,8 @@ class FileStream impl Stream {
 
 Interface inheritance is purely additive the derived interface's requirements are the union of its
 own methods and all inherited methods. There is no diamond problem because interfaces carry no
-implementation or state.
+implementation or state. Associated type defaults follow a rule that keeps it that way; see
+[Associated types and inheritance](#associated-types-and-inheritance).
 
 Multiple inheritance is permitted:
 
@@ -8344,6 +8441,65 @@ for the full constraint system.
 fn <T impl Serializable> save(data: T) { ... }   // T has serialize() and byte_size()
 fn <T derives Base> process(data: T) { ... }     // T is a subclass of Base
 ```
+
+---
+
+## Generic Bodies
+
+Inside `fn <T impl Foo>`, a value of type `T` supports exactly what `Foo` (and everything it derives)
+declares, plus destruction and move.
+
+- `x.method()` resolves against `Foo`'s methods.
+- A generic method requirement is called with explicit arguments, `x.liz<i32>()`, or with deduced ones.
+- `var x: T` with no initializer requires a constructor requirement `fn Foo(self)` in some bound.
+- `T::Name` names an [associated type](#associated-types).
+
+Nothing else is available, and the body is checked once against its bounds, never per instantiation.
+
+```kairo
+interface Shape {
+    fn area(const self) -> f64
+}
+
+fn <T impl Shape> describe(s: T) -> f64 {
+    var a = s.area()     // ok: declared by Shape
+    // s.perimeter()     // compile error: Shape declares no perimeter()
+    // var t: T          // compile error: no bound requires a default constructor
+    return a
+}
+```
+
+See [Generic Classes](/docs/language/classes#type-parameter-constraints) for the implicit destroy and
+move capabilities and how instantiation reports them.
+
+---
+
+## Virtual Interfaces
+
+An interface declared `virtual interface` can also be used for runtime dispatch. A pointer to it,
+`*Allocator`, can point at a value of any conforming type; calls through the pointer go through a
+witness table built for each conforming type, so the caller doesn't need to know at compile time which
+type it holds:
+
+```kairo
+virtual interface Allocator {
+    fn alloc(self, size: usize, align: usize) -> unsafe *u8
+    fn free(self, ptr: unsafe *u8, size: usize)
+}
+
+class LibcAllocator impl Allocator {
+    fn alloc(self, size: usize, align: usize) -> unsafe *u8 { ... }
+    fn free(self, ptr: unsafe *u8, size: usize) { ... }
+}
+
+fn release(alloc: *Allocator, ptr: unsafe *u8, size: usize) {
+    alloc->free(ptr, size)   // dispatched through LibcAllocator's (or any conformer's) witness table
+}
+```
+
+A virtual interface is still an ordinary interface when used as a bound: `fn <T impl Allocator>` is
+checked at compile time and costs nothing. The witness table is paid for only where the interface is
+used for runtime dispatch.
 
 ---
 
@@ -8378,7 +8534,7 @@ interface Hashable {
 ```
 
 This keeps interfaces as zero-cost contracts. There is no method resolution order, no inheritance
-of behavior, and no hidden dispatch. If you need shared implementation, use a base
+of behavior, and no hidden dispatch when an interface is used as a bound. If you need shared implementation, use a base
 [class](/docs/language/classes) with `derives`.
 
 ---
@@ -8973,8 +9129,8 @@ enum TypeKind {
 }
 ```
 
-`get_name()` returns the mangled name following the platform's C++ ABI (Itanium on Unix, MSVC on
-Windows). `get_pretty_name()` returns a human-readable string including generic arguments.
+`get_name()` returns the mangled name following the platform's C++ ABI (Itanium on Unix and MinGW, MSVC on
+`*-windows-msvc`). `get_pretty_name()` returns a human-readable string including generic arguments.
 
 > [!IMPORTANT]
 > The `TypeInfo` API is still being finalized. Additional methods for querying members, base classes,
@@ -9578,6 +9734,13 @@ fn <T impl Serializable> save(data: T) { ... }
 fn <T> save(data: T) requires T impl Serializable { ... }
 ```
 
+Either way, the bounds are all a generic body can rely on. The body is checked once, where it is
+defined, against its bounds, not against each type it is instantiated with. Calling a method no
+bound declares is a compile error in the generic itself, even if every type it is ever
+instantiated with happens to have that method. See
+[Type parameter constraints](/docs/language/classes#type-parameter-constraints) and
+[Generic Bodies](/docs/language/interfaces#generic-bodies).
+
 The `requires` form is preferred when constraints are long or involve relationships between
 multiple type parameters:
 
@@ -10041,7 +10204,7 @@ URL: https://www.kairolang.org/docs/language/pointers/
 
 # Pointers & Raw Pointers
 
-Kairo has two pointer types: safe pointers (`*T`) with compiler-tracked lifetime and null checking, and
+Kairo has two pointer types: safe pointers (`*T`) with compiler-tracked lifetime and a non-null guarantee, and
 raw pointers (`unsafe *T`) with no tracking and no checks. Both are 8 bytes on 64-bit platforms and
 hold a memory address.
 
@@ -10050,12 +10213,12 @@ hold a memory address.
 ## Safe Pointers (`*T`)
 
 `*T` is the default pointer type. The compiler tracks its provenance via
-[Tether](/docs/language/tether) and inserts null checks on dereference:
+[Tether](/docs/language/tether). It is never null, so a dereference needs no check:
 
 ```kairo
 var x = 42
 var p: *i32 = &x     // p points to x
-*p = 100              // dereference and assign null check inserted
+*p = 100              // dereference and assign, no null check
 std::println(*p)      // 100
 ```
 
@@ -11054,11 +11217,12 @@ Tether operates on safe pointers (`*T`) only. Raw pointers (`unsafe *T`) carry n
 never analyzed. The programmer owns their correctness.
 
 > [!WARNING]
-> Tether is not yet implemented. The compiler is currently in the **Stage 1** parsing phase.
-> Tether development begins at **Stage 2**. The roadmap:
+> Tether is not yet implemented. The current compiler is **Stage 1**; Tether development begins
+> at **Stage 2**. The roadmap:
 >
-> - **Stage 0** (stable): C++ compiler, transpiles Kairo to C++.
-> - **Stage 1** (current): self-hosted compiler frontend parser, AST, diagnostics.
+> - **Stage 0** (frozen): C++ compiler, transpiles Kairo to C++. Kept only to bootstrap Stage 1.
+> - **Stage 1** (current): self-hosted compiler. Lowers Kairo to a Clang token stream:
+>   declarations, definitions, ordering, mangling. No lifetime analysis.
 > - **Stage 1.5**: Stage 1 migrated to Kairo's standard library, fully self-hosting.
 > - **Stage 2**: compiler rewritten using Kairo's extended feature set. **Tether work begins here.**
 >
@@ -14525,7 +14689,7 @@ The table below summarizes which C and C++ features Kairo can consume and expose
 | Concepts | Bidirectional | Kairo's `impl` constraints map to C++20 concepts |
 | Namespaces | Bidirectional | |
 | Pointers & References | Bidirectional | Requires `unsafe` on the Kairo side; see [below](#pointers-and-references) |
-| Operator Overloading | Bidirectional | See [Operators](/docs/language/operators) |
+| Operator Overloading | Bidirectional | See [Operators on C++ types](#operators-on-c-types) and [Operators](/docs/language/operators) |
 | Lambdas | Bidirectional | |
 | Exceptions | C++ → Kairo only | Kairo never throws; its errors are values. See [Exceptions](#exceptions) |
 | Macros | C++ → Kairo | Preprocessor macros are expanded before Kairo sees them |
@@ -14590,6 +14754,22 @@ kairo --target=aarch64-unknown-linux-gnu foo.k
 Sysroots are pinned to specific library versions (a particular glibc, a particular Windows SDK), so a build is
 reproducible across machines. Custom sysroots can be curated and registered locally.
 
+How `--target` finds its sysroot:
+
+- A `--target` uses the sysroot bundled with the compiler: `<prefix>/sysroot/<dir>`, where `<prefix>` is the
+  directory above the one holding `kairo`.
+- The folder is matched by target, not by spelling. Vendor, OS version, and LLVM's aliases do not matter, but
+  the sub-architecture does. So `x86_64-pc-windows-msvc` finds `x86_64-windows-msvc`, `x86_64-linux-gnu` finds
+  `x86_64-linux-gnu-glibc2.31`, `aarch64-apple-darwin` finds `arm64-apple-macosx`, and `arm64e` does not match
+  `arm64`.
+- `-m32` / `-m64` look up the architecture they switch to: `--target=x86_64-linux-musl -m32` uses
+  `i686-linux-musl`.
+- A bundled sysroot takes precedence over `--sysroot`. With no matching folder, `--sysroot` is used if given;
+  otherwise there are no system headers.
+- A matching folder without a loadable `SYSROOT.toml` is an error:
+  [P007E](/docs/language/diagnostics#p007e-bundled-sysroot-for-the-target-is-malformed) "bundled sysroot for
+  the target is malformed".
+
 > [!NOTE]
 > Cross-compiling to a GCC or MSVC target does not mean invoking GCC or MSVC. `kairo` and `kcc` produce object
 > code for those platforms' ABIs directly, using the pinned Clang and the curated sysroot.
@@ -14652,6 +14832,24 @@ Hello from C++! x = 42
 An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
 Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
 ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+
+### Operators on C++ types
+
+Using an operator on C++ types follows C++ lookup:
+
+- **Member operators:** `a.operator+(b)`.
+- **Free operators:** found by argument-dependent lookup in the operands' namespaces, across every header that
+  reopens that namespace.
+- **Hidden friends** (`friend bool operator==(...)` defined inside a class): found through either operand's
+  class.
+- **Operator templates:** chosen by C++'s partial ordering.
+- **C++20 rewrites:** when an operand is a C++ type and no `!=` takes the operands, `a != b` is `!(a == b)`;
+  `<` and the other relational operators fall back to `<=>` the same way. Kairo types keep Kairo's own rule:
+  `!=` is derived from `op ==` only when the type declares no `op !=`. See
+  [Derived comparisons](/docs/language/operators#derived-comparisons).
+
+Unary `*` on an imported C++ class calls its `operator*`, which is how C++ iterators and smart pointers are
+read.
 
 ### Argument conversions
 
@@ -15632,6 +15830,14 @@ and what its `long double` is.
 
 **Fix:** use `f64` where `long double` is binary64, or `f128` where it is binary128. See
 [Primitives](/docs/language/primitives#f80-follows-the-targets-long-double).
+
+### P007E: bundled sysroot for the target is malformed
+
+A `--target` matched a folder under `<prefix>/sysroot/`, but the folder is not a directory, has no
+`SYSROOT.toml`, or the manifest does not parse. A note says which.
+
+**Fix:** restore the manifest by re-extracting the sysroot, or remove the folder to fall back to `--sysroot`.
+See [Cross-compilation](/docs/language/c-cpp#cross-compilation).
 
 ---
 

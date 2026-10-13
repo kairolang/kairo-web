@@ -521,8 +521,8 @@ enum TypeKind {
 }
 ```
 
-`get_name()` returns the mangled name following the platform's C++ ABI (Itanium on Unix, MSVC on
-Windows). `get_pretty_name()` returns a human-readable string including generic arguments.
+`get_name()` returns the mangled name following the platform's C++ ABI (Itanium on Unix and MinGW, MSVC on
+`*-windows-msvc`). `get_pretty_name()` returns a human-readable string including generic arguments.
 
 > [!IMPORTANT]
 > The `TypeInfo` API is still being finalized. Additional methods for querying members, base classes,
