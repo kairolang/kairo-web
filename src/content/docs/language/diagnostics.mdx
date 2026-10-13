@@ -226,6 +226,14 @@ and what its `long double` is.
 **Fix:** use `f64` where `long double` is binary64, or `f128` where it is binary128. See
 [Primitives](/docs/language/primitives#f80-follows-the-targets-long-double).
 
+### P007E: bundled sysroot for the target is malformed
+
+A `--target` matched a folder under `<prefix>/sysroot/`, but the folder is not a directory, has no
+`SYSROOT.toml`, or the manifest does not parse. A note says which.
+
+**Fix:** restore the manifest by re-extracting the sysroot, or remove the folder to fall back to `--sysroot`.
+See [Cross-compilation](/docs/language/c-cpp#cross-compilation).
+
 ---
 
 ## Value Arms

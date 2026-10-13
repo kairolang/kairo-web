@@ -410,9 +410,12 @@ for item in collection {
 ```
 
 The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type
-that defines `fn op in (self) -> yield T` is iterable. See [Operators](/docs/language/operators#ranges) for
-the `Steppable` interface and [Operators](/docs/language/operators#special-operators) for the `op in`
-overload.
+that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does
+not make it iterable. See [Operators](/docs/language/operators#ranges) for the `Steppable` interface and
+[Operators](/docs/language/operators#special-operators) for the `op in` overload.
+
+An imported C++ class iterates the way a C++ range-based `for` does: through its member `begin()` and
+`end()`, or else through free `begin()` and `end()` functions found by argument-dependent lookup.
 
 ### Multi-variable iteration
 
@@ -893,7 +896,7 @@ on return types, `void` returns, and expression-bodied functions.
 if the left operand determines the result:
 
 ```kairo
-if ptr != null || *ptr == 42 {
+if ptr != null && *ptr == 42 {
     // safe: *ptr is only evaluated if ptr is non-null
 }
 ```
