@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-13T01:51:52.512Z
+> Generated: 2026-10-14T04:52:20.013Z
 
 ---
 
@@ -1046,6 +1046,14 @@ it. Each entry is removed when the gap closes.
 | Map literals `{k: v}` | Not compiled | — |
 | File-scope `var` | Not compiled | Move the variable into a function, or use `eval` for constants |
 | Initializing a `const` field in a constructor | Not supported | — |
+| Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
+| Associated types (`type Node` in an interface) | Not parsed yet | — |
+| Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
+| Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | — |
+| Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
+| A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | — |
+| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
+| A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 
 ---
 
@@ -1062,6 +1070,12 @@ Passing a slice literal to a function that **stores** the slice is not caught. T
 the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether) lands; until
 then, pass a `var` or a `[T]` to any function that keeps what it is given. See
 [Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+
+Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not
+reported. See [Enums](/docs/language/enums#destructuring-with-match).
+
+Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a
+default constructor. See [Generic Bodies](/docs/language/interfaces#generic-bodies).
 
 Three [`extend`](/docs/language/extends) rules are not diagnosed yet:
 
@@ -5832,7 +5846,11 @@ delete r   // safe: idempotent delete operator
 ## Lifecycle Categories
 
 Every class has a lifecycle category that determines how its instances can be transferred between
-variables. The category is implied by which transfer constructor the class defines.
+variables. A class's category is what its transfer constructors leave usable. If it can be copied, it is
+**COPY**. If it can only be moved, it is **MOVE**. If it can be neither, it is **NON_TRANSFER**. Deleting
+either transfer constructor on its own makes the class NON_TRANSFER: a declared copy constructor, even a
+deleted one, means no move is generated, and a deleted move constructor removes the copy. The canonical form
+deletes both, which says so explicitly.
 
 ### Attribute syntax
 
@@ -5904,14 +5922,14 @@ A class cannot define both `@copy` and `@move` transfer constructors pick one:
 ```kairo
 class Bad {
     @copy fn Bad(self, const other: Self) = default
-    @move fn Bad(self, other: Self) = default   // compile error
+    @move fn Bad(self, other: Self) = default   // compile error (SC057E)
 }
 ```
 
-The one exception is both being `= delete`, which is the **NON_TRANSFER** form.
+The one exception is both being `= delete`, the canonical **NON_TRANSFER** form.
 
 A class also cannot declare two transfer constructors of the same kind, such as `@copy` with and without
-`const` (SC057E).
+`const` ([SC057E](/docs/language/diagnostics#sc057e-more-than-one-transfer-constructor)).
 
 ### The four categories
 
@@ -5919,7 +5937,7 @@ A class also cannot declare two transfer constructors of the same kind, such as 
 |---|---|---|
 | **COPY** | `@copy` ctor (explicit or implicit) | Allows copy; Tether may silently elide a copy into a move when the source is unused after the transfer |
 | **MOVE** | `@move` ctor | Allows move only; copying is a compile error |
-| **NON_TRANSFER** | both `@copy` and `@move` are `= delete`d | Stack-only; cannot be assigned, copied, or moved |
+| **NON_TRANSFER** | either transfer constructor `= delete` (canonically both) | Stack-only; cannot be assigned, copied, or moved |
 | **DEFAULT** | no transfer ctor declared | Derived from bases and fields (see above) |
 
 A NON_TRANSFER class is the canonical scope guard:
@@ -5947,6 +5965,11 @@ The user writes at most three special members:
 3. The destructor (`fn op delete(self)`)
 
 Each may have a user body, `= default`, or `= delete`. Anything not written is compiler-generated.
+
+A `= default` member is what the compiler would have generated: it is trivial when the same member of
+every base and field is. A transfer constructor or destructor with a body makes the class non-trivial,
+and so does a deleted one or a `virtual` destructor. A polymorphic class (a `virtual` method
+or a virtual base) is never trivially copyable, and neither is a NON_TRANSFER class.
 
 ```kairo
 class Buffer {
@@ -5979,12 +6002,26 @@ compile error.
 
 | Transfer ctor form | Generated `op =` |
 |---|---|
-| `= default` | `= default` |
+| none written | member by member, like the compiler-generated transfer constructor |
+| `= default` | `= default`: member by member |
 | `= delete` | `= delete` |
-| `{ body }` | checks for self-assignment, destroys `self`, runs the ctor body, returns `self` |
+| `{ body }` | checks for self-assignment, destroys `self`, rebuilds it in place through the transfer constructor, returns `self` |
 
-The body case first checks for self-assignment: `x = x` does nothing. Otherwise it destroys `self`, runs
-the transfer constructor body with the right-hand side, and returns `self`.
+The body case first checks for self-assignment: `x = x` does nothing. Otherwise it destroys `self`,
+builds a new value in its place by running the transfer constructor on the right-hand side, and returns
+`self`.
+
+Member-by-member assignment needs every base and field to be assignable. If one is not, the class has
+no `op =`.
+
+A polymorphic class whose transfer constructor has a body has no `op =` either. Rebuilding it in place
+would give the object this class's vtable pointer, which is wrong when the object is really a derived
+class or is the base part of one. A polymorphic class with a `= default` transfer constructor, or with
+none, assigns member by member as usual.
+
+Assigning a value whose class has no `op =` is a compile error (SC071E). When the reason is a
+polymorphic class whose transfer constructor has a body, the error adds: "a polymorphic class whose
+transfer constructor has a body cannot be assigned; construct a new value".
 
 This implies a consistency rule: if the transfer ctor has a body and `op delete` is `= delete`d, the class fails to compile the auto-derived `op =` needs to invoke the destructor and cannot. Fix by providing a destructor or by changing the transfer ctor to `= default` / `= delete`.
 
@@ -5994,7 +6031,7 @@ This implies a consistency rule: if the transfer ctor has a body and `op delete`
 
 The converse is checked too. A defaulted `@copy` constructor requires every base and field to be copyable, and
 a defaulted `@move` requires every base and field to be movable or copyable. Otherwise it is a compile error
-(SC129E) naming the field. A transfer constructor with a body is exempt; it decides for itself how each field
+([SC129E](/docs/language/diagnostics#sc129e-a-defaulted-transfer-constructor-cannot-be-generated)) naming the field. A transfer constructor with a body is exempt; it decides for itself how each field
 is transferred.
 
 ### Implicit-copy-with-custom-destructor warning
@@ -6010,7 +6047,7 @@ class UniqueFile {
     // warning: custom destructor with implicit copy constructor
     //   help: declare as @move:
     //           @move fn UniqueFile(self, other: Self) = default
-    //   help: or explicitly delete copy:
+    //   help: or make it non-transferable:
     //           @copy fn UniqueFile(self, const other: Self) = delete
 }
 ```
@@ -6096,7 +6133,7 @@ class Derived derives Base {
 
 ### Destructors and inheritance
 
-A class with a non-trivial destructor — its own `op delete`, or any field or base that has one — may only
+A class with a non-trivial destructor — its own `op delete` with a body, or any field or base that has one — may only
 derive from a class whose destructor is `virtual`. Otherwise deleting the derived object through a `*Base`
 runs only the base's destructor and leaks the rest. This is a compile error at the derived class.
 
@@ -6357,7 +6394,7 @@ class <T> Derived derives Base<T> {
 ### Type parameter constraints
 
 A generic body may use only what its bounds grant. The body is checked once, where it is defined,
-against its bounds, not against each type it is instantiated with. Calling a method no bound declares,
+against its bounds, never per instantiation. Calling a method no bound declares,
 copying a `T` without a copy bound, or declaring `var x: T` without a constructor bound is a compile
 error in the generic itself.
 
@@ -6879,6 +6916,9 @@ var red = Color { r: 255, g: 0, b: 0 }         // a defaults to 255
 var blue = Color { r: 0, g: 0, b: 255, a: 128 } // explicit alpha
 ```
 
+A field's default may read fields declared before it, and no others. Defaults run in declaration order,
+so a later field, or the field itself, is not built yet.
+
 Field names are required in the initializer positional initialization is not supported. The order of
 fields in the initializer does not need to match the declaration order.
 
@@ -7285,7 +7325,10 @@ enum Direction {
     West,
 }
 
-var dir = Direction::North
+fn main() -> i32 {
+    var dir = Direction::North
+    return 0
+}
 ```
 
 Variants are comma-separated and scoped to the enum name. The trailing comma is optional.
@@ -7304,10 +7347,17 @@ enum HttpStatus {
 }
 ```
 
-Discriminants are integer constant expressions. Duplicate values are a compile error. A discriminant
-may refer to variants declared before it; inside a discriminant expression, an earlier variant has
-the enum's [underlying type](#underlying-type), not the enum type. Referring to a later variant, or to
-anything that is not an integer constant, is a compile error.
+A discriminant is an integer constant expression evaluated by the compiler: literals, `+ - * | & ^ << >>`,
+unary `-` and `~`, parentheses, `as` to an integer type, and earlier variants of the same enum. Inside a
+discriminant, an earlier variant has the enum's [underlying type](#underlying-type), so `Exec = Read << 2`
+and `RW = Read | Write` work. `~` works in the underlying type: `All = ~0` in a `u32` enum is `0xFFFFFFFF`.
+A variant without a discriminant is the previous value plus one, or 0 if it is first.
+
+A value that doesn't evaluate or doesn't fit the underlying type is
+[SC128E](/docs/language/diagnostics#sc128e-an-enum-discriminant-does-not-evaluate-or-does-not-fit). Two
+variants with the same value is
+[SC130E](/docs/language/diagnostics#sc130e-two-variants-of-an-enum-have-the-same-value); imported C++
+enums are exempt.
 
 Compound expressions are valid for bit flags:
 
@@ -7320,11 +7370,17 @@ enum FileMode derives u8 {
     All     = (Read | Write | Execute),  // 7
 }
 
-var perms: FileMode = .RW
-if perms & FileMode::Read != 0 {
-    // has read permission
+fn main() -> i32 {
+    var perms: FileMode = .RW
+    if (perms as u8 & FileMode::Read as u8) != 0 {
+        // has read permission
+    }
+    return 0
 }
 ```
+
+Bitwise operators are not defined on the enum type itself, so test a flag on the underlying integer:
+cast both sides with `as` and compare the result with `0`.
 
 ---
 
@@ -7368,6 +7424,10 @@ enum <T> ParseResult {
 Variants without a payload (`EndOfInput` above) are plain discriminants. Variants with a payload carry
 an anonymous struct alongside the discriminant. A single enum can freely mix both.
 
+> [!NOTE]
+> A non-generic payload enum whose payload holds a type whose copy, move and destruction are not known
+> until instantiation (such as `Box<i32>` for a generic class `Box`) is not compiled yet. See [Status](/docs/status#not-compiled-yet).
+
 ### Construction
 
 There are three construction forms:
@@ -7378,23 +7438,35 @@ There are three construction forms:
 | `.V { f: e }` | Payload variant, enum type inferred from context |
 | `.V` (or `Enum::V`) | Variant with no payload |
 
+A payload variant written without braces, braces on a variant without a payload, a missing field, or a
+field given twice is [SC131E](/docs/language/diagnostics#sc131e-a-variant-is-built-with-the-wrong-shape).
+
+`Enum::V { field: value }` builds a payload variant anywhere; `.V { field: value }` and `.V` work where the
+expected type is known. A nullary variant takes no braces.
+
 ADT variants are constructed with the variant name followed by brace-delimited field assignment,
 matching [struct](/docs/language/structures) aggregate initialization:
 
 ```kairo
-var result = ParseResult<f64>::Success { value: 3.14, bytes_consumed: 4 }
-var err = ParseResult<f64>::Error { message: "unexpected token", position: 12 }
-var eof = ParseResult<f64>::EndOfInput
+enum <T> ParseResult {
+    Success { value: T, bytes_consumed: i32 },
+    Error   { message: string, position: i32 },
+    EndOfInput,
+}
+
+fn main() -> i32 {
+    var result = ParseResult<f64>::Success { value: 3.14, bytes_consumed: 4 }
+    var err = ParseResult<f64>::Error { message: "unexpected token", position: 12 }
+    var eof = ParseResult<f64>::EndOfInput
+
+    // the enum type is known from the declaration, so the shorthand works
+    var inferred: ParseResult<f64> = .Success { value: 3.14, bytes_consumed: 4 }
+    return 0
+}
 ```
 
 Field names are required. The order of fields in the initializer does not need to match the declaration
 order.
-
-When the enum type can be inferred from context, the `.Variant` shorthand works:
-
-```kairo
-var result: ParseResult<f64> = .Success { value: 3.14, bytes_consumed: 4 }
-```
 
 ### Destructuring with `match`
 
@@ -7402,31 +7474,50 @@ Use `match` to dispatch on variants and extract payload fields. Destructured fie
 to control mutability of the bound variable:
 
 ```kairo
-match result {
-    case .Success(var value, var bytes_consumed) {
-        std::println(f"parsed {value} from {bytes_consumed} bytes")
-    }
-    case .Error(const message, const position) {
-        std::println(f"error at {position}: {message}")
-        // message = "other"  // compile error: message is const
-    }
-    case .EndOfInput {
-        std::println("nothing left to parse")
+enum <T> ParseResult {
+    Success { value: T, bytes_consumed: i32 },
+    Error   { message: string, position: i32 },
+    EndOfInput,
+}
+
+fn report(result: ParseResult<f64>) -> string {
+    match result {
+        case .Success(var value, var bytes_consumed) {
+            return f"parsed {value} from {bytes_consumed} bytes"
+        }
+        case .Error(const message, const position) {
+            // message = "other"  // compile error: message is const
+            return f"error at {position}: {message}"
+        }
+        case .EndOfInput {
+            return "nothing left to parse"
+        }
     }
 }
 ```
+
+> [!NOTE]
+> The current compiler does not report assigning to a `const` pattern binding yet. See
+> [Status](/docs/status#not-diagnosed).
 
 Field names in the destructuring pattern must match the names in the variant declaration. You can omit
 fields you do not need the compiler does not require exhaustive field extraction:
 
 ```kairo
-match result {
-    case .Error(const message) {
-        // only message is bound, position is ignored
-        log_error(message)
+enum <T> ParseResult {
+    Success { value: T, bytes_consumed: i32 },
+    Error   { message: string, position: i32 },
+    EndOfInput,
+}
+
+fn error_message(result: ParseResult<f64>) -> string {
+    match result {
+        case .Error(const message) {
+            // only message is bound, position is ignored
+            return message
+        }
+        default { return "" }
     }
-    // ...
-    default { }
 }
 ```
 
@@ -7436,10 +7527,18 @@ See [Control Flow](/docs/language/control-flow#match) for the full `match` synta
 ### `match` as an expression
 
 ```kairo
-var description = match result {
-    case .Success(var value, var bytes_consumed) => f"parsed {value} ({bytes_consumed} bytes)"
-    case .Error(var message, var position) => f"error at {position}: {message}"
-    case .EndOfInput => "end of input"
+enum <T> ParseResult {
+    Success { value: T, bytes_consumed: i32 },
+    Error   { message: string, position: i32 },
+    EndOfInput,
+}
+
+fn describe(result: ParseResult<f64>) -> string {
+    return match result {
+        case .Success(var value, var bytes_consumed) => f"parsed {value} ({bytes_consumed} bytes)"
+        case .Error(var message, var position) => f"error at {position}: {message}"
+        case .EndOfInput => "end of input"
+    }
 }
 ```
 
@@ -7452,8 +7551,11 @@ rules.
 ### Memory layout
 
 An ADT enum stores a discriminant tag plus storage sized to the largest variant's payload. The tag is
-the same integer type as the underlying type (default `u32`). A variant with no payload consumes no
-extra storage beyond the tag.
+a `u32`. A variant with no payload consumes no extra storage beyond the tag.
+
+> [!NOTE]
+> A `derives` type on an enum with payloads is accepted but ignored for now: the tag stays `u32`. See
+> [Status](/docs/status#not-compiled-yet).
 
 ```
 ParseResult<f64> layout:
@@ -7465,9 +7567,10 @@ Copy and move operations follow the same pattern.
 
 ### Lifecycle category
 
-An ADT enum's [lifecycle category](/docs/language/classes#lifecycle-categories) is decided by its payload
-fields: the weakest category wins. If any payload field is NON_TRANSFER, the enum is
-NON_TRANSFER; otherwise, if any is MOVE, the enum is MOVE; otherwise it is COPY. A plain enum is COPY.
+An enum whose variants carry payloads follows the struct rule for lifecycle: its
+[category](/docs/language/classes#lifecycle-categories) is the weakest of its payload fields' categories
+(COPY, then MOVE, then NON_TRANSFER), and it is trivially copyable or destructible only when every
+payload is. A plain enum is COPY.
 
 ---
 
@@ -7482,7 +7585,10 @@ enum <K, V> LookupResult {
     Error    { message: string },
 }
 
-var r = LookupResult<string, i32>::Found { key: "count", value: 42 }
+fn main() -> i32 {
+    var r = LookupResult<string, i32>::Found { key: "count", value: 42 }
+    return 0
+}
 ```
 
 Plain enums (no payloads) cannot be generic there is nothing for a type parameter to parameterize.
@@ -7490,6 +7596,10 @@ Plain enums (no payloads) cannot be generic there is nothing for a type paramete
 Constrain type parameters with `impl` or `derives` bounds:
 
 ```kairo
+interface Serializable {
+    fn serialize(const self) -> [byte]
+}
+
 enum <T impl Serializable> CacheEntry {
     Valid   { data: T, expires: i64 },
     Expired { last_data: T },
@@ -7507,22 +7617,86 @@ When the compiler can infer the enum type from context, the `.Variant` shorthand
 construction, `match` cases, comparison, and assignment:
 
 ```kairo
-var dir: Direction = .North
+enum Direction { North, East, South, West }
 
-match dir {
-    case .North { go_up() }
-    case .South { go_down() }
-    case .East  { go_right() }
-    case .West  { go_left() }
+fn go_up() { }
+fn go_down() { }
+fn go_right() { }
+fn go_left() { }
+
+fn main() -> i32 {
+    var dir: Direction = .North
+
+    match dir {
+        case .North { go_up() }
+        case .South { go_down() }
+        case .East  { go_right() }
+        case .West  { go_left() }
+    }
+
+    if dir == .North { go_up() }
+
+    dir = .South
+    return 0
 }
-
-if dir == .North { ... }
-
-dir = .South
 ```
 
 The fully qualified form (`Direction::North`) always works and is required when the type cannot be
 inferred.
+
+`.V` takes its enum from the type expected where it is written:
+
+- an initializer with a declared type: `var d: Dir = .North`
+- a `return` in a function with a declared return type
+- a call argument, which takes the parameter's type
+
+```kairo
+enum Dir { North, East, South, West }
+enum Light { Red, Green }
+
+fn turn(d: Dir) { }
+fn set(l: Light) { }
+fn set(d: Dir) { }
+fn <T> log(x: T) { }
+
+fn opposite(d: Dir) -> Dir {
+    return .South                  // return with a declared return type
+}
+
+fn main() -> i32 {
+    var d: Dir = .North            // initializer with a declared type
+    turn(.West)                    // call argument
+    set(.Green)                    // only Light has Green: picks set(l: Light)
+    set(.East)                     // only Dir has East: picks set(d: Dir)
+    log(Dir::North)                // generic parameter: write the enum in full
+    return 0
+}
+```
+
+As an argument, `.V` matches a parameter only if that parameter's enum has a variant `V`; this is how
+an overload is chosen. If more than one overload's enum has `V`, the call is ambiguous
+([SC064E](/docs/language/diagnostics#call-to-f-is-ambiguous-more-than-one-candidate-matches-at-the-same-rank)). A
+generic parameter `T` gives `.V` no enum to take, so no overload matches (SC063E); write the variant in
+full, `Dir::North`:
+
+```kairo
+enum Dir { North, South }
+enum Pole { North, Equator }
+
+fn go(d: Dir) { }
+fn go(p: Pole) { }
+fn <T> log(x: T) { }
+
+fn main() -> i32 {
+    go(.North)      // error SC064E: both Dir and Pole have North
+    log(.North)     // error SC063E: T gives .North no enum type
+    return 0
+}
+```
+
+A `.V` with nothing to give it an enum type, against a type that is not an enum, or naming a variant the
+enum does not have is
+[SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type).
 
 ---
 
@@ -7532,21 +7706,21 @@ Enum values support equality comparison and assignment. Ordering operators (`<`,
 not available by default extend them if needed:
 
 ```kairo
-var a = Direction::North
-var b = Direction::South
+enum Direction { North, East, South, West }
 
-if a == b { ... }    // ok
-if a != b { ... }    // ok
-// if a < b { ... }  // compile error: no ordering defined
+fn main() -> i32 {
+    var a = Direction::North
+    var b = Direction::South
+
+    var same = a == b        // ok: false
+    var differ = a != b      // ok: true
+    // var before = a < b    // compile error: no ordering defined
+    return 0
+}
 ```
 
-For ADT enums, `==` compares tags only, unless the enum declares `op ==`. Extend `op ==` to include
-payload comparison if needed. See [Operators](/docs/language/operators#operator-overloading) for operator
-extension.
-
-The synthesized `==` is a real operator, so every enum satisfies an interface that requires
-`fn op ==(const self, other: Self) -> bool` (such as `Equatable`) structurally, without declaring
-anything.
+`==` and `!=` on enums are built in and compare which variant is active, ignoring payloads. They satisfy
+`Equatable` the same way integer comparison does; no operator declaration is involved.
 
 ---
 
@@ -7606,13 +7780,16 @@ extend LogLevel {
 Enums can implement interfaces through `extend ... impl`:
 
 ```kairo
+enum LogLevel { Debug, Info, Warning, Error, Fatal }
+
 interface Loggable {
     fn to_log_string(const self) -> string
 }
 
 extend LogLevel impl Loggable {
     fn to_log_string(const self) -> string {
-        return self.prefix()
+        if self == .Error || self == .Fatal { return "severe" }
+        return "normal"
     }
 }
 ```
@@ -7645,10 +7822,15 @@ exclusively for specifying the [underlying type](#underlying-type).
 Plain enum values can be cast to their underlying integer type and back:
 
 ```kairo
-var dir = Direction::North
-var raw = dir as u32           // 0
+enum Direction { North, East, South, West }
 
-var back = raw as Direction    // Direction::North
+fn main() -> i32 {
+    var dir = Direction::North
+    var raw = dir as u32           // 0
+
+    var back = raw as Direction    // Direction::North
+    return 0
+}
 ```
 
 Casting an integer to an enum that has no matching discriminant is undefined behavior.
@@ -7665,9 +7847,9 @@ See [Casting](/docs/language/casting) for the full casting model.
 Enums can be forward-declared when the underlying type is specified:
 
 ```kairo
-enum Opcode derives u8    // forward declaration size is known
+enum Opcode derives u8    // forward declaration: size is known
 
-fn decode(op: Opcode) { ... }
+fn is_halt(code: Opcode) -> bool { return code == .Halt }
 
 enum Opcode derives u8 {
     Nop  = 0x00,
@@ -7713,22 +7895,6 @@ enum <K, V> LookupResult {
     Error    { message: string },
 }
 
-// Construction
-var r = LookupResult<string, i32>::Found { key: "count", value: 42 }
-
-// Match with destructuring
-match r {
-    case .Found(var key, var value) {
-        std::println(f"{key} = {value}")
-    }
-    case .NotFound(var key) {
-        std::println(f"{key} not found")
-    }
-    case .Error(var message) {
-        std::println(f"error: {message}")
-    }
-}
-
 // Extended with methods
 extend Direction {
     fn opposite(self) -> Direction {
@@ -7739,6 +7905,27 @@ extend Direction {
             case .West  { return .East }
         }
     }
+}
+
+fn main() -> i32 {
+    // Construction
+    var r = LookupResult<string, i32>::Found { key: "count", value: 42 }
+
+    // Match with destructuring
+    match r {
+        case .Found(var key, var value) {
+            var line = f"{key} = {value}"
+        }
+        case .NotFound(var key) {
+            var line = f"{key} not found"
+        }
+        case .Error(var message) {
+            var line = f"error: {message}"
+        }
+    }
+
+    var back = Direction::North.opposite()
+    return 0
 }
 ```
 
@@ -8012,7 +8199,7 @@ problems and can be used together on the same type.
 
 ```kairo
 interface Serializable {
-    fn serialize(const self) -> [byte]
+    fn serialize(const self) -> string
     fn byte_size(const self) -> i32
 }
 ```
@@ -8032,19 +8219,26 @@ A type declares interface conformance with `impl` on a [class](/docs/language/cl
 compiler verifies at declaration time that all required methods are present with matching signatures:
 
 ```kairo
+interface Serializable {
+    fn serialize(const self) -> string
+    fn byte_size(const self) -> i32
+}
+
 class Document impl Serializable {
     var content: string
+    var size: i32
 
-    fn Document(self, content: string) {
+    fn Document(self, content: string, size: i32) {
         self.content = content
+        self.size = size
     }
 
-    fn serialize(const self) -> [byte] {
-        return self.content.to_bytes()
+    fn serialize(const self) -> string {
+        return self.content
     }
 
     fn byte_size(const self) -> i32 {
-        return self.content.length()
+        return self.size
     }
 }
 ```
@@ -8055,14 +8249,19 @@ class Document impl Serializable {
 For structs and enums, conformance goes through `extend`:
 
 ```kairo
+interface Serializable {
+    fn serialize(const self) -> string
+    fn byte_size(const self) -> i32
+}
+
 struct Point {
     var x: f64
     var y: f64
 }
 
 extend Point impl Serializable {
-    fn serialize(const self) -> [byte] {
-        // serialization logic
+    fn serialize(const self) -> string {
+        return f"{self.x},{self.y}"
     }
 
     fn byte_size(const self) -> i32 {
@@ -8079,16 +8278,24 @@ Explicit `impl` is not required. A type that has all the required methods with m
 satisfies the interface implicitly. The check happens at the point of use:
 
 ```kairo
+interface Serializable {
+    fn serialize(const self) -> string
+    fn byte_size(const self) -> i32
+}
+
 class Logger {
-    fn serialize(const self) -> [byte] { ... }
-    fn byte_size(const self) -> i32 { ... }
+    fn serialize(const self) -> string { return "log" }
+    fn byte_size(const self) -> i32 { return 3 }
 }
 
 // Logger never mentions Serializable, but satisfies it structurally
 
-fn <T impl Serializable> write_to_disk(data: T) { ... }
+fn <T impl Serializable> write_to_disk(data: T) -> i32 { return data.byte_size() }
 
-write_to_disk(Logger())   // compiles: Logger has serialize() and byte_size()
+fn main() -> i32 {
+    write_to_disk(Logger())   // compiles: Logger has serialize() and byte_size()
+    return 0
+}
 ```
 
 The difference between explicit and implicit conformance is when the check happens at declaration
@@ -8097,16 +8304,21 @@ time (`class Foo impl Bar`) or at first use (`fn <T impl Bar>`). The runtime beh
 ### Signature matching
 
 A generic method requirement is matched by a
-method with the same number of generic parameters, the same bounds, and the same signature after
-renaming them: `fn <U> liz(self)` satisfies `fn <T> liz(self)`.
+method with the same number of generic parameters and the same bounds, whose signature is identical
+once its parameters are renamed: `fn <U> liz(self)` satisfies `fn <T> liz(self)`.
 
 ```kairo
+interface Serializable {
+    fn serialize(const self) -> string
+    fn byte_size(const self) -> i32
+}
+
 interface Sink {
     fn <T impl Serializable> push(self, item: T)
 }
 
 class Buffer impl Sink {
-    fn <U impl Serializable> push(self, item: U) { ... }   // ok: same shape, U renamed from T
+    fn <U impl Serializable> push(self, item: U) { }   // ok: same shape, U renamed from T
 }
 ```
 
@@ -8123,21 +8335,23 @@ interface <T> Container {
     fn size(const self) -> i32
 }
 
-class IntBuffer impl Container<i32> {
-    var data: [i32]
+class IntPair impl Container<i32> {
+    var items: [i32; 2]
+    var count: i32
 
-    fn IntBuffer(self) { self.data = [] }
+    fn IntPair(self) { self.count = 0 }
 
     fn add(self, item: i32) {
-        self.data.push(item)
+        self.items[self.count] = item
+        self.count += 1
     }
 
     fn get(const self, index: i32) -> i32 {
-        return self.data[index]
+        return self.items[index]
     }
 
     fn size(const self) -> i32 {
-        return self.data.length()
+        return self.count
     }
 }
 ```
@@ -8145,6 +8359,12 @@ class IntBuffer impl Container<i32> {
 Type parameters on interfaces can have constraints:
 
 ```kairo
+interface Comparable {
+    fn op <(const self, other: Self) -> bool
+}
+
+class Base { }
+
 interface <T impl Comparable, U derives Base> Registry {
     fn lookup(const self, key: T) -> U
     fn store(self, key: T, value: U)
@@ -8160,6 +8380,9 @@ See [Requires Clauses](/docs/language/requires) for the full constraint system.
 ---
 
 ## Associated Types
+
+> [!NOTE]
+> Associated types are not compiled yet. See [Status](/docs/status#not-compiled-yet).
 
 An interface can require a type member. A conforming type supplies it with a type alias:
 
@@ -8187,6 +8410,8 @@ interface Store {
     fn <K impl Hashable> index(const self) -> Self::Map<K>
 }
 ```
+
+A generic body names a generic associated type with its arguments: `T::Map<K>`.
 
 ### Defaults
 
@@ -8263,8 +8488,8 @@ interface Defaultable {
     fn Defaultable(self)
 }
 
-interface <T> ConstructibleFrom {
-    fn ConstructibleFrom(self, source: T)
+interface <T> Cloneable {
+    fn Cloneable(self, source: T)
 }
 ```
 
@@ -8272,6 +8497,10 @@ A conforming type must have a constructor that matches the parameter list. The c
 implementation uses the type's own name, not the interface name:
 
 ```kairo
+interface Defaultable {
+    fn Defaultable(self)
+}
+
 class Config impl Defaultable {
     var timeout: i32
 
@@ -8297,8 +8526,8 @@ interface Movable {
     fn Movable(self, other: Self)
 }
 
-fn <T impl Copyable> store(item: T) -> T { ... }
-fn <T impl Movable> consume(item: T)     { ... }
+fn <T impl Copyable> store(item: T) -> T { return item }
+fn <T impl Movable> consume(item: T)     { }
 ```
 
 A `@copy` requirement is satisfied only by COPY types. A `@move` requirement is satisfied by COPY and
@@ -8367,13 +8596,34 @@ needed. In practice this means `Self` returns enable fluent chaining without `->
 dereferencing:
 
 ```kairo
-Pipeline().then(other).then(another).run()
+interface Chainable {
+    fn then(self, next: Self) -> Self
+}
+
+class Pipeline impl Chainable {
+    var steps: i32
+
+    fn Pipeline(self) { self.steps = 0 }
+
+    fn then(self, next: Self) -> Self {
+        self.steps += 1
+        return self
+    }
+
+    fn run(self) -> i32 { return self.steps }
+}
+
+fn main() -> i32 {
+    var other = Pipeline()
+    var another = Pipeline()
+    return Pipeline().then(other).then(another).run()
+}
 ```
 
 To return a pointer to the conforming type, use `*Self`:
 
 ```kairo
-interface Cloneable {
+interface Duplicable {
     fn clone(self) -> *Self
 }
 ```
@@ -8404,16 +8654,34 @@ interface Stream derives Readable, Seekable {
 A class that `impl Stream` must provide `read`, `seek`, `tell`, `close`, and `flush`:
 
 ```kairo
+interface Readable {
+    fn read(self, buffer: [byte], count: i32) -> i32
+}
+
+interface Seekable {
+    fn seek(self, position: i64)
+    fn tell(const self) -> i64
+}
+
+interface Stream derives Readable, Seekable {
+    fn close(self)
+    fn flush(self)
+}
+
 class FileStream impl Stream {
     var fd: i32
+    var pos: i64
 
-    fn FileStream(self, path: string) { ... }
+    fn FileStream(self, fd: i32) {
+        self.fd = fd
+        self.pos = 0
+    }
 
-    fn read(self, buffer: [byte], count: i32) -> i32 { ... }
-    fn seek(self, position: i64) { ... }
-    fn tell(const self) -> i64 { ... }
-    fn close(self) { ... }
-    fn flush(self) { ... }
+    fn read(self, buffer: [byte], count: i32) -> i32 { return 0 }
+    fn seek(self, position: i64) { self.pos = position }
+    fn tell(const self) -> i64 { return self.pos }
+    fn close(self) { self.fd = -1 }
+    fn flush(self) { }
 }
 ```
 
@@ -8425,6 +8693,15 @@ implementation or state. Associated type defaults follow a rule that keeps it th
 Multiple inheritance is permitted:
 
 ```kairo
+interface Serializable {
+    fn serialize(const self) -> string
+    fn byte_size(const self) -> i32
+}
+
+interface Printable {
+    fn print(const self) -> string
+}
+
 interface Loggable derives Serializable, Printable {
     fn log_level(const self) -> i32
 }
@@ -8437,9 +8714,16 @@ interface Loggable derives Serializable, Printable {
 The primary use of interfaces is constraining generic type parameters with `impl`:
 
 ```kairo
+interface Serializable {
+    fn serialize(const self) -> string
+    fn byte_size(const self) -> i32
+}
+
+fn write_file(path: string, text: string) { }
+
 fn <T impl Serializable> save(data: T, path: string) {
-    var bytes = data.serialize()
-    write_file(path, bytes)
+    var text = data.serialize()
+    write_file(path, text)
 }
 ```
 
@@ -8448,16 +8732,24 @@ This is distinct from `derives`, which checks class inheritance. See [Requires C
 for the full constraint system.
 
 ```kairo
-fn <T impl Serializable> save(data: T) { ... }   // T has serialize() and byte_size()
-fn <T derives Base> process(data: T) { ... }     // T is a subclass of Base
+interface Serializable {
+    fn serialize(const self) -> string
+    fn byte_size(const self) -> i32
+}
+
+class Base { }
+
+fn <T impl Serializable> save(data: T) -> i32 { return data.byte_size() }   // T has serialize() and byte_size()
+fn <T derives Base> process(data: T) { }                                    // T is a subclass of Base
 ```
 
 ---
 
 ## Generic Bodies
 
-Inside `fn <T impl Foo>`, a value of type `T` supports exactly what `Foo` (and everything it derives)
-declares, plus destruction and move.
+Inside `fn <T impl Foo>`, a value of type `T` supports exactly what `Foo` (and every interface it derives)
+declares, plus destruction and move, which every type parameter has unless it opts out (see
+[Implicit capabilities](/docs/language/classes#type-parameter-constraints)).
 
 - `x.method()` resolves against `Foo`'s methods.
 - A generic method requirement is called with explicit arguments, `x.liz<i32>()`, or with deduced ones.
@@ -8479,6 +8771,10 @@ fn <T impl Shape> describe(s: T) -> f64 {
 }
 ```
 
+> [!NOTE]
+> The current compiler does not report `var x: T` without a constructor bound yet. See
+> [Status](/docs/status#not-diagnosed).
+
 See [Generic Classes](/docs/language/classes#type-parameter-constraints) for the implicit destroy and
 move capabilities and how instantiation reports them.
 
@@ -8491,6 +8787,9 @@ An interface declared `virtual interface` can also be used for runtime dispatch.
 witness table built for each conforming type, so the caller doesn't need to know at compile time which
 type it holds:
 
+> [!NOTE]
+> Virtual interfaces are not compiled yet. See [Status](/docs/status#not-compiled-yet).
+
 ```kairo
 virtual interface Allocator {
     fn alloc(self, size: usize, align: usize) -> unsafe *u8
@@ -8498,8 +8797,8 @@ virtual interface Allocator {
 }
 
 class LibcAllocator impl Allocator {
-    fn alloc(self, size: usize, align: usize) -> unsafe *u8 { ... }
-    fn free(self, ptr: unsafe *u8, size: usize) { ... }
+    fn alloc(self, size: usize, align: usize) -> unsafe *u8 { return &null }
+    fn free(self, ptr: unsafe *u8, size: usize) { }
 }
 
 fn release(alloc: *Allocator, ptr: unsafe *u8, size: usize) {
@@ -8570,7 +8869,11 @@ interface Invalid {
 // Basic interface
 interface Drawable {
     fn draw(const self) -> string
-    fn bounds(const self) -> (f64, f64, f64, f64)
+    fn width(const self) -> f64
+}
+
+interface Comparable {
+    fn op <(const self, other: Self) -> bool
 }
 
 // Generic interface with constraints
@@ -8600,20 +8903,27 @@ interface BufferedWriter derives Flushable {
 // Class conformance
 class Renderer impl Drawable {
     fn draw(const self) -> string { return "rendering" }
-    fn bounds(const self) -> (f64, f64, f64, f64) { return (0.0, 0.0, 100.0, 100.0) }
+    fn width(const self) -> f64 { return 100.0 }
+}
+
+struct Point {
+    var x: f64
+    var y: f64
 }
 
 // Struct conformance via extend
 extend Point impl Drawable {
     fn draw(const self) -> string { return f"({self.x}, {self.y})" }
-    fn bounds(const self) -> (f64, f64, f64, f64) { return (self.x, self.y, self.x, self.y) }
+    fn width(const self) -> f64 { return 0.0 }
 }
 
 // Generic bound
-fn <T impl Drawable> render_all(items: [T]) {
+fn <T impl Drawable> total_width(items: [T;]) -> f64 {
+    var total = 0.0
     for item in items {
-        std::println(item.draw())
+        total += item.width()
     }
+    return total
 }
 ```
 
@@ -9745,7 +10055,7 @@ fn <T> save(data: T) requires T impl Serializable { ... }
 ```
 
 Either way, the bounds are all a generic body can rely on. The body is checked once, where it is
-defined, against its bounds, not against each type it is instantiated with. Calling a method no
+defined, against its bounds, never per instantiation. Calling a method no
 bound declares is a compile error in the generic itself, even if every type it is ever
 instantiated with happens to have that method. See
 [Type parameter constraints](/docs/language/classes#type-parameter-constraints) and
@@ -10722,12 +11032,14 @@ a.handle               // compile error: a has been moved
 b.handle               // ok: b owns the value
 ```
 
-A type cannot define both `@copy` and `@move` pick one. A type with neither is implicitly COPY
-with compiler-generated members.
+A type cannot define both `@copy` and `@move` (unless both are `= delete`) pick one. A type with
+neither takes the weakest category its bases and fields allow: COPY if all of them are, MOVE if any is
+move-only, NON_TRANSFER if any cannot be transferred. Its members are compiler-generated to match.
 
 ### NON_TRANSFER types
 
-A type with both `@copy` and `@move` explicitly deleted cannot be assigned, copied, or moved.
+A type with a deleted transfer constructor (`@copy ... = delete`, `@move ... = delete`, or both)
+cannot be assigned, copied, or moved.
 The auto-derived `op =` is also `= delete`d as a consequence there is no transfer constructor for
 it to be generated from. These are scope-bound values: they live and die in the scope where they
 are created:
@@ -14986,6 +15298,9 @@ Extension methods are not C++ member functions. Kairo keeps a class's C++ defini
 Member type aliases are visible to C++: a class's `type promise_type = ...` is the C++ member
 `promise_type`, so C++ code that looks a member type up by name finds it.
 
+Names beginning `__kairo_` are reserved. A rendered class may expose public `__kairo_` members; C++ code
+must not read or write them.
+
 ### Generics
 
 Kairo generics are C++ templates in the header, bodies included. Instances Kairo already compiled are listed as `extern template`, so linking against the module's objects reuses them; any other instance is instantiated by your C++ compiler like any template. Kairo's `impl` bounds are not translated to C++ constraints: instantiating a Kairo generic with a C++ type that does not satisfy the bound fails inside the template body rather than at the call.
@@ -15785,19 +16100,243 @@ blit(4, scale: 2)            // error SC107E
 
 ## Lifecycle
 
+### SC057E: more than one transfer constructor
+
+A class has exactly one transfer constructor. It is an error to declare both a `@copy` and a `@move`
+transfer constructor, unless both are `= delete` (the non-transferable form), and it is an error to
+declare two transfer constructors of the same kind, such as `@copy` with and without `const`.
+
+```
+'{X}' declares both a '@copy' and a '@move' transfer constructor; pick one (both may be '= delete' together, which makes the class non-transferable)
+'{X}' declares more than one '@copy' transfer constructor; a class has exactly one transfer constructor
+```
+
+```kairo
+class Bad {
+    @copy fn Bad(self, const other: Self) = default
+    @move fn Bad(self, other: Self) = default       // error SC057E
+}
+
+class TwoCopies {
+    @copy fn TwoCopies(self, const other: Self) = default
+    @copy fn TwoCopies(self, other: Self) = default // error SC057E
+}
+```
+
+**Fix:** keep one transfer constructor. See
+[Classes](/docs/language/classes#the-transfer-constructor).
+
 ### SC110E: a constructor has the shape of a transfer constructor but is not declared as one
 
 A constructor that takes `Self` first and defaults every later parameter is a transfer constructor, and is
 written only as `@copy fn X(self, const other: Self)` or `@move fn X(self, other: Self)`.
 
 ```kairo
-fn X(self, other: Self) { }               // error SC110E: no marker
-fn X(self, @move other: Self) { }         // error SC110E: a mode on the parameter
-fn X(self, other: Self, k: i32 = 0) { }   // error SC110E: a defaulted extra parameter
+class A {
+    fn A(self, other: Self) { }               // error SC110E: no marker
+}
+class B {
+    fn B(self, @move other: Self) { }         // error SC110E: a mode on the parameter
+}
+class C {
+    fn C(self, other: Self, k: i32 = 0) { }   // error SC110E: a defaulted extra parameter
+}
 ```
 
 **Fix:** put `@copy` or `@move` on the constructor and write the parameter bare. See
 [Classes](/docs/language/classes#the-transfer-constructor).
+
+### SC129E: a defaulted transfer constructor cannot be generated
+
+A defaulted `@copy` constructor needs every base and field to be copyable; a defaulted `@move` needs every
+base and field to be movable or copyable. The error names the field or base that is not.
+
+```
+'{X}' cannot have a defaulted copy constructor: field '{f}' of type '{T}' is move-only
+'{X}' cannot have a defaulted move constructor: field '{f}' of type '{T}' is not transferable
+'{X}' cannot have a defaulted copy constructor: base '{B}' is not transferable
+```
+
+```kairo
+class Unique {
+    @move fn Unique(self, other: Self) = default
+}
+
+class CopiesUnique {
+    var u: Unique
+    @copy fn CopiesUnique(self, const other: Self) = default   // error SC129E: 'u' is move-only
+}
+```
+
+**Fix:** write the transfer constructor body yourself, change its kind, or `= delete` it. See
+[Classes](/docs/language/classes#defaulted-moves-of-non-movable-members).
+
+---
+
+## Enums
+
+### SC128E: an enum discriminant does not evaluate or does not fit
+
+A discriminant must be an integer constant expression whose value fits the enum's underlying type. The
+message says which part failed.
+
+```
+an enum discriminant must be an integer constant that fits '{T}'; this one does not evaluate: {reason}
+an enum discriminant must be an integer constant that fits '{T}'; it is {n}, which does not fit
+```
+
+```kairo
+enum Small derives u8 {
+    Top = 255,
+    Past,              // error SC128E: 'Past' is one past 'Top', so it is 256
+}
+
+enum Order {
+    A = Late,          // error SC128E: 'Late' is declared below this variant
+    Late = 1,
+}
+```
+
+**Fix:** use only literals, operators, `as` to an integer type, and earlier variants, and keep the value in
+range or widen the underlying type. See [Enums](/docs/language/enums#discriminant-values).
+
+### SC130E: two variants of an enum have the same value
+
+```
+'{V}' has the same value as '{W}' ({n})
+```
+
+```kairo
+enum Flags {
+    A = 1,
+    B = 1,             // error SC130E
+}
+```
+
+Imported C++ enums are exempt.
+
+**Fix:** give each variant a distinct value. See [Enums](/docs/language/enums#discriminant-values).
+
+### SC123E: a variant name does not fit the expected type
+
+A `.V`, or a pattern head, must name a variant of the enum it is checked against. It covers construction
+as well as `match` patterns: `.V` with no expected enum type, `.V` against a type that is not an enum, a
+variant the enum does not have, a variant of another enum, a type that is not the matched type, and a
+name that is not a variant, a constant or a type.
+
+```
+'.{V}' names an enum variant, but nothing here gives it an enum type; write the enum's name before it
+'.{V}' names an enum variant, but the expected type is '{T}', not an enum
+'.{V}' names an enum variant, but the matched value is '{T}', not an enum
+'{E}' has no variant named '{V}'
+'{E}::{V}' is a variant of another enum; the matched value is '{T}'
+this pattern matches '{T}', but the matched value is '{U}'
+'{E}' is an enum; name one of its variants
+'{x}' is not a variant, a constant or a type, so it cannot be matched against; to bind the value to a new name, write 'var {x}'
+```
+
+```kairo
+enum Dir { North, South }
+
+fn main() -> i32 {
+    var a = .North           // error SC123E: nothing gives '.North' an enum type
+    var b: i32 = .North      // error SC123E: 'i32' is not an enum
+    var c: Dir = .East       // error SC123E: 'Dir' has no variant named 'East'
+    match 3 {
+        case .North { }      // error SC123E: the matched value is 'i32', not an enum
+        default { }
+    }
+    return 0
+}
+```
+
+**Fix:** give `.V` an expected enum type, or write the enum's name before it (`Dir::North`). See
+[Enums](/docs/language/enums#shorthand-syntax).
+
+### SC131E: a variant is built with the wrong shape
+
+A variant is built from its own payload: every field once, by name, in braces exactly when it has a
+payload. A field name the payload does not have is SC040E, as for a struct.
+
+```
+'{E}::{V}' carries a payload; give its fields in braces after the name
+'{E}::{V}' carries no payload; write it without braces
+'{E}::{V}' is missing field '{f}'
+field '{f}' of '{E}::{V}' is given twice
+```
+
+```kairo
+enum Shape { Circle { r: i32 }, Rect { w: i32, h: i32 }, Empty }
+
+fn main() -> i32 {
+    var a = Shape::Rect { w: 1 }               // error SC131E: missing field 'h'
+    var b = Shape::Rect { w: 1, w: 2, h: 3 }   // error SC131E: 'w' given twice
+    var c = Shape::Empty { }                   // error SC131E: no payload, no braces
+    var d = Shape::Circle                      // error SC131E: a payload needs braces
+    return 0
+}
+```
+
+**Fix:**
+
+```kairo
+enum Shape { Circle { r: i32 }, Rect { w: i32, h: i32 }, Empty }
+
+fn main() -> i32 {
+    var a = Shape::Rect { h: 2, w: 1 }
+    var c = Shape::Empty
+    var d: Shape = .Circle { r: 3 }
+    return 0
+}
+```
+
+See [Enums](/docs/language/enums#construction).
+
+---
+
+## Not Yet Supported
+
+### SC116E: a feature is not yet supported
+
+The construct is part of the language but the current compiler does not handle it yet. The message names
+it:
+
+```
+{what} is not yet supported
+```
+
+It is reported for:
+
+- iterating a vector, set, map, or string
+- `label!` and `jump!` in user code
+- matching a string against a pattern that isn't a string literal or a constant initialized with one
+- matching a record value against a literal-style pattern
+- a non-generic payload enum whose payload holds a type whose copy, move and destruction are not known
+  until instantiation
+- an initializer on a `static`, `eval` or array-typed field
+- a generic record's field default that reads another field
+
+It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot
+build.
+
+```kairo
+class <T> Box { pub var v: T }
+
+enum W { Has { b: Box<i32> }, Empty }   // error SC116E
+```
+
+> [!NOTE]
+> For the payload enum case, make the variant generic over the payload type:
+>
+> ```kairo
+> class <T> Box { pub var v: T }
+>
+> enum <T> W { Has { b: Box<T> }, Empty }
+>
+> var w: W<i32> = .Empty
+> ```
+
+**Fix:** rewrite around the construct for now. See [Status](/docs/status).
 
 ---
 
