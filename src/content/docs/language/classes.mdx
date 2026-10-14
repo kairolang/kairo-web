@@ -892,7 +892,7 @@ Static members belong to the class, not to any instance. They are declared with 
 
 ```kairo
 class Counter {
-    static var count: i32 = 0
+    static count: i32 = 0
 
     fn Counter(self) {
         Counter::count += 1
@@ -908,8 +908,13 @@ var b = Counter()
 Counter::get_count()   // 2
 ```
 
-Static variables require an explicit type annotation. They can be initialized at the declaration site or
-at program startup. Static methods do not take `self` and cannot access instance members.
+Static variables are declared `static name: Type`, with no `var`, and require an explicit type
+annotation. They can be initialized at the declaration site or at program startup. Static methods do
+not take `self` and cannot access instance members.
+
+> [!NOTE]
+> Static fields do not compile yet: an initializer on one is rejected, and without one the program does
+> not link. See [Status](/docs/status#not-compiled-yet).
 
 ---
 

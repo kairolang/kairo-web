@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-14T04:52:09.659Z
+> Generated: 2026-10-14T05:22:06.377Z
 
 ---
 
@@ -1052,6 +1052,7 @@ it. Each entry is removed when the gap closes.
 | Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | — |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | — |
+| Static fields (`static count: i32` in a class) | Type-check, but do not link: no definition is emitted yet | Use a file-scope `static` variable |
 | An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 
@@ -6443,7 +6444,7 @@ Static members belong to the class, not to any instance. They are declared with 
 
 ```kairo
 class Counter {
-    static var count: i32 = 0
+    static count: i32 = 0
 
     fn Counter(self) {
         Counter::count += 1
@@ -6459,8 +6460,13 @@ var b = Counter()
 Counter::get_count()   // 2
 ```
 
-Static variables require an explicit type annotation. They can be initialized at the declaration site or
-at program startup. Static methods do not take `self` and cannot access instance members.
+Static variables are declared `static name: Type`, with no `var`, and require an explicit type
+annotation. They can be initialized at the declaration site or at program startup. Static methods do
+not take `self` and cannot access instance members.
+
+> [!NOTE]
+> Static fields do not compile yet: an initializer on one is rejected, and without one the program does
+> not link. See [Status](/docs/status#not-compiled-yet).
 
 ---
 
@@ -13416,6 +13422,9 @@ Eval can be used within class definitions to create compile-time computed values
 If the class contains a non-trivial destructor, it cannot be used in an `eval` context.
 Classes can mix eval functions with regular functions.
 
+> [!NOTE]
+> An initializer on an `eval` field is not compiled yet. See [Status](/docs/status#not-compiled-yet).
+
 ```kairo
 class HashState {
     eval seed: u64    = FNV_OFFSET_BASIS;
@@ -13739,7 +13748,7 @@ pub class Server { ... }
 priv class ConnectionPool { ... }
 
 pub eval MAX_CONNECTIONS = 1024
-priv static var request_count: i32 = 0
+priv static request_count: i32 = 0
 ```
 
 See [Imports](/docs/language/imports#visibility-on-imports) for how visibility affects what is re-exported via `pub import`.
