@@ -26,6 +26,7 @@ it. Each entry is removed when the gap closes.
 | Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | — |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | — |
+| Static fields (`static count: i32` in a class) | Type-check, but do not link: no definition is emitted yet | Use a file-scope `static` variable |
 | An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 

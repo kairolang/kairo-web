@@ -2,7 +2,7 @@
 title: "How AI Is Used in Kairo"
 description: "Full transparency on where and how AI tooling is used across the Kairo project."
 pubDate: 2026-05-26
-updatedDate: 2026-10-10
+updatedDate: 2026-10-14
 author: dhruvan
 tags: [transparency, process]
 ---
@@ -11,7 +11,7 @@ tags: [transparency, process]
 
 Kairo is being built by a small core team of university students. I (Dhruvan) do most of the compiler and language design work, so the AI usage described here is mine. I want to be upfront about where and how AI is used in this project.
 
-This was originally a snapshot as of May 2026. My usage has changed since then, so this post was updated in October 2026. See [Integration Work in the Compiler](#integration-work-in-the-compiler-october-2026-update) for what changed and why.
+This was originally a snapshot as of May 2026. My usage has changed since then, so this post was updated in October 2026. See [Integration Work in the Compiler](#integration-work-in-the-compiler-october-2026-update), [Tests](#tests), [Audits](#audits), and [Git Commit Messages](#git-commit-messages) for what changed and why.
 
 ## Why I'm Writing This
 
@@ -45,6 +45,23 @@ So that's where Claude Code comes in. The split looks like this:
 
 It isn't writing the compiler. It's doing the job an LSP and a refactoring tool would normally do, which Kairo doesn't have yet. Once Stage 1 has a proper LSP, I expect most of this to go back to being done by hand.
 
+## Tests
+
+Most of the compiler's lit tests are written by AI (Claude Code), under a strict process. The rule behind all of it: I decide what correct behavior is. The AI only expresses that behavior as a test.
+
+1. **Ask first.** Before writing a test, it asks me what the expected behavior is, unless it's 100% sure that's the behavior the compiler is meant to have. "Probably" doesn't count.
+2. **Get the test right.** It can iterate on the test itself: write it, watch it fail, read the diagnostic, and fix the test. The compiler is stable enough and the diagnostics are clear enough for that loop to work. This is about getting the Kairo source and the lit/FileCheck structure right, not about changing what the test expects.
+3. **Check it against my criteria.** Once the structure is in place, it runs the test through lit. I have strict criteria for what a test should look like, and if anything seems off, it flags it and stops.
+4. **Pass or stop.** If the test passes, it moves on to the next one. If it fails, it stops and brings it to me. It never works around the compiler to make a test pass. A failing test is either a compiler bug or a wrong expectation, and deciding which is my call.
+
+That last rule is the important one. The usual way AI-written tests go wrong is by quietly encoding a bug as expected behavior. Stopping on every failure is what prevents that.
+
+## Audits
+
+I also use Claude Code, with subagents running in parallel, for codebase-wide audits. For example, checking every CLI flag against what the compiler actually does with it. Every finding points at a file and line, so I can verify it. I review the findings and decide what gets fixed. The audit reports stay internal, but the tests that come out of them (like the CLI tests in `Tests/CLI/`) are public, and they're written under the same process as above: anything flagged as a bug doesn't get a test that treats the current behavior as correct.
+
+Doing this by hand would take weeks of tracing. With subagents it takes minutes, and my time goes into reviewing the findings instead of finding them.
+
 ## Debugging
 
 When I hit deep bugs in the compiler, I use Claude as a debugging partner. Stage 0 compiles Kairo through C++, so every LLDB symbol is a mangled C++ name, and reading them is miserable. My process: I walk through the trace in LLDB and try to find and fix the issue myself. If, and only if, I can't, I give Claude the output with the relevant source context. It tells me what commands to run or what state to look at, I run them, feed the results back, and we figure out what's really going on. Then I write the fix.
@@ -75,7 +92,9 @@ The website source is publicly available at [github.com/kairolang/kairo-web](htt
 
 ## Git Commit Messages
 
-I use GitLens AI to write my commit messages. Writing them is the one part of version control I refuse to care about. The commits are mine; the messages are generated from my diffs.
+Commit messages are AI-written. The commits are mine; the messages are generated from my diffs.
+
+I originally used GitLens AI for this. I still use it, but I now also use Claude Code, because GitLens gives an overview and Claude Code gives a detailed, exact message: what changed, where, and why. I keep commits small enough to stay bisectable, and the message records enough detail that when someone else is tracing a bug through the history, the log tells them what each commit actually did without having to reverse-engineer the diff. The verbosity is on purpose.
 
 ## LSP and VS Code Extension (Stage 0)
 
