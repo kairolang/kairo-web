@@ -63,8 +63,8 @@ Any expression the compiler can evaluate statically is valid in a `requires` cla
 
 | Expression | Example |
 |---|---|
-| `sizeof T)` | `requires sizeof(T <= 64` |
-| `alignof T)` | `requires alignof(T >= 16` |
+| `sizeof T` | `requires sizeof T <= 64` |
+| `alignof T` | `requires alignof T >= 16` |
 | Arithmetic and comparisons | `requires N > 0 && N <= 1024` |
 | `eval` variables and functions | `requires is_power_of_two(N)` |
 | Type trait checks | `requires T impl Comparable` |

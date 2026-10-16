@@ -246,9 +246,10 @@ const pp: *const *i32 = &p
 
 ## Smart Pointer Promotion
 
-[Tether](/docs/language/tether) analyzes pointer usage and automatically promotes safe pointers to smart
-pointers when needed. The smart pointer types are compiler intrinsics exposed through the standard
-library:
+[Tether](/docs/language/tether) analyzes pointer usage and determines when a safe pointer needs smart
+pointer ownership semantics. In **debug** builds it performs the promotion and warns; in **release**
+builds the same situation is a hard error naming the type to annotate. The smart pointer types are
+compiler intrinsics exposed through the standard library:
 
 | Type | Description |
 |---|---|
@@ -256,21 +257,22 @@ library:
 | `std::Shared<T>` | Reference-counted, multiple owners, freed when count reaches zero |
 | `std::Weak<*T>` | Non-owning reference to a `Shared` allocation, does not prevent deallocation |
 
-Tether decides which smart pointer type to use based on how the pointer is used across the program. The
-programmer does not need to annotate or choose Tether handles it automatically:
+Tether picks the smart pointer type from how the pointer is used across the program:
 
 ```kairo
 fn make_config() -> *Config {
     var cfg = @create Config(8080)
-    return cfg   // Tether determines ownership: likely Unique or Shared
+    return cfg
+    // debug: promote cfg -> std::Unique<Config>
+    // release: error, annotate the return type
 }
 ```
 
 If Tether cannot determine a safe promotion path (e.g., the pointer escapes in a way that prevents
-tracking), it emits a compile error rather than allowing unsafe behavior.
+tracking), it emits a compile error in both modes rather than allowing unsafe behavior.
 
-Smart pointer types can be used explicitly to override Tether's decision or to validate compiler
-behavior:
+Release code spells the smart pointer type explicitly, which is also how you override Tether's choice
+in debug:
 
 ```kairo
 var ptr: std::Unique<Config> = @create Config(8080)
@@ -424,5 +426,5 @@ var pp: **i32 = &p
 // Comparison
 p == q     // address comparison
 *p == *q   // value comparison
-maybe === other   // deep value comparison on nullable pointers
+maybe === other   // pointee equality on nullable pointers (one level)
 ```

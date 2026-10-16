@@ -1241,7 +1241,7 @@ Structs and classes are distinct types:
 |---|---|---|
 | Member default visibility | `priv` for variables | `pub` for all members |
 | Methods in body | Yes | No (use [extends](/docs/language/extends)) |
-| Aggregate initialization | No (must use constructor) | Yes (`Foo { field: value }`) |
+| Aggregate initialization | Only if the class declares no constructor | Yes (`Foo { field: value }`) |
 | Inheritance | `derives` | Not supported |
 | Virtual dispatch | Yes | No |
 | Lifecycle categories | Yes | N/A (no transfer constructors; copyable whenever every field is) |

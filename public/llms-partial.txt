@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-14T05:22:06.377Z
+> Generated: 2026-10-16T19:11:06.807Z
 
 ---
 
@@ -2075,25 +2075,26 @@ form is always valid and preferred when clarity matters.
 
 ## Default Initialization
 
-All types with a default constructor are zero-initialized when declared without an initializer. Integers default
-to `0`, booleans to `false`, strings to `""`, collections to empty.
+Types with a default value are zero-initialized when declared without an initializer. Integers default
+to `0`, strings to `""`, collections to empty.
 
 ```kairo
 var a: i32        // 0
 var b: string     // ""
-var c: bool       // false
 var d: [i32]      // []
 ```
 
-If a type has its default constructor explicitly deleted, declaring a variable without an initializer produces
-a compiler warning for uninitialized state.
+`bool` has no default value: declaring a `bool` without an initializer is an error. The same applies to a
+struct or class with no default constructor, including one whose default constructor is explicitly deleted.
 
 ```kairo
+var c: bool       // error: c must be initialized
+
 class Token {
-    fn Token() = delete
+    fn Token(self) = delete
 }
 
-var t: Token   // warning: t is uninitialized (suppress with @no_warn(UNINIT))
+var t: Token      // error: Token has no default constructor
 ```
 
 ---
@@ -6793,7 +6794,7 @@ Structs and classes are distinct types:
 |---|---|---|
 | Member default visibility | `priv` for variables | `pub` for all members |
 | Methods in body | Yes | No (use [extends](/docs/language/extends)) |
-| Aggregate initialization | No (must use constructor) | Yes (`Foo { field: value }`) |
+| Aggregate initialization | Only if the class declares no constructor | Yes (`Foo { field: value }`) |
 | Inheritance | `derives` | Not supported |
 | Virtual dispatch | Yes | No |
 | Lifecycle categories | Yes | N/A (no transfer constructors; copyable whenever every field is) |
@@ -10038,8 +10039,8 @@ Any expression the compiler can evaluate statically is valid in a `requires` cla
 
 | Expression | Example |
 |---|---|
-| `sizeof T)` | `requires sizeof(T <= 64` |
-| `alignof T)` | `requires alignof(T >= 16` |
+| `sizeof T` | `requires sizeof T <= 64` |
+| `alignof T` | `requires alignof T >= 16` |
 | Arithmetic and comparisons | `requires N > 0 && N <= 1024` |
 | `eval` variables and functions | `requires is_power_of_two(N)` |
 | Type trait checks | `requires T impl Comparable` |
@@ -10770,9 +10771,10 @@ const pp: *const *i32 = &p
 
 ## Smart Pointer Promotion
 
-[Tether](/docs/language/tether) analyzes pointer usage and automatically promotes safe pointers to smart
-pointers when needed. The smart pointer types are compiler intrinsics exposed through the standard
-library:
+[Tether](/docs/language/tether) analyzes pointer usage and determines when a safe pointer needs smart
+pointer ownership semantics. In **debug** builds it performs the promotion and warns; in **release**
+builds the same situation is a hard error naming the type to annotate. The smart pointer types are
+compiler intrinsics exposed through the standard library:
 
 | Type | Description |
 |---|---|
@@ -10780,21 +10782,22 @@ library:
 | `std::Shared<T>` | Reference-counted, multiple owners, freed when count reaches zero |
 | `std::Weak<*T>` | Non-owning reference to a `Shared` allocation, does not prevent deallocation |
 
-Tether decides which smart pointer type to use based on how the pointer is used across the program. The
-programmer does not need to annotate or choose Tether handles it automatically:
+Tether picks the smart pointer type from how the pointer is used across the program:
 
 ```kairo
 fn make_config() -> *Config {
     var cfg = @create Config(8080)
-    return cfg   // Tether determines ownership: likely Unique or Shared
+    return cfg
+    // debug: promote cfg -> std::Unique<Config>
+    // release: error, annotate the return type
 }
 ```
 
 If Tether cannot determine a safe promotion path (e.g., the pointer escapes in a way that prevents
-tracking), it emits a compile error rather than allowing unsafe behavior.
+tracking), it emits a compile error in both modes rather than allowing unsafe behavior.
 
-Smart pointer types can be used explicitly to override Tether's decision or to validate compiler
-behavior:
+Release code spells the smart pointer type explicitly, which is also how you override Tether's choice
+in debug:
 
 ```kairo
 var ptr: std::Unique<Config> = @create Config(8080)
@@ -10948,7 +10951,7 @@ var pp: **i32 = &p
 // Comparison
 p == q     // address comparison
 *p == *q   // value comparison
-maybe === other   // deep value comparison on nullable pointers
+maybe === other   // pointee equality on nullable pointers (one level)
 ```
 
 ---
@@ -11569,7 +11572,7 @@ conjunction of independent clauses. The access is sound if and only if every cla
 deref(p: *T) is sound  ⟺
     epoch(prov(p)) = live_epoch(alloc(prov(p)))            (C1) provenance / use-after-free
   ∧ 0 ≤ byte_offset(p)                                      (C2) no underflow
-  ∧ byte_offset(p) + sizeof T) ≤ size(alloc(prov(p)))       (C3 no overflow / bounds
+  ∧ byte_offset(p) + sizeof T ≤ size(alloc(prov(p)))        (C3) no overflow / bounds
   ∧ p ≠ null                                                (C4) nullability
   ∧ (¬shared(alloc(prov(p))) ∨ readonly_extent ∨ synced)    (C5) data-race freedom
   ∧ (¬tainted(prov(p)) ∨ laundered(p))                      (C6) provenance integrity
@@ -11766,7 +11769,7 @@ assert((0 <= i) && (i < 120));
 mov [rdi + i*4], 19
 ```
 
-Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof T) <= size`, and Tether emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by a `i >= 0` guard. For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
+Note both halves of the check. **`i < 120` alone is unsound** for a signed offset: a negative `i` passes it and reads out of bounds backward. The canonical obligation is `0 <= off AND off + sizeof T <= size`, and Tether emits both comparisons unless it can prove non-negativity separately (e.g. `i` is unsigned, or dominated by an `i >= 0` guard). For an unsigned offset the lower-bound clause C2 is discharged statically and only the upper comparison is emitted.
 
 The check is on the **offset**, computed before the pointer is formed never on the resulting
 pointer address. Checking `result_ptr < end` after forming the pointer is the bypassable version:
@@ -12196,30 +12199,32 @@ This is the "predictable from source" guarantee: any observable destructor side 
 
 ```kairo
 class MyClass {
-    var data: *i32? = null
+    var data: unsafe *i32 = &null
 
     fn MyClass(self) = default
 
     fn init(self) {
-        data = std::alloc<i32>(10) // 10 i32's allocated
+        data = unsafe std::alloc<i32>(sizeof i32 * 10) // 10 i32's allocated
     }
 
     fn op delete(self) {
-        if (data != null) {
-            @destroy data
-            data = null
+        if data != &null {
+            unsafe std::free(data)
+            data = &null
         }
     }
 }
 
 var obj = MyClass() // stack allocated the object itself
-obj.init() // allocate memory for data
+obj.init() // allocate the buffer data points to
 // do something with obj.data
-delete obj // runs the destructor for obj and frees data, but does not free obj itself
-obj.init() // can re-initialize obj and reuse the memory
+delete obj // runs obj's destructor, which frees the buffer; obj's own storage is not freed
+obj.init() // obj is still valid storage and can be re-initialized
 ```
 
-`delete` is supposed to be designed in a idempotent way, meaning that it can be called multiple times on the same object without causing undefined behavior. The first call to `delete` will run the destructor and free the resources, while subsequent calls will have no effect since the object is already destroyed. This allows for safe cleanup of resources without worrying about double deletion or dangling pointers.
+What `delete` frees is whatever the destructor frees: here the buffer owned by the `data` member. The object `delete` is applied to is not freed; its storage stays valid.
+
+`delete` is supposed to be designed in a idempotent way, meaning that it can be called multiple times on the same object without causing undefined behavior. The first call to `delete` runs the destructor, which releases the resources the members own, while subsequent calls will have no effect since the object is already destroyed. This allows for safe cleanup of resources without worrying about double deletion or dangling pointers.
 
 ---
 
@@ -12614,7 +12619,7 @@ unsafe process(42)   // calls unsafe version
 
 ### Modifier restrictions
 
-`unsafe` cannot be combined with other function modifiers:
+`unsafe` combines with every other function modifier except `eval`:
 
 | Combination | Valid |
 |---|---|
@@ -12625,7 +12630,7 @@ unsafe process(42)   // calls unsafe version
 | `unsafe` + `inline` | Yes |
 | `unsafe` + `volatile` | Yes |
 
-`unsafe` stands alone as an overload qualifier. See
+`unsafe` is an overload qualifier: the other modifiers apply to the safe and unsafe versions alike. See
 [Functions](/docs/language/functions#modifier-compatibility) for the full modifier compatibility
 table.
 
@@ -12635,9 +12640,13 @@ table.
 
 Kairo's safety model has a clear boundary:
 
-**Inside normal code:** Tether tracks all pointer lifetimes, inserts null checks on safe pointer
-dereference, auto-promotes to smart pointers, and emits compile errors when safety cannot be
-guaranteed. Memory safety is the compiler's responsibility.
+**Inside normal code:** Tether tracks all pointer lifetimes and proves every safe dereference sound.
+`*T` is non-null by construction, so its dereference needs no check; a `*T?` must be unwrapped or
+proven non-null. Where a proof is missing, the response depends on the clause (see the
+[Residual Table](/docs/language/tether#the-residual-table)): bounds and epoch residuals get a runtime
+check in both modes, while nullability and ownership residuals are transformed in debug (null guard,
+smart pointer promotion) and are hard errors in release. Everything else is a compile error. Memory
+safety is the compiler's responsibility.
 
 **Inside `unsafe { }` blocks:** Tether is suspended. The programmer is responsible for pointer
 lifetimes, null safety, and deallocation. The compiler trusts the programmer.
@@ -12670,7 +12679,7 @@ fn send_to_native(data: Config) {
 
     unsafe {
         forget!(ptr)
-        native_take_ownership(ptr as unsafe *i32)
+        native_take_ownership(ptr as unsafe *Config)
     }
 }
 ```
@@ -12688,8 +12697,10 @@ fn allocate_aligned(size: usize, align: usize) -> unsafe *void {
 
 ```kairo
 fn write_register(addr: usize, value: u32) {
-    var reg = addr as unsafe *u32
-    *reg = value
+    unsafe {
+        var reg = addr as unsafe *u32   // integer-to-pointer cast fabricates provenance
+        *reg = value
+    }
 }
 ```
 
