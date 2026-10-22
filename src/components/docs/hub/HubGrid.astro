@@ -4,12 +4,11 @@
  * the hub column (a container query, so it works the same beside a sidebar
  * or without one): `cols` when there is room, 2 on mid widths, 1 on phones.
  * In a 3-column grid that drops to 2, a lone last card spans the row.
+ * Cards in a row share a height (one bento box, every corner lining up); a
+ * shorter card's spare height is padding at the bottom of its frame.
  *
  * Props
- *   cols   2 | 3                Columns at full width (default 3).
- *   align  'stretch' | 'start'  'stretch': cards in a row share a height;
- *                               'start': each card keeps its own (for cards
- *                               of very different lengths). Default 'stretch'.
+ *   cols   2 | 3   Columns at full width (default 3).
  *
  * Slot (default)
  *   Cards (HubCard, PathCard, StatusCard, …).
@@ -23,11 +22,10 @@
 
 interface Props {
   cols?: 2 | 3;
-  align?: 'stretch' | 'start';
 }
 
-const { cols = 3, align = 'stretch' } = Astro.props;
+const { cols = 3 } = Astro.props;
 ---
-<div class="hub-grid" data-cols={cols} data-align={align}>
+<div class="hub-grid" data-cols={cols}>
   <slot />
 </div>
