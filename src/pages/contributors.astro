@@ -59,7 +59,7 @@ const ways = [
       class="ct-field"
     />
     <div class="container ct-hero-inner">
-      <div class="section-label print-in">contributors — {data.org}</div>
+      <div class="section-label print-in">contributors - {data.org}</div>
       <div class="ct-title">
         <AsciiTitle
           id="ct-title"
@@ -83,19 +83,19 @@ const ways = [
     </div>
   </section>
 
-  <!-- ── 01 — Leaderboard ── -->
+  <!-- ── 01 · Leaderboard ── -->
   <section class="ct-section">
     <div class="container">
-      <div class="section-label">01 — Leaderboard</div>
+      <div class="section-label">01 - Leaderboard</div>
       <h2 class="ct-h2">Top contributors</h2>
       <Leaderboard contributors={people} total={total} />
     </div>
   </section>
 
-  <!-- ── 02 — Everyone ── -->
+  <!-- ── 02 · Everyone ── -->
   <section class="ct-section">
     <div class="container">
-      <div class="section-label">02 — Everyone</div>
+      <div class="section-label">02 - Everyone</div>
       <h2 class="ct-h2">All contributors <span class="ct-h2-count" aria-hidden="true">[{people.length}]</span></h2>
       <p class="ct-note">
         <span class="comment" aria-hidden="true"></span>
@@ -116,10 +116,10 @@ const ways = [
     </div>
   </section>
 
-  <!-- ── 03 — Become a contributor ── -->
+  <!-- ── 03 · Become a contributor ── -->
   <section class="ct-section ct-cta-section">
     <div class="container">
-      <div class="section-label">03 — Join in</div>
+      <div class="section-label">03 - Join in</div>
       <AsciiFrame title="become_a_contributor.sh" meta="exit 0" variant="double" class="ct-cta">
         <h2 class="ct-cta-title">Become a contributor</h2>
         <p class="ct-cta-copy sans">
@@ -293,7 +293,7 @@ const ways = [
   .ct-c { color: var(--text-2); }
   .ct-ways { margin: 0 0 1.75rem; font-size: 0.8rem; }
   .ct-way { color: var(--text); font-weight: 600; }
-  .ct-way::after { content: ' —' / ''; color: var(--text-3); }
+  .ct-way::after { content: ':' / ''; color: var(--text-3); }
   .ct-way-desc { color: var(--text-2); }
   .ct-actions {
     display: flex;

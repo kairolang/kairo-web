@@ -12,9 +12,9 @@ source**. Most users want the prebuilt binary.
 
 Kairo ships as two compilers:
 
-- **Stage 0** the current compiler, written in C++. It transpiles Kairo to C++ and does **not**
+- **Stage 0:** the current compiler, written in C++. It transpiles Kairo to C++ and does **not**
   require LLVM. This is what almost everyone wants.
-- **Stage 1** the self-hosted compiler, written in Kairo (work in progress). Building it requires
+- **Stage 1:** the self-hosted compiler, written in Kairo (work in progress). Building it requires
   a working Stage 0 compiler **and** the patched LLVM submodule.
 
 Unless you are developing Kairo itself, install Stage 0 and stop there.
@@ -40,10 +40,10 @@ directory to your `PATH`.
 
 - **Linux:** glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+, RHEL 9+, Fedora 37+)
 - **macOS:** 13.3 (Ventura) or newer
-- **Windows:** Windows 10 or newer no Visual C++ Redistributable required, the runtime is
-  statically linked
+- **Windows:** Windows 10 or newer (no Visual C++ Redistributable required; the runtime is
+  statically linked)
 
-The Linux binaries are self-contained no system libc++ or libunwind required.
+The Linux binaries are self-contained: no system libc++ or libunwind required.
 
 > [!CAUTION]
 > On macOS, a downloaded binary is quarantined and Gatekeeper will refuse to run it
@@ -54,7 +54,7 @@ The Linux binaries are self-contained no system libc++ or libunwind required.
 > xattr -dr com.apple.quarantine ./kairo
 > ```
 >
-> This applies only to binaries downloaded from the release page builds from source are
+> This applies only to binaries downloaded from the release page; builds from source are
 > unaffected.
 
 ---
@@ -65,9 +65,9 @@ The Linux binaries are self-contained no system libc++ or libunwind required.
 
 Stage 0 requires:
 
-- **Clang 18 or newer** libstdc++ is **not** supported, you must build with Clang and libc++
+- **Clang 18 or newer** (libstdc++ is **not** supported; you must build with Clang and libc++)
 - **libc++** and **libc++abi**
-- **xmake** the build system
+- **xmake**, the build system
 - **git**
 
 Stage 1 additionally requires the patched LLVM submodule (see [below](#stage-1-self-hosted-in-development)). The VSCode
@@ -78,7 +78,7 @@ extension additionally requires **Node.js** and **npm**.
 Every platform needs Clang 18+ with libc++. The sections below show how to get a satisfying
 toolchain.
 
-#### Linux Arch / Manjaro
+#### Linux: Arch / Manjaro
 
 Arch's `clang` is current (well past 18), so no version pinning is needed.
 
@@ -86,9 +86,9 @@ Arch's `clang` is current (well past 18), so no version pinning is needed.
 sudo pacman -S git clang libc++ libc++abi lld cmake ninja xmake
 ```
 
-#### Linux Ubuntu / Debian
+#### Linux: Ubuntu / Debian
 
-Clang 18 is the minimum; newer is fine. Run `clang++ --version` if it reports 18 or higher,
+Clang 18 is the minimum; newer is fine. Run `clang++ --version`: if it reports 18 or higher,
 skip the apt.llvm.org step below and just ensure `libc++` and `libc++abi` are installed.
 Otherwise, install Clang 18 from LLVM's apt repo (the distro Clang is often older than 18 or
 defaults to libstdc++):
@@ -103,9 +103,9 @@ sudo update-alternatives --install /usr/bin/clang   clang   /usr/bin/clang-18   
 sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
 ```
 
-#### Linux Fedora / RHEL
+#### Linux: Fedora / RHEL
 
-Ensure `clang --version` reports 18+. Older RHEL ships an older toolchain you may need a newer
+Ensure `clang --version` reports 18+. Older RHEL ships an older toolchain; you may need a newer
 LLVM module (`sudo dnf module install llvm-toolset:latest`) to meet the minimum.
 
 ```bash
@@ -149,7 +149,7 @@ cd kairo
 git checkout archive/beta-helix-0.0.1
 ```
 
-Pull submodules. For Stage 0 this is a fast clone it does not pull LLVM:
+Pull submodules. For Stage 0 this is a fast clone (it does not pull LLVM):
 
 ```bash
 git submodule update --init --recursive
@@ -212,20 +212,20 @@ kairo test.k
 
 ## Stage 1 (self-hosted, in development)
 
-Stage 1 is the self-hosted compiler, written in Kairo. Building it is optional only do this if
+Stage 1 is the self-hosted compiler, written in Kairo. Building it is optional. Only do this if
 you're developing Kairo itself. It requires a working Stage 0 build (above) plus the patched LLVM
 submodule. LLVM is a hard requirement for Stage 1; there is no LLVM-free path.
 
-Kairo carries a **minor fork of LLVM** vendored as a submodule. Use it as-is do not substitute a
-system or upstream LLVM, the patches are required.
+Kairo carries a **minor fork of LLVM** vendored as a submodule. Use it as-is. Do not substitute a
+system or upstream LLVM; the patches are required.
 
 ```bash
 git checkout canary
-git submodule update --init --recursive   # pulls the patched LLVM large download
+git submodule update --init --recursive   # pulls the patched LLVM (large download)
 kbld                                       # must be on PATH, or use ./build/release/<platform>/bin/kbld
 ```
 
-The first `kbld` builds the patched LLVM before building Stage 1. This is a long, one-time compile
+The first `kbld` builds the patched LLVM before building Stage 1. This is a long, one-time compile;
 it has not hung. Subsequent builds reuse it.
 
 You can run test files whose entry point is `fn Test() -> i32 { ... }`:
@@ -243,16 +243,16 @@ kbld test Compiler/Lexer/Lexer.k
 ## VSCode Extension
 
 VSCode is currently the only editor with LSP support and `.k` syntax highlighting. The language
-server ships as part of the compiler, so there is nothing extra to run the extension only needs
+server ships as part of the compiler, so there is nothing extra to run: the extension only needs
 to locate `kairo`.
 
 ### Install
 
 Pick whichever is easiest:
 
-- **Marketplace** install from the
+- **Marketplace:** install from the
   [Kairo extension page](https://marketplace.visualstudio.com/items?itemName=KSF.kairo).
-- **Prebuilt VSIX** download the latest `.vsix` from
+- **Prebuilt VSIX:** download the latest `.vsix` from
   [kairo-lsp](https://github.com/kairolang/kairo-lsp/) (e.g. `kairo-0.5.5.vsix`), then in VSCode:
   **Extensions** -> **⋯** -> **Install from VSIX…**
 - **Build from source:**
@@ -269,20 +269,20 @@ This produces a `.vsix` you install the same way.
 
 ### Configure
 
-If `kairo` is on your `PATH`, the extension finds it automatically no configuration needed.
+If `kairo` is on your `PATH`, the extension finds it automatically, no configuration needed.
 Otherwise set `kairo.path` in your VSCode `settings.json` to the compiler's location. If it cannot
 find the compiler, you get a single "path not set" warning.
 
 ### Debugging
 
-- **Run Kairo File** runs and attaches the debugger
-- **Run Kairo File with Args** prompts for comma-separated args (e.g. `arg1,arg2,arg3`)
+- **Run Kairo File** - runs and attaches the debugger
+- **Run Kairo File with Args** - prompts for comma-separated args (e.g. `arg1,arg2,arg3`)
 
 Both work with `fn main()` or `fn Test()` entry points.
 
 > [!WARNING]
 > With `fn Test()`, VSCode redirects to a temporary file during debugging. Breakpoints work, but
-> **edits are not saved back to your original file** re-running the debugger resets everything.
+> **edits are not saved back to your original file**. Re-running the debugger resets everything.
 > Use `fn main()` for active development.
 
 ---
@@ -296,7 +296,7 @@ Release binaries are not yet notarized. Clear the quarantine flag:
 xattr -dr com.apple.quarantine ./kairo
 ```
 
-This does not affect source builds only binaries downloaded from the release page.
+This does not affect source builds, only binaries downloaded from the release page.
 
 **Build fails with `libstdc++` / `use of undeclared identifier 'requires'` / constexpr errors.**
 Your Clang is defaulting to libstdc++ or an older C++ standard. Confirm `clang++ --version`

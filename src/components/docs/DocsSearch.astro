@@ -657,7 +657,7 @@
 	}
 
 	/* Build a vocabulary of real terms for bounded fuzzy correction.
-     Titles, headings, and section names — never raw body text, so we
+     Titles, headings, and section names only, never raw body text, so we
      never fuzzy-match against incidental words. */
 	function buildVocab(entries: SearchEntry[]) {
 		if (vocab) return;
@@ -891,7 +891,7 @@
 				new RegExp(`(^|[^a-z0-9])${escapeRe(fullText)}([^a-z0-9]|$)`).test(title)
 			)
 				score += 300; // whole-word appearance
-			else if (fullText && title.includes(fullText)) score += 120; // mid-word substring (constructors) — demoted hard
+			else if (fullText && title.includes(fullText)) score += 120; // mid-word substring (constructors), demoted hard
 		}
 		if (useDesc && fullText && desc.includes(fullText)) score += 70;
 		if (useBody && fullText && body.includes(fullText)) score += 50;
@@ -903,13 +903,13 @@
 				if (h === fullText)
 					hs = 320; // "const"
 				else if (fullText && h.startsWith(fullText + " "))
-					hs = 240; // "const pointers", "const methods" — whole word, leading
+					hs = 240; // "const pointers", "const methods": whole word, leading
 				else if (
 					fullText &&
 					new RegExp(`(^|[^a-z0-9])${escapeRe(fullText)}([^a-z0-9]|$)`).test(h)
 				)
 					hs = 180; // whole word, anywhere
-				else if (fullText && h.includes(fullText)) hs = 60; // "constructors" — prefix/substring, demoted hard
+				else if (fullText && h.includes(fullText)) hs = 60; // "constructors": prefix/substring, demoted hard
 				if (hs > bestHeadingScore) {
 					bestHeadingScore = hs;
 					bestHeading = heading;

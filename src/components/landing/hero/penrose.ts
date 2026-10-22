@@ -1,9 +1,9 @@
 /**
- * KAIRO // ASCII — the hero figure: a Penrose tribar (the logo's construction).
+ * KAIRO // ASCII - the hero figure: a Penrose tribar (the logo's construction).
  *
  * An impossible triangle can't be one rigid solid, so it is built the
  * classic way: three square-section bars run along +x, +y, +z from corner
- * cube C0 → C1 → C2 → C3. Seen orthographically along (1,1,1), C3 projects
+ * cube C0 -> C1 -> C2 -> C3. Seen orthographically along (1,1,1), C3 projects
  * exactly onto C0, so the three bars close into the impossible loop (the
  * near end of the z bar sits over the far start of the x bar). Any turn that
  * isn't about the view axis pulls C3 off C0 and gives the trick away, so
@@ -51,7 +51,7 @@ const TILT = 0.6 * Math.PI / 180;
 /** mirror the image so the face/gradient layout follows the logo */
 const MIRROR = true;
 
-/* light (surface → light) in camera space: left-front. At the illusion view
+/* light (surface -> light) in camera space: left-front. At the illusion view
    the three face families light at ≈ .05 / .94 / .34: dark, bright, mid */
 const LX0 = -0.6, LY0 = -0.2, LZ0 = -0.75;
 
@@ -69,7 +69,7 @@ export function createPenrose() {
   function setBar(nw: number) {
     w = nw;
     const L = 1;
-    // bar 0: C0 → C1 along x; bar 1: C1 → C2 along y; bar 2: C2 → C3 along z
+    // bar 0: C0 -> C1 along x; bar 1: C1 -> C2 along y; bar 2: C2 -> C3 along z
     box.set([0, 0, 0, L + w, w, w], 0);
     box.set([L, 0, 0, L + w, L + w, w], 6);
     box.set([L, L, 0, L + w, L + w, L + w], 12);
@@ -88,9 +88,9 @@ export function createPenrose() {
     // roll in-plane so the seam corner (C0 ≡ C3) is the apex, pointing up
     const c = w / 2;
     const gx = (0 + 1 + 1) / 3 + c, gy = (0 + 0 + 1) / 3 + c, gz = c; // centroid of C0, C1, C2
-    const vx = c - gx, vy = c - gy, vz = c - gz;                        // centroid → C0
+    const vx = c - gx, vy = c - gy, vz = c - gz;                        // centroid -> C0
     const sx = vx * xx + vy * xy + vz * xz, sy = vx * yx + vy * yy + vz * yz;
-    // want (sx, sy) → (0, −|s|): rotate the basis by φ
+    // want (sx, sy) -> (0, −|s|): rotate the basis by φ
     const phi = Math.atan2(sx, -sy);
     const cp = Math.cos(phi), sp = Math.sin(phi);
     const nxx = cp * xx + sp * yx, nxy = cp * xy + sp * yy, nxz = cp * xz + sp * yz;
@@ -102,7 +102,7 @@ export function createPenrose() {
   }
 
   /**
-   * Pose at loop time t. still → the exact impossible view.
+   * Pose at loop time t. With still set, it is the exact impossible view.
    * px/py are the scene's eased pointer values (any scale; clamped here).
    */
   function pose(t: number, still: boolean, px: number, py: number) {

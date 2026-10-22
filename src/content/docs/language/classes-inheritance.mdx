@@ -84,7 +84,7 @@ class Derived derives Base {
 
 ### Destructors and inheritance
 
-A class with a non-trivial destructor — its own `op delete` with a body, or any field or base that has one — may only
+A class with a non-trivial destructor (its own `op delete` with a body, or any field or base that has one) may only
 derive from a class whose destructor is `virtual`. Otherwise deleting the derived object through a `*Base`
 runs only the base's destructor and leaks the rest. This is a compile error at the derived class.
 
@@ -102,7 +102,7 @@ class Derived derives Base {          // ok
 }
 ```
 
-A destructor is virtual when declared `virtual` or `override`, or when any base's is — as with any other
+A destructor is virtual when declared `virtual` or `override`, or when any base's is. As with any other
 method, virtualness is inherited. A derived class with a trivial destructor is exempt.
 
 ### Diamond and virtual inheritance

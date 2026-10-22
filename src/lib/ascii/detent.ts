@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — section detents (non-docs pages).
+ * KAIRO // ASCII - section detents (non-docs pages).
  *
  * A sticky-but-never-trapping replacement for CSS `scroll-snap-type:
  * y proximity`. Chrome's proximity range is ~1/3 of the viewport, so small
@@ -103,7 +103,7 @@ function onKey(e: KeyboardEvent) {
   if (e.key === ' ' && e.shiftKey) return intent(-1, false);
   if (SCROLL_KEYS_DOWN.has(e.key)) return intent(1, false);
   if (SCROLL_KEYS_UP.has(e.key)) return intent(-1, false);
-  // Home / End / anything else: a jump, not a nudge — no detent
+  // Home / End / anything else: a jump, not a nudge, so no detent
   if (e.key === 'Home' || e.key === 'End') dir = 0;
 }
 function dropIntent() { dir = 0; gestureStartY = NaN; }

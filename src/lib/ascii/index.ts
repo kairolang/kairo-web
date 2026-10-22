@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — barrel + global initialiser.
+ * KAIRO // ASCII - barrel + global initialiser.
  *
  * BaseLayout runs initAscii() on every page (and on astro:page-load), so any
  * markup using the data-attributes below "just works" without page scripts:

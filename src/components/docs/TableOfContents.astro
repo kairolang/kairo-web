@@ -53,7 +53,7 @@ for (const h of headings) {
   }
 }
 
-// "cd .." — one level up: a docs page goes to its nearest parent section
+// "cd .." moves one level up: a docs page goes to its nearest parent section
 // index that exists (else /docs/), a blog post to /blog/.
 const path = Astro.url.pathname;
 const parts = path.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
@@ -188,7 +188,7 @@ const CELLS = 16;
     position: relative;
     padding-left: 3.5ch;
   }
-  /* │ — the full height of the item (incl. its children) unless it is the last */
+  /* │ spans the full height of the item (incl. its children) unless it is the last */
   .toc-item::before {
     content: '';
     position: absolute;
@@ -199,7 +199,7 @@ const CELLS = 16;
     background: var(--tree-line);
   }
   .toc-item:last-child::before { bottom: auto; height: calc(0.5lh + var(--row-pad)); }
-  /* ── — the branch into the label; the active row's is shortened to "─"
+  /* ── is the branch into the label; the active row's is shortened to "─"
      and the sliding ">" completes it: ├─> */
   .toc-item::after {
     content: '';
@@ -232,7 +232,7 @@ const CELLS = 16;
   .toc-link.active,
   .toc-link.active:hover { color: var(--accent); }
 
-  /* the moving ">" — one per TOC, positioned with transform only */
+  /* the moving ">", one per TOC, positioned with transform only */
   .toc-marker {
     position: absolute;
     left: 1.85ch;

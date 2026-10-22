@@ -11,7 +11,7 @@ parent: macros
 Kairo provides a set of compiler-intrinsic macros for common tasks.
 
 Builtin names are reserved: defining a macro with a builtin's name (`macro first!(...)`,
-`macro paste!(...)`) is a compile error. Qualified macros (`mymod::first!`) do not collide —
+`macro paste!(...)`) is a compile error. Qualified macros (`mymod::first!`) do not collide;
 builtins only claim the unqualified names.
 
 ## Token manipulation

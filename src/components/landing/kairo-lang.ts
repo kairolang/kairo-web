@@ -21,7 +21,7 @@ export function getKairoLang(): Promise<any> {
   return cached;
 }
 
-/** Shiki language for a filename: .k/.kro → Kairo grammar, otherwise the extension. */
+/** Shiki language for a filename: .k/.kro -> Kairo grammar, otherwise the extension. */
 export async function langFor(filename: string): Promise<any> {
   const ext = filename.split('.').pop() ?? 'txt';
   return ext === 'k' || ext === 'kro' ? getKairoLang() : ext;

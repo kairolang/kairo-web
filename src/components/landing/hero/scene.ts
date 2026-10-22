@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — homepage hero scene.
+ * KAIRO // ASCII - homepage hero scene.
  *
  * A real-time ASCII rasteriser: the Penrose tribar (penrose.ts, ray-cast per
  * cell), a wave lattice and a few depth particles are drawn into a monospace
@@ -15,7 +15,7 @@
  *
  * Motion: the triangle holds the impossible view with a slow roll sway; the
  * pointer adds a small lean and a hair of tilt, and a small lens magnifies
- * and "sharpens" glyphs near it (ramp → ░▒▓█ blocks). Touch: lean only.
+ * and "sharpens" glyphs near it (ramp to ░▒▓█ blocks). Touch: lean only.
  *
  * Perf: runs through motion.loop() (paused offscreen + when document.hidden),
  * DPR ≤ 1.5, cell size grows if the grid exceeds the cell budget, the figure
@@ -238,7 +238,7 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
 
   /**
    * Size + place the tribar: on desktop its rest centre sits at 43% of the
-   * wall (stage → right edge) with a ≥ 11-cell text column beside its base
+   * wall (stage to right edge) with a ≥ 11-cell text column beside its base
    * at rest, and nothing the motion can reach (sway + lean roll, pointer
    * tilt; a few px past the rest bbox) touches the copy column, the right
    * edge or the stage's top/bottom. Two passes: the bar thickness follows

@@ -1,12 +1,12 @@
 /**
- * KAIRO // ASCII — text scramble / decode.
+ * KAIRO // ASCII - text scramble / decode.
  *
  *   import { scramble, bindScramble } from '@/lib/ascii/scramble';
  *   await scramble(el, { duration: 450 });          // decode el's current text
  *   await scramble(el, { text: 'exit 0' });          // decode INTO new text
  *
  * Works on any element: only TEXT NODES are touched (icons/SVG/children stay),
- * so it is safe on buttons with an <svg> arrow. Use it on monospace text —
+ * so it is safe on buttons with an <svg> arrow. Use it on monospace text:
  * the default glyph set is ASCII so a Geist Mono line never changes width.
  *
  * Auto-binding (wired globally by BaseLayout via initAscii()):
@@ -29,7 +29,7 @@
  * refreshes at <= 12fps and each glyph re-rolls at most 3 times before it
  * locks, so even small text never churns.
  *
- * RESTRAINT: headings, nav and buttons only — never paragraphs or code.
+ * RESTRAINT: headings, nav and buttons only, never paragraphs or code.
  * Hover re-scrambles have a per-element cooldown so sweeping the pointer
  * across a nav row doesn't make it churn.
  */

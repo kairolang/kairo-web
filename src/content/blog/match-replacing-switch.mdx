@@ -8,7 +8,7 @@ tags: [design, syntax]
 
 # Why Kairo Replaced `switch` With `match`
 
-Kairo doesn't have `switch`. It has `match`. This wasn't a cosmetic rename, it's a different construct with different semantics that eliminates an entire class of bugs that `switch` has carried forward for fifty years.
+Kairo doesn't have `switch`. It has `match`. This wasn't a cosmetic rename. It's a different construct with different semantics that eliminates an entire class of bugs that `switch` has carried forward for fifty years.
 
 ## What's Wrong with `switch`
 
@@ -94,7 +94,7 @@ match result {
 }
 ```
 
-You can omit fields you don't need, exhaustive field extraction isn't required. And you can add `where` guards for conditional matching:
+You can omit fields you don't need; exhaustive field extraction isn't required. And you can add `where` guards for conditional matching:
 
 ```kairo
 match result {
@@ -108,7 +108,7 @@ match result {
 }
 ```
 
-Try doing this with `switch`. You can't, `switch` dispatches on a single value. Destructuring a tagged union in C++ means pulling out the tag, switching on it, then manually casting or accessing the payload. It's verbose, error-prone, and the compiler can't verify you got the fields right.
+Try doing this with `switch`. You can't: `switch` dispatches on a single value. Destructuring a tagged union in C++ means pulling out the tag, switching on it, then manually casting or accessing the payload. It's verbose, error-prone, and the compiler can't verify you got the fields right.
 
 ## `match` as an Expression
 
@@ -155,7 +155,7 @@ match response {
 
 ## What About `break` in Loops?
 
-Since `match` cases don't fall through, there's nothing to `break` out of inside a match. So when a `match` is nested inside a loop, `break` does what you'd expect, it exits the loop:
+Since `match` cases don't fall through, there's nothing to `break` out of inside a match. So when a `match` is nested inside a loop, `break` does what you'd expect and exits the loop:
 
 ```kairo
 for item in items {

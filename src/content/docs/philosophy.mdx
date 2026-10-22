@@ -20,7 +20,7 @@ lifetimes, audit every pointer, and hope your discipline holds across a million-
 maintained by a rotating team for a decade. When it doesn't, you get CVEs.
 
 Another class of languages solves this by restricting what you're allowed to express. Safety comes
-from rejection the compiler says no until you restructure your program to fit its model. This
+from rejection: the compiler says no until you restructure your program to fit its model. This
 works, but it trades implementation freedom for cognitive overhead. Simple patterns become puzzles.
 Prototyping feels like negotiating with a bureaucracy.
 
@@ -69,7 +69,7 @@ workflow closer to real engineering: prototype freely, refine intentionally, har
 
 The escape hatches are explicit. `unsafe` blocks suspend Tether tracking. `unsafe *T` pointers bypass
 null checks and bounds analysis. `unsafe` function overloads relax semantic invariants. Every
-dangerous operation is visible in the source easy to find during review, easy to audit, easy to
+dangerous operation is visible in the source: easy to find during review, easy to audit, easy to
 grep.
 
 ### Code should explain itself
@@ -79,10 +79,10 @@ understand what code does. The more work the compiler does on your behalf, the m
 what the compiler knows is no substitute for what a reader can see.
 
 - `self` is always visible in method signatures
-- Inheritance uses the `derives` keyword no implicit resolution
+- Inheritance uses the `derives` keyword, no implicit resolution
 - Pointer types are visually distinct (`*T` vs `unsafe *T` vs `*const T`)
 - All conversions use a single `as` keyword
-- Interfaces are structural satisfy the methods, satisfy the interface
+- Interfaces are structural: satisfy the methods, satisfy the interface
 - Operator overloads are declared with `fn op` syntax that mirrors the operator
 
 ```kairo
@@ -112,7 +112,7 @@ afford full rewrites.
 
 Kairo integrates into existing systems one module at a time. Import C headers directly with
 `ffi "c"`. Import C++ headers with `ffi "c++"`. Kairo emits ABI-compatible object code
-Itanium on Unix and MinGW, MSVC on `*-windows-msvc` so Kairo `.o` files link with GCC, Clang, or MSVC output
+(Itanium on Unix and MinGW, MSVC on `*-windows-msvc`), so Kairo `.o` files link with GCC, Clang, or MSVC output
 without shims. Object layout, vtable structure, name mangling, and calling conventions all follow
 platform standards.
 
@@ -126,7 +126,7 @@ fn main() {
 ```
 
 A team can migrate one file at a time, validate performance incrementally, and maintain the
-existing build system throughout. Kairo coexists with infrastructure it does not demand
+existing build system throughout. Kairo coexists with infrastructure; it does not demand
 replacement of it.
 
 ---
@@ -136,7 +136,7 @@ replacement of it.
 High-level features compile to predictable low-level code:
 
 - Interfaces are structural and carry no vtable or runtime dispatch cost. A type satisfies an
-  interface if it has the right methods no registration, no indirection.
+  interface if it has the right methods. No registration, no indirection.
 - Generics are monomorphized at compile time. No boxing, no type erasure, no runtime cost.
 - Panic handling compiles to tagged return values and branches. No unwinding tables, no runtime
   exception handler, no stack unwinding.

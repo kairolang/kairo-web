@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — rain over a slow liquid pool (the 404 scene).
+ * KAIRO // ASCII - rain over a slow liquid pool (the 404 scene).
  *
  * Glyph rain falls forever; for the first `settle` seconds it fills a pool
  * at the bottom, which then holds its level (no overflow) while its surface
@@ -10,7 +10,7 @@
  * A few drops leave a tiny dim '.' splash for ~0.3s where they land.
  *
  * Looks like a createField() field (same ramp, the same 6 shades of
- * --red-lo → --red → --red-hi, same cell sizing), but draws its own canvas
+ * --red-lo to --red to --red-hi, same cell sizing), but draws its own canvas
  * because the surface needs glyphs and shades picked independently.
  *
  *   const pool = createRainPool(host, { settle: 2.4 });
@@ -134,7 +134,7 @@ export function createRainPool(host: HTMLElement, opts: RainPoolOptions = {}): R
       level = new Float32Array(cols); surf = new Int16Array(cols);
     }
     for (let c = 0; c < cols; c++) {
-      const edge = Math.abs((c + 0.5) / cols - 0.5) * 2; // 0 centre → 1 edges
+      const edge = Math.abs((c + 0.5) / cols - 0.5) * 2; // 0 at the centre, 1 at the edges
       // the old heap's mean profile (low under the copy, higher at the edges), smoothed into a liquid
       finalH[c] = Math.max(1, rows * (0.095 + 0.09 * edge * edge) + 1);
       // neighbouring columns start/finish filling together, so the rising surface stays coherent
@@ -177,7 +177,7 @@ export function createRainPool(host: HTMLElement, opts: RainPoolOptions = {}): R
       }
       if (H > 0.15 && s < rows) {
         // how far the liquid reaches into the surface row picks the glyph:
-        // '_' low → '~' → '≈' near the top; crests a shade brighter
+        // '_' low, then '~', then '≈' near the top; crests a shade brighter
         const f = H - s;
         const g = f < 0.34 ? G_LOW : f < 0.67 ? G_MID : G_HIGH;
         const sh = (g === G_LOW ? 2 : 3) + (wv > 0.3 ? 1 : 0);

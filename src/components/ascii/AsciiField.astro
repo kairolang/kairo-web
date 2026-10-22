@@ -10,7 +10,7 @@
  *
  * All fields share one rAF scheduler; each ticks only while on screen and the
  * tab is visible. Narrow screens get fewer, larger cells. Reduced motion and
- * calm pages → one still frame (the same frame an animated field starts on).
+ * calm pages get one still frame (the same frame an animated field starts on).
  *
  * RESTRAINT: animated fields are for the homepage only (hero + slow section
  * bands, ~20fps, low halo strength). Anywhere else pass `still` (one frame,
@@ -33,7 +33,7 @@ interface Props {
   strength?: number;
   /** animation clock offset in seconds (default 3.2 = the still frame, so motion starts from it) */
   t0?: number;
-  /** glyph ramp, dark → bright (default " .:-=+*#%@") */
+  /** glyph ramp, dark to bright (default " .:-=+*#%@") */
   ramp?: string;
   /** default 0.35 (restraint range ~0.15–0.45) */
   opacity?: number;

@@ -1,16 +1,16 @@
 /**
- * Contributors data + ASCII avatars (BUILD TIME ONLY — Node, uses sharp).
+ * Contributors data + ASCII avatars (BUILD TIME ONLY: Node, uses sharp).
  *
- *   const data = await getContributors();          // live GitHub fetch → snapshot fallback
+ *   const data = await getContributors();          // live GitHub fetch, snapshot fallback
  *   const art  = await avatarAscii(c);              // { dark, light, source } HTML strings
  *
  * Live fetch: every public, non-fork repo in the kairolang org, contributors
  * aggregated per login, bots excluded. Uses process.env.GITHUB_TOKEN when set.
- * Any error / timeout / rate limit → src/data/contributors.json (the snapshot).
+ * Any error / timeout / rate limit falls back to src/data/contributors.json (the snapshot).
  * Builds never fail because of GitHub.
  *
  * Env:
- *   GITHUB_TOKEN               optional, raises the rate limit (60 → 5000/h)
+ *   GITHUB_TOKEN               optional, raises the rate limit (60 to 5000/h)
  *   KAIRO_CONTRIBUTORS_OFFLINE=1  skip the network entirely (snapshot + cached / identicon avatars)
  *
  * Refresh the snapshot:
@@ -154,16 +154,16 @@ const CACHE_DIR = join(process.cwd(), 'node_modules', '.cache', 'kairo-avatars')
 const CACHE_VERSION = 'v1';
 
 export interface AvatarArt {
-  /** HTML (escaped glyphs; dim runs wrapped in <span class="d">) for the dark theme: bright pixel → dense glyph */
+  /** HTML (escaped glyphs; dim runs wrapped in <span class="d">) for the dark theme: bright pixel = dense glyph */
   dark: string;
-  /** same, inverted luminance for the light theme: dark pixel → dense glyph */
+  /** same, inverted luminance for the light theme: dark pixel = dense glyph */
   light: string;
   source: 'avatar' | 'identicon';
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** Luminance grid (0..1, rows × cols) → toned HTML. Low-density glyphs render dim. */
+/** Luminance grid (0..1, rows × cols) -> toned HTML. Low-density glyphs render dim. */
 function gridToHtml(lum: number[], invert: boolean): string {
   const lines: string[] = [];
   const last = RAMP.length - 1;

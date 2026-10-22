@@ -39,13 +39,13 @@ This works because Kairo emits the class, and therefore emits the [destructor](/
 destruction semantics; C++'s `delete` merely sequences destructor-then-deallocate, which is the same pair of
 operations Kairo spells as [`delete obj`](/docs/language/tether/#delete-operation) followed by `@free`.
 
-Pointer parameters and return values stay raw `*T` — there is no wrapper type, no ABI change, and no cost at the
+Pointer parameters and return values stay raw `*T`. There is no wrapper type, no ABI change, and no cost at the
 call boundary.
 
 ### Global `operator new` overrides do not affect Kairo objects
 
 A class-specific `operator new` takes precedence over a global replacement. A C++ translation unit that overrides
-global `new`/`delete` — for a pool, an instrumented heap, a leak tracker — therefore does not touch Kairo
+global `new`/`delete` (for a pool, an instrumented heap, a leak tracker) therefore does not touch Kairo
 allocations. The isolation is structural, not a restriction.
 
 ### The operators bind to the *global* allocator, always
@@ -75,16 +75,16 @@ pointer allocated through a scoped allocator that escapes the allocator's scope 
 
 The operators fix `new`/`delete`. They do not make every deallocation valid:
 
-- `free()` on a pointer from [`@create`](/docs/language/pointers/#heap-allocation) — wrong deallocator, no destructor.
-- `delete` on a pointer from `@alloc` — `@alloc` returns untyped storage with no constructed object.
+- `free()` on a pointer from [`@create`](/docs/language/pointers/#heap-allocation): wrong deallocator, no destructor.
+- `delete` on a pointer from `@alloc`: `@alloc` returns untyped storage with no constructed object.
 - `delete` on an object allocated by a C++ `operator new` override in a TU that predates the Kairo declaration.
 
 These are what the [ownership annotations](#ownership-annotations-in-generated-headers) below are for.
 
 ### `CxxNewAllocator`
 
-For code that wants Kairo's *own* allocations to follow C++'s allocation path — so that a global `operator new`
-override does apply to them — `core` provides `CxxNewAllocator`:
+For code that wants Kairo's *own* allocations to follow C++'s allocation path, so that a global `operator new`
+override does apply to them, `core` provides `CxxNewAllocator`:
 
 ```kairo
 @mem::set_allocator(core::CxxNewAllocator)

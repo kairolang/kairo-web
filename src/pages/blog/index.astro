@@ -107,7 +107,7 @@ const countLabel = `${entries.length} ${entries.length === 1 ? 'post' : 'posts'}
                     <span class="c-author"><span class="sr-only">by </span>{e.author}</span>
                     <span class="c-sep c-sep3" aria-hidden="true">│</span>
                     <h2 class="c-title" data-log-title>{e.title}</h2>
-                    <span class="c-arrow" aria-hidden="true">→</span>
+                    <span class="c-arrow" aria-hidden="true">-&gt;</span>
                   </div>
                   <div class="log-body">
                     <span class="log-tree" aria-hidden="true">└── </span>
@@ -212,7 +212,7 @@ const countLabel = `${entries.length} ${entries.length === 1 ? 'post' : 'posts'}
   .blog-empty-title { font-size: 1rem; margin-bottom: 0.4rem; }
   .blog-empty-sub { font-size: 0.85rem; color: var(--text-2); margin: 0; }
 
-  /* shared column template (desktop):  hash │ date │ author │ title → */
+  /* shared column template (desktop):  hash │ date │ author │ title -> */
   .blog-log-frame {
     --log-fs: 0.82rem;
     --log-cols: 7ch 1ch 10ch 1ch 10ch 1ch minmax(0, 1fr) 2ch;
@@ -309,7 +309,7 @@ const countLabel = `${entries.length} ${entries.length === 1 ? 'post' : 'posts'}
   .log-entry:hover .c-arrow,
   .log-entry:focus-visible .c-arrow { transform: translateX(0.5ch); }
 
-  /* title → description is a real monospace tree, like the footer's:
+  /* title and description form a real monospace tree, like the footer's:
      the └ sits in the │ column just before the title (same font size, so
      the same ch grid; 2ch left of the title), its vertical stroke continues
      that │ down from the title's line box,

@@ -18,7 +18,7 @@ Kairo and C++ signal failure differently, and the two models meet at one place: 
 - **`try`/`catch` handles both.** Around a Kairo call it lowers to a [`match`](/docs/language/pattern-matching/) on the returned tagged union.
   Around a C++ call it catches C++ exceptions through the unwinder.
 
-### C++ → Kairo
+### C++ to Kairo
 
 Kairo can catch C++ exceptions using its standard `try`/`catch` syntax.
 
@@ -46,7 +46,7 @@ unwind info for exactly those frames: a Kairo function gets it only when it sits
 > exception. If it reaches a [`@no_unwind`](/docs/language/attributes/#unwinding) function, the program
 > terminates (`std::terminate`).
 
-### Kairo → C++: Kairo never throws
+### Kairo to C++: Kairo never throws
 
 Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a checked effect with a typed, inferred set: a Kairo error is a tagged union
 value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
@@ -73,7 +73,7 @@ The conversion is **generated C++**. It inspects the tag and throws from the C++
 itself still never throws, and the real entry point is unaffected. C++ callers who
 want exceptions get them; callers who want values keep the value API.
 
-Throwing a Kairo error *out of Kairo* is not a roadmap item — it is excluded by the effect system. The conversion
+Throwing a Kairo error *out of Kairo* is not a roadmap item; it is excluded by the effect system. The conversion
 is a translation at the boundary, not a change to how Kairo signals failure.
 
 > [!NOTE]

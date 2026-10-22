@@ -1,7 +1,7 @@
 ---
 /**
  * <HubSection>: a numbered, titled band of a hub page, headed by a rule:
- *   ── 01 · PICK A PATH ─────────────────────────── more →
+ *   ── 01 · PICK A PATH ─────────────────────────── more ->
  *
  * Props
  *   title  string            Section title (rendered as written; the case is
@@ -44,7 +44,7 @@ const headId = `${id}-title`;
       <span class="hub-section-name">{title}</span>
     </H>
     <span class="hub-section-rule" aria-hidden="true"></span>
-    {href && <a class="hub-section-more" href={href}>{more}<span aria-hidden="true"> →</span></a>}
+    {href && <a class="hub-section-more" href={href}>{more}<span aria-hidden="true"> -&gt;</span></a>}
   </div>
   <div class="hub-section-body">
     <slot />

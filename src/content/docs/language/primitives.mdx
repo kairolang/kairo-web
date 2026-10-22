@@ -17,7 +17,7 @@ hardware-supported representations where possible, falling back to software emul
 All integer types have a fixed, guaranteed size. An integer literal takes the type expected by its context
 (annotation, parameter, return position, the other operand) and must fit it. With no expected type the default
 is `i32`; only if the value does not fit `i32` does the compiler fall back to the smallest signed type that can
-hold it, up to `i512`. See [Literal inference](#5-literal-inference--a-separate-mechanism).
+hold it, up to `i512`. See [Literal inference](#5-literal-inference-a-separate-mechanism).
 
 | Type | Size | Description | C++ Equivalent |
 |---|---|---|---|
@@ -350,15 +350,15 @@ var #op: fn (i32, i32) -> i32 = add
 
 The full conversion rules between primitive types are covered in the [Conversion Lattice](/docs/language/conversion-lattice/).
 
-## 5. Literal inference — a separate mechanism
+## 5. Literal inference: a separate mechanism
 
 Literals are **untyped** until a type is assigned. Literal typing is not conversion and
 does not consult this lattice.
 
 1. If an expected type is available from context (annotation, parameter, return position,
    the other operand of a binop, aggregate element type), the literal takes that type
-   directly, and the compiler checks the value fits. `var b: u8 = 42` — fine. `var b: u8
-   = 300` — error at the literal, with the range in the diagnostic.
+   directly, and the compiler checks the value fits. `var b: u8 = 42` is fine. `var b: u8
+   = 300` is an error at the literal, with the range in the diagnostic.
 2. With no expected type, the default is `i32` for integer literals and `f64` for float
    literals. Only if the value does not fit does the "smallest type that holds it" rule
    from [Integers](#integers) apply.
