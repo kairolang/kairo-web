@@ -528,14 +528,14 @@ curl http://localhost:8080/nonexistent
 | [Extends](/docs/language/extends/) | `Method::from_string`, `StatusCode::reason` |
 | [Interfaces](/docs/language/interfaces/) | `Handler` type alias for function pointers |
 | [Panic](/docs/language/panic/) | Error handling throughout |
-| [Try/Catch](/docs/language/control-flow/#match) | Request parsing, handler execution |
+| [Try/Catch](/docs/language/pattern-matching/) | Request parsing, handler execution |
 | [Finally](/docs/language/control-flow/#finally) | Socket cleanup |
 | [Closures](/docs/language/closures/) | Fallback handler |
-| [Nullable types](/docs/language/variables/#nullable-types) | `get_header` returns `string?` |
-| [Null coalescing](/docs/language/variables/#null-coalescing-) | `content_length` uses `??` |
-| [Type aliases](/docs/language/type-system/#type-aliases) | `Handler` type |
+| [Nullable types](/docs/language/nullables/#nullable-types) | `get_header` returns `string?` |
+| [Null coalescing](/docs/language/nullables/#null-coalescing-) | `content_length` uses `??` |
+| [Type aliases](/docs/language/type-aliases/) | `Handler` type |
 | [C++ interop](/docs/language/c-cpp/) | Socket API via `ffi "c++"` |
-| [Match](/docs/language/control-flow/#match) | Method parsing, status code reasons |
+| [Match](/docs/language/pattern-matching/) | Method parsing, status code reasons |
 | [Modules](/docs/language/modules/) | File-per-module structure |
 | [Const methods](/docs/language/classes/#const-methods) | `serialize`, `resolve`, `get_header` |
 | [Method chaining](/docs/language/classes/#self-and-self) | Response builder, router registration |

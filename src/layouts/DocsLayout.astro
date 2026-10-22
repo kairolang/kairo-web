@@ -1,4 +1,17 @@
 ---
+/**
+ * DOCS_FIELD — TRIAL: one slow, very dim ASCII noise field behind every docs
+ * page, sidebar, reading column and TOC alike (same motion as the home
+ * CTA/Stats bands, same red ramp as the KSF hero field). It is ONE
+ * viewport-sized canvas (position: fixed, z-index -1, so it never scales
+ * with page height), ~12fps on a wall clock
+ * (continuous across docs navigations), paused while the tab is hidden, one
+ * still frame under reduced motion, hidden in print.
+ * Set to false to remove the whole trial: no markup is rendered and the
+ * script below finds no #docs-field host and does nothing.
+ */
+const DOCS_FIELD = true;
+
 import { getCollection } from 'astro:content';
 import BaseLayout from './BaseLayout.astro';
 import DocsSidebar from '../components/docs/DocsSidebar.astro';
@@ -69,6 +82,9 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
   <!-- Drawer backdrop (mobile) -->
   <div id="sidebar-backdrop" class="mobile-backdrop" aria-hidden="true"></div>
 
+  <!-- DOCS_FIELD trial: fixed viewport-sized ASCII field behind the layout -->
+  {DOCS_FIELD && <div id="docs-field" class="docs-field" aria-hidden="true"></div>}
+
   <div class="docs-layout" data-resize-scope="off" data-snap="off">
     <!-- static dithered strip: the old red wash, as ░▒▓ halftone -->
     <div class="docs-dither" aria-hidden="true"></div>
@@ -99,7 +115,7 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
     </script>
 
     <!-- Center: main content -->
-    <main class="docs-content">
+    <main id="main" class="docs-content">
       <!-- Breadcrumb: ~/docs/language/ownership -->
       <nav class="docs-breadcrumb" aria-label="Breadcrumb">
         <ol>
@@ -202,6 +218,34 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
   /* header is 52px + 1px rule (Header.astro) */
   .docs-mobile-bar,
   .docs-layout { --docs-top: 53px; }
+
+  /* ── DOCS_FIELD trial: one fixed, viewport-sized field behind everything.
+     z-index -1 in the root stacking context: above the canvas background
+     (body's --bg propagates there), below all in-flow content. The header,
+     footer, mobile bar and drawers keep their own solid backgrounds; the
+     sidebar, reading column and TOC are transparent, so it shows under all
+     three. Same red ramp as the KSF hero field. A soft blur sits over it
+     (--docs-field-blur): the glyphs read as a haze behind the text instead
+     of competing with it. ── */
+  :global(:root) { --docs-field-blur: 2px; }
+  .docs-field {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+    opacity: 0;
+    transition: opacity 900ms linear;
+  }
+  .docs-field.is-on { opacity: 0.17; }
+  /* arriving from another docs page: the field was already on screen, so it
+     is shown at once (no 900ms re-fade on every docs click) */
+  .docs-field.no-fade { transition: none; }
+  :global([data-theme="light"]) .docs-field.is-on { opacity: 0.13; }
+  @media (prefers-reduced-motion: reduce) { .docs-field { transition: none; } }
+  @media print { .docs-field { display: none; } }
+  .docs-field :global(canvas) { filter: blur(var(--docs-field-blur)); }
 
   /* ── "[menu]" style buttons (mobile bar + drawers) ── */
   .docs-bar-btn {
@@ -531,11 +575,19 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
       contain: paint;
     }
   }
+  /* DOCS_FIELD trial: <html> carries the page colour (BaseLayout's critical
+     paint, same value as --bg in both themes), so body can drop its own
+     --bg fill and let the z-index:-1 field show through. Only when the
+     field host exists. */
+  body:has(> #docs-field) { background-color: transparent; }
   /* heading focused by an in-page jump: ring for keyboard users only */
   .docs-content :is(h1, h2, h3, h4, h5, h6)[tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
 </style>
 
 <script>
+  import { createField, noise3, type FieldFn } from '../lib/ascii/field';
+  import { reducedMotion } from '../lib/ascii/motion';
+
   function initDocs() {
     const sidebarCol = document.getElementById('docs-sidebar-col');
     if (!sidebarCol || sidebarCol.dataset.init) return;
@@ -867,5 +919,64 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
 
   initDocs();
   initDocsScroll();
-  document.addEventListener('astro:page-load', () => { initDocs(); initDocsScroll(); });
+  document.addEventListener('astro:page-load', () => { initDocs(); initDocsScroll(); initDocsField(); });
+
+  // ── DOCS_FIELD trial (see the flag in the frontmatter) ──────────────
+  // One fixed, viewport-sized canvas. Docs are calm pages, so the field opts
+  // back in with animateOnCalm and runs on the shared field scheduler at
+  // 12fps (paused while the tab is hidden; reduced motion: one still frame).
+  // Its clock starts at the wall clock, so consecutive docs pages show the
+  // same, continuous drift. It covers the whole viewport, columns included.
+  function initDocsField() {
+    const host = document.getElementById('docs-field');
+    if (!host || host.dataset.init) return;
+    host.dataset.init = '1';
+    const still = reducedMotion();
+
+    // the home bands' 'noise' preset, minus its centre vignette (the field
+    // spans every column here); a soft top/bottom falloff instead
+    // Time is read from the wall clock once per frame, not accumulated: the
+    // field scheduler drops hidden-tab time, which would leave this page
+    // behind the next one and make the next docs click swap patterns.
+    let lastT = NaN, W = 0;
+    const fn: FieldFn = (x, y, t, _p, e) => {
+      if (t !== lastT) { lastT = t; W = still ? t : (Date.now() / 1000) % 86400; }
+      const nx = x / 90, ny = y / 70;
+      const n = noise3(nx, ny, W * 0.16) * 0.65 + noise3(nx * 2.1, ny * 2.1, W * 0.26 + 7) * 0.35;
+      const v = y / e.h;
+      const edge = v < 0.5 ? v : 1 - v;
+      return Math.max(0, (n - 0.35) * 1.9) * (edge > 0.2 ? 1 : 0.5 + edge * 2.5);
+    };
+    // wall clock (s): same frame on every docs page at the same moment
+    const t0 = still ? 0 : (Date.now() / 1000) % 86400;
+    const field = createField(host, {
+      fn, size: 14, fps: still ? 0 : 12, pointer: false, animateOnCalm: true, t0,
+    });
+
+    field.start();
+    // Every docs click is a fresh document (cross-document view transition,
+    // no client router). If we came from another docs page the field was
+    // already showing, and its wall clock makes this frame continue that
+    // one, so switch it on now, in the same task that painted frame 0, with
+    // no fade. Only an entry from outside the docs gets the 900ms fade-in.
+    if (cameFromDocs()) host.classList.add('no-fade', 'is-on');
+    else requestAnimationFrame(() => host.classList.add('is-on'));
+  }
+  function cameFromDocs(): boolean {
+    const isDocs = (u?: string | null) => {
+      if (!u) return false;
+      try {
+        const url = new URL(u, location.href);
+        return url.origin === location.origin && /^\/docs(\/|$)/.test(url.pathname);
+      } catch { return false; }
+    };
+    const act = (window as any).navigation?.activation;
+    if (act) {
+      // reload / back-forward to this same page: also no re-fade
+      if (act.navigationType === 'reload') return true;
+      if (act.from) return isDocs(act.from.url);
+    }
+    return isDocs(document.referrer);
+  }
+  initDocsField();
 </script>

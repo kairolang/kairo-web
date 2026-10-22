@@ -320,7 +320,7 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
           const row = rf | 0;
           if (row >= 0 && row < rows) {
             const i = row * cols + c;
-            if (!kind[i] && !dimMask[i]) {
+            if (!kind[i] && !dimMask[i] && !nearFigure(row, c)) {
               const d = rf - prev;
               gbuf[i] = d > 0.55 ? G_BACK : d < -0.55 ? G_SLASH : G_DASH;
               sbuf[i] = shade; kind[i] = 1;
@@ -330,6 +330,17 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
         prev = rf;
       }
     }
+  }
+
+  /** figure cell within a row / 2 columns? (a clear margin round the triangle, so
+   *  the lattice's dashes never run on from its base or edges) */
+  function nearFigure(r: number, c: number): boolean {
+    for (let rr = r - 1; rr <= r + 1; rr++) {
+      if (rr < 0 || rr >= rows) continue;
+      const b = rr * cols;
+      for (let cc = Math.max(0, c - 2), ce = Math.min(cols - 1, c + 2); cc <= ce; cc++) if (kind[b + cc] >= 2) return true;
+    }
+    return false;
   }
 
   function rasterParticles(dt: number, cy: number, sy: number) {

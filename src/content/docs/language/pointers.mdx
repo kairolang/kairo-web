@@ -1,5 +1,6 @@
 ---
-order: 16
+group: memory
+order: 10
 title: Pointers & Raw Pointers
 description: "Pointers in Kairo: safe and unsafe raw pointers, null semantics, pointer arithmetic, smart pointer promotion, void and double pointers, and safety rules."
 ---
@@ -74,8 +75,8 @@ ptr->port   // 8080
 
 ## Raw Pointers (`unsafe *T`)
 
-`unsafe *T` is an untracked pointer with no null checks, no bounds checks, and no Tether provenance
-tracking. It is equivalent to a raw C/C++ pointer:
+[`unsafe *T`](/docs/language/unsafe/#raw-pointers-unsafe-t) is an untracked pointer with no null checks, no bounds checks, and no [Tether provenance
+tracking](/docs/language/tether-bounds/). It is equivalent to a raw C/C++ pointer:
 
 ```kairo
 var x = 42
@@ -168,7 +169,7 @@ Pointer-to-pointer arithmetic (`p1 - p2`) is not permitted on safe pointers use 
 that.
 
 > [!CAUTION]
-> Safe pointer arithmetic is bounds-checked by Tether only when provenance is trackable. If the pointer
+> Safe pointer arithmetic is bounds-checked by [Tether](/docs/language/tether-bounds/#pointer-arithmetic) only when provenance is trackable. If the pointer
 > originates from a context where Tether cannot determine the allocation bounds, the arithmetic compiles
 > but bounds safety is not guaranteed. Prefer array/vector indexing over pointer arithmetic when
 > possible.
@@ -216,7 +217,7 @@ var typed = handle as unsafe *i32
 var value = *typed     // ok: typed pointer
 ```
 
-Void pointers are used for type-erased APIs, opaque handles, and C interop where the concrete type
+Void pointers are used for type-erased APIs, opaque handles, and [C interop](/docs/language/c-cpp-calling/#pointers-and-references) where the concrete type
 is not known at the Kairo call site.
 
 ---
@@ -246,7 +247,7 @@ const pp: *const *i32 = &p
 
 ## Smart Pointer Promotion
 
-[Tether](/docs/language/tether/) analyzes pointer usage and determines when a safe pointer needs smart
+[Tether](/docs/language/tether-promotion/) analyzes pointer usage and determines when a safe pointer needs smart
 pointer ownership semantics. In **debug** builds it performs the promotion and warns; in **release**
 builds the same situation is a hard error naming the type to annotate. The smart pointer types are
 compiler intrinsics exposed through the standard library:
@@ -354,7 +355,7 @@ See [Functions](/docs/language/functions/#function-pointers) for function pointe
 ## Pointers and Nullable Types
 
 `*T` is non-null by construction. To represent a pointer that might not exist, use `*T?` which
-wraps the pointer in the standard `Nullable<T>` system:
+wraps the pointer in the standard [`Nullable<T>` system](/docs/language/nullables/#pointers-and-nullability):
 
 | | `*T` | `*T?` | `unsafe *T` |
 |---|---|---|---|
@@ -379,7 +380,7 @@ var val = q ?? &fallback     // use fallback pointer if q is null
 var forced = unwrap!(q)      // panics if null
 ```
 
-See [Variables](/docs/language/variables/#nullable-types) for the full nullable type system.
+See [Variables](/docs/language/nullables/#nullable-types) for the full nullable type system.
 
 ---
 
@@ -428,3 +429,13 @@ p == q     // address comparison
 *p == *q   // value comparison
 maybe === other   // pointee equality on nullable pointers (one level)
 ```
+
+## See also
+
+- [Ownership](/docs/language/ownership/)
+- [Unsafe](/docs/language/unsafe/)
+- [Tether](/docs/language/tether/)
+- [Bounds and Provenance](/docs/language/tether-bounds/)
+- [Ownership and Promotion](/docs/language/tether-promotion/)
+- [Nullables](/docs/language/nullables/)
+- [Calling C and C++ from Kairo](/docs/language/c-cpp-calling/#pointers-and-references)

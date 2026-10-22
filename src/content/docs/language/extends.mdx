@@ -1,5 +1,6 @@
 ---
-order: 22
+group: abstraction
+order: 20
 title: Extends
 description: Extend blocks for adding methods, operators, static functions, and interface conformance to structs, enums, and classes in Kairo.
 ---
@@ -160,7 +161,7 @@ See [Interfaces](/docs/language/interfaces/) for interface declarations and stru
 
 ## Generic Extends
 
-A generic `extend` declares its own type parameters:
+A generic `extend` declares its own [type parameters](/docs/language/generics/):
 
 ```kairo
 struct <T> Pair {
@@ -370,7 +371,7 @@ different entities:
 - C++ code calling a Kairo type sees body methods as member functions, and extension members as static
   functions of a companion scope.
 
-Put anything that needs dynamic dispatch, overriding, or lifecycle behavior in the body. Use `extend`
+Put anything that needs [dynamic dispatch](/docs/language/classes-inheritance/#virtual-dispatch), overriding, or [lifecycle behavior](/docs/language/classes-lifecycle/) in the body. Use `extend`
 for the rest, such as interface conformance kept apart from the core type:
 
 ```kairo
@@ -428,3 +429,12 @@ extend <T impl Comparable> Pair<T> {
     fn max(const self) -> T = if self.first > self.second => self.first else => self.second
 }
 ```
+
+## See also
+
+- [Structures](/docs/language/structures/#extends)
+- [Enums](/docs/language/enums/#extends)
+- [Classes](/docs/language/classes/)
+- [Interfaces](/docs/language/interfaces/#conformance)
+- [Generics](/docs/language/generics/)
+- [Requires Clauses](/docs/language/requires/)

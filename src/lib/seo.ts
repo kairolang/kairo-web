@@ -5,7 +5,7 @@
 
 export const SITE_URL = 'https://www.kairolang.org';
 export const SITE_NAME = 'Kairo';
-export const HOME_TITLE = 'Kairo Programming Language — The Language Beyond C++';
+export const HOME_TITLE = 'Kairo — The Systems Programming Language Beyond C++';
 export const DEFAULT_DESCRIPTION =
   'Kairo is an open-source systems programming language with native, bidirectional C++ interop: C++ performance with modern safety and ergonomics.';
 

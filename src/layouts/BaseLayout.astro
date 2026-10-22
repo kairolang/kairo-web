@@ -129,6 +129,7 @@ const isDocs = type === 'docs' || /^\/docs(\/|$)/.test(pathname);
     </script>
   </head>
   <body>
+    <a class="skip-link" href="#main">skip to content</a>
     <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
     <Header />
     <slot />
@@ -142,6 +143,7 @@ const isDocs = type === 'docs' || /^\/docs(\/|$)/.test(pathname);
       import { initAscii } from '../lib/ascii';
       import { initScrollProgress } from '../lib/ascii/chrome';
       import { bindResizable } from '../lib/ascii/resize';
+      import { initDetent } from '../lib/ascii/detent';
 
       // drag grips on every ASCII box (no-op on docs). Deferred to idle so
       // it never competes with the entrance; components that bind their own
@@ -156,6 +158,7 @@ const isDocs = type === 'docs' || /^\/docs(\/|$)/.test(pathname);
         initAscii();
         initScrollProgress();
         initResize();
+        initDetent(); // section detents (no-op on docs)
       }
       initBase();
       document.addEventListener('astro:page-load', initBase);

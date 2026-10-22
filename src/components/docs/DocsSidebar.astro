@@ -1,6 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
-import { buildDocTree, formatSectionName, type TreeSection, type TreePage } from '../../lib/docs-tree';
+import { buildDocTree, formatSectionName, type TreeSection, type TreePage, type TreeGroup } from '../../lib/docs-tree';
 
 interface Props {
   currentPath: string;
@@ -41,9 +41,32 @@ function guides(trail: boolean[], last: boolean): string {
   return `<span class="tree-guides" aria-hidden="true">${g}</span>`;
 }
 
+// A page row, followed by its nested child pages (frontmatter `parent:`),
+// which are always visible one level deeper.
 function pageRow(page: TreePage, trail: boolean[], last: boolean): string {
   const active = isActive(page.id);
-  return `<a href="${page.href}" class="sidebar-link tree-row${active ? ' active' : ''}"${active ? ' aria-current="page"' : ''}>${guides(trail, last)}<span class="tree-label">${esc(page.title)}</span></a>`;
+  let html = `<a href="${page.href}" class="sidebar-link tree-row${active ? ' active' : ''}"${active ? ' aria-current="page"' : ''}>${guides(trail, last)}<span class="tree-label">${esc(page.title)}</span></a>`;
+  const kids = page.children ?? [];
+  kids.forEach((kid, i) => {
+    html += pageRow(kid, [...trail, !last], i === kids.length - 1);
+  });
+  return html;
+}
+
+// A non-interactive group label inside a directory: "├── # types".
+// The pages of the group hang one level below it.
+function renderGroup(group: TreeGroup, sectionPath: string, trail: boolean[], last: boolean): string {
+  const labelId = `sbg-${`${sectionPath}-${group.id}`.replace(/[^a-zA-Z0-9_-]+/g, '-')}`;
+  const header = `<div class="tree-row tree-grouphead">${guides(trail, last)}<span class="tree-label tree-grouplabel" id="${labelId}"><span class="tree-hash" aria-hidden="true"># </span>${esc(group.label)}</span></div>`;
+  const inner = [...trail, !last];
+  let body = '';
+  group.children.forEach((child, i) => {
+    const l = i === group.children.length - 1;
+    body += child.kind === 'section'
+      ? renderSection(child, `${sectionPath}/${child.name}`, inner, l, false)
+      : pageRow(child, inner, l);
+  });
+  return `<div class="sidebar-pagegroup" role="group" aria-labelledby="${labelId}">${header}${body}</div>`;
 }
 
 // A collapsible directory: "├── [-] language/"
@@ -71,6 +94,18 @@ function renderSection(section: TreeSection, sectionPath: string, trail: boolean
 
 function renderChildren(section: TreeSection, parentPath: string, trail: boolean[]): string {
   let html = '';
+  if (section.groups) {
+    // Grouped directory: group label rows first (fixed group order), then
+    // any ungrouped nodes at directory level.
+    const nodes: Array<TreeGroup | TreePage | TreeSection> = [...section.groups, ...(section.ungrouped ?? [])];
+    nodes.forEach((node, i) => {
+      const last = i === nodes.length - 1;
+      if (node.kind === 'group') html += renderGroup(node, parentPath, trail, last);
+      else if (node.kind === 'section') html += renderSection(node, `${parentPath}/${node.name}`, trail, last, false);
+      else html += pageRow(node, trail, last);
+    });
+    return html;
+  }
   section.children.forEach((child, i) => {
     const last = i === section.children.length - 1;
     if (child.kind === 'section') html += renderSection(child, `${parentPath}/${child.name}`, trail, last, false);
@@ -176,6 +211,19 @@ rootList.forEach((node, i) => {
   @media (max-width: 1024px) {
     .sidebar-back { display: block; }
   }
+
+  /* Group label rows inside a directory ("├── # types"): dim, not a link.
+     Breathing room above lives inside the row (--row-pt) so the rails
+     run straight through the gap, same trick as top-level directories. */
+  .sidebar-tree :global(.tree-grouphead) { --row-pt: 0.55rem; }
+  .sidebar-tree :global(.tree-grouplabel) {
+    color: var(--text-3);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: default;
+    user-select: none;
+  }
+  .sidebar-tree :global(.tree-hash) { color: var(--text-3); opacity: 0.7; }
 </style>
 
 <script>
