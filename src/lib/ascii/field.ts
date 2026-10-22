@@ -23,6 +23,8 @@
  *   data-field-still              render ONE frame, no loop
  *   data-field-strength="0.3"     pointer-halo strength 0..1 (default 0.6)
  *   data-field-t0="3.2"           time offset (s): the first animated frame equals the still frame
+ *   data-field-hole="cx cy rx ry" skip cells inside this ellipse (fractions of w/h; under a mask's clear centre)
+ *   data-field-skip-x="x0 x1"     skip columns whose centre x/w is in [x0, x1) (a linear mask's clear side)
  *
  * The host must be positioned (the .ascii-field class does it: absolute, inset 0)
  * — the canvas is inserted as its first child, absolutely filling it.
@@ -32,9 +34,14 @@
  * renderOnce). Keep fields behind content at opacity ~0.15–0.45 and give copy
  * a solid backing (.on-field). Presets are tuned slow and drift smoothly (no
  * per-frame re-rolls); 'static' re-rolls at ≤2.5 Hz so it can never strobe.
- * Calm pages (docs/blog) and reduced motion: one still frame.
+ * Calm pages (docs/blog) and reduced motion: one still frame (a calm-page
+ * field may opt back in with animateOnCalm; reduced motion always wins).
+ *
+ * Other canvas effects can join the same rAF loop with fieldLoop(el, tick,
+ * { fps }) (same shape as motion.ts loop()), and resolve colour stops with
+ * resolveColor(ctx, '--red').
  */
-import { GLYPHS, cssVar, onThemeChange, stillPage } from './motion';
+import { GLYPHS, cssVar, onThemeChange, reducedMotion, stillPage, type Loop } from './motion';
 
 export interface FieldPointer {
   /** pointer in host CSS px (raw) */
@@ -84,6 +91,17 @@ export interface FieldOptions {
   t0?: number;
   /** time (s) used for the single still frame under reduced motion. Default 3.2 */
   stillTime?: number;
+  /** keep animating on calm pages (docs/blog); reduced motion still renders one frame. Default false */
+  animateOnCalm?: boolean;
+  /**
+   * Cheap cull, checked BEFORE fn: cells whose centre falls inside this ellipse
+   * (centre + radii as fractions of the host w/h) are never evaluated or drawn.
+   * Use it for the fully transparent middle of a radial CSS mask (or under a
+   * solid pane): same look, far fewer blits.
+   */
+  hole?: { cx: number; cy: number; rx: number; ry: number };
+  /** cheap cull: columns whose centre x/w is in [x0, x1) are skipped (a linear mask's transparent side) */
+  skipX?: { x0: number; x1: number };
 }
 
 export interface FieldHandle {
@@ -279,6 +297,22 @@ function removeJob(j: Job) {
   if (!jobs.some((o) => o.el === j.el)) jobIO?.unobserve(j.el);
 }
 
+/**
+ * Join the shared field scheduler with any per-frame callback: same contract
+ * as motion.ts loop() (tick(t, dt) in seconds, paused offscreen and while the
+ * tab is hidden), but every caller shares ONE requestAnimationFrame.
+ * Call start() once; stop() pauses; destroy() leaves the scheduler.
+ */
+export function fieldLoop(el: Element, tick: (t: number, dt: number) => void, { fps = 24 }: { fps?: number } = {}): Loop {
+  const j = addJob(el, tick, fps);
+  return {
+    start() { if (!j.wanted) { j.wanted = true; resumeClock(j); schedKick(); } },
+    stop() { j.wanted = false; },
+    destroy() { removeJob(j); },
+    get running() { return runnable(j) && !document.hidden; },
+  };
+}
+
 /** shared pointer state (viewport px); epochs let fields skip rect reads when nothing changed */
 const gp = { x: -1e4, y: -1e4, inside: false, moveEpoch: 0, layoutEpoch: 0 };
 let pointerBound = false;
@@ -296,7 +330,8 @@ function bindPointer() {
 }
 
 /* ─── Renderer ──────────────────────────────────────────────────── */
-function resolveColor(ctx: CanvasRenderingContext2D, c: string): [number, number, number] {
+/** CSS colour or custom-property name ('--red') -> [r, g, b], via a 2D context's colour parser. */
+export function resolveColor(ctx: CanvasRenderingContext2D, c: string): [number, number, number] {
   const v = c.startsWith('--') ? cssVar(c) || '#e8102a' : c;
   ctx.fillStyle = '#000';
   ctx.fillStyle = v;
@@ -316,7 +351,7 @@ export function createField(host: HTMLElement, opts: FieldOptions = {}): FieldHa
     narrowScale: 1.2, narrowMaxCells: 6000, t0: 0,
     ...(Object.fromEntries(Object.entries(opts).filter(([, v]) => v !== undefined)) as FieldOptions),
   };
-  const still = stillPage() || opts.fps === 0;
+  const still = (o.animateOnCalm ? reducedMotion() : stillPage()) || opts.fps === 0;
   let fn: FieldFn = typeof o.fn === 'function' ? o.fn : presets[o.fn ?? 'plasma'] ?? presets.plasma;
 
   const canvas = document.createElement('canvas');
@@ -333,6 +368,9 @@ export function createField(host: HTMLElement, opts: FieldOptions = {}): FieldHa
   const ptr: FieldPointer = { x: -1e4, y: -1e4, sx: -1e4, sy: -1e4, active: false, energy: 0 };
   let cwD = 0, chD = 0, dpr = 1, size = o.size;
   let lastT = 0;
+  // culls (resolved in resize): skipped column span [xa, xb] (empty when xa > xb)
+  const hole = opts.hole && opts.hole.rx > 0 && opts.hole.ry > 0 ? opts.hole : null;
+  let xa = 0, xb = -1;
 
   function buildAtlas() {
     actx.canvas.width = Math.max(1, cwD * glyphs.length);
@@ -358,6 +396,9 @@ export function createField(host: HTMLElement, opts: FieldOptions = {}): FieldHa
     dpr = Math.min(window.devicePixelRatio || 1, o.dpr);
     const narrow = window.innerWidth <= 640;
     size = narrow ? o.size * o.narrowScale : o.size;
+    // above 1920px wide, grow glyphs with the viewport so very large screens keep
+    // the same look (and roughly the same cell count) instead of hitting maxCells
+    if (!narrow && window.innerWidth > 1920) size *= window.innerWidth / 1920;
     const budget = narrow ? Math.min(o.maxCells, o.narrowMaxCells) : o.maxCells;
     // grow cells until under the budget
     while ((w / (size * 0.6)) * (h / (size * o.lineHeight)) > budget) size *= 1.12;
@@ -368,6 +409,11 @@ export function createField(host: HTMLElement, opts: FieldOptions = {}): FieldHa
     env.w = w; env.h = h;
     canvas.width = Math.max(1, Math.round(w * dpr));
     canvas.height = Math.max(1, Math.round(h * dpr));
+    if (opts.skipX && env.cellW > 0) {
+      // cell c is skipped when its centre (c + .5) * cellW lies in [x0*w, x1*w)
+      xa = Math.max(0, Math.ceil((opts.skipX.x0 * w) / env.cellW - 0.5));
+      xb = Math.ceil((opts.skipX.x1 * w) / env.cellW - 0.5) - 1;
+    }
     rectStale = true;
     buildAtlas();
   }
@@ -376,10 +422,23 @@ export function createField(host: HTMLElement, opts: FieldOptions = {}): FieldHa
     lastT = t;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const n = glyphs.length, S = o.shades, th = o.threshold;
-    const { cols, rows, cellW, cellH } = env;
+    const { cols, rows, cellW, cellH, w, h } = env;
     for (let r = 0; r < rows; r++) {
       const y = (r + 0.5) * cellH, dy = r * chD;
+      // per-row span of the elliptical hole: cells whose centre is strictly inside it
+      let ea = 0, eb = -1;
+      if (hole && h > 0) {
+        const ey = (y / h - hole.cy) / hole.ry;
+        if (ey > -1 && ey < 1) {
+          const hw = hole.rx * Math.sqrt(1 - ey * ey) * w;
+          const mid = hole.cx * w;
+          ea = Math.floor((mid - hw) / cellW - 0.5) + 1;
+          eb = Math.ceil((mid + hw) / cellW - 0.5) - 1;
+        }
+      }
       for (let c = 0; c < cols; c++) {
+        if (c >= xa && c <= xb) { c = xb; continue; }
+        if (c >= ea && c <= eb) { c = eb; continue; }
         let v = fn((c + 0.5) * cellW, y, t, ptr, env);
         if (!(v > th)) continue;
         if (v > 0.9999) v = 0.9999;
@@ -421,7 +480,17 @@ export function createField(host: HTMLElement, opts: FieldOptions = {}): FieldHa
   let pending = 0;
   const ro = new ResizeObserver(() => {
     if (pending) return;
-    pending = requestAnimationFrame(() => { pending = 0; resize(); if (still || !isRunning()) draw(still ? o.stillTime : lastT || o.t0); });
+    pending = requestAnimationFrame(() => {
+      pending = 0;
+      // the observer always fires once right after observe(); resize() resets
+      // canvas.width, which wipes the frame painted below, and a running field
+      // would then sit blank until its next tick (~83ms at 12fps). Skip it when
+      // nothing that resize() measures has changed.
+      if (host.clientWidth === env.w && host.clientHeight === env.h
+        && Math.min(window.devicePixelRatio || 1, o.dpr) === dpr) return;
+      resize();
+      if (still || !isRunning()) draw(still ? o.stillTime : lastT || o.t0);
+    });
   });
   ro.observe(host);
   const offTheme = onThemeChange(() => { buildAtlas(); if (still || !isRunning()) draw(still ? o.stillTime : lastT || o.t0); });
@@ -461,6 +530,11 @@ export function bindFields(root: ParentNode = document): void {
     const pointer = el.dataset.fieldPointer !== 'off' && !stillAttr;
     const strength = parseFloat(el.dataset.fieldStrength || '');
     const t0 = parseFloat(el.dataset.fieldT0 || '');
+    // culls: data-field-hole="cx cy rx ry", data-field-skip-x="x0 x1" (fractions of the host)
+    const hv = (el.dataset.fieldHole || '').trim().split(/\s+/).map(Number);
+    const hole = hv.length === 4 && hv.every(Number.isFinite) ? { cx: hv[0], cy: hv[1], rx: hv[2], ry: hv[3] } : undefined;
+    const sv = (el.dataset.fieldSkipX || '').trim().split(/\s+/).map(Number);
+    const skipX = sv.length === 2 && sv.every(Number.isFinite) && sv[1] > sv[0] ? { x0: sv[0], x1: sv[1] } : undefined;
     const f = createField(el, {
       fn: pointer ? withPointer(base, parseFloat(el.dataset.fieldRadius || '') || 150, Number.isFinite(strength) ? strength : 0.6) : base,
       t0: Number.isFinite(t0) ? t0 : 0,
@@ -468,6 +542,8 @@ export function bindFields(root: ParentNode = document): void {
       fps: stillAttr ? 0 : parseFloat(el.dataset.fieldFps || '') || 24,
       pointer,
       ramp: el.dataset.fieldRamp || undefined,
+      hole,
+      skipX,
     });
     f.start();
   });

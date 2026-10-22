@@ -185,7 +185,7 @@ export function createPenrose() {
   }
 
   /* ray state (no per-sample allocations) */
-  let hitV = 0, hitF = -1;
+  let hitV = 0, hitF = -1, hitB = false;
 
   /** cast one ray through screen units (X, Y) (pivot-relative, pre-mirror) */
   function cast(X: number, Y: number): boolean {
@@ -228,17 +228,30 @@ export function createPenrose() {
     const L1 = 1 + w;
     const p = bBar === 0 ? ox + best * dx : bBar === 1 ? oy + best * dy : oz + best * dz;
     let u = p / L1; if (u < 0) u = 0; else if (u > 1) u = 1;
+    hitF = bAxis * 2 + (bSign > 0 ? 1 : 0);
+    // the base: bar 1's two long faces (+z over +x on screen) and bar 0's end
+    // cap under the C1 corner (the +x band's far end). Shaded like the logo's
+    // base, not by face family: two equal-weight crossing ramps, the upper
+    // band full at C2 (left, mirrored) fading out toward C1, the lower band
+    // the reverse; a small lift on the upper band keeps the seam readable
+    // where the ramps cross
+    hitB = bBar === 1 ? bAxis !== 1 : bBar === 0 && hitF === 1;
+    if (hitB) {
+      const up = bAxis === 2;
+      let g = bBar === 0 ? 1 : up ? u : 1 - u;
+      g = g * g * (3 - 2 * g);
+      hitV = 0.17 + 0.76 * g + (up ? 0.05 : 0);
+      return true;
+    }
     // crossed gradients (see header): family z peaks at C1, x at C2, y at the seam
     let g: number;
     if (bAxis === bBar) g = 0; // end cap
     else if (bBar === 0) g = bAxis === 2 ? u : 1 - u;
-    else if (bBar === 1) g = bAxis === 2 ? 1 - u : u;
     else g = bAxis === 0 ? 1 - u : u;
-    const lit = face[bAxis * 2 + (bSign > 0 ? 1 : 0)];
+    const lit = face[hitF];
     let v = 0.2 + 0.45 * lit + 0.33 * g;
     if (v > 0.999) v = 0.999;
     hitV = v;
-    hitF = bAxis * 2 + (bSign > 0 ? 1 : 0);
     return true;
   }
 
@@ -261,6 +274,10 @@ export function createPenrose() {
     const inv = 1 / ks;
     const useLens = la > 0.02, LR2 = LR * LR;
     const qx = cellW * 0.25, qy = cellH * 0.25;
+    // the base's bottom edge (the figure's lowest line) in px: y = by0 + bk·x
+    project(1 + w, 0, 0, pt); const bxa = ox + pt[0] * ks, bya = oy + pt[1] * ks;
+    project(1 + w, 1 + w, 0, pt);
+    const bk = (oy + pt[1] * ks - bya) / (ox + pt[0] * ks - bxa || 1e-9), by0 = bya - bk * bxa;
     for (let r = r0; r <= r1; r++) {
       let lo = 32767, hi = -1;
       const cyc = (r + 0.5) * cellH;
@@ -271,7 +288,8 @@ export function createPenrose() {
           const ddx = cxc - lx, ddy = cyc - ly, d2 = ddx * ddx + ddy * ddy;
           if (d2 < LR2) { lk = (1 - d2 / LR2) * la; m = 1 / (1 + 0.07 * lk * lk); }
         }
-        let n = 0, sum = 0, vmin = 1, f0 = -1, crease = false;
+        // nb/ns: base/other hits, and how many of each landed in the top sample pair
+        let n = 0, nb = 0, nbT = 0, nsT = 0, sum = 0, sumS = 0, vmin = 1, f0 = -1, crease = false;
         for (let s = 0; s < 4; s++) {
           let sx = cxc + (s & 1 ? qx : -qx), sy = cyc + (s & 2 ? qy : -qy);
           if (m !== 1) { sx = lx + (sx - lx) * m; sy = ly + (sy - ly) * m; }
@@ -280,13 +298,29 @@ export function createPenrose() {
           if (MIRROR) X = -X;
           if (!cast(X, Y)) continue;
           n++; sum += hitV; if (hitV < vmin) vmin = hitV;
+          if (hitB) { nb++; if (!(s & 2)) nbT++; } else { sumS += hitV; if (!(s & 2)) nsT++; }
           if (f0 < 0) f0 = hitF; else if (hitF !== f0) crease = true;
         }
         if (!n) continue;
         const i = r * cols + c;
+        // cell centre (through the lens)
+        const ccx = m !== 1 ? lx + (cxc - lx) * m : cxc, ccy = m !== 1 ? ly + (cyc - ly) * m : cyc;
+        // the figure stands on a row line: no edge glyphs below the base
+        if (n < 4 && ccy > by0 + bk * ccx) continue;
         // face creases read as a darker seam line; partial cells as softer edge glyphs
         let v = crease ? vmin * 0.82 : sum / n;
         if (n < 4) v *= 0.62 + 0.095 * n;
+        // ...except along the base: its seam and long edges run with the rows,
+        // so a crease or soft edge there is a whole extra row of mid glyphs.
+        // There (all base, or base and another face split top/bottom, as where
+        // the right bar's inner face stops on the base) the cell centre picks
+        // one side: two clean bands with their edges on row lines
+        const ns = n - nb;
+        if (nb && (crease || n < 4) && (!ns || (nbT === nb ? !nsT : !nbT && nsT === ns))) {
+          if (cast(MIRROR ? (ox - ccx) * inv : (ccx - ox) * inv, (ccy - oy) * inv) && hitB) v = hitV;
+          else if (!ns) continue;
+          else v = ns > 1 ? sumS / ns : sumS * 0.81;
+        }
         v += lk * 0.08;
         lbuf[i] = v > 0.999 ? 0.999 : v;
         kind[i] = 2;

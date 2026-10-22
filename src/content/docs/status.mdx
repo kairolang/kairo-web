@@ -44,10 +44,10 @@ diagnostic. This covers `priv` constructors and writes to `const` fields.
 Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with
 the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether/) lands; until
 then, pass a `var` or a `[T]` to any function that keeps what it is given. See
-[Primitives](/docs/language/primitives/#how-long-a-slice-literals-storage-lives).
+[Primitives](/docs/language/collections/#how-long-a-slice-literals-storage-lives).
 
 Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not
-reported. See [Enums](/docs/language/enums/#destructuring-with-match).
+reported. See [Enums](/docs/language/enums-adt/#destructuring-with-match).
 
 Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a
 default constructor. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
@@ -61,7 +61,7 @@ Three [`extend`](/docs/language/extends/) rules are not diagnosed yet:
 - An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See
   [Interface Conformance](/docs/language/extends/#interface-conformance).
 
-A [generator](/docs/language/functions/#generator-lifetimes) that outlives the object it was created from, or
+A [generator](/docs/language/functions-generators/#generator-lifetimes) that outlives the object it was created from, or
 an `@inout` argument it was given, is not caught; it dangles. This becomes an error when
 [Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object
 it came from.
@@ -71,7 +71,7 @@ it came from.
 ## Language Gaps
 
 - A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See
-  [C & C++ Interoperability](/docs/language/c-cpp/#strings-and-const-char).
+  [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
 - Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object
   and for primitive operators whose two operands both have side effects. See
   [Operators](/docs/language/operators/#evaluation-order).

@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
+import { buildDocTree, flattenPages } from '../lib/docs-tree';
 
 export const GET: APIRoute = async ({ site }) => {
   const siteURL = (site ?? new URL('https://www.kairolang.org')).toString().replace(/\/$/, '');
@@ -7,7 +8,10 @@ export const GET: APIRoute = async ({ site }) => {
   const docs = await getCollection('docs');
   const blog = await getCollection('blog');
 
-  const sortedDocs = docs.sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999));
+  // Sidebar order (sections, language groups, parent -> child pages). Plain
+  // `order` sorting no longer works: language pages number from 1 per group.
+  const treeRank = new Map(flattenPages(buildDocTree(docs)).map((p, i) => [p.id, i]));
+  const sortedDocs = [...docs].sort((a, b) => (treeRank.get(a.id) ?? Infinity) - (treeRank.get(b.id) ?? Infinity));
 
   const slugToUrl = (id: string) => {
     const clean = id.replace(/\.mdx?$/, '').replace(/\/index$/, '');

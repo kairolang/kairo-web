@@ -1,5 +1,6 @@
 ---
-order: 8
+group: types
+order: 20
 title: Structures
 description: Struct declarations, aggregate initialization, field visibility, generics, extends, layout control, and how structs differ from classes in Kairo.
 ---
@@ -137,7 +138,7 @@ a.x   // still 1.0
 
 This is a hard guarantee. Extending a destructor (`fn op delete`), copy assignment (`fn op =`), or
 move assignment onto a struct is a compile error. If you need custom lifecycle management, use a
-[class](/docs/language/classes/#the-rule-of-three).
+[class](/docs/language/classes-lifecycle/#the-rule-of-three).
 
 ---
 
@@ -204,7 +205,7 @@ The `extend` block and the struct definition must be in the same file the same r
 
 ## Generic Structs
 
-Type parameters are declared in angle brackets before the struct name:
+[Type parameters](/docs/language/generics/) are declared in angle brackets before the struct name:
 
 ```kairo
 struct <T> Pair {
@@ -283,7 +284,7 @@ c.base.x   // 10
 ```
 
 This keeps aggregate initialization unambiguous and avoids layout questions that inheritance introduces.
-If you need polymorphism or a type hierarchy, use [classes](/docs/language/classes/#inheritance).
+If you need polymorphism or a type hierarchy, use [classes](/docs/language/classes-inheritance/#inheritance).
 
 ---
 
@@ -311,7 +312,7 @@ Use `_` to discard fields you do not need. See
 ## Memory Layout
 
 Struct layout follows the platform's C++ ABI members in declaration order with standard padding and
-alignment rules. Control layout with attributes:
+alignment rules. Control layout with [attributes](/docs/language/attributes/#layout-attributes):
 
 ```kairo
 @packed
@@ -340,7 +341,7 @@ See [Pointers](/docs/language/pointers/) and [Tether](/docs/language/tether/) fo
 
 ## Forward Declarations
 
-Structs can be forward-declared for use in pointer types before the full definition is available:
+Structs can be forward-declared for use in [pointer types](/docs/language/pointers/) before the full definition is available:
 
 ```kairo
 struct Node    // forward declaration
@@ -430,3 +431,16 @@ var r = Rect {
     size: Point { x: 100.0, y: 50.0 },
 }
 ```
+
+---
+
+## See also
+
+- [Classes](/docs/language/classes/)
+- [Extends](/docs/language/extends/#structs)
+- [Pattern Matching](/docs/language/pattern-matching/#struct-matching)
+- [Class Lifecycle](/docs/language/classes-lifecycle/)
+- [Variables](/docs/language/variables/#default-initialization)
+- [Unions](/docs/language/unions/)
+- [Enums](/docs/language/enums/)
+- [Generics](/docs/language/generics/)
