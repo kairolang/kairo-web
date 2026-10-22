@@ -256,8 +256,26 @@ export function createPenrose() {
     return true;
   }
 
-  /* per-row span (hole fill) */
-  let spanL = new Int16Array(0), spanR = new Int16Array(0);
+  /* the base's rows for this frame (px): seam y = bSy0 + bK·x, the top edge
+     of its upper face y = bTy0 + bK·x, and the seam's row line bS (one for
+     the whole base, held with a little hysteresis so it never dithers) */
+  let bK = 0, bSy0 = 0, bTy0 = 0, bS = NaN, bCellH = 0;
+  let rOx = 0, rOy = 0, rInv = 1;
+
+  /**
+   * One sample at (sx, sy) px. Sides cast as they are. The base keeps to
+   * whole rows: inside its band a base hit (or a miss) is re-cast with the
+   * true seam slid onto the band's row line, so both faces fill their rows
+   * straight and edge to edge; above the band a base hit is replaced by
+   * whatever borders the face's top edge from above (the side bar running
+   * down to the band, or the hole).
+   */
+  function sample(sx: number, sy: number, inBand: boolean): boolean {
+    const X = (MIRROR ? rOx - sx : sx - rOx) * rInv;
+    if (inBand) return cast(X, (sy + bSy0 + bK * sx - bS - rOy) * rInv);
+    if (!cast(X, (sy - rOy) * rInv)) return false;
+    return !hitB || (cast(X, (bTy0 + bK * sx - 0.5 - rOy) * rInv) && !hitB);
+  }
 
   /**
    * Rasterise into the grid. (ox, oy): pivot in px; ks: px per unit.
@@ -265,7 +283,6 @@ export function createPenrose() {
    */
   function raster(g: PenroseGrid, ox: number, oy: number, ks: number, lx: number, ly: number, la: number, LR: number) {
     const { cols, rows, cellW, cellH, kind, lbuf, lens } = g;
-    if (spanL.length < rows) { spanL = new Int16Array(rows); spanR = new Int16Array(rows); }
     // bbox of the figure in cells
     const bb = bbTmp; bounds(bb);
     const c0 = Math.max(0, Math.floor((ox + bb.x0 * ks) / cellW) - 1);
@@ -273,14 +290,22 @@ export function createPenrose() {
     const r0 = Math.max(0, Math.floor((oy + bb.y0 * ks) / cellH) - 1);
     const r1 = Math.min(rows - 1, Math.ceil((oy + bb.y1 * ks) / cellH) + 1);
     const inv = 1 / ks;
+    rOx = ox; rOy = oy; rInv = inv;
     const useLens = la > 0.02, LR2 = LR * LR;
     const qx = cellW * 0.25, qy = cellH * 0.25;
-    // the base's seam in px (y = sy0 + bk·x) and its faces' height in whole rows
+    // the base's seam and top edge in px, and its faces' height in whole rows
     project(1 + w, 0, w, pt); const sxa = ox + pt[0] * ks, sya = oy + pt[1] * ks;
-    project(1 + w, 1 + w, w, pt);
-    const bk = (oy + pt[1] * ks - sya) / (ox + pt[0] * ks - sxa || 1e-9), sy0 = sya - bk * sxa;
+    project(1 + w, 1 + w, w, pt); const sxb = ox + pt[0] * ks;
+    bK = (oy + pt[1] * ks - sya) / (sxb - sxa || 1e-9); bSy0 = sya - bK * sxa;
+    project(1, 0, w, pt); bTy0 = oy + pt[1] * ks - bK * (ox + pt[0] * ks);
     project(1 + w, 0, 0, pt);
-    const bandK = Math.max(1, Math.round((oy + pt[1] * ks - bk * (ox + pt[0] * ks) - sy0) / cellH));
+    const bandK = Math.max(1, Math.round((oy + pt[1] * ks - bK * (ox + pt[0] * ks) - bSy0) / cellH));
+    // one row line for the whole seam, from its midpoint: the sway rolls the
+    // base about its middle, so it stays put and both bands run straight
+    const sMid = bSy0 + bK * (sxa + sxb) / 2;
+    if (bCellH !== cellH || !(Math.abs(sMid - bS) < 0.62 * cellH)) bS = Math.round(sMid / cellH) * cellH;
+    bCellH = cellH;
+    const bTop = bS - bandK * cellH, bBot = bS + bandK * cellH;
     for (let r = r0; r <= r1; r++) {
       let lo = 32767, hi = -1;
       const cyc = (r + 0.5) * cellH;
@@ -291,43 +316,33 @@ export function createPenrose() {
           const ddx = cxc - lx, ddy = cyc - ly, d2 = ddx * ddx + ddy * ddy;
           if (d2 < LR2) { lk = (1 - d2 / LR2) * la; m = 1 / (1 + 0.07 * lk * lk); }
         }
-        // nb/ns: base/other hits, and how many of each landed in the top sample pair
-        let n = 0, nb = 0, nbT = 0, nsT = 0, sum = 0, sumS = 0, vmin = 1, f0 = -1, crease = false;
+        // cell centre (through the lens): the figure stands on the band's
+        // bottom row line, nothing hangs below it
+        const ccx = m !== 1 ? lx + (cxc - lx) * m : cxc, ccy = m !== 1 ? ly + (cyc - ly) * m : cyc;
+        if (ccy >= bBot) continue;
+        const band = ccy >= bTop;
+        // nb/ns: base/other hits
+        let n = 0, nb = 0, sum = 0, sumS = 0, vmin = 1, f0 = -1, crease = false;
         for (let s = 0; s < 4; s++) {
           let sx = cxc + (s & 1 ? qx : -qx), sy = cyc + (s & 2 ? qy : -qy);
           if (m !== 1) { sx = lx + (sx - lx) * m; sy = ly + (sy - ly) * m; }
-          let X = (sx - ox) * inv;
-          const Y = (sy - oy) * inv;
-          if (MIRROR) X = -X;
-          if (!cast(X, Y)) continue;
+          if (!sample(sx, sy, band)) continue;
           n++; sum += hitV; if (hitV < vmin) vmin = hitV;
-          if (hitB) { nb++; if (!(s & 2)) nbT++; } else { sumS += hitV; if (!(s & 2)) nsT++; }
+          if (hitB) nb++; else sumS += hitV;
           if (f0 < 0) f0 = hitF; else if (hitF !== f0) crease = true;
         }
         if (!n) continue;
         const i = r * cols + c;
-        // cell centre (through the lens)
-        const ccx = m !== 1 ? lx + (cxc - lx) * m : cxc, ccy = m !== 1 ? ly + (cyc - ly) * m : cyc;
-        // the base's rows: its seam snapped to the nearest row line and bandK
-        // rows of face either side (through the lens, magnified with it)
-        const sy = Math.round((sy0 + bk * ccx) / cellH) * cellH, bh = bandK * cellH;
-        const band = ccy >= sy - bh && ccy < sy + bh;
-        // the figure stands on that bottom row line: nothing hangs below it
-        if (ccy >= sy + bh) continue;
         // face creases read as a darker seam line; partial cells as softer edge glyphs
         let v = crease ? vmin * 0.82 : sum / n;
         if (n < 4) v *= 0.62 + 0.095 * n;
-        // ...except along the base: its seam and long edges run with the rows,
-        // so a crease or soft edge there is a whole extra row of mid glyphs.
-        // There (all base, or base and another face split top/bottom, as where
-        // the right bar's inner face stops on the base) the cell centre picks
-        // one side and the base keeps to its rows: two equal bands, clean edges
-        const ns = n - nb;
-        if (nb && !ns && !band) continue;
-        if (nb && (crease || n < 4 || !band) && (!ns || (nbT === nb ? !nsT : !nbT && nsT === ns))) {
-          if (band && cast(MIRROR ? (ox - ccx) * inv : (ccx - ox) * inv, (ccy - oy) * inv) && hitB) v = hitV;
-          else if (ns) v = ns > 1 ? sumS / ns : sumS * 0.81;
-          else v = sum / n; // an outer-edge cell kept to fill the face's rows
+        // ...except on the base (only ever in its band): its faces keep to
+        // whole cells, and where a side face meets it the centre picks one
+        // whole value, so the slanted joins step a cell at a time, never dip
+        if (nb) {
+          const ns = n - nb;
+          if (ns && sample(ccx, ccy, true) && !hitB) v = sumS / ns;
+          else v = (sum - sumS) / nb;
         }
         v += lk * 0.08;
         lbuf[i] = v > 0.999 ? 0.999 : v;
@@ -350,7 +365,6 @@ export function createPenrose() {
 
   return {
     setBar,
-    get bar() { return w; },
     pose,
     extents,
     raster,
@@ -360,5 +374,3 @@ export function createPenrose() {
 function clamp(v: number, a: number, b: number) {
   return v < a ? a : v > b ? b : v;
 }
-
-export type Penrose = ReturnType<typeof createPenrose>;
