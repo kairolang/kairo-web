@@ -26,7 +26,8 @@
  *      per box:     data-resize-axis="x|y|both" (or data-resizable="x|y"),
  *                   data-resize-min="W" | "WxH", data-resize-max="W" | "WxH",
  *                   data-resize-anchor="start|center|end",
- *                   data-resize-readout="off"
+ *                   data-resize-readout="off",
+ *                   data-resize-label="name" (grip aria-label; else aria-label/title)
  *      container:   data-reflow="flex|grid|grid-span|none" on the PARENT
  *                   (auto-detected from computed display when absent)
  *
@@ -221,8 +222,9 @@ export function makeResizable(el: HTMLElement, opts: ResizableOptions): () => vo
     const m = opts.measure ? opts.measure() : el.getBoundingClientRect();
     if (dynamicAnchor) host.dataset.rzAnchor = anchor = (anchorOpt as () => ResizeAnchor)();
     w0 = curW = m.width; h0 = curH = m.height;
-    minW = val(opts.minWidth, 120); maxW = Math.max(minW, val(opts.maxWidth, 1e5));
-    minH = val(opts.minHeight, 80); maxH = Math.max(minH, val(opts.maxHeight, 1e5));
+    // a box already smaller than its floor never jumps on the first move
+    minW = Math.min(val(opts.minWidth, 120), w0); maxW = Math.max(minW, val(opts.maxWidth, 1e5));
+    minH = Math.min(val(opts.minHeight, 80), h0); maxH = Math.max(minH, val(opts.maxHeight, 1e5));
     movedW = movedH = false;
     active = h;
     host.classList.add('is-resizing');
@@ -235,7 +237,10 @@ export function makeResizable(el: HTMLElement, opts: ResizableOptions): () => vo
     const k = anchor === 'center' ? 2 : 1;
     let w = w0, hh = h0;
     if (axis === 'both' || axis === 'x') {
-      if (h === 'se' || h === 'e') w = w0 + dx * k;
+      // an 'end'-anchored box's right edge is pinned (its left edge moves), so
+      // the right-side grips would pull the box the wrong way: they go
+      // height-only there and width is left to sw/w, which track the pointer
+      if (h === 'se' || h === 'e') { if (anchor !== 'end') w = w0 + dx * k; }
       else if (h === 'sw' || h === 'w') w = w0 - dx * k;
     }
     if (axis === 'both' || axis === 'y') {
@@ -395,7 +400,8 @@ export function makeResizable(el: HTMLElement, opts: ResizableOptions): () => vo
     if (fadeT) clearTimeout(fadeT);
     offs.forEach((f) => f());
     made.forEach((n) => n.remove());
-    host.classList.remove('rz-host', 'rz-auto', 'is-resizing');
+    host.classList.remove('rz-host', 'rz-auto', 'is-resizing', 'rz-host--outside');
+    for (const v of ['--rz-bb', '--rz-br', '--rz-bl']) host.style.removeProperty(v);
     delete host.dataset.rzAnchor;
     if (registry.get(el) === dispose) registry.delete(el);
   };
@@ -431,6 +437,10 @@ function parseTracks(tpl: string): number[] {
   for (const tok of tpl.split(/\s+/)) if (/^-?[\d.]+px$/.test(tok)) out.push(parseFloat(tok));
   return out;
 }
+
+/** a real flex item, not a grip/readout/live region injected into a host */
+const isFlexItem = (k: Element) =>
+  !k.classList.contains('rz-handle') && !k.classList.contains('rz-readout') && !k.classList.contains('sr-only');
 
 const isLayout = (cs: CSSStyleDeclaration) =>
   cs.display.endsWith('grid') || (cs.display.endsWith('flex') && cs.flexDirection.startsWith('row'));
@@ -486,7 +496,7 @@ function liveRegion(): HTMLElement {
   return sharedLive;
 }
 
-function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
+function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement, label: string) {
   const spec = (el.dataset.resizeAxis || el.dataset.resizable || '').toLowerCase();
   const pref: ResizeAxis = spec === 'x' ? 'x' : spec === 'y' ? 'y' : 'both';
   const minS = parseWH(el.dataset.resizeMin);
@@ -501,6 +511,10 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
   let contentW = 0, gap = 0, trackW = 0, nTracks = 0, maxGridW = 0, span = 1;
   let gPre = '', gPost = '';
   let natH = 0, charW = 8, lineH = 20, padX = 0, padY = 0;
+  /* flex row: siblings share one line -> keep it one line, never shrink a
+     sibling (or this item) below its min-content */
+  let oneRow = false, sibMin = 0, ownMin = 0;
+  const items: HTMLElement[] = [];
   let cssBefore = '', cssParentBefore = '';
   /** every inline property this box has written, per element */
   const mine = new Map<HTMLElement, Set<string>>();
@@ -522,6 +536,18 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
         tracks = parseTracks(pcs.gridTemplateColumns);
         if (tracks.length > 1) mode = reflow === 'grid-span' ? 'span' : 'grid';
       } else if (pcs.display.endsWith('flex') && pcs.flexDirection.startsWith('row')) mode = 'flex';
+    }
+    oneRow = false;
+    items.length = 0;
+    if (mode === 'flex' && parent) {
+      for (const k of parent.children) if (isFlexItem(k)) items.push(k as HTMLElement);
+      if (items.length > 1) {
+        const t0 = items[0].getBoundingClientRect().top;
+        oneRow = true;
+        for (let i = 1; i < items.length; i++) {
+          if (Math.abs(items[i].getBoundingClientRect().top - t0) > 1) { oneRow = false; break; }
+        }
+      }
     }
     const r = el.getBoundingClientRect();
     const tr = tgt === el ? r : tgt.getBoundingClientRect();
@@ -577,6 +603,29 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
     cssBefore = tgt.style.cssText + '\u0000' + el.style.cssText;
     const r = resolve();
     cssParentBefore = parent ? parent.style.cssText : '';
+    sibMin = ownMin = 0;
+    if (mode === 'flex' && oneRow && parent) {
+      // once per gesture (write, read, restore): each item's floor (min-content,
+      // or the author's min-width if larger) ...
+      const prev = items.map((k) => k.style.cssText);
+      for (const k of items) {
+        k.style.setProperty('flex', 'none');
+        k.style.setProperty('width', 'min-content');
+      }
+      for (const k of items) {
+        const w = k.getBoundingClientRect().width;
+        if (k === tgt) ownMin = w; else sibMin += w;
+      }
+      items.forEach((k, i) => { k.style.cssText = prev[i]; });
+      const pcs = getComputedStyle(parent);
+      sibMin += px(pcs.columnGap) * (items.length - 1);
+      // ... and how wide the row may get: a shrink-wrapped (fit-content) row
+      // grows with its items up to its max-width; a fixed/full row does not
+      const tPrev = tgt.style.cssText;
+      tgt.style.setProperty('flex', `0 0 ${Math.round(r.width) + 4000}px`);
+      contentW = Math.max(contentW, parent.clientWidth - px(pcs.paddingLeft) - px(pcs.paddingRight));
+      tgt.style.cssText = tPrev;
+    }
     const cs = getComputedStyle(el);
     const fs = px(cs.fontSize) || 15;
     charW = fs * 0.6;
@@ -605,7 +654,8 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
 
   const touch = () => {
     el.dataset.rzSized = '';
-    if (mode === 'grid' || mode === 'span') { bindViewport(); viewportResets.add(reset); }
+    // pinned tracks / a forced single row: let a viewport change undo them
+    if (mode === 'grid' || mode === 'span' || (mode === 'flex' && oneRow)) { bindViewport(); viewportResets.add(reset); }
   };
 
   makeResizable(el, {
@@ -614,7 +664,7 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
     anchor: () => anchor,
     handles: pref === 'x' ? ['sw', 'se', 'e', 'w'] : pref === 'y' ? ['se', 's'] : ['sw', 'se', 'e', 'w', 's'],
     keyboard: inLink ? [] : ['se'],
-    label: (el.getAttribute('aria-label') || el.querySelector(':scope > .ascii-frame-title, :scope .code-window-title')?.textContent || 'box').trim().slice(0, 60),
+    label,
     axis: () => {
       const narrow = window.innerWidth < 640;
       if (pref === 'y') return 'y';
@@ -622,9 +672,11 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
       return narrow ? 'y' : 'both';
     },
     measure,
-    minWidth: () => minS.w ?? Math.min(160, contentW || 160),
+    minWidth: () => Math.max(ownMin, minS.w ?? Math.min(160, contentW || 160)),
     maxWidth: () => {
-      const cap = mode === 'grid' ? maxGridW : contentW || 1e5;
+      const cap = mode === 'grid' ? maxGridW
+        : mode === 'flex' && oneRow ? Math.max(ownMin, contentW - sibMin)
+        : contentW || 1e5;
       return Math.max(0, Math.min(maxS.w ?? 1e5, cap));
     },
     minHeight: () => Math.max(minS.h ?? 0, natH),
@@ -640,8 +692,12 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
           setS(tgt, 'grid-column', `span ${n}`, mine);
           setS(parent, 'grid-auto-flow', 'row dense', mine);
         } else if (mode === 'flex') {
-          setS(tgt, 'flex', `0 1 ${w}px`, mine);
+          // a shared row stays one row: the item takes exactly w (capped so every
+          // sibling keeps its content width); siblings give up width or a
+          // shrink-wrapped row grows, instead of wrapping
+          setS(tgt, 'flex', `0 ${oneRow ? 0 : 1} ${w}px`, mine);
           setS(tgt, 'max-width', '100%', mine);
+          if (oneRow) setS(parent, 'flex-wrap', 'nowrap', mine);
         } else {
           setS(tgt, 'width', w + 'px', mine);
           setS(tgt, 'max-width', '100%', mine);
@@ -670,6 +726,22 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement) {
   }, { passive: true });
 }
 
+const seenLabels = new WeakMap<Document, Map<string, number>>();
+const txt = (n: Element | null | undefined) => (n?.textContent || '').replace(/\s+/g, ' ').trim();
+
+/** a human name for a box's grips: its own label, title, language, heading */
+function boxLabel(el: HTMLElement): string {
+  let l = (el.dataset.resizeLabel || el.getAttribute('aria-label') || '').trim()
+    || txt(el.querySelector(':scope > .ascii-frame-title, :scope .code-window-title'));
+  if (!l) {
+    const lang = txt(el.querySelector(':scope > .code-block-header .code-block-lang'));
+    if (lang) l = `${lang} code block`;
+  }
+  if (!l) l = txt(el.querySelector(':scope > dt, :scope > h2, :scope > h3'));
+  if (!l) l = (el.querySelector(':scope > [aria-label]')?.getAttribute('aria-label') || '').trim();
+  return (l || 'box').slice(0, 60);
+}
+
 /**
  * Give every ASCII box on the page drag grips (idempotent; call again after
  * injecting markup). No-op on <html data-resize="off"> (docs pages).
@@ -689,8 +761,11 @@ export function bindResizable(root: ParentNode = document): void {
   });
   if (!cand.length) return;
   // batch reads, then writes
-  const ok = cand.map((el) => {
+  const borders: Array<[string, string, string] | null> = [];
+  const ok = cand.map((el, i) => {
     const cs = getComputedStyle(el);
+    // link boxes get outside grips, flush with the BORDER box (see below)
+    borders[i] = el.closest('a, button, summary, label') ? [cs.borderBottomWidth, cs.borderRightWidth, cs.borderLeftWidth] : null;
     if (cs.position === 'absolute' || cs.position === 'fixed' || cs.position === 'sticky') return 0;
     if (cs.display === 'inline' || cs.display === 'contents') return 0;
     const scrolls = /auto|scroll/.test(cs.overflowX + cs.overflowY);
@@ -698,10 +773,31 @@ export function bindResizable(root: ParentNode = document): void {
     return /hidden|clip/.test(cs.overflowX + cs.overflowY) ? 2 : 1;
   });
   const live = liveRegion();
+  // accessible names: distinct per box; repeats get an ordinal ("kairo code block 3")
+  const labels = cand.map((el, i) => (ok[i] ? boxLabel(el) : ''));
+  const seen = seenLabels.get(document) ?? new Map<string, number>();
+  seenLabels.set(document, seen);
+  const total = new Map<string, number>();
+  labels.forEach((l) => { if (l) total.set(l, (total.get(l) ?? 0) + 1); });
   cand.forEach((el, i) => {
     if (!ok[i]) return;
+    const l = labels[i];
+    const n = (seen.get(l) ?? 0) + 1;
+    seen.set(l, n);
+    const label = n > 1 || (total.get(l) ?? 0) > 1 ? `${l} ${n}` : l;
     if (ok[i] === 2) el.classList.add('rz-host--inset');
     const inLink = !!el.closest('a, button, summary, label');
-    try { bindAuto(el, inLink, live); } catch { /* resizing is a bonus */ }
+    // a link/button box: grips sit fully OUTSIDE it (and only take the pointer
+    // while it is hovered, see global.css) so no part of the link is dead
+    if (inLink && ok[i] !== 2) {
+      el.classList.add('rz-host--outside');
+      const b = borders[i];
+      if (b) {
+        el.style.setProperty('--rz-bb', b[0]);
+        el.style.setProperty('--rz-br', b[1]);
+        el.style.setProperty('--rz-bl', b[2]);
+      }
+    }
+    try { bindAuto(el, inLink, live, label); } catch { /* resizing is a bonus */ }
   });
 }

@@ -5,9 +5,10 @@ import AsciiFrame from '../components/ascii/AsciiFrame.astro';
 import AsciiButton from '../components/ascii/AsciiButton.astro';
 ---
 <BaseLayout title="Page Not Found" description="This page does not exist. Browse the Kairo programming language docs and blog, or head back to the homepage." noindex>
+  <main id="main">
   <!-- single screen: not a scroll detent -->
   <section class="nf-section" id="nf" data-snap="off">
-    <!-- Glyph rain that collapses into a rubble heap once, then settles. -->
+    <!-- Glyph rain that fills a pool once, then keeps falling onto its slow rolling surface. -->
     <div class="ascii-field nf-field" id="nf-field" aria-hidden="true"></div>
 
     <div class="container nf-inner">
@@ -40,6 +41,7 @@ import AsciiButton from '../components/ascii/AsciiButton.astro';
       </div>
     </div>
   </section>
+  </main>
 </BaseLayout>
 
 <style>
@@ -163,49 +165,11 @@ import AsciiButton from '../components/ascii/AsciiButton.astro';
 </style>
 
 <script>
-  import { createField, rand1, noise2, type FieldFn } from '../lib/ascii/field';
+  import { createRainPool } from '../lib/ascii/rain';
   import { stillPage, seenThisSession } from '../lib/ascii/motion';
 
-  /** Seconds until every column has collapsed into its heap. */
+  /** Seconds for the rain to fill the pool; after that it holds its level and rolls. */
   const SETTLE = 2.4;
-
-  /**
-   * "Collapse": each column drops a few accelerating glyph streaks, then
-   * piles rubble at the bottom (and a thinner ledge at the top). Stateless
-   * per cell; rubble glyphs are hashed per cell (no flicker once landed).
-   * Any t >= SETTLE renders the final, still heap.
-   */
-  const collapse: FieldFn = (x, y, t, _p, e) => {
-    const c = Math.floor(x / e.cellW);
-    const r = Math.floor(y / e.cellH);
-    const rows = e.rows;
-    const edge = Math.abs(x / e.w - 0.5) * 2; // 0 centre → 1 edges
-    const finalH = Math.max(1, Math.round(rows * (0.04 + 0.11 * noise2(c * 0.09, 4.2) + 0.09 * edge * edge) + rand1(c) * 2));
-    const t0 = rand1(c + 401) * 0.5;
-    const dur = 1.2 + rand1(c + 77) * 0.7;
-    const k = Math.min(1, Math.max(0, (t - t0) / dur));
-    const h = Math.round(finalH * (1 - (1 - k) * (1 - k))); // ease-out growth
-    const fromBottom = rows - 1 - r;
-
-    if (fromBottom < h) {
-      const depth = fromBottom / Math.max(1, finalH);
-      const grain = rand1(c * 131 + r * 7919);
-      // brighter crust at the surface, darker deep inside
-      const surface = fromBottom >= h - 1 ? 0.25 : 0;
-      return Math.min(0.98, 0.18 + grain * 0.42 * (0.5 + depth) + surface);
-    }
-    if (t >= SETTLE || k >= 1) return 0;
-
-    // falling streak: gravity from the top edge to the heap surface
-    const span = rows - h;
-    const period = 0.75 + rand1(c + 13) * 0.4;
-    const ph = rand1(c + 999);
-    const u = ((t + ph * period) % period) / period; // 0..1
-    const head = u * u * span; // accelerating
-    const d = head - r;
-    if (d < 0 || d > 5) return 0;
-    return (1 - d / 5) * (0.55 + rand1(c + 31) * 0.4);
-  };
 
   function initNotFound() {
     const root = document.getElementById('nf');
@@ -223,21 +187,18 @@ import AsciiButton from '../components/ascii/AsciiButton.astro';
     const still = stillPage();
     const repeat = seenThisSession('404:' + window.location.pathname);
 
-    // field: animate the collapse once, then hold the final frame
+    // field: rain fills the pool once, then keeps falling onto a slow rolling surface.
+    // A repeat view starts with the pool already full; reduced motion draws one still frame.
     const host = document.getElementById('nf-field');
     if (host) {
-      const animate = !still && !repeat;
-      const field = createField(host, {
-        fn: collapse,
+      const pool = createRainPool(host, {
         size: 14,
-        fps: animate ? 24 : 0,
-        pointer: false,
-        stillTime: SETTLE + 1,
+        fps: 24,
+        settle: SETTLE,
+        t0: repeat ? SETTLE + 0.6 : 0,
+        still,
       });
-      if (animate) {
-        field.start();
-        window.setTimeout(() => { field.stop(); field.renderOnce(SETTLE + 1); }, (SETTLE + 0.2) * 1000);
-      }
+      pool.start();
     }
 
     // readout: type each line out, one step per character

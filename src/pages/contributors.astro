@@ -12,6 +12,19 @@ const data = await getContributors();
 const people = data.contributors;
 const total = people.reduce((s, c) => s + c.contributions, 0);
 const fmt = new Intl.NumberFormat('en-US');
+// Stats strip = a 3-column table. Each column is resized via its own `width`
+// (data-reflow="none" on the <dl>: a fit-content flex row sizes itself from
+// item widths, not flex-basis, so the strip grows/shrinks with the column and
+// neighbours keep theirs until the strip hits 100%, then share the squeeze).
+// CSS `min-width: max-content` is the hard floor (text never touches a
+// separator); data-resize-min is a slight under-estimate of it (label: 0.68rem
+// caps @ 0.12em ≈ 7.4px/char, value: 1.5rem ≈ 14.4px/char, padding 2×1.1rem +
+// 1px separator) so the grip never jumps wider on grab.
+const ctStats = [
+  { label: 'contributors', value: fmt.format(people.length) },
+  { label: 'contributions', value: fmt.format(total) },
+  { label: 'repos', value: String(data.repos.length) },
+].map((st) => ({ ...st, min: String(Math.floor(Math.max(st.label.length * 7.4, st.value.length * 14.4) + 35 + 1)) }));
 const synced = data.generated_at.slice(0, 10);
 
 const GFI = 'https://github.com/kairolang/kairo/issues?q=is%3Aopen+label%3A%22good+first+issue%22';
@@ -30,6 +43,7 @@ const ways = [
     { name: 'Contributors', url: '/contributors/' },
   ]}
 >
+  <main id="main">
   <!-- ── Title: this page's one moment. The FIGlet title is lens text (shade-in
        sweep once, then the hover rect lens); it carries no other motion. Behind it,
        the same slow drifting noise field as the home CTA band: dim, masked away
@@ -61,10 +75,10 @@ const ways = [
         <a href="https://github.com/kairolang" target="_blank" rel="noopener noreferrer">kairolang</a> organization counts.
       </p>
       <!-- resizable: the strip (block width) and each tile (flex row; siblings fill) -->
-      <dl class="ct-stats print-in" style="--d: 160ms;" data-resizable data-reflow="flex" aria-label="Contributor stats">
-        <div data-resizable data-resize-min="96"><dt>contributors</dt><dd class="tabular">{fmt.format(people.length)}</dd></div>
-        <div data-resizable data-resize-min="96"><dt>contributions</dt><dd class="tabular">{fmt.format(total)}</dd></div>
-        <div data-resizable data-resize-min="96"><dt>repos</dt><dd class="tabular">{data.repos.length}</dd></div>
+      <dl class="ct-stats print-in" style="--d: 160ms;" data-reflow="none" aria-label="Contributor stats">
+        {ctStats.map((st) => (
+          <div data-resizable data-resize-anchor="start" data-resize-min={st.min} data-resize-label={`${st.label} stat`}><dt>{st.label}</dt><dd class="tabular">{st.value}</dd></div>
+        ))}
       </dl>
     </div>
   </section>
@@ -129,6 +143,7 @@ const ways = [
       </AsciiFrame>
     </div>
   </section>
+  </main>
 </BaseLayout>
 
 <style>
@@ -169,7 +184,7 @@ const ways = [
 
   .ct-stats {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0;
     margin: 2rem 0 0;
     border: 1px solid var(--frame-line);
@@ -179,7 +194,14 @@ const ways = [
   }
   .ct-stats > div {
     flex: 1 1 auto;
-    min-width: 0;
+    /* table column: never narrower than its content + padding, never wraps,
+       separators stay full-height (cells stretch to the row) */
+    min-width: max-content;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     padding: 0.7rem 1.1rem;
     border-right: 1px solid var(--frame-line);
   }
@@ -280,7 +302,7 @@ const ways = [
   }
 
   @media (max-width: 480px) {
-    .ct-stats { width: 100%; }
+    .ct-stats { width: 100%; flex-wrap: wrap; }
     .ct-stats > div { flex: 1 1 0; padding: 0.6rem 0.75rem; min-width: 0; }
     .ct-stats dd { font-size: 1.2rem; }
     .ct-stats dt { font-size: 0.6rem; letter-spacing: 0.06em; }

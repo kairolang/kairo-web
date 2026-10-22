@@ -39,9 +39,16 @@ interface Props {
   opacity?: number;
   /** CSS mask, e.g. 'linear-gradient(#000 60%, transparent)' to fade an edge */
   mask?: string;
+  /**
+   * perf cull, no visual change: skip cells inside this ellipse [cx, cy, rx, ry]
+   * (fractions of the host w/h). Keep it inside the mask's clear (alpha < ~0.1) centre.
+   */
+  hole?: [number, number, number, number];
+  /** perf cull: skip columns whose centre x/w is in [x0, x1) (a linear mask's clear side) */
+  skipX?: [number, number];
   class?: string;
 }
-const { preset = 'plasma', size = 14, fps = 24, still = false, pointer = true, radius = 150, strength, t0 = 3.2, ramp, opacity = 0.35, mask, class: cls } = Astro.props;
+const { preset = 'plasma', size = 14, fps = 24, still = false, pointer = true, radius = 150, strength, t0 = 3.2, ramp, opacity = 0.35, mask, hole, skipX, class: cls } = Astro.props;
 const style = [
   opacity !== 1 ? `opacity:${opacity}` : '',
   mask ? `-webkit-mask-image:${mask};mask-image:${mask}` : '',
@@ -59,5 +66,7 @@ const style = [
   data-field-strength={strength}
   data-field-t0={still ? undefined : t0}
   data-field-ramp={ramp}
+  data-field-hole={hole ? hole.join(' ') : undefined}
+  data-field-skip-x={skipX ? skipX.join(' ') : undefined}
   style={style}
 ></div>

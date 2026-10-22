@@ -7,6 +7,10 @@ const docs = defineCollection({
     title: z.string(),
     description: z.string().optional(),
     order: z.number().optional(),
+    /** Sidebar group id within a section (see LANGUAGE_GROUPS in lib/docs-tree.ts). */
+    group: z.string().optional(),
+    /** File stem of a sibling page this page nests under in the sidebar. */
+    parent: z.string().optional(),
     collapsed: z.boolean().optional(),
     prev: z.object({ href: z.string(), title: z.string() }).nullish(),
     next: z.object({ href: z.string(), title: z.string() }).nullish(),

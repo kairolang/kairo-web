@@ -285,6 +285,11 @@ const platforms = [
     .term-screen { padding: 1rem 0.85rem 1.1rem; font-size: 0.74rem; }
     .term-bar { padding: 0.55rem 0.6rem 0.65rem; }
   }
+  /* all three platform tabs fit the strip at 360px (it still scrolls below that) */
+  @media (max-width: 400px) {
+    .term-bar { padding-inline: 0.45rem; }
+    .install-segmented .segmented-btn { padding-inline: 0.45rem; gap: 4px; letter-spacing: 0.02em; }
+  }
 </style>
 
 <script>
@@ -335,6 +340,9 @@ const platforms = [
         b.tabIndex = on ? 0 : -1;
       });
       if (focus) btn.focus({ preventScroll: true });
+      // keep the active tab visible inside the strip (never scrolls the page)
+      const c = tabsContainer!;
+      c.scrollTo({ left: Math.max(0, btn.offsetLeft - (c.clientWidth - btn.offsetWidth) / 2), behavior: 'auto' });
       moveThumb(btn, animate);
       if (title) title.textContent = `~/kairo — ${btn.dataset.shell || 'sh'}`;
       panels.forEach((p) => {

@@ -59,7 +59,11 @@ function handle(entries: IntersectionObserverEntry[]) {
   // batch reads, then writes (no layout thrash)
   const work: Array<[HTMLElement, number, number[] | null]> = [];
   for (const e of entries) {
-    if (!e.isIntersecting) continue;
+    // A target whose top is already above the reveal line never "intersects"
+    // (its clip keeps only a sliver at its TOP), e.g. after scroll restoration
+    // or a #hash landing — IO's initial entry still reports it, so print it.
+    const passed = e.isIntersecting || e.boundingClientRect.top < (e.rootBounds?.bottom ?? window.innerHeight);
+    if (!passed) continue;
     const el = e.target as HTMLElement;
     io?.unobserve(el);
     const stagger = el.hasAttribute('data-reveal-stagger');
@@ -81,6 +85,32 @@ export function initReveal(root: ParentNode = document): void {
   // threshold 0: a clipped target only exposes a 1px sliver (see global.css)
   io ??= new IntersectionObserver(handle, { threshold: 0, rootMargin: '0px 0px -32px 0px' });
   els.forEach((el) => io!.observe(el));
+  bindCatchUp();
+}
+
+// Safety net: a fast jump past an element (End key, then scrolling back up)
+// can skip it without ever intersecting. On scroll (rAF-throttled, passive),
+// print any still-pending target whose top is above the viewport bottom.
+let catchUpBound = false;
+let catchUpRaf = 0;
+function catchUp() {
+  catchUpRaf = 0;
+  const pending = document.querySelectorAll<HTMLElement>(SEL);
+  if (!pending.length) return;
+  const vh = window.innerHeight - 32; // same reveal line as the observer's rootMargin
+  const late: HTMLElement[] = [];
+  pending.forEach((el) => { if (el.getBoundingClientRect().top < vh) late.push(el); });
+  if (!late.length) return;
+  const sizes = late.map((el) => [
+    el.getBoundingClientRect().height,
+    el.hasAttribute('data-reveal-stagger') ? (Array.prototype.map.call(el.children, (c: HTMLElement) => c.offsetHeight) as number[]) : null,
+  ] as const);
+  late.forEach((el, i) => { io?.unobserve(el); apply(el, sizes[i][0], sizes[i][1]); });
+}
+function bindCatchUp() {
+  if (catchUpBound) return;
+  catchUpBound = true;
+  window.addEventListener('scroll', () => { if (!catchUpRaf) catchUpRaf = requestAnimationFrame(catchUp); }, { passive: true });
 }
 
 /** Reveal one element immediately (resolves when the print finishes). */

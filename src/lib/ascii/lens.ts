@@ -18,7 +18,7 @@
  *
  * HOVER (fine pointer only): the same rectangle follows the cursor
  * horizontally (eased) and renders the glyphs inside it in the dense-shade
- * style (like the hero torus's block-ramp lens); it cross-fades in/out.
+ * style (like the hero figure's block-ramp lens); it cross-fades in/out.
  *
  * How (cheap): the target's content is wrapped into three stacked copies
  *   .lens-box   (position: relative)
