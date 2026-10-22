@@ -62,6 +62,10 @@ export default defineConfig({
         if (p === '/') {
           item.priority = 1.0;
           item.changefreq = 'weekly';
+        } else if (p === '/docs/') {
+          // docs hub: lists every section and the recently updated pages
+          item.priority = 0.9;
+          item.changefreq = 'weekly';
         } else if (p.startsWith('/docs/library/')) {
           item.priority = 0.6;
           item.changefreq = 'monthly';

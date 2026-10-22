@@ -1,0 +1,58 @@
+---
+/**
+ * <HubHero>: the opening block of a hub page. A terminal prompt line, an
+ * optional block-letter word, the page title, and a one-line subtitle.
+ *
+ * Props
+ *   path      string?  Working directory shown in the prompt, e.g. "~/docs".
+ *   command   string?  Command after the "$", e.g. "man kairo". The prompt
+ *                      line is decorative (aria-hidden) and is only drawn
+ *                      when `command` is set.
+ *   subtitle  string?  One line under the title.
+ *   art       string?  A short word drawn as FIGlet block letters above the
+ *                      title ("DOCS"). Decorative (aria-hidden); it shades in
+ *                      under one rect-lens sweep, the page's one title moment
+ *                      (lib/ascii/lens.ts; skipped under reduced motion).
+ *   artMax    number?  Max glyph size of the art in px (default 26); it
+ *                      always shrinks to fit the column.
+ *
+ * Slot (default)
+ *   The title as a Markdown "# Heading". Write it in the MDX (not as a prop)
+ *   so the page's single <h1> stays in the Markdown tree, where the SEO
+ *   heading pass and search can see it.
+ *
+ * Usage (MDX)
+ *   <HubHero path="~/docs" command="man kairo" art="DOCS" subtitle="the language, the toolchain">
+ *
+ *   # Kairo Documentation
+ *
+ *   </HubHero>
+ */
+import AsciiArt from '../../ascii/AsciiArt.astro';
+
+interface Props {
+  path?: string;
+  command?: string;
+  subtitle?: string;
+  art?: string;
+  artMax?: number;
+}
+
+const { path = '~', command, subtitle, art, artMax = 26 } = Astro.props;
+---
+<header class:list={['hub-hero', art && 'hub-hero--art']}>
+  {command && (
+    <p class="hub-hero-prompt" aria-hidden="true">
+      <span class="hub-hero-path">{path}</span> <span class="hub-hero-dollar">$</span> <span class="hub-hero-cmd">{command}</span>
+    </p>
+  )}
+  {art && (
+    <div class="hub-hero-art">
+      <AsciiArt text={art} max={artMax} lensCalm lensDuration={900} lensDelay={60} />
+    </div>
+  )}
+  <div class="hub-hero-title">
+    <slot />
+  </div>
+  {subtitle && <p class="hub-hero-sub">{subtitle}</p>}
+</header>

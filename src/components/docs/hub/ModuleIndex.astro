@@ -1,0 +1,96 @@
+---
+/**
+ * <ModuleIndex>: lists the sub-folders of a docs folder as modules, one row
+ * each, generated from the docs collection (for API reference trees such as
+ * a generated standard library). A page directly in the folder counts as a
+ * one-page module. A row is
+ *   <module name>  <first few members> +n  <page count>
+ * (aligned columns; the members are cut to one line where space is short,
+ * "+n" is never cut, and a narrow card drops the members: name … count)
+ * and links to the module's index page, or else its first page in sidebar
+ * order. Everything shown comes from the pages themselves:
+ *   - name: the namespace the module's page titles share ("std::Memory::copy",
+ *     "std::Memory::move" -> "std::Memory"), else the folder name;
+ *   - members: the module's top-level entries (pages and sub-folders), titles
+ *     shortened by that namespace, template arguments dropped.
+ *
+ * Props
+ *   base    string     Folder below the docs root, e.g. "library/core"
+ *                      (doc-id segments, i.e. lowercase).
+ *   items   string[]?  Module names (sub-folder or page file names) to show,
+ *                      in this order (default: all, in sidebar order).
+ *   peek    number?    Members named per row before "+n" (default 3).
+ *   labels  Record<string, string>?  Override a module's displayed name by
+ *                      folder name.
+ *
+ * Usage (MDX)
+ *   <ModuleIndex base="library/core" />
+ */
+import { getCollection } from 'astro:content';
+import { buildDocTree, findSection, flattenPages, type TreePage, type TreeSection } from '../../../lib/docs-tree';
+
+interface Props {
+  base: string;
+  items?: string[];
+  peek?: number;
+  labels?: Record<string, string>;
+}
+
+const { base, items, peek = 3, labels = {} } = Astro.props;
+
+const docs = await getCollection('docs');
+const root = findSection(buildDocTree(docs), base);
+type Node = TreePage | TreeSection;
+const stem = (n: Node) => (n.kind === 'section' ? n.name : n.id.split('/').pop()!);
+const all: Node[] = root?.children ?? [];
+const chosen = items ? items.map(n => all.find(c => stem(c) === n)).filter((c): c is Node => !!c) : all;
+
+/** "std::Function<R, Args...>::call" -> ["std", "Function", "call"] */
+function segs(title: string): string[] {
+  let t = title;
+  for (let i = 0; i < 4 && /<[^<>]*>/.test(t); i++) t = t.replace(/<[^<>]*>/g, '');
+  return t.split('::').map(s => s.trim());
+}
+function commonPrefix(lists: string[][]): string[] {
+  if (!lists.length) return [];
+  const out: string[] = [];
+  for (let i = 0; ; i++) {
+    const v = lists[0][i];
+    if (v === undefined || !lists.every(l => l[i] === v)) return out;
+    out.push(v);
+  }
+}
+
+const rows = chosen.map(node => {
+  const dir: TreeSection =
+    node.kind === 'section' ? node : { kind: 'section', name: stem(node), defaultCollapsed: false, indexPage: node, children: [] };
+  const pages = flattenPages(dir);
+  // namespace: shared by every page title, never a page's own last segment
+  const ns = commonPrefix(pages.map(p => segs(p.title).slice(0, -1)));
+  const short = (title: string) => segs(title).slice(ns.length).join('::') || title;
+  const members = dir.children.map(c =>
+    c.kind === 'page' ? short(c.title) : c.indexPage ? short(c.indexPage.title) : `${c.name}/`
+  );
+  const first: TreePage | undefined = dir.indexPage ?? pages[0];
+  return {
+    name: labels[dir.name] ?? (ns.length ? ns.join('::') : dir.name),
+    href: first?.href,
+    members: members.slice(0, peek),
+    more: Math.max(0, members.length - peek),
+    count: pages.length,
+  };
+}).filter(r => r.href);
+// name column width (ch), so the member glosses line up in one column
+const nameCol = rows.reduce((w, r) => Math.max(w, [...r.name].length), 0);
+---
+<ul class="module-index" style={`--hub-name: ${nameCol}ch`}>
+  {rows.map(r => (
+    <li>
+      <a href={r.href}>{r.name}</a>
+      {r.members.length > 0 && (
+        <span class="hub-gloss"><span class="module-members">{r.members.join(' · ')}</span>{r.more > 0 && <span class="module-more">&nbsp;+{r.more}</span>}</span>
+      )}
+      <span class="module-count">{r.count}<span class="sr-only"> {r.count === 1 ? 'page' : 'pages'}</span></span>
+    </li>
+  ))}
+</ul>

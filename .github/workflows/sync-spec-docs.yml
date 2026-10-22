@@ -37,7 +37,12 @@ jobs:
 
           # Drop old docs; __convert.py and README stay
           find "$dst" -maxdepth 1 \( -name '*.md' -o -name '*.mdx' \) -delete
-          cp src/content/docs/language/*.mdx "$dst"/
+          # Hub pages (frontmatter `template: hub`, e.g. language/index.mdx)
+          # are site components, not spec text: skip them
+          for src in src/content/docs/language/*.mdx; do
+            awk 'NR==1{if(!/^---$/)exit;next} /^---$/{exit} /^template:[^a-z]*hub/{f=1;exit} END{exit !f}' "$src" && continue
+            cp "$src" "$dst"/
+          done
 
           (cd "$dst" && python __convert.py)
 

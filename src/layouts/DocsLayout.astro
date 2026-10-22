@@ -19,22 +19,31 @@ import DocsSearch from '../components/docs/DocsSearch.astro';
 import TableOfContents from '../components/docs/TableOfContents.astro';
 import CodeBlockEnhancer from '../components/docs/CodeBlockEnhancer.astro';
 import { docHref } from '../lib/docs-tree';
+// Hub component styles ship as their own file, linked only on hub pages
+// (imported by the components, they would land in the CSS chunk every
+// docs page loads).
+import hubCssUrl from '../components/docs/hub/hub.css?url';
 interface Props {
   title: string;
   description?: string;
   prev?: { href: string; title: string } | null;
   next?: { href: string; title: string } | null;
   headings?: Array<{ depth: number; slug: string; text: string }>;
+  /** 'hub': landing page (no TOC column, no prev/next, wider main column). */
+  template?: 'doc' | 'hub';
+  /** Source file relative to src/content/docs, e.g. "language/index.mdx". */
+  editPath?: string;
+  /** Full document <title> override (frontmatter `seoTitle`). */
+  seoTitle?: string;
 }
 
-const { title, description, prev, next, headings = [] } = Astro.props;
+const { title, description, prev, next, headings = [], template = 'doc', editPath, seoTitle } = Astro.props;
 const currentPath = Astro.url.pathname;
+const hub = template === 'hub';
 
-const breadcrumbs = [
-  { name: 'Home', url: '/' },
-  { name: 'Docs', url: '/docs/' },
-  { name: title, url: currentPath },
-];
+const breadcrumbs = currentPath === '/docs/'
+  ? [{ name: 'Home', url: '/' }, { name: 'Docs', url: '/docs/' }]
+  : [{ name: 'Home', url: '/' }, { name: 'Docs', url: '/docs/' }, { name: title, url: currentPath }];
 
 const EDIT_BASE = 'https://github.com/kairolang/kairo-web/edit/main/src/content/docs';
 
@@ -43,7 +52,9 @@ const EDIT_BASE = 'https://github.com/kairolang/kairo-web/edit/main/src/content/
 const derivedPath = currentPath
   .replace(/^\/docs\/?/, '')   // drop leading /docs/
   .replace(/\/$/, '');         // drop trailing slash
-const finalPath = (derivedPath ? `${derivedPath}.mdx` : 'index.mdx');
+// (The URL guess is wrong for folder index pages and for the lowercased
+// library ids, so the docs route always passes the real source path.)
+const finalPath = editPath ?? (derivedPath ? `${derivedPath}.mdx` : 'index.mdx');
 const editUrl   = `${EDIT_BASE}/${finalPath}`;
 
 // Path breadcrumb: "~/docs/language/ownership". Intermediate directories
@@ -57,12 +68,14 @@ const pathSegs = parts.map((name, i) => {
   return { name: decodeURIComponent(name), href: !last && known.has(href) ? href : null, last };
 });
 
-const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
+const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
 ---
 <BaseLayout
   title={`${title} - Kairo Docs`}
+  documentTitle={seoTitle}
   description={description}
   type="docs"
+  schema={hub ? 'CollectionPage' : undefined}
   breadcrumbs={breadcrumbs}
 >
   <!-- Mobile top bar: [pages]  > Page title  [/] [toc] -->
@@ -85,7 +98,11 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
   <!-- DOCS_FIELD trial: fixed viewport-sized ASCII field behind the layout -->
   {DOCS_FIELD && <div id="docs-field" class="docs-field" aria-hidden="true"></div>}
 
-  <div class="docs-layout" data-resize-scope="off" data-snap="off">
+  <!-- In the body, so it comes after the head's bundled CSS (hub.css
+       overrides .ascii-frame details) and still blocks the hub's first paint. -->
+  {hub && <link rel="stylesheet" href={hubCssUrl} />}
+
+  <div class:list={['docs-layout', hub && 'docs-layout--hub']} data-resize-scope="off" data-snap="off">
     <!-- static dithered strip: the old red wash, as ░▒▓ halftone -->
     <div class="docs-dither" aria-hidden="true"></div>
 
@@ -133,8 +150,8 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
         </ol>
       </nav>
 
-      <!-- Article -->
-      <article class="prose">
+      <!-- Article (hub pages lay out their own blocks: no prose measure) -->
+      <article class={hub ? 'docs-hub' : 'prose'}>
         <slot />
       </article>
 
@@ -173,12 +190,14 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
       </footer>
     </main>
 
-    <!-- Right: TOC -->
-    <aside class="docs-toc-col" aria-label="Table of contents">
-      <div class="docs-toc-inner">
-        <TableOfContents headings={headings} id="toc" />
-      </div>
-    </aside>
+    <!-- Right: TOC (not on hub pages) -->
+    {!hub && (
+      <aside class="docs-toc-col" aria-label="Table of contents">
+        <div class="docs-toc-inner">
+          <TableOfContents headings={headings} id="toc" />
+        </div>
+      </aside>
+    )}
   </div>
 
   <!-- Mobile TOC drawer -->
@@ -371,6 +390,11 @@ const hasToc = headings.filter(h => h.depth === 2 || h.depth === 3).length > 0;
     padding: 1.75rem 3.5rem 5rem;
     min-width: 0;
   }
+
+  /* ── Hub pages: two columns (tree + a wider main column), no TOC ── */
+  .docs-layout--hub { grid-template-columns: 276px minmax(0, 1fr); }
+  .docs-layout--hub .docs-breadcrumb,
+  .docs-layout--hub .docs-footer { max-width: 1180px; }   /* = .docs-hub (hub.css) */
 
   /* ── Right TOC ── */
   .docs-toc-col {

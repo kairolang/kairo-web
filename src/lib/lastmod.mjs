@@ -9,6 +9,8 @@
  *      uncommitted changes uses its mtime (so local builds aren't stale)
  *   3. blog frontmatter `pubDate`
  *   4. build date
+ * A docs hub page (frontmatter `template: hub`) lists the pages below it, so
+ * it takes the newest date of its own file and every docs page in its folder.
  *
  * Note: CI must check out full history (actions/checkout `fetch-depth: 0`),
  * otherwise every file reports the HEAD commit date.
@@ -106,7 +108,8 @@ function frontmatter(rel) {
       const d = v ? new Date(v) : undefined;
       return d && !Number.isNaN(d.getTime()) ? d : undefined;
     };
-    return { pubDate: get('pubDate'), updatedDate: get('updatedDate') };
+    const template = m[1].match(/^template:\s*["']?(\w+)["']?\s*$/m)?.[1];
+    return { pubDate: get('pubDate'), updatedDate: get('updatedDate'), template };
   } catch {
     return {};
   }
@@ -128,11 +131,20 @@ export function lastmodMap() {
   /** @type {Map<string, Date>} */
   const map = new Map();
 
-  for (const rel of walk(DOCS).filter(f => /\.mdx?$/.test(f))) {
+  const docFiles = walk(DOCS).filter(f => /\.mdx?$/.test(f));
+  /** @type {Array<{ route: string, dir: string, rel: string }>} */
+  const hubs = [];
+  for (const rel of docFiles) {
     const id = rel.slice(DOCS.length + 1).replace(/\.mdx?$/, '');
     const slug = id.split('/').map(slugSeg).join('/').replace(/(^|\/)index$/, '');
+    const route = `/docs/${slug ? slug + '/' : ''}`;
     const d = fileDate(rel, git);
-    if (d) map.set(`/docs/${slug ? slug + '/' : ''}`, d);
+    if (d) map.set(route, d);
+    if (frontmatter(rel).template === 'hub') hubs.push({ route, dir: path.posix.dirname(rel) + '/', rel });
+  }
+  for (const h of hubs) {
+    const d = latest(docFiles.filter(f => f.startsWith(h.dir)).map(f => fileDate(f, git)));
+    if (d) map.set(h.route, d);
   }
 
   /** @type {Date[]} */

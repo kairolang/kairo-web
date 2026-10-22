@@ -1,0 +1,48 @@
+---
+/**
+ * <HubSearch>: a button that opens the docs search palette. It carries
+ * [data-search-open], the hook any search palette on the page listens for
+ * (DocsSearch.astro here), so this component holds no search logic itself.
+ * The full-size bar is the sidebar's "> search docs_" trigger at hero size.
+ *
+ * Props
+ *   count     number?   Page count in the label ("search 240 pages"). When
+ *                       omitted it is the size of `collection`.
+ *   collection string?  Content collection counted when `count` is omitted
+ *                       (default "docs").
+ *   shortcut  string?   Keyboard hint (default "⌘K"). Marked
+ *                       [data-search-kbd], so the palette can relabel it per
+ *                       platform (^K off Apple).
+ *   inline    boolean?  Compact inline trigger for use inside text or a
+ *                       list; its label is the slot ("search").
+ *
+ * Usage (MDX)
+ *   <HubSearch />
+ *   - <HubSearch inline>search everything</HubSearch>
+ */
+import { getCollection, type CollectionKey } from 'astro:content';
+
+interface Props {
+  count?: number;
+  collection?: CollectionKey;
+  shortcut?: string;
+  inline?: boolean;
+}
+
+const { count, collection = 'docs', shortcut = '⌘K', inline = false } = Astro.props;
+const n = count ?? (await getCollection(collection)).length;
+const label = inline ? (await Astro.slots.render('default')).trim() || 'search' : '';
+---
+{inline ? (
+  <button type="button" class="hub-search-inline" data-search-open aria-haspopup="dialog">
+    <kbd class="hub-search-kbd" data-search-kbd>{shortcut}</kbd>{' '}<span class="hub-search-label"><Fragment set:html={label} /></span>
+  </button>
+) : (
+  <div class="hub-search-wrap">
+    <button type="button" class="ascii-frame hub-search" data-search-open aria-haspopup="dialog" aria-label={`Search ${n} pages`}>
+      <span class="hub-search-prompt" aria-hidden="true">&gt;</span>
+      <span class="hub-search-text">search <span class="hub-search-count">{n}</span> pages<span class="hub-search-cursor" aria-hidden="true">_</span></span>
+      <kbd class="hub-search-kbd" data-search-kbd>{shortcut}</kbd>
+    </button>
+  </div>
+)}

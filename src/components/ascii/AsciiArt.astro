@@ -15,6 +15,8 @@
  * each column to the final glyphs. On fine pointers the rect lens then
  * follows the cursor, showing the glyphs inside it as dense shades (▓▒░).
  * lens="reveal" (sweep only), lens="hover" (no sweep), lens={false} (static).
+ * Calm pages (docs/blog) skip the sweep unless lensCalm is set (a calm page's
+ * one title moment); reduced motion always skips it.
  */
 import { renderFiglet, artSize, toneArt } from '../../lib/ascii/figlet';
 
@@ -41,9 +43,11 @@ interface Props {
   /** sweep delay / duration in ms (duration clamped 700–1100) */
   lensDelay?: number;
   lensDuration?: number;
+  /** play the sweep on calm pages too (default false) */
+  lensCalm?: boolean;
 }
 
-const { text, art, narrowText, narrowArt, max = 40, tone, color, align = 'left', class: cls, as = 'div', lens = true, lensDelay, lensDuration } = Astro.props;
+const { text, art, narrowText, narrowArt, max = 40, tone, color, align = 'left', class: cls, as = 'div', lens = true, lensDelay, lensDuration, lensCalm = false } = Astro.props;
 const lensAttr = lens === false ? undefined : lens === true ? '' : lens;
 const wide = art ?? (text !== undefined ? renderFiglet(text) : '');
 const narrow = narrowArt ?? (narrowText !== undefined ? renderFiglet(narrowText) : undefined);
@@ -54,7 +58,7 @@ const sz = (s: string) => artSize(s).cols;
 const wrapStyle = `--art-max:${max}px;${color ? `--art-color:${color};--art-face:${color};` : ''}`;
 const margin = align === 'center' ? 'margin-inline:auto;' : align === 'right' ? 'margin-left:auto;' : '';
 ---
-<W class:list={['ascii-fit', cls]} style={wrapStyle} aria-hidden="true" data-lens={lensAttr} data-lens-delay={lensAttr !== undefined ? lensDelay : undefined} data-lens-duration={lensAttr !== undefined ? lensDuration : undefined}>
+<W class:list={['ascii-fit', cls]} style={wrapStyle} aria-hidden="true" data-lens={lensAttr} data-lens-delay={lensAttr !== undefined ? lensDelay : undefined} data-lens-duration={lensAttr !== undefined ? lensDuration : undefined} data-lens-calm={lensAttr !== undefined && lensCalm ? '' : undefined}>
   <span class:list={['ascii-art', narrow && 'ascii-art--wide']} style={`--cols:${sz(wide)};width:max-content;${margin}`} set:html={html(wide)} />
   {narrow && <span class="ascii-art ascii-art--narrow" style={`--cols:${sz(narrow)};width:max-content;${margin}`} set:html={html(narrow)} />}
 </W>
@@ -63,7 +67,8 @@ const margin = align === 'center' ? 'margin-inline:auto;' : align === 'right' ? 
   /* Lens pre-state: hidden from first paint until lens.ts has swapped in the
      shaded (░▒) first state, so the final art never flashes before the sweep.
      Failsafe: the final art shows after 1.5s if the script never runs. */
-  html.js:not([data-motion="calm"]) [data-lens]:not([data-lens="off"]):not([data-lens="hover"]):not([data-lens-ready]) .ascii-art {
+  html.js:not([data-motion="calm"]) [data-lens]:not([data-lens="off"]):not([data-lens="hover"]):not([data-lens-ready]) .ascii-art,
+  html.js [data-lens][data-lens-calm]:not([data-lens="off"]):not([data-lens="hover"]):not([data-lens-ready]) .ascii-art {
     visibility: hidden;
     animation: lens-failsafe 0s linear 1.5s forwards;
   }

@@ -53,13 +53,24 @@ const LANGUAGE_ORDER = [
 
 // Top-level doc pages order
 const TOP_ORDER = [
-  'index',        // Welcome to Kairo
+  'welcome',      // Welcome to Kairo
   'philosophy',
   'install',
   'compilence',
 ];
 
 // ── Helpers ────────────────────────────────────────────────────
+
+// Hub pages (frontmatter `template: hub`, e.g. the /docs/ home) are component
+// layouts that only link to other pages: skip them.
+async function withoutHubs(files) {
+  const out = [];
+  for (const f of files) {
+    const fm = (await readFile(f, 'utf-8')).match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
+    if (!/^template:\s*["']?hub["']?\s*$/m.test(fm)) out.push(f);
+  }
+  return out;
+}
 
 async function walk(dir) {
   const entries = [];
@@ -189,7 +200,7 @@ async function main() {
   parts.push('---\n');
 
   // ── Process docs ──
-  const docFiles = await walk(CONTENT_DIR);
+  const docFiles = await withoutHubs(await walk(CONTENT_DIR));
   if (docFiles.length === 0) {
     console.error(`[llms-full] No files found in ${CONTENT_DIR}`);
     process.exit(1);

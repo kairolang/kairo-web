@@ -30,11 +30,14 @@
  * drive clip-path insets and one mask gradient. No layout, no filters.
  *
  * Reduced motion: final at once, no hover lens. Calm pages (docs/blog): no
- * sweep; the hover lens is user-triggered feedback, so it stays.
+ * sweep; the hover lens is user-triggered feedback, so it stays. A calm
+ * page's one deliberate title moment (the docs landing page) opts back in
+ * with data-lens-calm / { calm: true }; reduced motion still skips it.
  *
  * data-lens values: "" | "on" (sweep + hover) · "reveal" (sweep only) ·
  * "hover" (hover only, no sweep) · "off". Extras: data-lens-delay="120",
- * data-lens-duration="900" (clamped 700–1100), data-lens-cols="10".
+ * data-lens-duration="900" (clamped 700–1100), data-lens-cols="10",
+ * data-lens-calm (sweep on calm pages too).
  */
 import { finePointer, onceVisible, reducedMotion, stillPage } from './motion';
 
@@ -51,6 +54,8 @@ export interface LensOptions {
   whenVisible?: boolean;
   /** window width in columns. Default auto: ~20% of the art, clamped to 8–14 cols */
   cols?: number;
+  /** sweep on calm pages too (still skipped under reduced motion). Default false */
+  calm?: boolean;
 }
 
 /* ─── deterministic shade glyphs ───────────────────────────────────── */
@@ -411,7 +416,7 @@ export function lensReveal(el: HTMLElement, opts: LensOptions = {}): Promise<voi
   el.setAttribute('data-lens-bound', '');
 
   const reduced = reducedMotion();
-  const reveal = (opts.reveal ?? true) && !stillPage();
+  const reveal = (opts.reveal ?? true) && !(opts.calm ? reduced : stillPage());
   const hover = (opts.hover ?? true) && !reduced && finePointer();
   if (!reveal && !hover) { el.setAttribute('data-lens-ready', ''); el.setAttribute('data-lens-done', ''); return Promise.resolve(); }
 
@@ -463,6 +468,7 @@ export function bindLens(root: ParentNode = document): void {
       delay: num('lensDelay'),
       duration: num('lensDuration'),
       cols: num('lensCols'),
+      calm: el.hasAttribute('data-lens-calm'),
     });
   });
 }

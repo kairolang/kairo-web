@@ -1,0 +1,54 @@
+---
+/**
+ * <HubCard>: a framed card (AsciiFrame look: ┌─[ title ]───< kicker >─┐)
+ * holding a link list drawn as a file tree ("├── " / "└── " rows; the
+ * guides are CSS, the markup stays a plain list). Each row is one link
+ * target with the stepped red hover sweep.
+ *
+ * Props
+ *   title  string    Card title, set in the frame's top edge.
+ *   id     string?   Anchor id, for #links to this card.
+ *   href   string?   Makes the title a link (e.g. to a section's index page).
+ *   kicker string?   Small label on the right of the top edge ("commands").
+ *   level  3 | 4     Heading level (default 3, i.e. inside a HubSection).
+ *   gloss  boolean   Wrap the plain text after each item's link in
+ *                    <span class="hub-gloss"> (default true), so
+ *                    "- [kbld](/docs/toolchain/kbld/) build system" renders
+ *                    the gloss apart from the link, in one aligned column.
+ *
+ * Slot (default)
+ *   A Markdown list (nested lists nest in the tree), or another component
+ *   that renders its own list (ModuleIndex, RecentlyUpdated).
+ *
+ * Usage (MDX)
+ *   <HubCard title="toolchain" id="toolchain">
+ *
+ *   - [kbld](/docs/toolchain/kbld/) build system
+ *   - [kpkg](/docs/toolchain/kpkg/) package manager
+ *
+ *   </HubCard>
+ */
+import { linkColumn, metaReserve, wrapGlosses } from './markup';
+
+interface Props {
+  title: string;
+  id?: string;
+  href?: string;
+  kicker?: string;
+  level?: 3 | 4;
+  gloss?: boolean;
+}
+
+const { title, id, href, kicker, level = 3, gloss = true } = Astro.props;
+const H = level === 4 ? 'h4' : 'h3';
+const raw = await Astro.slots.render('default');
+const body = gloss ? wrapGlosses(raw) : raw;
+const col = linkColumn(body);
+---
+<section class="ascii-frame ascii-frame--fill hub-card" id={id} style={[col ? `--hub-name: ${col}ch` : '', metaReserve(kicker) ?? ''].filter(Boolean).join('; ') || undefined}>
+  <H class="ascii-frame-title hub-card-title">{href ? <a href={href}>{title}</a> : title}</H>
+  {kicker && <span class="ascii-frame-meta hub-card-meta">{kicker}</span>}
+  <div class="hub-card-body hub-tree">
+    <Fragment set:html={body} />
+  </div>
+</section>

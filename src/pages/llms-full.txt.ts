@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { buildDocTree, flattenPages } from '../lib/docs-tree';
+import { buildDocTree, docSourcePath, flattenPages } from '../lib/docs-tree';
 
 export const GET: APIRoute = async ({ site }) => {
   const siteURL = (site ?? new URL('https://www.kairolang.org')).toString().replace(/\/$/, '');
@@ -29,13 +29,16 @@ export const GET: APIRoute = async ({ site }) => {
 
   // Full docs content
   content += `# Documentation\n\n`;
-  for (const doc of sortedDocs) {
+  // Hub pages (template: hub) are component layouts that only link to the
+  // pages below them, which are all included in full.
+  for (const doc of sortedDocs.filter(d => d.data.template !== 'hub')) {
     const url = slugToUrl(doc.id);
     content += `---\n`;
     content += `URL: ${url}\n`;
     content += `Title: ${doc.data.title}\n`;
     if (doc.data.description) content += `Description: ${doc.data.description}\n`;
-    const parts = doc.id.replace(/\.mdx?$/, '').split('/');
+    // source path, not id: folder index pages have ids without "/index"
+    const parts = (docSourcePath(doc) ?? doc.id).replace(/\.mdx?$/, '').split('/');
     if (parts.length > 1) content += `Section: ${parts[0]}\n`;
     content += `\n`;
     content += doc.body;

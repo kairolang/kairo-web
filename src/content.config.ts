@@ -12,6 +12,16 @@ const docs = defineCollection({
     /** File stem of a sibling page this page nests under in the sidebar. */
     parent: z.string().optional(),
     collapsed: z.boolean().optional(),
+    /**
+     * Page template. 'hub' is a landing page built from the components in
+     * components/docs/hub/: no table of contents, no prev/next cards, a wider
+     * main column, CollectionPage JSON-LD, and no body in search / llms-full.
+     */
+    template: z.enum(['doc', 'hub']).optional(),
+    /** Shorter label for the sidebar row (defaults to `title`). */
+    sidebarLabel: z.string().optional(),
+    /** Full document <title>, used as is (skips the " · Kairo Docs" suffix). */
+    seoTitle: z.string().optional(),
     prev: z.object({ href: z.string(), title: z.string() }).nullish(),
     next: z.object({ href: z.string(), title: z.string() }).nullish(),
   }),

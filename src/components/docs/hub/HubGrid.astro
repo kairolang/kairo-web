@@ -1,0 +1,33 @@
+---
+/**
+ * <HubGrid>: lays out a run of cards. The column count follows the width of
+ * the hub column (a container query, so it works the same beside a sidebar
+ * or without one): `cols` when there is room, 2 on mid widths, 1 on phones.
+ * In a 3-column grid that drops to 2, a lone last card spans the row.
+ *
+ * Props
+ *   cols   2 | 3                Columns at full width (default 3).
+ *   align  'stretch' | 'start'  'stretch': cards in a row share a height;
+ *                               'start': each card keeps its own (for cards
+ *                               of very different lengths). Default 'stretch'.
+ *
+ * Slot (default)
+ *   Cards (HubCard, PathCard, StatusCard, …).
+ *
+ * Usage (MDX)
+ *   <HubGrid cols={3}>
+ *     <PathCard title="new here">…</PathCard>
+ *     …
+ *   </HubGrid>
+ */
+
+interface Props {
+  cols?: 2 | 3;
+  align?: 'stretch' | 'start';
+}
+
+const { cols = 3, align = 'stretch' } = Astro.props;
+---
+<div class="hub-grid" data-cols={cols} data-align={align}>
+  <slot />
+</div>

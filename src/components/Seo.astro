@@ -29,6 +29,8 @@ interface Props {
   tags?: string[];
   breadcrumbs?: Array<{ name: string; url: string }>;
   noindex?: boolean;
+  /** Main JSON-LD node override: docs hub pages are a CollectionPage, not a TechArticle. */
+  schema?: 'CollectionPage';
 }
 
 const {
@@ -46,6 +48,7 @@ const {
   tags = [],
   breadcrumbs = [],
   noindex = false,
+  schema,
 } = Astro.props;
 
 const siteURL = (Astro.site ?? new URL(SITE_URL)).toString().replace(/\/$/, '');
@@ -179,7 +182,7 @@ if (type === 'home') {
 }
 
 // Docs page — TechArticle
-if (type === 'docs') {
+if (type === 'docs' && schema !== 'CollectionPage') {
   graph.push({
     '@type': 'TechArticle',
     '@id': ID.page,
@@ -220,8 +223,8 @@ if (type === 'blog' && pubDate) {
   });
 }
 
-// Listing pages — CollectionPage
-if (type === 'page' && (path === '/blog/' || path === '/contributors/')) {
+// Listing pages — CollectionPage (blog index, contributors, docs hubs)
+if (schema === 'CollectionPage' || (type === 'page' && (path === '/blog/' || path === '/contributors/'))) {
   graph.push({
     '@type': 'CollectionPage',
     '@id': ID.page,

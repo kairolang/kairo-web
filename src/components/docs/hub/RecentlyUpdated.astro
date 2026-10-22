@@ -1,0 +1,60 @@
+---
+/**
+ * <RecentlyUpdated>: the most recently changed docs pages, newest first,
+ * with relative dates ("3d ago"). Computed at build time from git (last
+ * commit touching each page's file; an uncommitted file uses its mtime),
+ * see lib/lastmod.mjs. Relative dates are as of the build; the exact date
+ * is in each row's <time datetime> and title.
+ *
+ * Props
+ *   count    number?   Rows (default 5).
+ *   base     string?   Only pages below this folder ("language"); default
+ *                      all docs.
+ *   showDir  boolean?  Show each page's folder before its title (default
+ *                      true), e.g. "language/ Ownership".
+ *   now      Date?     Reference date for the relative ages (default: the
+ *                      build date).
+ *
+ * Hub pages (template: hub) are never listed.
+ *
+ * Usage (MDX)
+ *   <RecentlyUpdated count={5} />
+ */
+import { getCollection } from 'astro:content';
+import { BUILD_DATE, lastmodFor } from '../../../lib/lastmod.mjs';
+import { buildDocTree, docHref, flattenPages } from '../../../lib/docs-tree';
+import { relativeAge } from './markup';
+
+interface Props {
+  count?: number;
+  base?: string;
+  showDir?: boolean;
+  now?: Date;
+}
+
+const { count = 5, base, showDir = true, now = BUILD_DATE } = Astro.props;
+
+const docs = await getCollection('docs');
+const rank = new Map(flattenPages(buildDocTree(docs)).map((p, i) => [p.id, i]));
+const prefix = base ? base.replace(/\/?$/, '/') : '';
+const rows = docs
+  .filter(d => d.data.template !== 'hub' && d.id.startsWith(prefix))
+  .map(d => {
+    const href = docHref(d.id);
+    const parts = href.replace(/^\/docs\/|\/$/g, '').split('/');
+    return { id: d.id, title: d.data.title, href, dir: parts.slice(0, -1).join('/'), date: lastmodFor(href) };
+  })
+  .filter((r): r is typeof r & { date: Date } => !!r.date)
+  // newest first; same instant (one commit): sidebar order
+  .sort((a, b) => b.date.getTime() - a.date.getTime() || (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+  .slice(0, count);
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+---
+<ul class="recent-list">
+  {rows.map(r => (
+    <li>
+      <a href={r.href} title={showDir && r.dir ? `${r.dir}/${r.title}` : r.title}>{showDir && r.dir && <span class="recent-dir">{r.dir}/</span>}{r.title}</a>
+      <time class="hub-gloss recent-age" datetime={r.date.toISOString()} title={iso(r.date)}>{relativeAge(r.date, now)}</time>
+    </li>
+  ))}
+</ul>

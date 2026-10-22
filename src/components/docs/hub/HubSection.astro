@@ -1,0 +1,52 @@
+---
+/**
+ * <HubSection>: a numbered, titled band of a hub page, headed by a rule:
+ *   ── 01 · PICK A PATH ─────────────────────────── more →
+ *
+ * Props
+ *   title  string            Section title (rendered as written; the case is
+ *                            up to CSS).
+ *   n      string | number?  Number shown before the title; a number is
+ *                            zero-padded ("1" -> "01").
+ *   id     string?           Anchor id for #links (default: slug of `title`).
+ *   level  2 | 3             Heading level (default 2).
+ *   href   string?           Optional "more" link at the end of the rule.
+ *   more   string?           Text of that link (default "all").
+ *
+ * Slot (default)
+ *   The section body: cards, grids, Markdown.
+ *
+ * Usage (MDX)
+ *   <HubSection n={1} title="Pick a path" id="paths">…</HubSection>
+ */
+import { pad2, slugId } from './markup';
+
+interface Props {
+  title: string;
+  n?: string | number;
+  id?: string;
+  level?: 2 | 3;
+  href?: string;
+  more?: string;
+}
+
+const { title, n, id = slugId(title), level = 2, href, more = 'all' } = Astro.props;
+const H = level === 3 ? 'h3' : 'h2';
+const num = typeof n === 'number' ? pad2(n) : n;
+const headId = `${id}-title`;
+---
+<section class="hub-section" id={id} aria-labelledby={headId}>
+  <div class="hub-section-head">
+    <span class="hub-section-rule hub-section-rule--lead" aria-hidden="true"></span>
+    <H class="hub-section-title" id={headId}>
+      {/* the spaces stay outside the hidden dot, so the heading reads "01 Pick a path" */}
+      {num && <span class="hub-section-n">{num}{' '}<span class="hub-section-dot" aria-hidden="true">·</span>{' '}</span>}
+      <span class="hub-section-name">{title}</span>
+    </H>
+    <span class="hub-section-rule" aria-hidden="true"></span>
+    {href && <a class="hub-section-more" href={href}>{more}<span aria-hidden="true"> →</span></a>}
+  </div>
+  <div class="hub-section-body">
+    <slot />
+  </div>
+</section>

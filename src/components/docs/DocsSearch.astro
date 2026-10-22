@@ -1200,6 +1200,24 @@
 
 	let lastTrigger: HTMLElement | null = null;
 
+	// aria-modal alone keeps neither Tab nor a screen reader's virtual cursor
+	// inside the dialog: while it is open, everything else in <body> (the
+	// modal's siblings: it is portalled there) is inert. Only elements that
+	// were not inert already are touched, and only they are released again.
+	let inerted: Element[] = [];
+	function setPageInert(on: boolean) {
+		const modal = document.getElementById("search-modal");
+		if (on && modal && !inerted.length) {
+			inerted = [...document.body.children].filter(
+				(el) => el !== modal && !el.hasAttribute("inert") && !(el instanceof HTMLScriptElement),
+			);
+			inerted.forEach((el) => el.setAttribute("inert", ""));
+		} else if (!on) {
+			inerted.forEach((el) => el.removeAttribute("inert"));
+			inerted = [];
+		}
+	}
+
 	function openModal() {
 		if (!lastTrigger && document.activeElement instanceof HTMLElement && document.activeElement !== document.body)
 			lastTrigger = document.activeElement;
@@ -1208,6 +1226,7 @@
 		if (container && !container.innerHTML.trim()) container.innerHTML = EMPTY_STATE;
 		modal?.classList.add("open");
 		modal?.setAttribute("aria-hidden", "false");
+		setPageInert(true);
 		document.body.style.overflow = "hidden";
 		setTimeout(
 			() => (document.getElementById("search-input") as HTMLInputElement)?.focus(),
@@ -1220,6 +1239,7 @@
 		const modal = document.getElementById("search-modal");
 		modal?.classList.remove("open");
 		modal?.setAttribute("aria-hidden", "true");
+		setPageInert(false); // before focus goes back to the trigger below
 		document.body.style.overflow = "";
 		const input = document.getElementById("search-input") as HTMLInputElement;
 		if (input) input.value = "";
@@ -1249,12 +1269,12 @@
 		// would otherwise become the containing block of this fixed overlay.
 		if (modal.parentElement !== document.body) document.body.appendChild(modal);
 
-		// Shortcut label: ⌘K on Apple platforms, ^K (ctrl) elsewhere.
-		const kbd = document.getElementById("search-kbd");
+		// Shortcut label: ⌘K on Apple platforms, ^K (ctrl) elsewhere. Other
+		// triggers (e.g. the docs hub search bar) mark theirs [data-search-kbd].
 		const isMac = /Mac|iPhone|iPad|iPod/i.test(
 			(navigator as any).userAgentData?.platform || navigator.platform || navigator.userAgent,
 		);
-		if (kbd && !isMac) kbd.textContent = "^K";
+		if (!isMac) document.querySelectorAll("#search-kbd, [data-search-kbd]").forEach((k) => (k.textContent = "^K"));
 
 		// Any [data-search-open] element opens the palette (sidebar trigger,
 		// docs mobile bar button, ...).

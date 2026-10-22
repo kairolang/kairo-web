@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { docHref, sectionFromId } from '../lib/docs-tree';
+import { docHref, docSourcePath, sectionFromId } from '../lib/docs-tree';
 
 /** GitHub-style slug for heading anchors (mirrors Astro's slugger closely enough). */
 function slugify(text: string): string {
@@ -37,7 +37,9 @@ export const GET: APIRoute = async () => {
   const docs = await getCollection('docs');
 
   const results = docs.map(doc => {
-    const body = doc.body ?? '';
+    // Hub pages are built from components (their body is JSX, and everything
+    // they list is indexed on its own page): title + description only.
+    const body = doc.data.template === 'hub' ? '' : (doc.body ?? '');
 
     // Extract headings (## .. ####) with anchors for deep links
     const headings: Array<{ text: string; slug: string }> = [];
@@ -51,7 +53,8 @@ export const GET: APIRoute = async () => {
     return {
       title: doc.data.title,
       description: doc.data.description ?? '',
-      section: sectionFromId(doc.id),
+      // folder index pages have ids without "/index" ("language"): use the file path
+      section: sectionFromId(docSourcePath(doc) ?? doc.id),
       url: docHref(doc.id),
       headings,
       // Generous cap: full-text search needs the whole page; the cap only

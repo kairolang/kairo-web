@@ -1133,10 +1133,12 @@ code {
 .sidebar-collapsible[data-collapsed="true"] > .sidebar-collapsible-body { display: none; }
 
 /* top-level directories get breathing room ABOVE them (inside the row,
-   so the rails run straight through the gap) */
+   so the rails run straight through the gap). The gap is margin on the
+   toggle / label, not padding, so an active or hovered label's block hugs
+   its line like a page row's instead of filling the gap too. */
 .sidebar-group > .tree-dir { --row-pt: 0.85rem; }
 .sidebar-group > .tree-dir > .sidebar-section-btn.tree-toggle,
-.sidebar-group > .tree-dir > .tree-label { padding-top: var(--row-pt); }
+.sidebar-group > .tree-dir > .tree-label { margin-top: calc(var(--row-pt) - 3px); padding-top: 3px; }
 .sidebar-subgroup > .tree-dir { --row-pt: 3px; }
 
 /* ─── Mobile Menu link: "> docs" ─────────────────────────────────── */
