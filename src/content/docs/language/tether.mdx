@@ -1,7 +1,7 @@
 ---
 order: 18
 title: Tether
-description: Tether, a compile-time proof engine for pointer safety in Kairo. Bounds, provenance, lifetime, ownership, and data-race freedom as proof obligations over the whole-program graph.
+description: "Tether, Kairo's compile-time proof engine for pointer safety: bounds, provenance, lifetime, ownership and data-race freedom proved over the whole program."
 ---
 
 # Tether
@@ -28,9 +28,8 @@ never analyzed. The programmer owns their correctness.
 > Tether is not yet implemented. The current compiler is **Stage 1**; Tether development begins
 > at **Stage 2**. The roadmap:
 >
-> - **Stage 0** (frozen): C++ compiler, transpiles Kairo to C++. Kept only to bootstrap Stage 1.
-> - **Stage 1** (current): self-hosted compiler. Lowers Kairo to a Clang token stream:
->   declarations, definitions, ordering, mangling. No lifetime analysis.
+> - **Stage 0** (frozen): bootstrap compiler written in C++. Kept only to bootstrap Stage 1.
+> - **Stage 1** (current): self-hosted compiler. No lifetime analysis.
 > - **Stage 1.5**: Stage 1 migrated to Kairo's standard library, fully self-hosting.
 > - **Stage 2**: compiler rewritten using Kairo's extended feature set. **Tether work begins here.**
 >

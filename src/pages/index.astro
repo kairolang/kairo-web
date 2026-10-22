@@ -1,15 +1,17 @@
 ---
+// Section backgrounds alternate: hero (its own field) · stats (drifting field) ·
+// showcase · install (plain) · CTA (drifting field). Every section is a top-level
+// <section> (body > section), so each one is a scroll-snap detent.
 import CodeShowcase from '../components/landing/CodeShowcase.astro';
 import Cta from '../components/landing/Cta.astro';
-import Features from '../components/landing/Features.astro';
 import Hero from '../components/landing/Hero.astro';
 import QuickInstall from '../components/landing/QuickInstall.astro';
 import Stats from '../components/landing/Stats.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 <BaseLayout
-  title="Kairo"
-  description="Kairo is a systems programming language with the raw power of C++ and zero compromises on performance."
+  title="Kairo Programming Language — The Language Beyond C++"
+  description="Kairo is an open-source systems programming language with native, bidirectional C++ interop: C++ performance and modern safety, with no bindings to maintain."
   type="home"
 >
   <Hero />

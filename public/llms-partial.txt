@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-16T19:11:06.807Z
+> Generated: 2026-10-22T06:47:18.533Z
 
 ---
 
@@ -17,12 +17,12 @@ SECTION: GETTING STARTED
 URL: https://www.kairolang.org/docs/
 
 > [!WARNING]
-> The language reference describes Stage 1 Kairo. Not the Stage 0 compiler. Stage 1 is still under development and the syntax and standard library may change before 1.0. The Stage 0 compiler is stable and can be used to build Kairo programs, but it does not yet support all Stage 1 features. See [Implementation Status](/docs/status) for what is not compiled yet.
+> The language reference describes Stage 1 Kairo. Not the Stage 0 compiler. Stage 1 is still under development and the syntax and standard library may change before 1.0. The Stage 0 compiler is stable and can be used to build Kairo programs, but it does not yet support all Stage 1 features. See [Implementation Status](/docs/status/) for what is not compiled yet.
 
 
 # Kairo
 
-Kairo is a statically typed, compiled systems language with native bidirectional C++ interoperability.
+Kairo is an open-source, statically typed, compiled systems programming language with native bidirectional C++ interoperability.
 C++ projects can `#include` Kairo files directly. Kairo code calls C++ libraries without a binding
 layer. The compiler emits ABI-compatible object code that links with GCC, Clang, or MSVC output.
 
@@ -138,9 +138,8 @@ std::println(f"origin: ({origin.x}, {origin.y})")
 
 ## Status
 
-Kairo is in active development. The **Stage 1** compiler, written in Kairo, is the current
-compiler: it lowers Kairo to a Clang token stream and compiles it with a pinned Clang, and it
-cross-compiles to every curated sysroot target. See [Implementation Status](/docs/status) for the
+Kairo is in active development. The **Stage 1** compiler, written in Kairo, is the in-progress
+alpha compiler, and it cross-compiles to every curated sysroot target. See [Implementation Status](/docs/status/) for the
 gaps. **Stage 0**, the original C++ implementation that transpiled Kairo to C++, is frozen and
 only kept to bootstrap Stage 1.
 
@@ -151,11 +150,11 @@ reflects the current language design.
 
 ## Next Steps
 
-- [Philosophy](/docs/philosophy) understand the design principles
-- [Primitives](/docs/language/primitives) start with the type system
-- [Classes](/docs/language/classes) objects, inheritance, virtual dispatch
-- [C/C++ Interop](/docs/language/c-cpp) calling C++ from Kairo and back
-- [Example: HTTP Server](/docs/examples/http-server) a complete project walkthrough
+- [Philosophy](/docs/philosophy/) understand the design principles
+- [Primitives](/docs/language/primitives/) start with the type system
+- [Classes](/docs/language/classes/) objects, inheritance, virtual dispatch
+- [C/C++ Interop](/docs/language/c-cpp/) calling C++ from Kairo and back
+- [Example: HTTP Server](/docs/examples/http-server/) a complete project walkthrough
 
 ---
 
@@ -725,7 +724,7 @@ Kairo's `string` is a four-word value (32 bytes on 64-bit): `{data, len, cp_len,
 - **Byte indexing:** `s.bytes[i]` returns a raw `u8` at byte offset `i`. This is O(1) always but returns raw UTF-8 bytes, not characters.
 - **Iteration:** `for ch in s` yields `char` values (decoded codepoints) sequentially.
 
-See [Primitives](/docs/language/primitives#strings) for the full string API.
+See [Primitives](/docs/language/primitives/#strings) for the full string API.
 
 ### Identifiers
 
@@ -773,7 +772,7 @@ Kairo primitives, conversions to C++ string types are implicit:
 | `as cxx::std::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
 | C `const char*` | Null-terminated UTF-8 `u8` pointer | Implicit conversion; no `unsafe` block required |
 
-See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp/) for the full FFI model.
 
 ### What Kairo Does Not Do
 
@@ -845,8 +844,8 @@ DWARF 4 is available via `--dwarf-version=4` for targets that require it
 
 What Kairo emits:
 
-- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14`. Kairo lowers to a
-  Clang token stream and Clang's frontend tags the compilation unit as C++. A
+- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14` so existing C++
+  debuggers and tooling work unchanged. A
   proper `DW_LANG_Kairo` language tag will be registered with the DWARF
   committee once the language spec stabilizes.
 - Source file paths in DWARF use the paths as given to the compiler, resolved
@@ -915,7 +914,7 @@ When Kairo calls into C++ via `ffi "c++" import`, the C++ code is compiled by
 Clang using the same backend invocation. Headers are compiled by the pinned
 Clang at the standard `--cxx-std` selects: `c++17`, `c++20` (default), or
 `c++23`. What that covers, and what it does not yet (named modules, for one),
-is listed in the [coverage matrix](/docs/language/c-cpp#coverage-matrix).
+is listed in the [coverage matrix](/docs/language/c-cpp/#coverage-matrix).
 
 The ABI boundary between Kairo-emitted code and C++-emitted code is:
 
@@ -946,7 +945,7 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe`
   block.
 
-See [C/C++ Interop](/docs/language/c-cpp) and [Unsafe](/docs/language/unsafe)
+See [C/C++ Interop](/docs/language/c-cpp/) and [Unsafe](/docs/language/unsafe/)
 for the full FFI safety model.
 
 ---
@@ -1000,8 +999,9 @@ depending on whether the optimizer's heuristics fire).
   standard in Kairo.
 - **MISRA / CERT / SEI coding standards**: These are auditable properties of
   specific programs, not language-level guarantees. Kairo does not ship a MISRA
-  checker, and there is no generated C++ source to hand to one: the compiler
-  feeds Clang a token stream, not a file.
+  checker, and Kairo does not generate source in any other language to hand to
+  one. The only C++ it generates is headers, for interop or integrated CI checks
+  (e.g. when shipping a C++ library written in Kairo).
 - **ISO/IEC 9899 (C standard)**: Same as C++. C interop works through the FFI
   layer. Kairo is not a C compiler.
 
@@ -1046,15 +1046,15 @@ it. Each entry is removed when the gap closes.
 | Map literals `{k: v}` | Not compiled | — |
 | File-scope `var` | Not compiled | Move the variable into a function, or use `eval` for constants |
 | Initializing a `const` field in a constructor | Not supported | — |
-| Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
+| Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
 | Associated types (`type Node` in an interface) | Not parsed yet | — |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
 | Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | — |
-| Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
+| Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | — |
 | Static fields (`static count: i32` in a class) | Type-check, but do not link: no definition is emitted yet | Use a file-scope `static` variable |
-| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
-| A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
+| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
+| A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 
 ---
 
@@ -1068,28 +1068,28 @@ diagnostic. This covers `priv` constructors and writes to `const` fields.
 ## Not Diagnosed
 
 Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with
-the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether) lands; until
+the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether/) lands; until
 then, pass a `var` or a `[T]` to any function that keeps what it is given. See
-[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+[Primitives](/docs/language/primitives/#how-long-a-slice-literals-storage-lives).
 
 Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not
-reported. See [Enums](/docs/language/enums#destructuring-with-match).
+reported. See [Enums](/docs/language/enums/#destructuring-with-match).
 
 Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a
-default constructor. See [Generic Bodies](/docs/language/interfaces#generic-bodies).
+default constructor. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
 
-Three [`extend`](/docs/language/extends) rules are not diagnosed yet:
+Three [`extend`](/docs/language/extends/) rules are not diagnosed yet:
 
 - A plain `extend` outside the type's file, or an `extend ... impl` in neither the type's nor the interface's
-  file, is accepted. See [Same-File Restriction](/docs/language/extends#same-file-restriction).
+  file, is accepted. See [Same-File Restriction](/docs/language/extends/#same-file-restriction).
 - Calling an extension member whose bounds the type arguments do not satisfy is not reported at the call site.
-  See [Generic Extends](/docs/language/extends#generic-extends).
+  See [Generic Extends](/docs/language/extends/#generic-extends).
 - An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See
-  [Interface Conformance](/docs/language/extends#interface-conformance).
+  [Interface Conformance](/docs/language/extends/#interface-conformance).
 
-A [generator](/docs/language/functions#generator-lifetimes) that outlives the object it was created from, or
+A [generator](/docs/language/functions/#generator-lifetimes) that outlives the object it was created from, or
 an `@inout` argument it was given, is not caught; it dangles. This becomes an error when
-[Tether](/docs/language/tether) covers generators. Until then, do not keep a generator longer than the object
+[Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object
 it came from.
 
 ---
@@ -1097,10 +1097,10 @@ it came from.
 ## Language Gaps
 
 - A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See
-  [C & C++ Interoperability](/docs/language/c-cpp#strings-and-const-char).
+  [C & C++ Interoperability](/docs/language/c-cpp/#strings-and-const-char).
 - Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object
   and for primitive operators whose two operands both have side effects. See
-  [Operators](/docs/language/operators#evaluation-order).
+  [Operators](/docs/language/operators/#evaluation-order).
 
 ---
 
@@ -1132,9 +1132,9 @@ hold it, up to `i512`. See [Literal inference](#5-literal-inference--a-separate-
 | `u16` | 2 bytes | Unsigned 16-bit integer | `uint16_t` |
 | `u32` | 4 bytes | Unsigned 32-bit integer | `uint32_t` |
 | `u64` | 8 bytes | Unsigned 64-bit integer | `uint64_t` |
-| `u128` | 16 bytes | [Unsigned 128-bit integer]((#extended-width-integers-u128u512-i128i512)) | `__uint128_t` |
-| `u256` | 32 bytes | [Unsigned 256-bit integer]((#extended-width-integers-u128u512-i128i512)) |   |
-| `u512` | 64 bytes | [Unsigned 512-bit integer]((#extended-width-integers-u128u512-i128i512)) |   |
+| `u128` | 16 bytes | [Unsigned 128-bit integer](#extended-width-integers-u128u512-i128i512) | `__uint128_t` |
+| `u256` | 32 bytes | [Unsigned 256-bit integer](#extended-width-integers-u128u512-i128i512) |   |
+| `u512` | 64 bytes | [Unsigned 512-bit integer](#extended-width-integers-u128u512-i128i512) |   |
 | `i8` | 1 byte | Signed 8-bit integer | `int8_t` |
 | `i16` | 2 bytes | Signed 16-bit integer | `int16_t` |
 | `i32` | 4 bytes | Signed 32-bit integer | `int32_t` |
@@ -1243,7 +1243,7 @@ var y: f80 = 1.0    // error P003E: long double is binary128 here; use f128
 ## Implicit Conversions
 
 Integer and float types can be **implicitly widened** `i32` to `i64`, `f32` to `f64` but narrowing
-conversions require an explicit cast. See [Casting](/docs/language/casting) for details.
+conversions require an explicit cast. See [Casting](/docs/language/casting/) for details.
 
 ```kairo
 var a: i32 = 42
@@ -1383,11 +1383,11 @@ var void_t: MyObj<void> = MyObj<void>()  // void is valid here
 | `*T` | 8 bytes | Safe pointer non-null, compiler-tracked |
 | `unsafe *T` | 8 bytes | Raw pointer nullable, no safety checks |
 
-`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [Tether](/docs/language/tether). See [Pointers](/docs/language/pointers) for full details.
+`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [Tether](/docs/language/tether/). See [Pointers](/docs/language/pointers/) for full details.
 
 `unsafe *T` is a raw C-style pointer with no compiler tracking. It can be null, and dereferencing a null
 
-`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-cpp), custom allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers) and [Unsafe](/docs/language/unsafe) for full details.
+`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-cpp/), custom allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers/) and [Unsafe](/docs/language/unsafe/) for full details.
 
 ```kairo
 var x = 42
@@ -1549,7 +1549,7 @@ and use that.
 
 > [!WARNING]
 > One case is not caught: passing a slice literal to a function that **stores** the slice. The literal's
-> storage ends with the statement, and the stored slice then points at nothing. Until [Tether](/docs/language/tether)
+> storage ends with the statement, and the stored slice then points at nothing. Until [Tether](/docs/language/tether/)
 > checks this, it is the programmer's responsibility.
 
 #### Slices in fields
@@ -1796,7 +1796,7 @@ step is required, so `u32 → i32` is E), and the signed→unsigned quadrant is 
 
 Float→int is E in all cases. The cast truncates toward zero and saturates on
 out-of-range values; it is never undefined behavior. See
-[Casting](/docs/language/casting#float-to-integer).
+[Casting](/docs/language/casting/#float-to-integer).
 
 ---
 
@@ -1935,7 +1935,7 @@ Conversion sequences have exactly two ranks:
 There is deliberately no ordering *within* rank 2. If two candidates are both reachable
 by W, the call is **ambiguous** and errors, even if one conversion is "narrower" in some
 intuitive sense. No `i32 → i64` beats `i32 → f64` tiebreaking. No promotion-vs-conversion
-distinction. The tie-breaks in [Function Overloading](/docs/language/functions#function-overloading)
+distinction. The tie-breaks in [Function Overloading](/docs/language/functions/#function-overloading)
 (reference binding, non-generic over generic, most specialized generic) never order conversions, so "no
 ordering within rank 2" still holds, and so does the guarantee below. This is the property that makes the
 flag safe:
@@ -2006,7 +2006,7 @@ URL: https://www.kairolang.org/docs/language/variables/
 
 > Variables in Kairo are mutable by default. `const` bindings at local scope require an initializer, but
 > class-level `const` members can be left uninitialized at declaration and assigned exactly once in the
-> constructor body. See [Classes](/docs/language/classes#const-members-in-constructors) for details.
+> constructor body. See [Classes](/docs/language/classes/#const-members-in-constructors) for details.
 
 ```kairo
 var x = 42
@@ -2043,7 +2043,7 @@ var c: u8 = 42      // explicitly u8
 var d = "hello"     // inferred as string
 ```
 
-See [Primitives](/docs/language/primitives) for default type rules integer literals default to `i32`, float
+See [Primitives](/docs/language/primitives/) for default type rules integer literals default to `i32`, float
 literals default to `f64`.
 
 ---
@@ -2128,7 +2128,7 @@ eval PI = 3.14159
 eval MAX_SIZE = 1024 * 1024
 ```
 
-`eval` bindings are implicitly `const`. See [Eval](/docs/language/eval) for full details on compile-time
+`eval` bindings are implicitly `const`. See [Eval](/docs/language/eval/) for full details on compile-time
 evaluation, including `eval` functions and restrictions.
 
 ---
@@ -2142,7 +2142,7 @@ evaluation, including `eval` functions and restrictions.
 static counter: i32 = 0
 ```
 
-`static` can be combined with `const` for immutable static data. See [Modules](/docs/language/modules) for
+`static` can be combined with `const` for immutable static data. See [Modules](/docs/language/modules/) for
 `static` at module scope.
 
 ---
@@ -2288,7 +2288,7 @@ var x = unwrap!(maybe_value)   // panics if null
 ```
 
 `unwrap!()` desugars to a null check followed by a `panic` on the null path. The caller must be inside
-a `try` block or in a function with the `panic` specifier. See [Panic](/docs/language/panic) for the
+a `try` block or in a function with the `panic` specifier. See [Panic](/docs/language/panic/) for the
 panic model.
 
 ### Const interaction
@@ -2342,8 +2342,8 @@ if raw != &null {
 }
 ```
 
-See [Pointers](/docs/language/pointers) for the full pointer model and how
-[Tether](/docs/language/tether) tracks pointer provenance.
+See [Pointers](/docs/language/pointers/) for the full pointer model and how
+[Tether](/docs/language/tether/) tracks pointer provenance.
 
 ---
 
@@ -2423,7 +2423,7 @@ ptr = &ptr3    // compile error: ptr is const
 
 `*const T` answers "can I write through *this* pointer?". It does not answer "can anyone change
 this value?". Another pointer to the same value may still be writable. See
-[Ownership](/docs/language/ownership#pointer-aliasing).
+[Ownership](/docs/language/ownership/#pointer-aliasing).
 
 ### A practical example
 
@@ -2488,7 +2488,7 @@ Variables are block-scoped and destroyed at the end of their enclosing block.
 // x is no longer accessible
 ```
 
-[Tether](/docs/language/tether) performs full-program analysis to track lifetimes automatically no lifetime
+[Tether](/docs/language/tether/) performs full-program analysis to track lifetimes automatically no lifetime
 annotations are required. If Tether determines that a pointer outlives its referent and cannot automatically
 promote the pointer (to a shared, weak, or unique smart pointer), it emits a compile error.
 
@@ -2501,7 +2501,7 @@ var y = &x
 std::println(*y)      // Tether error: y's safety cannot be guaranteed at this point
 ```
 
-See [Tether](/docs/language/tether) and [Ownership](/docs/language/ownership) for the full lifetime and borrowing
+See [Tether](/docs/language/tether/) and [Ownership](/docs/language/ownership/) for the full lifetime and borrowing
 model.
 
 ---
@@ -2556,7 +2556,7 @@ Unsigned overflow wraps around (modular arithmetic). Signed overflow depends on 
 - **Debug:** crashes with a diagnostic.
 - **Release:** wraps around silently.
 
-See [Primitives](/docs/language/primitives) for full details on numeric type behavior.
+See [Primitives](/docs/language/primitives/) for full details on numeric type behavior.
 
 ### Floating-point overflow
 
@@ -2688,7 +2688,7 @@ interface <T> Steppable {
 
 > [!NOTE]
 > Types do not need to explicitly `impl Steppable`. If a type satisfies the required method signatures, it
-> is automatically compatible with range operators. See [Interfaces](/docs/language/interfaces) for details
+> is automatically compatible with range operators. See [Interfaces](/docs/language/interfaces/) for details
 > on structural conformance.
 
 Ranges also work with slicing on strings and collections:
@@ -2744,7 +2744,7 @@ info.get_pretty_name()     // "i32"
 info.get_size()            // 4
 ```
 
-See [Type System](/docs/language/type-system) for full `TypeInfo` details.
+See [Type System](/docs/language/type-system/) for full `TypeInfo` details.
 
 ---
 
@@ -2777,14 +2777,14 @@ var v = Vector2D { x: 1.0, y: 2.0 }
 var s = v as string   // "Vector2D(1.0, 2.0)"
 ```
 
-See [Casting](/docs/language/casting) for the full conversion rules.
+See [Casting](/docs/language/casting/) for the full conversion rules.
 
 ---
 
 ## Operator Overloading
 
-Operators are overloaded by defining `fn op` methods on a class or [struct](/docs/language/structures), or
-in an [extension](/docs/language/extends). The syntax mirrors the operator being defined. An extension may
+Operators are overloaded by defining `fn op` methods on a class or [struct](/docs/language/structures/), or
+in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may
 declare any overloadable operator except `as`, `[]`, `->`, `.*`, `->*` and `delete`, which are
 **member-only**: they must be declared in the type's own body.
 
@@ -2907,7 +2907,7 @@ fn op r++ (self) -> T    // postfix: x++ the ++ is on the right of the operand
 
 # Const Overloading Operators
 
-`op []`, `op .*`, `op ->*` and `op ->` may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. For a place overload, the `const self` version returns `*const T` where the `self` version returns `*T` (see [Places and values](#places-and-values------)). This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions#const-overloading-restriction) for details.
+`op []`, `op .*`, `op ->*` and `op ->` may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. For a place overload, the `const self` version returns `*const T` where the `self` version returns `*T` (see [Places and values](#places-and-values------)). This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions/#const-overloading-restriction) for details.
 
 ```kairo
 class Buffer {
@@ -3060,7 +3060,7 @@ var p = &b[1]      // *i32 into b.data
 
 ### Delete Operator
 
-`op delete` defines custom destruction logic. If not defined, the compiler generates a default destructor. If any member has a deleted destructor (`fn op delete() = delete`), the containing type's destructor is also deleted and instances must be managed in an [unsafe](/docs/language/unsafe) context.
+`op delete` defines custom destruction logic. If not defined, the compiler generates a default destructor. If any member has a deleted destructor (`fn op delete() = delete`), the containing type's destructor is also deleted and instances must be managed in an [unsafe](/docs/language/unsafe/) context.
 
 > [!NOTE]
 > The `op delete` operator is **not** the same as C++'s `delete` operator. Kairo's `op delete` is simply a cleanup hook that can either be explicitly called or automatically invoked when a value goes out of scope. It is not used to free memory allocated with `@create T()`.
@@ -3075,7 +3075,7 @@ class FileHandle {
 }
 ```
 
-See [Tether](/docs/language/tether) for details on destruction order and allocator interaction.
+See [Tether](/docs/language/tether/) for details on destruction order and allocator interaction.
 
 
 ---
@@ -3147,7 +3147,7 @@ equal precedence and associate in the direction shown.
 
 `if` and `try` expressions bind looser than every operator. Their last arm extends as far right as it can, so
 `x + if c => 1 else => 2 + 5` is `x + (if c => 1 else => (2 + 5))`. An `if` or `try` used as an operand
-produces a warning ([S078W](/docs/language/diagnostics#s078w-if-or-try-expression-as-an-operators-operand));
+produces a warning ([S078W](/docs/language/diagnostics/#s078w-if-or-try-expression-as-an-operators-operand));
 parenthesize it: `x + (if c => 1 else => 2) + 5`.
 
 A `match` expression closes with `}` and binds as a primary expression: `match k { ... } + 1` needs no
@@ -3155,7 +3155,7 @@ parentheses.
 
 `=>` is punctuation, not an operator: it has no precedence and cannot be overloaded. It introduces the value
 of an arm in the value forms of `if`, `match`, and `try`. See
-[Control Flow](/docs/language/control-flow#if-as-an-expression-ternary-equivalent).
+[Control Flow](/docs/language/control-flow/#if-as-an-expression-ternary-equivalent).
 
 `as` binds looser than every prefix operator and tighter than every binary one: `-1 as u8` casts `-1`,
 `&x as *const T` casts the address, and `x as i64 + 1` is `(x as i64) + 1`.
@@ -3183,10 +3183,10 @@ f(g(&n), g(&n))     // always f(10, 20)
 
 Named arguments follow the same rule: they run in the order written, not parameter order. Defaults for
 omitted arguments run after all explicit arguments, in parameter order. See
-[Functions](/docs/language/functions#evaluation-order).
+[Functions](/docs/language/functions/#evaluation-order).
 
 `&&` and `||` are also left to right, with short-circuiting. See
-[Control Flow](/docs/language/control-flow).
+[Control Flow](/docs/language/control-flow/).
 
 The operands of a primitive operator follow C++ and their order is unspecified: in `a() + b()`, either call
 may run first.
@@ -3206,7 +3206,7 @@ For C++ developers the following C++ operators have no equivalent in Kairo:
 | `,` (comma operator) | Not supported use separate statements |
 | `new` / `delete` | `@create T()` / automatic via Tether, or `op delete` for custom destructors |
 | `typeid` | `typeof expr` returns `TypeInfo` |
-| `const_cast` / `reinterpret_cast` / `static_cast` / `dynamic_cast` | `as` for safe casts; see [Casting](/docs/language/casting) |
+| `const_cast` / `reinterpret_cast` / `static_cast` / `dynamic_cast` | `as` for safe casts; see [Casting](/docs/language/casting/) |
 
 ---
 
@@ -3256,9 +3256,9 @@ final `else` is mandatory. All arms must produce the same type.
 
 #### Arms are expressions, not blocks
 
-A braced arm is an error ([S073E](/docs/language/diagnostics#s073e-braced-value-arm-in-an-if-try-or-match-expression)),
+A braced arm is an error ([S073E](/docs/language/diagnostics/#s073e-braced-value-arm-in-an-if-try-or-match-expression)),
 and the compiler offers a fix-it. An arm needs a value: `=>` with nothing after it is an error. For several
-statements, use a [statement expression](/docs/language/operators#statement-expressions):
+statements, use a [statement expression](/docs/language/operators/#statement-expressions):
 
 ```kairo
 var v = if ready => ({ var t = load(); t.normalize(); (t.value); }) else => 0
@@ -3279,7 +3279,7 @@ draw(if wide => 80 else => 40, height)
 ```
 
 Using an `if` as the operand of an operator is legal, but it produces a warning
-([S078W](/docs/language/diagnostics#s078w-if-or-try-expression-as-an-operators-operand)). Parenthesize it:
+([S078W](/docs/language/diagnostics/#s078w-if-or-try-expression-as-an-operators-operand)). Parenthesize it:
 
 ```kairo
 var w = base + (if wide => 80 else => 40)
@@ -3304,9 +3304,9 @@ Inside an arm the ordinary rule applies: break after an operator, not before it.
 
 A nested `if` in any arm except the last must be in parentheses, and so must an `if` used as a condition.
 Otherwise it is a compile error
-([S077E](/docs/language/diagnostics#s077e-nested-if-or-try-expression-must-be-parenthesized)), and the
+([S077E](/docs/language/diagnostics/#s077e-nested-if-or-try-expression-must-be-parenthesized)), and the
 compiler offers a fix-it. A nested `if` in the final `else` arm is allowed, but write it as `else if`:
-`else => if` produces a warning ([S079W](/docs/language/diagnostics#s079w--between-else-and-if-is-redundant)).
+`else => if` produces a warning ([S079W](/docs/language/diagnostics/#s079w--between-else-and-if-is-redundant)).
 
 ```kairo
 var r = if a => (if b => 1 else => 2) else => 3     // ok
@@ -3425,7 +3425,7 @@ match result {
 }
 ```
 
-See [Enums](/docs/language/enums#adt-enums) for ADT enum declarations and construction.
+See [Enums](/docs/language/enums/#adt-enums) for ADT enum declarations and construction.
 
 ### `where` guards
 
@@ -3534,13 +3534,13 @@ var message = match result {
 Each arm is `case pattern => value` or `default => value`. All arms must produce the same type.
 
 - Arms are not separated by commas. A comma between arms is an error
-  ([S076E](/docs/language/diagnostics#s076e-match-arms-separated-by-a-comma)).
+  ([S076E](/docs/language/diagnostics/#s076e-match-arms-separated-by-a-comma)).
 - Guards come before the arrow: `case .Found(var v) where v > 0 => v`.
 - You may break before or after `=>`.
 - A `match` closes with `}`, so it can be used directly as an operand: `var n = match k { ... } + 1`. The
   parentheses rule for `if` and `try` does not apply to it.
 - All arms of one `match` use the same form, either all `=>` or all `{ }`. Mixing the two is an error
-  ([S075E](/docs/language/diagnostics#s075e-match-arms-mix--and---forms)).
+  ([S075E](/docs/language/diagnostics/#s075e-match-arms-mix--and---forms)).
 - In statement position, a `match` whose arms are all `=>` is an expression, and exhaustiveness is
   required as for any `match` expression. A `match` with block arms is a statement.
 
@@ -3620,8 +3620,8 @@ for item in collection {
 
 The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type
 that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does
-not make it iterable. See [Operators](/docs/language/operators#ranges) for the `Steppable` interface and
-[Operators](/docs/language/operators#special-operators) for the `op in` overload.
+not make it iterable. See [Operators](/docs/language/operators/#ranges) for the `Steppable` interface and
+[Operators](/docs/language/operators/#special-operators) for the `op in` overload.
 
 An imported C++ class iterates the way a C++ range-based `for` does: through its member `begin()` and
 `end()`, or else through free `begin()` and `end()` functions found by argument-dependent lookup.
@@ -3721,7 +3721,7 @@ with no fall-through by default).
 
 `try`/`catch` handles panics from functions annotated with the `panic` specifier. The compiler statically
 verifies that `catch` blocks cover all panic types that can propagate from the `try` body uncovered types
-are a compile error. See [Panic](/docs/language/panic) for the full panic model.
+are a compile error. See [Panic](/docs/language/panic/) for the full panic model.
 
 ```kairo
 try {
@@ -3905,7 +3905,7 @@ fn divide(a: i32, b: i32) panic -> i32 {
 }
 ```
 
-See [Panic](/docs/language/panic) for the full panic model, including `Panickable<T>`, desugaring semantics,
+See [Panic](/docs/language/panic/) for the full panic model, including `Panickable<T>`, desugaring semantics,
 and the zero-cost codegen strategy.
 
 ---
@@ -3936,7 +3936,7 @@ order.
 ```
 
 A plain block does not produce a value. To compute a value with statements, use a
-[statement expression](/docs/language/operators#statement-expressions), whose value is its last expression:
+[statement expression](/docs/language/operators/#statement-expressions), whose value is its last expression:
 
 ```kairo
 var result = ({
@@ -3967,7 +3967,7 @@ fn process() {
 All control flow constructs (`if`, `match`, `for`, `while`, `loop`, `try`) create implicit blocks
 their bodies follow the same scoping and destruction rules.
 
-See [Variables](/docs/language/variables#scope-and-lifetime) and [Tether](/docs/language/tether) for full lifetime semantics.
+See [Variables](/docs/language/variables/#scope-and-lifetime) and [Tether](/docs/language/tether/) for full lifetime semantics.
 
 ---
 
@@ -3993,7 +3993,7 @@ control flow guarantees.
 
 Kairo does not have a `goto` keyword. `label!` and `jump!` are compiler intrinsics surfaced with macro
 syntax to make jump usage explicit and greppable in a codebase. They are not user-defined macros see
-[Macros](/docs/language/macros) for the macro system.
+[Macros](/docs/language/macros/) for the macro system.
 
 ---
 
@@ -4014,7 +4014,7 @@ eval if platform == "linux" {
 ```
 
 This is equivalent to `#if` / `#elif` / `#else` in C/C++, but operates on Kairo's compile-time evaluation
-system rather than a preprocessor. See [Eval](/docs/language/eval) for details on what qualifies as a
+system rather than a preprocessor. See [Eval](/docs/language/eval/) for details on what qualifies as a
 compile-time constant.
 
 ---
@@ -4088,13 +4088,13 @@ var x: i32 = if valid => compute() else => fatal("invalid state")
 // fatal() returns ! which coerces to i32
 ```
 
-See [Functions](/docs/language/functions) for return type syntax and [Type System](/docs/language/type-system) for how `!` interacts with type inference.
+See [Functions](/docs/language/functions/) for return type syntax and [Type System](/docs/language/type-system/) for how `!` interacts with type inference.
 
 ---
 
 ## `return`
 
-`return` exits the current function with a value. See [Functions](/docs/language/functions) for full details
+`return` exits the current function with a value. See [Functions](/docs/language/functions/) for full details
 on return types, `void` returns, and expression-bodied functions.
 
 ---
@@ -4124,9 +4124,9 @@ For C++ developers the following C++ constructs have no equivalent in Kairo:
 | `goto` | `label!` / `jump!` intrinsics |
 | `do { ... } while` | `loop` with a conditional `break` at the end |
 | `switch` fall-through | `match` but no fall-through |
-| `throw` / C++ exceptions | `panic` / `try`/`catch` (see [Panic](/docs/language/panic)) |
-| `#if` / `#ifdef` | `eval if` (see [Eval](/docs/language/eval)) |
-| `constexpr` / `consteval` | `eval` functions / vars (see [Eval](/docs/language/eval)) |
+| `throw` / C++ exceptions | `panic` / `try`/`catch` (see [Panic](/docs/language/panic/)) |
+| `#if` / `#ifdef` | `eval if` (see [Eval](/docs/language/eval/)) |
+| `constexpr` / `consteval` | `eval` functions / vars (see [Eval](/docs/language/eval/)) |
 
 ---
 
@@ -4246,7 +4246,7 @@ f0(7)       // same as f0(7, 2, 3)
 ```
 
 Out-of-line class methods have one more restriction: their defaults go on the in-class declaration. See
-[Classes](/docs/language/classes#rules).
+[Classes](/docs/language/classes/#rules).
 
 #### Evaluation order
 
@@ -4503,13 +4503,13 @@ The same holds for `*p` and for operators that return a reference, such as `cout
 `@move` is checked against the parameter's type, not just recorded:
 
 - **Move-only class:** `@move` is redundant, since passing already consumes the argument (see
-  [Ownership](/docs/language/ownership#function-parameters)), but it's allowed and checked.
+  [Ownership](/docs/language/ownership/#function-parameters)), but it's allowed and checked.
 - **Copy-only class:** `@move` is a compile error.
 - **Generic `T`:** `@move` is the only way to declare that the function consumes its argument. The body can
   then consume `x` whatever `T` turns out to be.
 
 In every case the call counts as the consuming use, and any later use of the argument in the caller is a
-[use-after-move error](/docs/language/ownership#moved-from-state).
+[use-after-move error](/docs/language/ownership/#moved-from-state).
 
 #### Imported-only forms
 
@@ -4563,7 +4563,7 @@ fn make(@inout out: [i32; 3]) {         // ok: the caller owns the array
 ```
 
 Returning a slice literal is also an error, because the literal's storage ends with the function. See
-[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+[Primitives](/docs/language/primitives/#how-long-a-slice-literals-storage-lives).
 
 ### No-return `!`
 
@@ -4603,8 +4603,8 @@ its respective page:
 | Return type | Description | Details |
 |---|---|---|
 | `yield T` | Generator: produces a sequence of `T` values | [Generators](#generators) |
-| `atomic T` | Atomic wrapper thread-safe operations | [Concurrency](/docs/language/concurrency) |
-| `thread T` | Thread-local storage | [Concurrency](/docs/language/concurrency) |
+| `atomic T` | Atomic wrapper thread-safe operations | [Concurrency](/docs/language/concurrency/) |
+| `thread T` | Thread-local storage | [Concurrency](/docs/language/concurrency/) |
 
 ### Generators
 
@@ -4672,7 +4672,7 @@ for x in it { }              // it reads a destroyed list
 
 > [!NOTE]
 > The current compiler does not report a generator that outlives what it refers to. See
-> [Implementation Status](/docs/status#not-diagnosed).
+> [Implementation Status](/docs/status/#not-diagnosed).
 
 ---
 
@@ -4767,7 +4767,7 @@ g([1, 2, 3])                // compile error: call to 'g' is ambiguous
 g([1, 2, 3] as [i32])       // ok
 ```
 
-See [Primitives](/docs/language/primitives#list-literal-arguments)
+See [Primitives](/docs/language/primitives/#list-literal-arguments)
 for the ranking rules.
 
 ### Unsafe overloads
@@ -4791,11 +4791,11 @@ var y = unsafe add(10, 20)   // calls the unsafe overload
 > [!NOTE]
 > `unsafe` overloads are not "unsafe memory" Tether still guarantees memory safety. The `unsafe` qualifier
 > signals that the function may not uphold other invariants that the safe version does. See
-> [Unsafe](/docs/language/unsafe) for the full unsafe model.
+> [Unsafe](/docs/language/unsafe/) for the full unsafe model.
 
 ### Const overloading restriction
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Place operators are exempt**, because they cannot be renamed: a place-returning operator (`[]`, `->`) may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#const-overloading-operators).
+`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Place operators are exempt**, because they cannot be renamed: a place-returning operator (`[]`, `->`) may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators/#const-overloading-operators).
 
 ```kairo
 class Foo {
@@ -4900,8 +4900,8 @@ fn <T derives Serializable> serialize(value: T) -> [byte] {
 > [!NOTE]
 > `impl` checks structural conformance the type satisfies the interface's required method signatures
 > without needing an explicit `impl` declaration. `derives` checks polymorphic inheritance the type is a
-> subclass of the specified class. See [Interfaces](/docs/language/interfaces) and
-> [Requires Clauses](/docs/language/requires) for details.
+> subclass of the specified class. See [Interfaces](/docs/language/interfaces/) and
+> [Requires Clauses](/docs/language/requires/) for details.
 
 ### Requires Clauses
 
@@ -4914,8 +4914,8 @@ fn <T impl ToString> print_value(value: T) requires sizeof T <= 64 {
 ```
 
 `requires` is a compile-time gate: the condition must hold at compile time or the program does not
-compile — no runtime fallback, no dispatch. See [Requires Clauses](/docs/language/requires) for the
-full constraint system and [Where Clauses](/docs/language/where) for runtime-conditional overload
+compile — no runtime fallback, no dispatch. See [Requires Clauses](/docs/language/requires/) for the
+full constraint system and [Where Clauses](/docs/language/where/) for runtime-conditional overload
 dispatch.
 
 ---
@@ -4938,14 +4938,14 @@ fn background() async -> Data          { /* ... */ }
 
 | Modifier | Free functions | Methods | Description |
 |---|---|---|---|
-| `const` | | Yes | Method does not modify `self`. See [Variables](/docs/language/variables#the-const-binding-rule) |
+| `const` | | Yes | Method does not modify `self`. See [Variables](/docs/language/variables/#the-const-binding-rule) |
 | `volatile` | Yes | Yes | Prevents certain compiler optimizations; for hardware interaction |
 | `unsafe` | Yes | Yes | Separate overload namespace for alternative implementations |
-| `eval` | Yes | Yes | Must be evaluable at compile time. See [Eval](/docs/language/eval) |
-| `async` | Yes | Yes | Asynchronous execution. See [Concurrency](/docs/language/concurrency) |
-| `panic` | Yes | Yes | May panic; callers must handle. See [Panic](/docs/language/panic) |
+| `eval` | Yes | Yes | Must be evaluable at compile time. See [Eval](/docs/language/eval/) |
+| `async` | Yes | Yes | Asynchronous execution. See [Concurrency](/docs/language/concurrency/) |
+| `panic` | Yes | Yes | May panic; callers must handle. See [Panic](/docs/language/panic/) |
 | `inline` | Yes | Yes | Puts the body in the interface. See [`inline`](#inline) |
-| `final` | | Yes | Prevents override in subclasses. See [Classes](/docs/language/classes) |
+| `final` | | Yes | Prevents override in subclasses. See [Classes](/docs/language/classes/) |
 
 ### `inline`
 
@@ -4999,8 +4999,8 @@ priv fn internal_helper() { /* ... */ }
 prot fn library_helper()  { /* ... */ }
 ```
 
-See [Modules](/docs/language/modules#visibility-on-top-level-declarations) for how visibility interacts
-with imports. Methods follow the member rules in [Classes](/docs/language/classes#default-visibility).
+See [Modules](/docs/language/modules/#visibility-on-top-level-declarations) for how visibility interacts
+with imports. Methods follow the member rules in [Classes](/docs/language/classes/#default-visibility).
 
 ---
 
@@ -5010,10 +5010,10 @@ ABI modifiers control name mangling, dispatch mechanism, and symbol visibility a
 
 | Modifier | Description |
 |---|---|
-| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-cpp) |
-| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-cpp) |
+| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-cpp/) |
+| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-cpp/) |
 | `static` | Internal linkage; no vtable dispatch. Cannot be `virtual` or `override` |
-| `virtual` | Dynamic dispatch via vtable. See [Classes](/docs/language/classes) |
+| `virtual` | Dynamic dispatch via vtable. See [Classes](/docs/language/classes/) |
 | `override` | Overrides a `virtual` method from a base class; implies `virtual` |
 
 `static`, `virtual`, and `override` are mutually exclusive with each other. `ffi` can be combined with any
@@ -5079,8 +5079,8 @@ var scale = fn (x: i32) -> i32 { return x * multiplier }   // captures multiplie
 scale(10)   // 30
 ```
 
-See [Closures](/docs/language/closures) for capture modes (`|*|`, `|a, *b|`), lifetime rules, and how
-closures interact with [Tether](/docs/language/tether).
+See [Closures](/docs/language/closures/) for capture modes (`|*|`, `|a, *b|`), lifetime rules, and how
+closures interact with [Tether](/docs/language/tether/).
 
 ---
 
@@ -5099,7 +5099,7 @@ class Vec2 {
 }
 ```
 
-See [Operators](/docs/language/operators#operator-overloading) for the full list of overloadable operators,
+See [Operators](/docs/language/operators/#operator-overloading) for the full list of overloadable operators,
 special operator syntax (`l++`/`r++`, `op as`, `op in`, `op delete`), and restrictions.
 
 ---
@@ -5125,7 +5125,7 @@ fn is_odd(n: u32) -> bool  = if n == 0 => false else => is_even(n - 1)
 Forward declarations are used when the definition lives elsewhere:
 
 - **FFI imports** the body is provided by a C or C++ library. See
-  [C/C++ Interop](/docs/language/c-cpp).
+  [C/C++ Interop](/docs/language/c-cpp/).
 - **Separate translation units** the declaration is visible to callers; the
   definition is linked in from another `.k` file.
 - **Out-of-line class methods** declared in the class body, defined outside it using the `Class::method` qualified-name syntax:
@@ -5146,7 +5146,7 @@ Forward declarations are used when the definition lives elsewhere:
     fn Parser::peek(const self) -> Token = self.tokens[self.pos]
     ```
 
-    See [Classes](/docs/language/classes#forward-declarations-and-out-of-line-definitions) for the full rules.
+    See [Classes](/docs/language/classes/#forward-declarations-and-out-of-line-definitions) for the full rules.
 
 ### Signature matching
 
@@ -5400,7 +5400,7 @@ var divergent = fn () panic -> ! {
 > [!NOTE]
 > Closures cannot be `eval`, `const`, `unsafe`, `virtual`, `override`, `inline`, or `final`.
 
-See [Panic](/docs/language/panic) for the full panic model.
+See [Panic](/docs/language/panic/) for the full panic model.
 
 ---
 
@@ -5428,7 +5428,7 @@ var nested_mixed = fn () -> fn(i32) -> i32 {
 
 ## Tether and Lifetime Safety
 
-[Tether](/docs/language/tether) tracks closure captures the same way it tracks any other borrow. If a closure
+[Tether](/docs/language/tether/) tracks closure captures the same way it tracks any other borrow. If a closure
 captures a variable by pointer and the closure outlives the variable, Tether will attempt to auto-promote the
 capture to a smart pointer (shared, weak, or unique). If promotion is not possible, the compiler emits a
 hard error.
@@ -5638,7 +5638,7 @@ class Tree {
 ```
 
 The rule does not depend on where a method is written. It is identical in a `class`, `struct`, `union` or
-`interface` body, in an [`extend`](/docs/language/extends) block, in an out-of-line `fn Type::method`
+`interface` body, in an [`extend`](/docs/language/extends/) block, in an out-of-line `fn Type::method`
 definition, and inside a closure in any of those.
 
 `Self` (capitalized) is a type alias for the enclosing class. In a generic class `class <T> Foo`, `Self`
@@ -5714,7 +5714,7 @@ class Account {
 ```
 
 Visibility also applies at the top level a `priv class` is only accessible within its file, a `prot
-class` within its module and subclasses. See [Modules](/docs/language/modules) for how top-level
+class` within its module and subclasses. See [Modules](/docs/language/modules/) for how top-level
 visibility interacts with imports.
 
 > [!NOTE]
@@ -5743,7 +5743,7 @@ var p = Point(1.0, 2.0)
 ```
 
 Constructors support all the features of regular functions default parameters, named arguments,
-overloading by parameter types, generic type parameters. See [Functions](/docs/language/functions).
+overloading by parameter types, generic type parameters. See [Functions](/docs/language/functions/).
 
 ### Const members in constructors
 
@@ -5786,7 +5786,7 @@ var a = Defaults()     // ok: x is zero-initialized
 var b = NoDefault()    // compile error: default constructor is deleted
 ```
 
-See [Variables](/docs/language/variables#default-initialization) for default initialization rules.
+See [Variables](/docs/language/variables/#default-initialization) for default initialization rules.
 
 ---
 
@@ -5865,7 +5865,7 @@ fn Buffer(self, const other: Self) = default
 ```
 
 Inline placement (`@copy fn Buffer(self, const other: Self) = default`) is permitted but discouraged. See
-[Attributes](/docs/language/attributes) for the full attribute syntax.
+[Attributes](/docs/language/attributes/) for the full attribute syntax.
 
 ### The transfer constructor
 
@@ -5931,7 +5931,7 @@ class Bad {
 The one exception is both being `= delete`, the canonical **NON_TRANSFER** form.
 
 A class also cannot declare two transfer constructors of the same kind, such as `@copy` with and without
-`const` ([SC057E](/docs/language/diagnostics#sc057e-more-than-one-transfer-constructor)).
+`const` ([SC057E](/docs/language/diagnostics/#sc057e-more-than-one-transfer-constructor)).
 
 ### The four categories
 
@@ -6033,7 +6033,7 @@ This implies a consistency rule: if the transfer ctor has a body and `op delete`
 
 The converse is checked too. A defaulted `@copy` constructor requires every base and field to be copyable, and
 a defaulted `@move` requires every base and field to be movable or copyable. Otherwise it is a compile error
-([SC129E](/docs/language/diagnostics#sc129e-a-defaulted-transfer-constructor-cannot-be-generated)) naming the field. A transfer constructor with a body is exempt; it decides for itself how each field
+([SC129E](/docs/language/diagnostics/#sc129e-a-defaulted-transfer-constructor-cannot-be-generated)) naming the field. A transfer constructor with a body is exempt; it decides for itself how each field
 is transferred.
 
 ### Implicit-copy-with-custom-destructor warning
@@ -6056,7 +6056,7 @@ class UniqueFile {
 
 ### Tether copy elision
 
-For COPY classes, [Tether](/docs/language/tether) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. Tether does not elide if the move constructor is
+For COPY classes, [Tether](/docs/language/tether/) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. Tether does not elide if the move constructor is
 deleted. Users do not opt into or out of this optimization.
 
 ---
@@ -6218,7 +6218,7 @@ A copyable base with a move-only derived class is a compile error slicing a deri
 base pointer would otherwise silently copy the base subobject of a class that promised never to be
 copied.
 
-See [Casting](/docs/language/casting) for upcasting and downcasting.
+See [Casting](/docs/language/casting/) for upcasting and downcasting.
 
 ---
 
@@ -6349,7 +6349,7 @@ fn <T impl Hashable> insert(set: {T}, item: T) { ... }
 insert(my_set, Point(1.0, 2.0))   // compiles: Point has hash()
 ```
 
-See [Interfaces](/docs/language/interfaces) and [Requires Clauses](/docs/language/requires).
+See [Interfaces](/docs/language/interfaces/) and [Requires Clauses](/docs/language/requires/).
 
 ---
 
@@ -6434,7 +6434,7 @@ interface Defaultable {
 fn <T impl Copyable> store(item: T) -> T { ... }
 ```
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -6467,14 +6467,14 @@ not take `self` and cannot access instance members.
 
 > [!NOTE]
 > Static fields do not compile yet: an initializer on one is rejected, and without one the program does
-> not link. See [Status](/docs/status#not-compiled-yet).
+> not link. See [Status](/docs/status/#not-compiled-yet).
 
 ---
 
 ## Const Methods
 
 A method that takes `const self` promises not to modify the object (except `mutable` members). It is
-the ["can I change the pointee?"](/docs/language/variables#the-const-binding-rule) question asked
+the ["can I change the pointee?"](/docs/language/variables/#the-const-binding-rule) question asked
 about the receiver. Only `const` methods can be called through a `*const T` pointer or on a `const`
 binding:
 
@@ -6498,7 +6498,7 @@ sensor->value()        // ok: const method
 // sensor->calibrate(1.0)  // compile error: not const
 ```
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables#the-const-binding-rule).
+`const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables/#the-const-binding-rule).
 
 ### Mutable members
 
@@ -6547,7 +6547,7 @@ pub class Gate {
 Every module that uses `Gate` compiles `is_open` itself, so a call to it can be inlined there. Every
 `inline` method of a class goes with the class, whether or not Kairo code calls it, because the C++
 compiler may call methods Kairo never sees (`await_ready`, `initial_suspend`, ...). The class definition
-itself is unchanged: the bodies are emitted after it, outside it. See [Functions](/docs/language/functions#inline)
+itself is unchanged: the bodies are emitted after it, outside it. See [Functions](/docs/language/functions/#inline)
 for the rules.
 
 `inline` is allowed on `virtual` and `override` methods. If every virtual method of a class is `inline`, the
@@ -6740,7 +6740,7 @@ Special operators beyond arithmetic:
 `op =` is **not** user-definable it is auto-derived from the transfer constructor. See
 [Lifecycle Categories](#lifecycle-categories).
 
-See [Operators](/docs/language/operators#operator-overloading) for the full list of overloadable
+See [Operators](/docs/language/operators/#operator-overloading) for the full list of overloadable
 operators and restrictions.
 
 ---
@@ -6775,14 +6775,14 @@ A plain `var` declaration allocates on the stack:
 var obj = Foo(42)   // stack-allocated
 ```
 
-Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether) determines
+Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether/) determines
 whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
 var ptr = @create Foo(42)
 ```
 
-See [Pointers](/docs/language/pointers) and [Tether](/docs/language/tether).
+See [Pointers](/docs/language/pointers/) and [Tether](/docs/language/tether/).
 
 ---
 
@@ -6793,13 +6793,13 @@ Structs and classes are distinct types:
 | | Class | Struct |
 |---|---|---|
 | Member default visibility | `priv` for variables | `pub` for all members |
-| Methods in body | Yes | No (use [extends](/docs/language/extends)) |
+| Methods in body | Yes | No (use [extends](/docs/language/extends/)) |
 | Aggregate initialization | Only if the class declares no constructor | Yes (`Foo { field: value }`) |
 | Inheritance | `derives` | Not supported |
 | Virtual dispatch | Yes | No |
 | Lifecycle categories | Yes | N/A (no transfer constructors; copyable whenever every field is) |
 
-See [Structures](/docs/language/structures).
+See [Structures](/docs/language/structures/).
 
 ---
 
@@ -6884,7 +6884,7 @@ URL: https://www.kairolang.org/docs/language/structures/
 Structs are plain data types no constructors, no methods in the body, trivially copyable via `memcpy`.
 They exist for cases where you want a named bag of fields with aggregate initialization and no lifecycle
 management. If you need constructors, destructors, inheritance, or virtual dispatch, use a
-[class](/docs/language/classes).
+[class](/docs/language/classes/).
 
 ---
 
@@ -6902,7 +6902,7 @@ p.x   // 1.0
 
 The body contains only field declarations (`var`, `const`, `eval`, `static`) and nested type definitions.
 Methods and constructors are not permitted inside the struct body use
-[extends](/docs/language/extends) to add behavior.
+[extends](/docs/language/extends/) to add behavior.
 
 ---
 
@@ -6951,7 +6951,7 @@ var teal = Color::from_hex(0x008080)
 ## Visibility
 
 All struct members default to `pub`. You can explicitly mark a member `priv` or `prot`, but the compiler
-emits a warning if you need access control on fields, a [class](/docs/language/classes) is the better
+emits a warning if you need access control on fields, a [class](/docs/language/classes/) is the better
 fit.
 
 ```kairo
@@ -6994,7 +6994,7 @@ fn report(const self: Metrics) {
 }
 ```
 
-See [Classes](/docs/language/classes#mutable-members) for the `mutable` rationale and usage guidance.
+See [Classes](/docs/language/classes/#mutable-members) for the `mutable` rationale and usage guidance.
 
 ---
 
@@ -7012,7 +7012,7 @@ a.x   // still 1.0
 
 This is a hard guarantee. Extending a destructor (`fn op delete`), copy assignment (`fn op =`), or
 move assignment onto a struct is a compile error. If you need custom lifecycle management, use a
-[class](/docs/language/classes#the-rule-of-three).
+[class](/docs/language/classes/#the-rule-of-three).
 
 ---
 
@@ -7072,8 +7072,8 @@ extend Vec2 impl Drawable {
 ```
 
 The `extend` block and the struct definition must be in the same file the same restriction as Rust's
-`impl` blocks. See [Extends](/docs/language/extends) for the full `extend` system and
-[Interfaces](/docs/language/interfaces) for interface declarations.
+`impl` blocks. See [Extends](/docs/language/extends/) for the full `extend` system and
+[Interfaces](/docs/language/interfaces/) for interface declarations.
 
 ---
 
@@ -7109,7 +7109,7 @@ struct <T impl Comparable> Range {
 }
 ```
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -7158,7 +7158,7 @@ c.base.x   // 10
 ```
 
 This keeps aggregate initialization unambiguous and avoids layout questions that inheritance introduces.
-If you need polymorphism or a type hierarchy, use [classes](/docs/language/classes#inheritance).
+If you need polymorphism or a type hierarchy, use [classes](/docs/language/classes/#inheritance).
 
 ---
 
@@ -7179,7 +7179,7 @@ var { r, g, b } = color
 ```
 
 Use `_` to discard fields you do not need. See
-[Variables](/docs/language/variables#destructuring) for the full destructuring syntax.
+[Variables](/docs/language/variables/#destructuring) for the full destructuring syntax.
 
 ---
 
@@ -7209,7 +7209,7 @@ var local = Point { x: 1.0, y: 2.0 }           // stack
 var *heap = @create Point{ x: 1.0, y: 2.0 }    // heap
 ```
 
-See [Pointers](/docs/language/pointers) and [Tether](/docs/language/tether) for allocation and pointer semantics.
+See [Pointers](/docs/language/pointers/) and [Tether](/docs/language/tether/) for allocation and pointer semantics.
 
 ---
 
@@ -7238,7 +7238,7 @@ struct Node {
 | | Struct | Class |
 |---|---|---|
 | Member default visibility | `pub` | `priv` for variables |
-| Methods in body | No (use [extends](/docs/language/extends)) | Yes |
+| Methods in body | No (use [extends](/docs/language/extends/)) | Yes |
 | Constructors | No (aggregate init only) | Yes |
 | Destructors | No | Yes |
 | Copy semantics | `memcpy` (trivial) | Rule of Three |
@@ -7316,7 +7316,7 @@ URL: https://www.kairolang.org/docs/language/enums/
 Enums define a closed set of named variants. In their simplest form, each variant is an integer discriminant
 -- equivalent to a C++ `enum class`. Variants can also carry structured data (ADT enums), making them
 Kairo's mechanism for type-safe tagged unions. Dispatch on variants with `match`. See
-[Control Flow](/docs/language/control-flow#match) for the complete `match` syntax.
+[Control Flow](/docs/language/control-flow/#match) for the complete `match` syntax.
 
 ---
 
@@ -7361,9 +7361,9 @@ and `RW = Read | Write` work. `~` works in the underlying type: `All = ~0` in a 
 A variant without a discriminant is the previous value plus one, or 0 if it is first.
 
 A value that doesn't evaluate or doesn't fit the underlying type is
-[SC128E](/docs/language/diagnostics#sc128e-an-enum-discriminant-does-not-evaluate-or-does-not-fit). Two
+[SC128E](/docs/language/diagnostics/#sc128e-an-enum-discriminant-does-not-evaluate-or-does-not-fit). Two
 variants with the same value is
-[SC130E](/docs/language/diagnostics#sc130e-two-variants-of-an-enum-have-the-same-value); imported C++
+[SC130E](/docs/language/diagnostics/#sc130e-two-variants-of-an-enum-have-the-same-value); imported C++
 enums are exempt.
 
 Compound expressions are valid for bit flags:
@@ -7412,7 +7412,7 @@ permitted. The compiler errors if any discriminant does not fit in the specified
 
 > [!NOTE]
 > `derives` on an enum specifies the underlying integer type. This is distinct from `derives` on a
-> [class](/docs/language/classes#inheritance), which declares inheritance.
+> [class](/docs/language/classes/#inheritance), which declares inheritance.
 
 ---
 
@@ -7433,7 +7433,7 @@ an anonymous struct alongside the discriminant. A single enum can freely mix bot
 
 > [!NOTE]
 > A non-generic payload enum whose payload holds a type whose copy, move and destruction are not known
-> until instantiation (such as `Box<i32>` for a generic class `Box`) is not compiled yet. See [Status](/docs/status#not-compiled-yet).
+> until instantiation (such as `Box<i32>` for a generic class `Box`) is not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 ### Construction
 
@@ -7446,13 +7446,13 @@ There are three construction forms:
 | `.V` (or `Enum::V`) | Variant with no payload |
 
 A payload variant written without braces, braces on a variant without a payload, a missing field, or a
-field given twice is [SC131E](/docs/language/diagnostics#sc131e-a-variant-is-built-with-the-wrong-shape).
+field given twice is [SC131E](/docs/language/diagnostics/#sc131e-a-variant-is-built-with-the-wrong-shape).
 
 `Enum::V { field: value }` builds a payload variant anywhere; `.V { field: value }` and `.V` work where the
 expected type is known. A nullary variant takes no braces.
 
 ADT variants are constructed with the variant name followed by brace-delimited field assignment,
-matching [struct](/docs/language/structures) aggregate initialization:
+matching [struct](/docs/language/structures/) aggregate initialization:
 
 ```kairo
 enum <T> ParseResult {
@@ -7505,7 +7505,7 @@ fn report(result: ParseResult<f64>) -> string {
 
 > [!NOTE]
 > The current compiler does not report assigning to a `const` pattern binding yet. See
-> [Status](/docs/status#not-diagnosed).
+> [Status](/docs/status/#not-diagnosed).
 
 Field names in the destructuring pattern must match the names in the variant declaration. You can omit
 fields you do not need the compiler does not require exhaustive field extraction:
@@ -7528,7 +7528,7 @@ fn error_message(result: ParseResult<f64>) -> string {
 }
 ```
 
-See [Control Flow](/docs/language/control-flow#match) for the full `match` syntax, including guards
+See [Control Flow](/docs/language/control-flow/#match) for the full `match` syntax, including guards
 (`where`), ranges, and expression form.
 
 ### `match` as an expression
@@ -7552,7 +7552,7 @@ fn describe(result: ParseResult<f64>) -> string {
 ADT enums work in expression-form `match`. Each arm is `case pattern => value`, and every arm must produce
 the same type.
 
-See [Control Flow](/docs/language/control-flow#match-as-an-expression) for the full expression-form
+See [Control Flow](/docs/language/control-flow/#match-as-an-expression) for the full expression-form
 rules.
 
 ### Memory layout
@@ -7562,7 +7562,7 @@ a `u32`. A variant with no payload consumes no extra storage beyond the tag.
 
 > [!NOTE]
 > A `derives` type on an enum with payloads is accepted but ignored for now: the tag stays `u32`. See
-> [Status](/docs/status#not-compiled-yet).
+> [Status](/docs/status/#not-compiled-yet).
 
 ```
 ParseResult<f64> layout:
@@ -7575,7 +7575,7 @@ Copy and move operations follow the same pattern.
 ### Lifecycle category
 
 An enum whose variants carry payloads follows the struct rule for lifecycle: its
-[category](/docs/language/classes#lifecycle-categories) is the weakest of its payload fields' categories
+[category](/docs/language/classes/#lifecycle-categories) is the weakest of its payload fields' categories
 (COPY, then MOVE, then NON_TRANSFER), and it is trivially copyable or destructible only when every
 payload is. A plain enum is COPY.
 
@@ -7614,7 +7614,7 @@ enum <T impl Serializable> CacheEntry {
 }
 ```
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -7682,7 +7682,7 @@ fn main() -> i32 {
 
 As an argument, `.V` matches a parameter only if that parameter's enum has a variant `V`; this is how
 an overload is chosen. If more than one overload's enum has `V`, the call is ambiguous
-([SC064E](/docs/language/diagnostics#call-to-f-is-ambiguous-more-than-one-candidate-matches-at-the-same-rank)). A
+([SC064E](/docs/language/diagnostics/#call-to-f-is-ambiguous-more-than-one-candidate-matches-at-the-same-rank)). A
 generic parameter `T` gives `.V` no enum to take, so no overload matches (SC063E); write the variant in
 full, `Dir::North`:
 
@@ -7703,7 +7703,7 @@ fn main() -> i32 {
 
 A `.V` with nothing to give it an enum type, against a type that is not an enum, or naming a variant the
 enum does not have is
-[SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type).
+[SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type).
 
 ---
 
@@ -7734,7 +7734,7 @@ fn main() -> i32 {
 ## Extends
 
 Enums cannot contain methods in their body. Use `extend` blocks to add behavior, matching the same
-pattern as [structs](/docs/language/structures#extends):
+pattern as [structs](/docs/language/structures/#extends):
 
 ```kairo
 enum LogLevel {
@@ -7802,8 +7802,8 @@ extend LogLevel impl Loggable {
 ```
 
 The `extend` block and the enum definition must be in the same file. See
-[Extends](/docs/language/extends) for the full `extend` system and
-[Interfaces](/docs/language/interfaces) for interface declarations.
+[Extends](/docs/language/extends/) for the full `extend` system and
+[Interfaces](/docs/language/interfaces/) for interface declarations.
 
 ---
 
@@ -7813,7 +7813,7 @@ For plain enums without the `{ field: Type }` payload syntax, variants are stric
 If you need per-variant data, use an [ADT enum](#adt-enums).
 
 For untagged memory overlays where you manage the active member yourself, use
-[Unions](/docs/language/unions).
+[Unions](/docs/language/unions/).
 
 ---
 
@@ -7845,7 +7845,7 @@ Casting an integer to an enum that has no matching discriminant is undefined beh
 ADT enums cannot be cast to integers directly they carry payloads that have no integer
 representation. Cast the tag explicitly if you need the discriminant value.
 
-See [Casting](/docs/language/casting) for the full casting model.
+See [Casting](/docs/language/casting/) for the full casting model.
 
 ---
 
@@ -7948,7 +7948,7 @@ memory layout tool for hardware registers, binary protocol parsing, and type pun
 for tracking which field is active there is no compiler-managed tag.
 
 For type-safe tagged unions with compiler-enforced variant tracking, use
-[ADT enums](/docs/language/enums#adt-enums).
+[ADT enums](/docs/language/enums/#adt-enums).
 
 ---
 
@@ -8014,7 +8014,7 @@ union Bad {
 }
 ```
 
-If you need a union of non-trivial types, use an [ADT enum](/docs/language/enums#adt-enums) the
+If you need a union of non-trivial types, use an [ADT enum](/docs/language/enums/#adt-enums) the
 compiler manages construction, destruction, and active-variant tracking for you.
 
 ---
@@ -8054,7 +8054,7 @@ pkt.payload.as_int = 42
 ```
 
 For a type-safe version of this pattern (where the opcode determines which payload field is valid),
-use an [ADT enum](/docs/language/enums#adt-enums) instead.
+use an [ADT enum](/docs/language/enums/#adt-enums) instead.
 
 ---
 
@@ -8126,7 +8126,7 @@ union Payload {
 ## No Extends
 
 Unions do not support `extend` blocks. They are raw memory overlays with no behavior adding
-methods would blur the line between unions and [classes](/docs/language/classes). If you need methods
+methods would blur the line between unions and [classes](/docs/language/classes/). If you need methods
 on overlapping data, wrap the union in a struct or class and add behavior there.
 
 ---
@@ -8196,7 +8196,7 @@ runtime dispatch, via a witness table, is described in [Virtual Interfaces](#vir
 type conforms to an interface if it has all the required methods with matching signatures, whether or
 not it explicitly declares conformance.
 
-For runtime polymorphism over a class hierarchy, use a base [class](/docs/language/classes) with
+For runtime polymorphism over a class hierarchy, use a base [class](/docs/language/classes/) with
 `virtual` methods and dispatch through a base pointer. Interfaces and virtual dispatch solve different
 problems and can be used together on the same type.
 
@@ -8221,8 +8221,8 @@ has no effect.
 
 ## Conformance
 
-A type declares interface conformance with `impl` on a [class](/docs/language/classes) or through
-`extend ... impl` on a [struct](/docs/language/structures), [enum](/docs/language/enums), or class. The
+A type declares interface conformance with `impl` on a [class](/docs/language/classes/) or through
+`extend ... impl` on a [struct](/docs/language/structures/), [enum](/docs/language/enums/), or class. The
 compiler verifies at declaration time that all required methods are present with matching signatures:
 
 ```kairo
@@ -8277,7 +8277,7 @@ extend Point impl Serializable {
 }
 ```
 
-See [Extends](/docs/language/extends) for the full `extend` system.
+See [Extends](/docs/language/extends/) for the full `extend` system.
 
 ### Structural conformance
 
@@ -8382,14 +8382,14 @@ Generic defaults are not permitted on interface type parameters. (An [associated
 may have a default; that is a different thing, chosen by the conforming type rather than by the user
 of the interface.)
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
 ## Associated Types
 
 > [!NOTE]
-> Associated types are not compiled yet. See [Status](/docs/status#not-compiled-yet).
+> Associated types are not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 An interface can require a type member. A conforming type supplies it with a type alias:
 
@@ -8481,7 +8481,7 @@ interface Convertible {
 `Self` in an interface signature refers to the conforming type. A class that `impl Equatable` must
 provide `fn op ==(const self, other: Self) -> bool` where `Self` resolves to that class.
 
-See [Operators](/docs/language/operators#operator-overloading) for the full list of overloadable
+See [Operators](/docs/language/operators/#operator-overloading) for the full list of overloadable
 operators.
 
 ---
@@ -8545,7 +8545,7 @@ in `Copyable` would make "copyable" also mean "default-constructible", and the b
 copyable type without a default constructor. Require default construction separately, with
 `Defaultable` above, where a body needs it.
 
-The standard library will provide canonical lifecycle interfaces; these are just examples. See [Lifecycle Categories](/docs/language/classes#lifecycle-categories) for the underlying model.
+The standard library will provide canonical lifecycle interfaces; these are just examples. See [Lifecycle Categories](/docs/language/classes/#lifecycle-categories) for the underlying model.
 
 ---
 
@@ -8598,7 +8598,7 @@ class Pipeline impl Chainable {
 }
 ```
 
-Kairo has no user-visible reference types [Tether](/docs/language/tether) infers reference semantics where
+Kairo has no user-visible reference types [Tether](/docs/language/tether/) infers reference semantics where
 needed. In practice this means `Self` returns enable fluent chaining without `->` or explicit
 dereferencing:
 
@@ -8735,7 +8735,7 @@ fn <T impl Serializable> save(data: T, path: string) {
 ```
 
 `impl` checks structural conformance the type satisfies the interface's required method signatures.
-This is distinct from `derives`, which checks class inheritance. See [Requires Clauses](/docs/language/requires)
+This is distinct from `derives`, which checks class inheritance. See [Requires Clauses](/docs/language/requires/)
 for the full constraint system.
 
 ```kairo
@@ -8756,7 +8756,7 @@ fn <T derives Base> process(data: T) { }                                    // T
 
 Inside `fn <T impl Foo>`, a value of type `T` supports exactly what `Foo` (and every interface it derives)
 declares, plus destruction and move, which every type parameter has unless it opts out (see
-[Implicit capabilities](/docs/language/classes#type-parameter-constraints)).
+[Implicit capabilities](/docs/language/classes/#type-parameter-constraints)).
 
 - `x.method()` resolves against `Foo`'s methods.
 - A generic method requirement is called with explicit arguments, `x.liz<i32>()`, or with deduced ones.
@@ -8780,9 +8780,9 @@ fn <T impl Shape> describe(s: T) -> f64 {
 
 > [!NOTE]
 > The current compiler does not report `var x: T` without a constructor bound yet. See
-> [Status](/docs/status#not-diagnosed).
+> [Status](/docs/status/#not-diagnosed).
 
-See [Generic Classes](/docs/language/classes#type-parameter-constraints) for the implicit destroy and
+See [Generic Classes](/docs/language/classes/#type-parameter-constraints) for the implicit destroy and
 move capabilities and how instantiation reports them.
 
 ---
@@ -8795,7 +8795,7 @@ witness table built for each conforming type, so the caller doesn't need to know
 type it holds:
 
 > [!NOTE]
-> Virtual interfaces are not compiled yet. See [Status](/docs/status#not-compiled-yet).
+> Virtual interfaces are not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 ```kairo
 virtual interface Allocator {
@@ -8834,7 +8834,7 @@ class Outer {
 }
 ```
 
-See [Modules](/docs/language/modules) for module organization.
+See [Modules](/docs/language/modules/) for module organization.
 
 ---
 
@@ -8851,7 +8851,7 @@ interface Hashable {
 
 This keeps interfaces as zero-cost contracts. There is no method resolution order, no inheritance
 of behavior, and no hidden dispatch when an interface is used as a bound. If you need shared implementation, use a base
-[class](/docs/language/classes) with `derives`.
+[class](/docs/language/classes/) with `derives`.
 
 ---
 
@@ -9053,7 +9053,7 @@ var v = [1, 2, 3]       // [i32]
 var p = (1.0, true)     // (f64, bool)
 ```
 
-See [Primitives](/docs/language/primitives) for default literal types.
+See [Primitives](/docs/language/primitives/) for default literal types.
 
 ### Generic argument inference
 
@@ -9101,7 +9101,7 @@ fn name() = "Kairo"                // inferred as string
 fn typed(x: i32) -> i64 = x as i64 // explicit still allowed
 ```
 
-See [Functions](/docs/language/functions#expression-bodied-functions)
+See [Functions](/docs/language/functions/#expression-bodied-functions)
 
 ---
 
@@ -9121,7 +9121,7 @@ var x: f32 = 1.0f32
 var y: f64 = x       // ok: f32 to f64
 ```
 
-Narrowing conversions require an explicit `as` cast. See [Casting](/docs/language/casting).
+Narrowing conversions require an explicit `as` cast. See [Casting](/docs/language/casting/).
 
 ### Integer widening into C/C++ parameters
 
@@ -9138,7 +9138,7 @@ fn grow(n: u32) {
 ```
 
 `u64` to `usize` still needs `as`, because it narrows on 32-bit targets; on 16-bit
-targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
+targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/primitives/#41-the-cc-boundary).
 
 ### `T` to `T?` - Non-nullable to Nullable
 
@@ -9152,7 +9152,7 @@ maybe_log(s)   // string implicitly converts to string?
 ```
 
 The reverse (`T?` to `T`) requires explicit unwrapping see
-[Variables](/docs/language/variables#nullable-types).
+[Variables](/docs/language/variables/#nullable-types).
 
 ### Derived-to-base pointer
 
@@ -9169,7 +9169,7 @@ feed(&dog)   // *Dog implicitly converts to *Animal
 ```
 
 This is always safe the base subobject is at a known offset. The reverse (base-to-derived) requires
-an explicit cast because it can fail at runtime. See [Casting](/docs/language/casting).
+an explicit cast because it can fail at runtime. See [Casting](/docs/language/casting/).
 
 ### List literal to a container
 
@@ -9204,7 +9204,7 @@ The other direction, `[T;]` to `[T]`, stays explicit because it allocates.
 ### `@implicit` conversion operators
 
 A type's `op as` marked `@implicit` applies without `as` where its exact result type is wanted. See
-[Implicit `op as`](/docs/language/operators#implicit-op-as).
+[Implicit `op as`](/docs/language/operators/#implicit-op-as).
 
 ### No other implicit conversions
 
@@ -9228,7 +9228,7 @@ Kairo has a limited subtyping hierarchy:
 
 Interface-satisfying types are not subtypes of the interface. Interfaces are constraints checked at
 compile time via `impl` bounds, not runtime-dispatchable types. For runtime polymorphism, use
-base class pointers with [virtual dispatch](/docs/language/classes#virtual-dispatch) or
+base class pointers with [virtual dispatch](/docs/language/classes/#virtual-dispatch) or
 `unsafe *void` for type-erased pointers.
 
 ---
@@ -9258,7 +9258,7 @@ or in any other type position:
 // var y: Foo<!>     // compile error
 ```
 
-See [Functions](/docs/language/functions#no-return-) for no-return function semantics.
+See [Functions](/docs/language/functions/#no-return-) for no-return function semantics.
 
 ---
 
@@ -9277,7 +9277,7 @@ var y: Foo<void>  // valid - ok
 var x: void       // compile error
 ```
 
-See [Primitives](/docs/language/primitives#void) for details.
+See [Primitives](/docs/language/primitives/#void) for details.
 
 ---
 
@@ -9303,7 +9303,7 @@ var x: (i32?)? = null   // ok: Nullable<Nullable<i32>>
 
 Nested nullables are rarely useful. If you find yourself writing `(T?)?`, reconsider the data model.
 
-See [Variables](/docs/language/variables#nullable-types) for null checking, safe access, and unwrapping.
+See [Variables](/docs/language/variables/#nullable-types) for null checking, safe access, and unwrapping.
 
 ---
 
@@ -9325,8 +9325,8 @@ var x: (i32) = 42   // same as var x: i32 = 42
 
 There is no unit type or empty tuple `()`. Functions that return nothing use `void`.
 
-See [Primitives](/docs/language/primitives#tuples-t1-t2-) for tuple syntax and
-[Variables](/docs/language/variables#destructuring) for tuple destructuring.
+See [Primitives](/docs/language/primitives/#tuples-t1-t2-) for tuple syntax and
+[Variables](/docs/language/variables/#destructuring) for tuple destructuring.
 
 ---
 
@@ -9357,8 +9357,8 @@ is a property of methods (it constrains `self`), not of the function signature. 
 different overload namespace, not a different type. `async` and `eval` require named function
 declarations.
 
-See [Functions](/docs/language/functions#function-pointers) and
-[Closures](/docs/language/closures) for function pointer usage.
+See [Functions](/docs/language/functions/#function-pointers) and
+[Closures](/docs/language/closures/) for function pointer usage.
 
 ---
 
@@ -9389,7 +9389,7 @@ The literal syntax and the aliased names are interchangeable.
 
 A list literal `[a, b, c]` is an array `[T; 3]` unless its target is a slice or a vector. Arrays are not
 value types: they cannot be copied, assigned, passed by value, or returned. See
-[Primitives](/docs/language/primitives#collections) for the full rules on arrays, slices, vectors, and list
+[Primitives](/docs/language/primitives/#collections) for the full rules on arrays, slices, vectors, and list
 literals.
 
 `N` in `[T; N]` must be a compile-time evaluable expression. Runtime-dependent array sizes are not
@@ -9402,7 +9402,7 @@ var buffer: [u8; SIZE] = [0; SIZE]    // ok: SIZE is compile-time
 // var dynamic: [u8; runtime_val]     // compile error: N must be compile-time
 ```
 
-See [Eval](/docs/language/eval) for compile-time evaluation rules.
+See [Eval](/docs/language/eval/) for compile-time evaluation rules.
 
 ---
 
@@ -9478,8 +9478,8 @@ fn <T> process(x: T) {
 }
 ```
 
-See [Eval](/docs/language/eval) for compile-time evaluation and
-[Control Flow](/docs/language/control-flow#compile-time-branching) for `eval if`.
+See [Eval](/docs/language/eval/) for compile-time evaluation and
+[Control Flow](/docs/language/control-flow/#compile-time-branching) for `eval if`.
 
 ---
 
@@ -9487,9 +9487,9 @@ See [Eval](/docs/language/eval) for compile-time evaluation and
 
 `Self` is a type alias that resolves to the enclosing type. It is available in:
 
-- [Class](/docs/language/classes#self-and-self) bodies and methods
-- [Interface](/docs/language/interfaces#operators-in-interfaces) signatures
-- [Extend](/docs/language/extends) blocks
+- [Class](/docs/language/classes/#self-and-self) bodies and methods
+- [Interface](/docs/language/interfaces/#operators-in-interfaces) signatures
+- [Extend](/docs/language/extends/) blocks
 
 `Self` always refers to a reference to the type. For a pointer, use `*Self`. In a generic class
 `class <T> Foo`, `Self` resolves to `Foo<T>`:
@@ -9584,7 +9584,7 @@ C++'s `static_cast`, `dynamic_cast`, `reinterpret_cast`, and `const_cast` `as` h
 categories, with safety determined by the source and target types.
 
 For implicit conversions (numeric widening, `T` to `T?`, derived-to-base pointers), see
-[Type System](/docs/language/type-system#implicit-conversions).
+[Type System](/docs/language/type-system/#implicit-conversions).
 
 ---
 
@@ -9700,7 +9700,7 @@ Casting to `unsafe *T` reinterprets the pointer with no type checking equivalent
 `reinterpret_cast`. The compiler performs no validation.
 
 Casting a safe pointer to a raw pointer `*T as unsafe *U` requires an
-[`unsafe` block](/docs/language/unsafe#unsafe-blocks). This is the point where Tether loses provenance:
+[`unsafe` block](/docs/language/unsafe/#unsafe-blocks). This is the point where Tether loses provenance:
 after the cast the compiler can no longer relate the pointer to the allocation it came from, so the
 loss is made visible at the source:
 
@@ -9749,7 +9749,7 @@ The second cast is an ordinary [numeric narrowing](#narrowing-truncation) and re
 
 Casting an integer to a pointer fabricates a pointer from a numeric address. The result must be an
 `unsafe` pointer safe pointers require provenance tracking that an integer cannot provide and the
-cast requires an [`unsafe` block](/docs/language/unsafe#unsafe-blocks). The integer carries no
+cast requires an [`unsafe` block](/docs/language/unsafe/#unsafe-blocks). The integer carries no
 provenance, so the cast invents one that Tether has no way to verify:
 
 ```kairo
@@ -9787,8 +9787,8 @@ The two error rows are deliberate refusals rather than warnings. `ptr as u8` has
 all a safe pointer's guarantees cannot be reconstructed from a number.
 
 `unsafe` blocks appear on exactly the rows where Tether stops being able to reason about the pointer.
-See [Unsafe](/docs/language/unsafe#the-safety-boundary) for the boundary model and
-[Tether](/docs/language/tether) for what provenance tracking buys.
+See [Unsafe](/docs/language/unsafe/#the-safety-boundary) for the boundary model and
+[Tether](/docs/language/tether/) for what provenance tracking buys.
 
 ---
 
@@ -9873,7 +9873,7 @@ var n = count ?? 0            // explicit: absent means zero
 var m = unwrap!(count)        // explicit: absent is a bug, panic
 ```
 
-See [Variables](/docs/language/variables#nullable-types) for the rest of the nullable operations
+See [Variables](/docs/language/variables/#nullable-types) for the rest of the nullable operations
 (`?.`, `??`, `unwrap!()`, null checking).
 
 ---
@@ -9907,9 +9907,9 @@ the target type in the `as` expression. `op as` must take only `self` as a param
 the target type.
 
 Marking an `op as` with `@implicit` lets it apply without `as` where its exact result type is wanted. See
-[Implicit `op as`](/docs/language/operators#implicit-op-as).
+[Implicit `op as`](/docs/language/operators/#implicit-op-as).
 
-See [Operators](/docs/language/operators#special-operators) for the full operator overloading
+See [Operators](/docs/language/operators/#special-operators) for the full operator overloading
 reference.
 
 ## Conversion Through a Constructor
@@ -9986,7 +9986,7 @@ URL: https://www.kairolang.org/docs/language/requires/
 condition that must hold at compile time if it doesn't, the program does not compile. There is
 no runtime fallback, no dispatch, no branching. `requires` is a static gate.
 
-For runtime-conditional dispatch, see [Where Clauses](/docs/language/where).
+For runtime-conditional dispatch, see [Where Clauses](/docs/language/where/).
 
 | Property | Guarantee |
 |---|---|
@@ -10065,8 +10065,8 @@ Either way, the bounds are all a generic body can rely on. The body is checked o
 defined, against its bounds, never per instantiation. Calling a method no
 bound declares is a compile error in the generic itself, even if every type it is ever
 instantiated with happens to have that method. See
-[Type parameter constraints](/docs/language/classes#type-parameter-constraints) and
-[Generic Bodies](/docs/language/interfaces#generic-bodies).
+[Type parameter constraints](/docs/language/classes/#type-parameter-constraints) and
+[Generic Bodies](/docs/language/interfaces/#generic-bodies).
 
 The `requires` form is preferred when constraints are long or involve relationships between
 multiple type parameters:
@@ -10182,7 +10182,7 @@ clear_aligned<256>(&a)  // ok: 256 is a power of two
 clear_aligned<300>(&b)  // compile error: 300 is not a power of two
 ```
 
-See [Eval](/docs/language/eval) for compile-time evaluation rules.
+See [Eval](/docs/language/eval/) for compile-time evaluation rules.
 
 ---
 
@@ -10257,7 +10257,7 @@ specifies a condition that is checked at the call site if it fails, execution fa
 the next matching overload. The compiler folds multiple `where`-constrained overloads into a
 single function with branch dispatch.
 
-For compile-time constraints, see [Requires Clauses](/docs/language/requires).
+For compile-time constraints, see [Requires Clauses](/docs/language/requires/).
 
 | Property | Guarantee |
 |---|---|
@@ -10396,7 +10396,7 @@ match result {
 ```
 
 A match guard that fails causes the arm to be skipped and evaluation continues to the next arm.
-See [Control Flow](/docs/language/control-flow#match) for the full `match` syntax.
+See [Control Flow](/docs/language/control-flow/#match) for the full `match` syntax.
 
 ---
 
@@ -10464,7 +10464,7 @@ var a = access(data, 5)          // safe dispatch
 var b = unsafe access(data, 5)   // unsafe overload, no where dispatch
 ```
 
-See [Unsafe](/docs/language/unsafe) for the unsafe overload model.
+See [Unsafe](/docs/language/unsafe/) for the unsafe overload model.
 
 ---
 
@@ -10540,7 +10540,7 @@ hold a memory address.
 ## Safe Pointers (`*T`)
 
 `*T` is the default pointer type. The compiler tracks its provenance via
-[Tether](/docs/language/tether). It is never null, so a dereference needs no check:
+[Tether](/docs/language/tether/). It is never null, so a dereference needs no check:
 
 ```kairo
 var x = 42
@@ -10610,7 +10610,7 @@ var p: unsafe *i32 = unsafe &x   // create raw pointer from safe binding
 
 Dereferencing a null `unsafe *T` is undefined behavior. The compiler will not insert a check.
 
-Raw pointers are required for [C/C++ interop](/docs/language/c-cpp), custom allocators, hardware
+Raw pointers are required for [C/C++ interop](/docs/language/c-cpp/), custom allocators, hardware
 register access, and any scenario where Tether tracking is not possible or not desired.
 
 ### Creating raw pointers
@@ -10670,7 +10670,7 @@ Each question has exactly one place it can be answered. `var ptr: const *const i
 same thing as `const ptr: *const i32`, but it is rejected, because the pointer question belongs to
 the declaration keyword.
 
-See [Variables](/docs/language/variables#the-const-binding-rule) for the full `const` model.
+See [Variables](/docs/language/variables/#the-const-binding-rule) for the full `const` model.
 
 ---
 
@@ -10771,7 +10771,7 @@ const pp: *const *i32 = &p
 
 ## Smart Pointer Promotion
 
-[Tether](/docs/language/tether) analyzes pointer usage and determines when a safe pointer needs smart
+[Tether](/docs/language/tether/) analyzes pointer usage and determines when a safe pointer needs smart
 pointer ownership semantics. In **debug** builds it performs the promotion and warns; in **release**
 builds the same situation is a hard error naming the type to annotate. The smart pointer types are
 compiler intrinsics exposed through the standard library:
@@ -10804,8 +10804,8 @@ var ptr: std::Unique<Config> = @create Config(8080)
 var shared: std::Shared<Config> = @create Config(8080)
 ```
 
-See [Tether](/docs/language/tether) for the full lifetime and promotion model, and
-[Ownership](/docs/language/ownership) for borrowing semantics.
+See [Tether](/docs/language/tether/) for the full lifetime and promotion model, and
+[Ownership](/docs/language/ownership/) for borrowing semantics.
 
 ---
 
@@ -10826,7 +10826,7 @@ var raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
 unsafe std::free(raw)
 ```
 
-See [Tether](/docs/language/tether) for how allocation interacts with lifetime tracking.
+See [Tether](/docs/language/tether/) for how allocation interacts with lifetime tracking.
 
 ---
 
@@ -10855,7 +10855,7 @@ p == r    // true: same address
 dereference them: `*x == *y`. For raw pointers (`unsafe *T`), use `==` for address comparison and
 dereference manually after a null check.
 
-See [Operators](/docs/language/operators#comparison) for the full comparison model.
+See [Operators](/docs/language/operators/#comparison) for the full comparison model.
 
 ---
 
@@ -10871,8 +10871,8 @@ var f: fn(i32, i32) -> i32 = add
 // var p = f as unsafe *void   // compile error: function pointers are not data pointers
 ```
 
-See [Functions](/docs/language/functions#function-pointers) for function pointer syntax and
-[Closures](/docs/language/closures) for closures as function pointers.
+See [Functions](/docs/language/functions/#function-pointers) for function pointer syntax and
+[Closures](/docs/language/closures/) for closures as function pointers.
 
 ---
 
@@ -10904,7 +10904,7 @@ var val = q ?? &fallback     // use fallback pointer if q is null
 var forced = unwrap!(q)      // panics if null
 ```
 
-See [Variables](/docs/language/variables#nullable-types) for the full nullable type system.
+See [Variables](/docs/language/variables/#nullable-types) for the full nullable type system.
 
 ---
 
@@ -10962,12 +10962,12 @@ URL: https://www.kairolang.org/docs/language/ownership/
 # Ownership
 
 > [!WARNING]
-> The ownership model is enforced by [Tether](/docs/language/tether), which is not yet implemented.
+> The ownership model is enforced by [Tether](/docs/language/tether/), which is not yet implemented.
 > Tether development begins at **Stage 2** of the compiler roadmap. This page describes the
-> intended design. See [Tether](/docs/language/tether) for the implementation timeline.
+> intended design. See [Tether](/docs/language/tether/) for the implementation timeline.
 
 Kairo's ownership model governs how values are created, transferred, borrowed, and destroyed.
-It works in conjunction with [Tether](/docs/language/tether) to provide memory safety without lifetime
+It works in conjunction with [Tether](/docs/language/tether/) to provide memory safety without lifetime
 annotations and without a separate reference type.
 
 The model has two parts: **transfer semantics** (how values move between bindings) and **pointer
@@ -10977,11 +10977,11 @@ by the type's lifecycle category. Pointer aliasing is tracked by Tether at compi
 > [!NOTE]
 > This page covers *who owns a value and when it dies*. It does not cover the safety of individual
 > pointer *accesses* (bounds, use-after-free, null, data races) those are dereference obligations
-> discharged by Tether's proof engine, described in [Tether The Dereference Obligation](/docs/language/tether#the-dereference-obligation).
+> discharged by Tether's proof engine, described in [Tether The Dereference Obligation](/docs/language/tether/#the-dereference-obligation).
 > The distinction matters: ownership and escape violations are resolved by *transforming the program*
 > (debug) or a *hard error* (release), never by a runtime check. Access violations may fall back to a
 > runtime check. When this page says a violation is "a hard error," it means specifically that no
-> ownership transformation can rescue it see [Tether The Residual Table](/docs/language/tether#the-residual-table)
+> ownership transformation can rescue it see [Tether The Residual Table](/docs/language/tether/#the-residual-table)
 > for the full classification.
 
 ---
@@ -10991,7 +10991,7 @@ by the type's lifecycle category. Pointer aliasing is tracked by Tether at compi
 Every type in Kairo has a lifecycle category that determines what happens when a value is assigned
 to a new binding, passed to a function, or returned. The category is set by which transfer
 constructor the type defines. See
-[Classes Lifecycle Categories](/docs/language/classes#lifecycle-categories) for the declaration
+[Classes Lifecycle Categories](/docs/language/classes/#lifecycle-categories) for the declaration
 syntax.
 
 ### COPY types
@@ -11016,7 +11016,7 @@ a.data.length()       // 0 a is unaffected
 Tether may **elide a copy into a move** when it proves the source is not used after the transfer and
 the elision is unobservable. This is a pure optimization with no observable semantic difference.
 Tether does not elide when the destructor has timing-sensitive side effects see
-[Tether Copy Elision](/docs/language/tether#copy-elision) for the exact rule.
+[Tether Copy Elision](/docs/language/tether/#copy-elision) for the exact rule.
 
 The programmer does not opt into or control copy elision. Tether applies it when safe.
 
@@ -11069,7 +11069,7 @@ var lock = ScopeLock()
 > [!NOTE]
 > `NON_TRANSFER` types have a specific restriction under threading: they cannot be transfer-captured
 > into a spawned task (there is nothing to transfer), and may only be shared read-only by address.
-> See [Tether Threading](/docs/language/tether#threading).
+> See [Tether Threading](/docs/language/tether/#threading).
 
 ### Structs
 
@@ -11084,7 +11084,7 @@ b.x = 9.0
 a.x            // 1.0 independent copy
 ```
 
-See [Structures](/docs/language/structures#copy-semantics).
+See [Structures](/docs/language/structures/#copy-semantics).
 
 ---
 
@@ -11115,7 +11115,7 @@ b.data.length()   // ok: b is still live, inspect got a copy
 ```
 
 To let a callee write to the caller's object, or to take ownership of a generic argument, use the
-`@inout` and `@move` parameter modes. See [Parameter passing modes](/docs/language/functions#parameter-passing-modes).
+`@inout` and `@move` parameter modes. See [Parameter passing modes](/docs/language/functions/#parameter-passing-modes).
 
 ### Last-use move optimization
 
@@ -11171,7 +11171,7 @@ std::println(*q)   // 100 defined behavior
 > (captured into a `spawn`/`thread`), Tether switches to a stricter rule: one writer, or many readers,
 > never both. Arbitrary mutable aliasing is permitted within one thread because a single-threaded
 > race is impossible; across threads it is undefined behavior that no runtime check can rule out, so
-> the rule tightens exactly at the boundary. See [Tether Threading](/docs/language/tether#threading).
+> the rule tightens exactly at the boundary. See [Tether Threading](/docs/language/tether/#threading).
 
 This applies uniformly regardless of `const`:
 
@@ -11184,7 +11184,7 @@ std::println(*q)   // 100 *const prevents mutation through q, not through p
 ```
 
 `const` is a **semantic check on the binding**, not an aliasing constraint. Of the
-[two questions a pointer declaration answers](/docs/language/variables#the-const-binding-rule),
+[two questions a pointer declaration answers](/docs/language/variables/#the-const-binding-rule),
 "can I change the pointee?" is asked about one pointer only. `*const T` prevents
 the holder from mutating through that pointer. It does not prevent other pointers from mutating
 the same value. Tether does not change behavior based on `const` qualifiers it tracks provenance
@@ -11210,7 +11210,7 @@ var p: *i32
 
 When provenance is intact but the epoch cannot be proven equal statically, this access falls back
 to a runtime epoch check rather than a hard error see
-[Tether Provenance and Epochs](/docs/language/tether#provenance-and-epochs). It is a hard error only when
+[Tether Provenance and Epochs](/docs/language/tether/#provenance-and-epochs). It is a hard error only when
 provenance is lost entirely.
 
 **Iterator invalidation.** A pointer into a container's buffer is invalidated by operations that
@@ -11230,7 +11230,7 @@ realloc is provable statically, re-validating every live pointer across every po
 call would be expensive, and a use-after-realloc is almost always a real bug, so Tether errors rather
 than checks. Where the buffer is mutated through a path Tether cannot trace (an opaque container, a raw
 FFI call), Tether also errors rather than allowing an unprovable access. See
-[Tether Analysis scope](/docs/language/tether#the-dereference-obligation).
+[Tether Analysis scope](/docs/language/tether/#the-dereference-obligation).
 
 **Stack escape.** A pointer to a stack-allocated value cannot outlive the value. What happens when
 it tries depends on whether the value is **heap-promotable**:
@@ -11250,7 +11250,7 @@ A stack escape of a heap-promotable value is **debug-transformable / release-err
 `x` to the heap, which turns the escape into a legal ownership transfer. A stack escape with *no
 value to lift* (a borrow with no owner, an escape into an opaque sink where Tether cannot establish the
 heap-allocation pattern) is a hard error in both modes there is nothing to transform. This is the
-split the [Tether Stack Pointers](/docs/language/tether#stack-pointers) section details in full. Either
+split the [Tether Stack Pointers](/docs/language/tether/#stack-pointers) section details in full. Either
 way, the fix in release is to allocate explicitly or restructure.
 
 > [!NOTE]
@@ -11259,7 +11259,7 @@ way, the fix in release is to allocate explicitly or restructure.
 > read-only sharing) and treats a second writer, or any unsynchronized write+read, as a hard error.
 > The synchronization primitives that discharge these obligations depend on Kairo's concurrency
 > runtime, which is not yet finalized the analysis shape is fixed, the runtime seam is not. See
-> [Tether Threading](/docs/language/tether#threading) and [Concurrency](/docs/language/concurrency).
+> [Tether Threading](/docs/language/tether/#threading) and [Concurrency](/docs/language/concurrency/).
 
 ### What Tether does not enforce
 
@@ -11284,7 +11284,7 @@ behavior is identical with or without the tag.
 When Tether promotes a heap pointer to a smart pointer (in debug mode), the aliasing pattern
 determines which smart pointer type is chosen. In release, the same analysis produces a hard error
 naming the type to annotate Tether does not silently change pointer types in a release binary. See
-[Tether Ownership and Promotion](/docs/language/tether#ownership-and-promotion).
+[Tether Ownership and Promotion](/docs/language/tether/#ownership-and-promotion).
 
 ```kairo
 // Single owner, no aliasing -> Unique
@@ -11320,7 +11320,7 @@ owner escapes does not force `Shared`.
 Because Tether is whole-program, the cases where promotion is actually needed are narrow. Most
 pointers have fully contained lifetimes and require no promotion at all.
 
-See [Tether Promotion Decision](/docs/language/tether#ownership-and-promotion) for the full decision tree.
+See [Tether Promotion Decision](/docs/language/tether/#ownership-and-promotion) for the full decision tree.
 
 ---
 
@@ -11397,7 +11397,7 @@ fn make_closure() -> fn() -> i32 {
 > When a closure is captured into a spawned task, pointer captures fall under Tether's threading rules:
 > a `const *` (read-only) capture shares the allocation read-only across the boundary; a mutating
 > `*` capture makes the allocation a shared *mutable* allocation and triggers the single-writer
-> analysis. See [Tether Threading](/docs/language/tether#threading).
+> analysis. See [Tether Threading](/docs/language/tether/#threading).
 
 ### Per-variable capture
 
@@ -11414,7 +11414,7 @@ var closure = fn ()|a, *b| {
 }
 ```
 
-See [Closures](/docs/language/closures) for the full capture syntax.
+See [Closures](/docs/language/closures/) for the full capture syntax.
 
 ---
 
@@ -11440,13 +11440,13 @@ For smart pointers promoted by Tether:
   reverse declaration order; the *object* destructor and deallocation run once, when the last
   `Shared` reference's scope ends. The decrement order is lexical and deterministic; the object
   destructor fires at the final owner, which is not necessarily the last-declared binding in any
-  single scope. See [Tether Destruction Timing](/docs/language/tether#destruction-timing).
+  single scope. See [Tether Destruction Timing](/docs/language/tether/#destruction-timing).
 - `std::Weak<*T>`: invalidated at scope exit. Does not affect the reference count.
 
 There is no drop-at-last-use optimization for observable destructors. Destruction of a value whose
 destructor has side effects (file close, lock release, flush) is tied to lexical scope, so the
 effect is predictable from reading the source. A value whose destructor is trivial may be reclaimed
-at last use, since that is unobservable see [Tether Destruction Timing](/docs/language/tether#destruction-timing)
+at last use, since that is unobservable see [Tether Destruction Timing](/docs/language/tether/#destruction-timing)
 for the trivial / non-trivial split.
 
 ---
@@ -11488,7 +11488,7 @@ which have been moved.
 Escape and ownership violations resolve by *transforming the program* in debug (heap-lift, smart
 pointer promotion) and a *hard error with the fix* in release. They are never runtime checks that
 is reserved for access obligations like bounds. See
-[Tether The Residual Table](/docs/language/tether#the-residual-table).
+[Tether The Residual Table](/docs/language/tether/#the-residual-table).
 
 ```kairo
 // COPY: both sides live after transfer
@@ -11551,9 +11551,8 @@ never analyzed. The programmer owns their correctness.
 > Tether is not yet implemented. The current compiler is **Stage 1**; Tether development begins
 > at **Stage 2**. The roadmap:
 >
-> - **Stage 0** (frozen): C++ compiler, transpiles Kairo to C++. Kept only to bootstrap Stage 1.
-> - **Stage 1** (current): self-hosted compiler. Lowers Kairo to a Clang token stream:
->   declarations, definitions, ordering, mangling. No lifetime analysis.
+> - **Stage 0** (frozen): bootstrap compiler written in C++. Kept only to bootstrap Stage 1.
+> - **Stage 1** (current): self-hosted compiler. No lifetime analysis.
 > - **Stage 1.5**: Stage 1 migrated to Kairo's standard library, fully self-hosting.
 > - **Stage 2**: compiler rewritten using Kairo's extended feature set. **Tether work begins here.**
 >
@@ -12449,7 +12448,7 @@ raw, and a raw pointer does not require an `unsafe` block to use.
 
 ## Unsafe Blocks
 
-An `unsafe { ... }` block suspends [Tether](/docs/language/tether) for all operations within its scope.
+An `unsafe { ... }` block suspends [Tether](/docs/language/tether/) for all operations within its scope.
 Inside an unsafe block:
 
 - Tether does not track pointer lifetimes or provenance
@@ -12505,7 +12504,7 @@ Tether-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Uni
 A mismatch between Tether's promotion and the C++ function's expected smart pointer type is a
 compile error.
 
-See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp/) for the full FFI model.
 
 ---
 
@@ -12569,7 +12568,7 @@ buf[100] = 0x00    // no bounds check UB if out of allocation
 unsafe std::free(buf)
 ```
 
-See [Pointers](/docs/language/pointers) for the full pointer model.
+See [Pointers](/docs/language/pointers/) for the full pointer model.
 
 ---
 
@@ -12631,7 +12630,7 @@ unsafe process(42)   // calls unsafe version
 | `unsafe` + `volatile` | Yes |
 
 `unsafe` is an overload qualifier: the other modifiers apply to the safe and unsafe versions alike. See
-[Functions](/docs/language/functions#modifier-compatibility) for the full modifier compatibility
+[Functions](/docs/language/functions/#modifier-compatibility) for the full modifier compatibility
 table.
 
 ---
@@ -12643,7 +12642,7 @@ Kairo's safety model has a clear boundary:
 **Inside normal code:** Tether tracks all pointer lifetimes and proves every safe dereference sound.
 `*T` is non-null by construction, so its dereference needs no check; a `*T?` must be unwrapped or
 proven non-null. Where a proof is missing, the response depends on the clause (see the
-[Residual Table](/docs/language/tether#the-residual-table)): bounds and epoch residuals get a runtime
+[Residual Table](/docs/language/tether/#the-residual-table)): bounds and epoch residuals get a runtime
 check in both modes, while nullability and ownership residuals are transformed in debug (null guard,
 smart pointer promotion) and are hard errors in release. Everything else is a compile error. Memory
 safety is the compiler's responsibility.
@@ -12928,7 +12927,7 @@ var port = try parse_port(input)
 `try`/`catch` can produce a value. Each arm is `catch ... => value`, and every arm must produce the same
 type. `finally` is not permitted in expression form.
 
-See [Control Flow](/docs/language/control-flow#trycatch-as-an-expression) for the `=>` arm rules: arm
+See [Control Flow](/docs/language/control-flow/#trycatch-as-an-expression) for the `=>` arm rules: arm
 forms, line breaks, and nesting.
 
 ---
@@ -12976,7 +12975,7 @@ A standalone `finally` behaves like the destructor of a local declared at the sa
 its enclosing block rather than the function, runs only if execution reached it, and runs in reverse
 declaration order (LIFO) together with the scope's destructors.
 
-See [Control Flow](/docs/language/control-flow#finally) for full `finally` semantics.
+See [Control Flow](/docs/language/control-flow/#finally) for full `finally` semantics.
 
 ---
 
@@ -13001,8 +13000,8 @@ fn fatal(msg: string) -> ! {
 }
 ```
 
-See [Functions](/docs/language/functions#no-return-) and
-[Type System](/docs/language/type-system#the-never-type-) for `!` semantics.
+See [Functions](/docs/language/functions/#no-return-) and
+[Type System](/docs/language/type-system/#the-never-type-) for `!` semantics.
 
 ---
 
@@ -13026,7 +13025,7 @@ This means:
 
 > [!NOTE]
 > The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use
-> the platform unwinder. See [Exceptions](/docs/language/c-cpp#exceptions) in C/C++ Interop.
+> the platform unwinder. See [Exceptions](/docs/language/c-cpp/#exceptions) in C/C++ Interop.
 
 > [!NOTE]
 > The `panic` statement inside a function body (`panic SomeError(...)`) does not halt the program.
@@ -13305,7 +13304,7 @@ The unselected branches are not type-checked, so they can contain code that woul
 the current `T`. This is the mechanism for writing type-specialized generic code without separate
 overloads.
 
-See [Control Flow](/docs/language/control-flow#compile-time-branching) for `eval if` in the context
+See [Control Flow](/docs/language/control-flow/#compile-time-branching) for `eval if` in the context
 of control flow.
 
 ---
@@ -13423,7 +13422,7 @@ fn <T> stack_alloc() -> T
 > [!WARNING]
 > Using `eval` and `where` will cause a compile error. Only `requires` based bounding is allowed in a `eval` context.
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -13434,7 +13433,7 @@ If the class contains a non-trivial destructor, it cannot be used in an `eval` c
 Classes can mix eval functions with regular functions.
 
 > [!NOTE]
-> An initializer on an `eval` field is not compiled yet. See [Status](/docs/status#not-compiled-yet).
+> An initializer on an `eval` field is not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 ```kairo
 class HashState {
@@ -13515,7 +13514,7 @@ URL: https://www.kairolang.org/docs/language/modules/
 
 Kairo's module system maps source files and directories to namespaces. Every `.k` file is a module. A directory containing a `module.k` entry file is a library. Use the `module` keyword to declare namespaces within a file, similar to C++ `namespace`.
 
-See [Imports](/docs/language/imports) for how to bring names from modules into scope.
+See [Imports](/docs/language/imports/) for how to bring names from modules into scope.
 
 ## File-to-Module Mapping
 
@@ -13715,7 +13714,7 @@ println("hello")
 
 **Core language primitives** (`i32`, `string`, `bool`, `[T]`, etc.) and **built-in syntax** (`if`, `for`, `match`, etc.) are always available without any import. Only **standard library functions and types** (`std::println`, `std::Error`, `std::Shared`, etc.) require an explicit import.
 
-See [Imports](/docs/language/imports) for import syntax and the `pub import` pattern for re-exporting.
+See [Imports](/docs/language/imports/) for import syntax and the `pub import` pattern for re-exporting.
 
 ## Circular Dependencies
 
@@ -13762,7 +13761,7 @@ pub eval MAX_CONNECTIONS = 1024
 priv static request_count: i32 = 0
 ```
 
-See [Imports](/docs/language/imports#visibility-on-imports) for how visibility affects what is re-exported via `pub import`.
+See [Imports](/docs/language/imports/#visibility-on-imports) for how visibility affects what is re-exported via `pub import`.
 
 ---
 
@@ -13772,8 +13771,8 @@ URL: https://www.kairolang.org/docs/language/extends/
 # Extends
 
 `extend` blocks add methods, operators, and static functions to types declared elsewhere. They are the
-primary way to attach behavior to [structs](/docs/language/structures) and
-[enums](/docs/language/enums), which cannot contain methods in their body. Classes can also be extended.
+primary way to attach behavior to [structs](/docs/language/structures/) and
+[enums](/docs/language/enums/), which cannot contain methods in their body. Classes can also be extended.
 
 ---
 
@@ -13807,7 +13806,7 @@ Point::origin()  // Point { x: 0.0, y: 0.0 }
 Methods added via `extend` are called the same way as methods defined in a class body there is no
 syntactic distinction at the call site.
 
-An `extend` body is the extended type's scope. Members still need an explicit qualifier `self.x` or `Self::x`, exactly as in a class body (see [Members always need a qualifier](/docs/language/classes#members-always-need-a-qualifier)) and the same one exception applies: the target's nested types and type aliases are visible unqualified.
+An `extend` body is the extended type's scope. Members still need an explicit qualifier `self.x` or `Self::x`, exactly as in a class body (see [Members always need a qualifier](/docs/language/classes/#members-always-need-a-qualifier)) and the same one exception applies: the target's nested types and type aliases are visible unqualified.
 
 ```kairo
 class Tree {
@@ -13852,7 +13851,7 @@ The rules differ by type:
 | `fn op in` (iteration) | Member-only operators (`as`, `[]`, `->`) |
 
 Structs are trivially copyable. Extending lifecycle operations (destructors, copy/move) would break
-that guarantee. See [Structures](/docs/language/structures#copy-semantics).
+that guarantee. See [Structures](/docs/language/structures/#copy-semantics).
 
 ### Enums
 
@@ -13880,7 +13879,7 @@ separating interface conformance or adding functionality in a different section 
 > Constructors, destructors, and copy/move assignment cannot be added via `extend` on any type. Neither
 > can the member-only operators `as`, `[]`, `->`, and `delete`; declare them in the type's own body.
 > If you need construction logic on a struct, extend a static factory function instead. If you need
-> a destructor, use a [class](/docs/language/classes).
+> a destructor, use a [class](/docs/language/classes/).
 
 ---
 
@@ -13904,7 +13903,7 @@ The compiler verifies at the `extend` declaration that all interface requirement
 Missing methods are a compile error.
 
 > [!NOTE]
-> The current compiler does not report missing methods at the `extend` declaration yet. See [Implementation Status](/docs/status#not-diagnosed).
+> The current compiler does not report missing methods at the `extend` declaration yet. See [Implementation Status](/docs/status/#not-diagnosed).
 
 A type can conform to multiple interfaces through separate `extend` blocks:
 
@@ -13919,7 +13918,7 @@ extend Point impl Serializable {
 }
 ```
 
-See [Interfaces](/docs/language/interfaces) for interface declarations and structural conformance.
+See [Interfaces](/docs/language/interfaces/) for interface declarations and structural conformance.
 
 ---
 
@@ -13962,7 +13961,7 @@ extend <T> Wrap<Box<T>> {
 `Wrap<Box<i32>>` has `unbox`; `Wrap<i32>` does not.
 
 Constraints on an extension's parameters are written with `impl`, `derives`, or a
-[`requires` clause](/docs/language/requires):
+[`requires` clause](/docs/language/requires/):
 
 ```kairo
 extend <T impl Comparable> Pair<T> {
@@ -13976,7 +13975,7 @@ This `max` method is only available on `Pair<T>` when `T` satisfies `Comparable`
 `pair_of_noncomparable.max()` (or `Pair<SomeNonComparable>::max(p)`) is a compile error.
 
 > [!NOTE]
-> The current compiler does not check an extension's bounds at the call site yet. See [Implementation Status](/docs/status#not-diagnosed).
+> The current compiler does not check an extension's bounds at the call site yet. See [Implementation Status](/docs/status/#not-diagnosed).
 
 ### Generic interface conformance
 
@@ -13995,7 +13994,7 @@ extend <T> Pair<T> impl Container<T> {
 }
 ```
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -14080,7 +14079,7 @@ This prevents conflicts between extensions in different files while still allowi
 conformance to be declared where the interface is defined.
 
 > [!NOTE]
-> The current compiler does not reject an `extend` in the wrong file yet. See [Implementation Status](/docs/status#not-diagnosed).
+> The current compiler does not reject an `extend` in the wrong file yet. See [Implementation Status](/docs/status/#not-diagnosed).
 
 ---
 
@@ -14203,7 +14202,7 @@ URL: https://www.kairolang.org/docs/language/attributes/
 
 Attributes are compile-time AST transformations. They modify the structure of declarations
 renaming fields, injecting code, adding members with full access to the parsed syntax tree and
-type information. Unlike [macros](/docs/language/macros), which operate on raw tokens before parsing,
+type information. Unlike [macros](/docs/language/macros/), which operate on raw tokens before parsing,
 attributes run after parsing and can inspect and modify typed AST nodes.
 
 | Property | Guarantee |
@@ -14385,8 +14384,8 @@ Kairo provides built-in attributes that are handled directly by the compiler:
 | `@packed` | Remove padding between members | Classes, structs, unions |
 | `@align(N)` | Set minimum alignment to N bytes | Classes, structs, unions |
 
-See [Classes](/docs/language/classes#memory-layout-and-allocation) and
-[Structures](/docs/language/structures#memory-layout) for layout details.
+See [Classes](/docs/language/classes/#memory-layout-and-allocation) and
+[Structures](/docs/language/structures/#memory-layout) for layout details.
 
 ### Branch hints
 
@@ -14396,7 +14395,7 @@ See [Classes](/docs/language/classes#memory-layout-and-allocation) and
 | `@unlikely` | Condition is expected to be false | `if` statements |
 | `@unreachable` | Branch should never execute (UB if reached) | `match`/`if` branches |
 
-See [Control Flow](/docs/language/control-flow#branch-hints) for branch prediction hints.
+See [Control Flow](/docs/language/control-flow/#branch-hints) for branch prediction hints.
 
 ### Diagnostics
 
@@ -14432,7 +14431,7 @@ class Counter {
 fn Counter::get(const self) -> i32 { return self.n }   // ...so this definition is noexcept too
 ```
 
-See [Exceptions](/docs/language/c-cpp#exceptions) for how C++ exceptions move through Kairo code.
+See [Exceptions](/docs/language/c-cpp/#exceptions) for how C++ exceptions move through Kairo code.
 
 ### Conversions
 
@@ -14440,7 +14439,7 @@ See [Exceptions](/docs/language/c-cpp#exceptions) for how C++ exceptions move th
 |---|---|---|
 | `@implicit` | Lets a conversion operator apply without `as` | `fn op as` in a type's body |
 
-See [Implicit `op as`](/docs/language/operators#implicit-op-as) for the rules.
+See [Implicit `op as`](/docs/language/operators/#implicit-op-as) for the rules.
 
 ### Other
 
@@ -14448,7 +14447,7 @@ See [Implicit `op as`](/docs/language/operators#implicit-op-as) for the rules.
 |---|---|---|
 | `@core::where_handler` | Custom handler for where-clause failures | Functions |
 
-See [Where Clauses](/docs/language/where) for the where handler system.
+See [Where Clauses](/docs/language/where/) for the where handler system.
 
 ---
 
@@ -14491,7 +14490,7 @@ Key operations available on AST nodes:
 Use macros for simple substitutions and conditional compilation. Use attributes for structural
 transformations that need to inspect or modify declarations.
 
-See [Macros](/docs/language/macros) for the token-level macro system.
+See [Macros](/docs/language/macros/) for the token-level macro system.
 
 ---
 
@@ -14555,7 +14554,7 @@ Macros in Kairo are token-level substitutions they operate on raw tokens before 
 C/C++ `#define` but with scoping and balanced-delimiter requirements. Macros are identified by the `!`
 suffix on their name.
 
-For AST-level transformations with type awareness, see [Attributes](/docs/language/attributes).
+For AST-level transformations with type awareness, see [Attributes](/docs/language/attributes/).
 
 ---
 
@@ -14832,11 +14831,11 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 
 | Macro | Description | Details |
 |---|---|---|
-| `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow#jumps) |
-| `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow#jumps) |
-| `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe#forget) |
-| `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/variables#force-unwrap) |
-| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence) |
+| `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow/#jumps) |
+| `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow/#jumps) |
+| `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe/#forget) |
+| `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/variables/#force-unwrap) |
+| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence/) |
 
 These use macro syntax (`name!`) to make their usage explicit and searchable in a codebase, but
 they are not user-definable they are built into the compiler.
@@ -14880,7 +14879,7 @@ priv macro INTERNAL_FLAG! { true }     // file-scoped
 Use macros for simple substitutions, constants, and conditional compilation. Use attributes for
 code transformations that need type information or structural awareness.
 
-See [Attributes](/docs/language/attributes) for the AST-level transformation system.
+See [Attributes](/docs/language/attributes/) for the AST-level transformation system.
 
 ---
 
@@ -14938,13 +14937,13 @@ following features are planned and referenced across the existing documentation:
 ### Async/Await
 
 The `async` modifier on functions and the `await` keyword for waiting on asynchronous results.
-See [Functions](/docs/language/functions#function-modifiers) for the `async` modifier.
+See [Functions](/docs/language/functions/#function-modifiers) for the `async` modifier.
 
 ### Coroutines (`yield`)
 
 Functions with a `yield T` return type are generators: they produce values cooperatively. The `yield`
 keyword suspends the function and produces a value to the caller. See
-[Generators](/docs/language/functions#generators) for the rules.
+[Generators](/docs/language/functions/#generators) for the rules.
 
 ### `spawn`
 
@@ -14954,12 +14953,12 @@ being finalized.
 ### Atomic Types (`atomic T`)
 
 Thread-safe wrapper type for lock-free operations. Referenced in
-[Functions](/docs/language/functions#special-return-types).
+[Functions](/docs/language/functions/#special-return-types).
 
 ### Thread-Local Storage (`thread T`)
 
 Per-thread storage modifier. Referenced in
-[Functions](/docs/language/functions#special-return-types).
+[Functions](/docs/language/functions/#special-return-types).
 
 ### Synchronization Primitives
 
@@ -14970,7 +14969,7 @@ library concurrency API is finalized.
 
 Classes can define `fn <T> op await(self, obj: std::forward<T>) -> T` to customize the behavior of
 `await` when called on an instance. See
-[Operators](/docs/language/operators#special-operators) for the `op await` overload.
+[Operators](/docs/language/operators/#special-operators) for the `op await` overload.
 
 ```kairo
 await async_fn()       // syntax sugar for a state machine
@@ -15022,16 +15021,16 @@ The table below summarizes which C and C++ features Kairo can consume and expose
 | Feature | Direction | Notes |
 |---|---|---|
 | Functions | Bidirectional | Includes variadic functions |
-| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/language/structures) |
-| Unions | Bidirectional | See [Unions](/docs/language/unions) |
-| Enums | Bidirectional | See [Enums](/docs/language/enums) |
-| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/language/classes) |
+| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/language/structures/) |
+| Unions | Bidirectional | See [Unions](/docs/language/unions/) |
+| Enums | Bidirectional | See [Enums](/docs/language/enums/) |
+| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/language/classes/) |
 | Tuples | Bidirectional | Emitted as named structs; see [Tuples across the boundary](#tuples-across-the-boundary) |
 | Templates | Bidirectional | Instantiation across the boundary; see [below](#templates-and-concepts) |
 | Concepts | Bidirectional | Kairo's `impl` constraints map to C++20 concepts |
 | Namespaces | Bidirectional | |
 | Pointers & References | Bidirectional | Requires `unsafe` on the Kairo side; see [below](#pointers-and-references) |
-| Operator Overloading | Bidirectional | See [Operators on C++ types](#operators-on-c-types) and [Operators](/docs/language/operators) |
+| Operator Overloading | Bidirectional | See [Operators on C++ types](#operators-on-c-types) and [Operators](/docs/language/operators/) |
 | Lambdas | Bidirectional | |
 | Exceptions | C++ → Kairo only | Kairo never throws; its errors are values. See [Exceptions](#exceptions) |
 | Macros | C++ → Kairo | Preprocessor macros are expanded before Kairo sees them |
@@ -15054,9 +15053,9 @@ kairo foo.k              # produces foo.out
 ```
 
 When `foo.k` contains `ffi "c++" import "header.h"`, `kairo` runs the pinned Clang's frontend over `header.h` to
-extract declarations, then lowers `foo.k` to a Clang token stream and compiles it with **that same Clang
-instance**. The compiler that read the header and the compiler that generated the code are byte-identical, so
-there is no version skew to reconcile.
+extract declarations. At the interop boundary, Kairo hands **that same Clang instance** a token stream containing
+exactly what it would emit if you requested a C++ header for `foo.k`. The compiler that read the header and the
+compiler that consumes Kairo's declarations are byte-identical, so there is no version skew to reconcile.
 
 ### `kcc` — the C++ driver
 
@@ -15109,7 +15108,7 @@ How `--target` finds its sysroot:
 - A bundled sysroot takes precedence over `--sysroot`. With no matching folder, `--sysroot` is used if given;
   otherwise there are no system headers.
 - A matching folder without a loadable `SYSROOT.toml` is an error:
-  [P007E](/docs/language/diagnostics#p007e-bundled-sysroot-for-the-target-is-malformed) "bundled sysroot for
+  [P007E](/docs/language/diagnostics/#p007e-bundled-sysroot-for-the-target-is-malformed) "bundled sysroot for
   the target is malformed".
 
 > [!NOTE]
@@ -15173,7 +15172,7 @@ Hello from C++! x = 42
 
 An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
 Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
-ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+ones explicitly. See [Functions](/docs/language/functions/#defaults-on-imported-c-functions).
 
 ### Operators on C++ types
 
@@ -15188,7 +15187,7 @@ Using an operator on C++ types follows C++ lookup:
 - **C++20 rewrites:** when an operand is a C++ type and no `!=` takes the operands, `a != b` is `!(a == b)`;
   `<` and the other relational operators fall back to `<=>` the same way. Kairo types keep Kairo's own rule:
   `!=` is derived from `op ==` only when the type declares no `op !=`. See
-  [Derived comparisons](/docs/language/operators#derived-comparisons).
+  [Derived comparisons](/docs/language/operators/#derived-comparisons).
 
 Unary `*` on an imported C++ class calls its `operator*`, which is how C++ iterators and smart pointers are
 read.
@@ -15200,7 +15199,7 @@ fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or
 `intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one,
 whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t`
 directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
-[Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
+[Conversion Lattice §4.1](/docs/language/primitives/#41-the-cc-boundary).
 
 ---
 
@@ -15475,7 +15474,7 @@ fn example() {
 Kairo's standard library lands inside `namespace kairo`, which is why a C++ translation unit sees Kairo's library
 under `kairo::` and its own under the unqualified `std::` it already uses. Nothing is renamed on the C++ side.
 Your own code lands in its module's namespace, or, for an entry file, in a namespace named after the file's stem.
-See [Modules](/docs/language/modules#module-paths-are-c-namespaces).
+See [Modules](/docs/language/modules/#module-paths-are-c-namespaces).
 
 > [!NOTE]
 > `inline "c++"` blocks are not supported from Stage 1 onward. Use `ffi "c++"` to import declarations and call
@@ -15534,12 +15533,12 @@ fn syscall_example(fd: i32, buf: *u8, len: usize) -> isize {
 
 ## Pointers and References
 
-Kairo's [pointer model](/docs/language/pointers) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
+Kairo's [pointer model](/docs/language/pointers/) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
 pointers (`unsafe *T`, no tracking). Passing any pointer or reference across the FFI boundary requires explicit
 `unsafe` context because the compiler cannot enforce safety guarantees on the C/C++ side.
 
 C++ reference *parameters* (`T&`, `const T&`, `T&&`) are not pointers. They map to Kairo's parameter modes
-(`@inout x: T`, `x: T`, `@move x: T`). See [Parameter passing modes](/docs/language/functions#parameter-passing-modes).
+(`@inout x: T`, `x: T`, `@move x: T`). See [Parameter passing modes](/docs/language/functions/#parameter-passing-modes).
 
 ### Calls that return a reference
 
@@ -15559,7 +15558,7 @@ fn main() {
 }
 ```
 
-See [Reference returns from C++](/docs/language/functions#reference-returns-from-c) for how these calls are typed.
+See [Reference returns from C++](/docs/language/functions/#reference-returns-from-c) for how these calls are typed.
 
 ### Safe variable, unsafe pass
 
@@ -15642,7 +15641,7 @@ delete p;   // runs Kairo's destructor, then returns memory to Kairo's global al
 
 This works because Kairo emits the class, and therefore emits the destructor. `~MyKairoClass` performs Kairo's
 destruction semantics; C++'s `delete` merely sequences destructor-then-deallocate, which is the same pair of
-operations Kairo spells as [`delete obj`](/docs/language/tether#delete-operation) followed by `@free`.
+operations Kairo spells as [`delete obj`](/docs/language/tether/#delete-operation) followed by `@free`.
 
 Pointer parameters and return values stay raw `*T` — there is no wrapper type, no ABI change, and no cost at the
 call boundary.
@@ -15655,7 +15654,7 @@ allocations. The isolation is structural, not a restriction.
 
 ### The operators bind to the *global* allocator, always
 
-Kairo's [scoped allocator](/docs/language/tether#scoped-allocator) mechanism works by swapping the allocator the
+Kairo's [scoped allocator](/docs/language/tether/#scoped-allocator) mechanism works by swapping the allocator the
 process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that
 indirection and address the global allocator directly.
 
@@ -15674,7 +15673,7 @@ of what is active at the call site.
 
 The invariant that makes this sound: **objects reachable from C++ were allocated by the global allocator.** A
 pointer allocated through a scoped allocator that escapes the allocator's scope is a hard error under
-[Tether](/docs/language/tether), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
+[Tether](/docs/language/tether/), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
 
 ### What is still an error
 
@@ -15695,7 +15694,7 @@ override does apply to them — `core` provides `CxxNewAllocator`:
 @mem::set_allocator(core::CxxNewAllocator)
 ```
 
-This is the unusual case, not the default. The [intentional friction](/docs/language/tether#global-allocator) rule
+This is the unusual case, not the default. The [intentional friction](/docs/language/tether/#global-allocator) rule
 applies: the annotation must appear at the top of every file in the affected dependency graph.
 
 ### Ownership annotations in generated headers
@@ -15808,7 +15807,7 @@ which is deliberately TU-local.
 
 Kairo and C++ signal failure differently, and the two models meet at one place: a Kairo `try`/`catch`.
 
-- **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic): a tagged union value returned to
+- **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic/): a tagged union value returned to
   the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
 - **`try`/`catch` handles both.** Around a Kairo call it lowers to a `match` on the returned tagged union.
@@ -15836,10 +15835,10 @@ unwind info for exactly those frames: a Kairo function gets it only when it sits
 `try` that can catch from that call. Kairo code with no such path carries no unwind tables.
 
 > [!NOTE]
-> Unlike Kairo's [panic system](/docs/language/panic), the compiler cannot statically determine every exception
+> Unlike Kairo's [panic system](/docs/language/panic/), the compiler cannot statically determine every exception
 > type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue
 > to the next enclosing Kairo `try`. An exception that no Kairo `try` catches keeps unwinding like any C++
-> exception. If it reaches a [`@no_unwind`](/docs/language/attributes#unwinding) function, the program
+> exception. If it reaches a [`@no_unwind`](/docs/language/attributes/#unwinding) function, the program
 > terminates (`std::terminate`).
 
 ### Kairo → C++: Kairo never throws
@@ -15850,7 +15849,7 @@ value returned to the caller, not an object propagated by the unwinder. No excep
 - A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
 - A C++ exception thrown by C++ code that Kairo calls can unwind through Kairo frames, unless a Kairo `try`
   catches it.
-- A function marked [`@no_unwind`](/docs/language/attributes#unwinding) has `noexcept` on its generated C++
+- A function marked [`@no_unwind`](/docs/language/attributes/#unwinding) has `noexcept` on its generated C++
   declaration and definition, so `noexcept`-conditional C++ code that calls it takes the `noexcept(true)`
   branch. An exception that reaches it terminates the program.
 
@@ -15896,14 +15895,13 @@ Two Kairo-specific guarantees strengthen the baseline:
 - **ABI settings are recorded in the object and verified at link.** See
   [Link-time ABI verification](#link-time-abi-verification).
 
-### Emission stages
+### ABI stability across compiler stages
 
-Kairo lowers to a Clang token stream at every stage. Later stages emit *more* information, not different
-information — the ABI does not change:
+Later compiler stages emit *more* information, not different information — the ABI does not change:
 
 | Stage | Emits |
 |---|---|
-| Stage 1 | The core lowering: declarations, definitions, ordering, mangling. |
+| Stage 1 | Declarations, definitions, ordering, mangling. |
 | Stage 2 | The same, plus lifetime, aliasing, and ownership attributes derived from Tether analysis. |
 
 Objects from either stage are ABI-compatible. Stage 2's additions give the C++ side more static checking, not a
@@ -15991,7 +15989,7 @@ var f: [i32] = []              // ok
 
 A list literal that becomes a slice `[T;]` is a view of a temporary array. These errors report the positions
 where the view would outlive that array. See
-[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+[Primitives](/docs/language/primitives/#how-long-a-slice-literals-storage-lives).
 
 ### `a list literal returned from a function is a view of a temporary array and would outlive it; use '[T]' to own the elements, or bind the literal to a 'var' first`
 
@@ -16027,13 +16025,13 @@ scope that outlives the slice and use that variable.
 
 > [!NOTE]
 > Passing a slice literal to a function that stores the slice is not diagnosed. Until
-> [Tether](/docs/language/tether) checks it, it is the programmer's responsibility.
+> [Tether](/docs/language/tether/) checks it, it is the programmer's responsibility.
 
 ---
 
 ## Arrays
 
-A fixed array `[T; N]` is not a value type. See [Primitives](/docs/language/primitives#arrays-t-n).
+A fixed array `[T; N]` is not a value type. See [Primitives](/docs/language/primitives/#arrays-t-n).
 
 ### `an array is not copyable; initialize it from a list literal, or view the source through a slice or a pointer`
 
@@ -16085,7 +16083,7 @@ f([1, 2, 3] as [i32])          // ok
 ```
 
 **Fix:** make the argument's type explicit with `as` or a typed local. See
-[Primitives](/docs/language/primitives#list-literal-arguments).
+[Primitives](/docs/language/primitives/#list-literal-arguments).
 
 ---
 
@@ -16101,7 +16099,7 @@ fn m(self, y: i32 = self.v) { }       // error SC106E
 ```
 
 **Fix:** add an overload that leaves the parameter out and forwards the value. See
-[Functions](/docs/language/functions#a-default-stands-alone).
+[Functions](/docs/language/functions/#a-default-stands-alone).
 
 ### SC107E: a named argument skips a defaulted parameter of an imported C++ function
 
@@ -16114,7 +16112,7 @@ blit(4, scale: 2)            // error SC107E
 ```
 
 **Fix:** pass the earlier arguments explicitly: `blit(4, y: 0, scale: 2)`. See
-[Functions](/docs/language/functions#defaults-on-imported-c-functions).
+[Functions](/docs/language/functions/#defaults-on-imported-c-functions).
 
 ---
 
@@ -16144,7 +16142,7 @@ class TwoCopies {
 ```
 
 **Fix:** keep one transfer constructor. See
-[Classes](/docs/language/classes#the-transfer-constructor).
+[Classes](/docs/language/classes/#the-transfer-constructor).
 
 ### SC110E: a constructor has the shape of a transfer constructor but is not declared as one
 
@@ -16164,7 +16162,7 @@ class C {
 ```
 
 **Fix:** put `@copy` or `@move` on the constructor and write the parameter bare. See
-[Classes](/docs/language/classes#the-transfer-constructor).
+[Classes](/docs/language/classes/#the-transfer-constructor).
 
 ### SC129E: a defaulted transfer constructor cannot be generated
 
@@ -16189,7 +16187,7 @@ class CopiesUnique {
 ```
 
 **Fix:** write the transfer constructor body yourself, change its kind, or `= delete` it. See
-[Classes](/docs/language/classes#defaulted-moves-of-non-movable-members).
+[Classes](/docs/language/classes/#defaulted-moves-of-non-movable-members).
 
 ---
 
@@ -16218,7 +16216,7 @@ enum Order {
 ```
 
 **Fix:** use only literals, operators, `as` to an integer type, and earlier variants, and keep the value in
-range or widen the underlying type. See [Enums](/docs/language/enums#discriminant-values).
+range or widen the underlying type. See [Enums](/docs/language/enums/#discriminant-values).
 
 ### SC130E: two variants of an enum have the same value
 
@@ -16235,7 +16233,7 @@ enum Flags {
 
 Imported C++ enums are exempt.
 
-**Fix:** give each variant a distinct value. See [Enums](/docs/language/enums#discriminant-values).
+**Fix:** give each variant a distinct value. See [Enums](/docs/language/enums/#discriminant-values).
 
 ### SC123E: a variant name does not fit the expected type
 
@@ -16271,7 +16269,7 @@ fn main() -> i32 {
 ```
 
 **Fix:** give `.V` an expected enum type, or write the enum's name before it (`Dir::North`). See
-[Enums](/docs/language/enums#shorthand-syntax).
+[Enums](/docs/language/enums/#shorthand-syntax).
 
 ### SC131E: a variant is built with the wrong shape
 
@@ -16310,7 +16308,7 @@ fn main() -> i32 {
 }
 ```
 
-See [Enums](/docs/language/enums#construction).
+See [Enums](/docs/language/enums/#construction).
 
 ---
 
@@ -16356,7 +16354,7 @@ enum W { Has { b: Box<i32> }, Empty }   // error SC116E
 > var w: W<i32> = .Empty
 > ```
 
-**Fix:** rewrite around the construct for now. See [Status](/docs/status).
+**Fix:** rewrite around the construct for now. See [Status](/docs/status/).
 
 ---
 
@@ -16375,7 +16373,7 @@ fn count() -> i32 {
 ```
 
 **Fix:** declare the function `-> yield T`, or remove the `yield`. See
-[Generators](/docs/language/functions#generators).
+[Generators](/docs/language/functions/#generators).
 
 ### SC112E: this kind of function cannot be a generator
 
@@ -16398,7 +16396,7 @@ fn main() -> yield i32 { }   // error SC112E
 and what its `long double` is.
 
 **Fix:** use `f64` where `long double` is binary64, or `f128` where it is binary128. See
-[Primitives](/docs/language/primitives#f80-follows-the-targets-long-double).
+[Primitives](/docs/language/primitives/#f80-follows-the-targets-long-double).
 
 ### P007E: bundled sysroot for the target is malformed
 
@@ -16406,14 +16404,14 @@ A `--target` matched a folder under `<prefix>/sysroot/`, but the folder is not a
 `SYSROOT.toml`, or the manifest does not parse. A note says which.
 
 **Fix:** restore the manifest by re-extracting the sysroot, or remove the folder to fall back to `--sysroot`.
-See [Cross-compilation](/docs/language/c-cpp#cross-compilation).
+See [Cross-compilation](/docs/language/c-cpp/#cross-compilation).
 
 ---
 
 ## Value Arms
 
 The value forms of `if`, `match`, and `try`. See
-[Control Flow](/docs/language/control-flow#if-as-an-expression-ternary-equivalent).
+[Control Flow](/docs/language/control-flow/#if-as-an-expression-ternary-equivalent).
 
 ### S073E: braced value arm in an 'if', 'try' or 'match' expression
 
@@ -16620,7 +16618,7 @@ URL: https://www.kairolang.org/docs/language/imports/
 
 The `import` statement brings names from other modules and external libraries into the current scope. Imports are how you access code defined in other files and C/C++ headers.
 
-See [Modules](/docs/language/modules) for how files organize into module namespaces and how the module system resolves import paths.
+See [Modules](/docs/language/modules/) for how files organize into module namespaces and how the module system resolves import paths.
 
 ## Import Forms
 
@@ -16792,7 +16790,7 @@ FFI imports of headers that define names in `std` are automatically redirected t
 ffi "c++" import "iostream"  // imported into cxx::std, not std
 ```
 
-See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp/) for the full FFI model.
 
 ## FFI Linkage Declarations
 
@@ -16812,7 +16810,7 @@ ffi "c++" {
 }
 ```
 
-Declarations inside an `ffi` block are parsed normally but stamped with C/C++ linkage. See [C/C++ Interop](/docs/language/c-cpp) for details on FFI constraints and capabilities.
+Declarations inside an `ffi` block are parsed normally but stamped with C/C++ linkage. See [C/C++ Interop](/docs/language/c-cpp/) for details on FFI constraints and capabilities.
 
 ## Import Reference
 

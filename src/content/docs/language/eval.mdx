@@ -185,7 +185,7 @@ The unselected branches are not type-checked, so they can contain code that woul
 the current `T`. This is the mechanism for writing type-specialized generic code without separate
 overloads.
 
-See [Control Flow](/docs/language/control-flow#compile-time-branching) for `eval if` in the context
+See [Control Flow](/docs/language/control-flow/#compile-time-branching) for `eval if` in the context
 of control flow.
 
 ---
@@ -303,7 +303,7 @@ fn <T> stack_alloc() -> T
 > [!WARNING]
 > Using `eval` and `where` will cause a compile error. Only `requires` based bounding is allowed in a `eval` context.
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -314,7 +314,7 @@ If the class contains a non-trivial destructor, it cannot be used in an `eval` c
 Classes can mix eval functions with regular functions.
 
 > [!NOTE]
-> An initializer on an `eval` field is not compiled yet. See [Status](/docs/status#not-compiled-yet).
+> An initializer on an `eval` field is not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 ```kairo
 class HashState {

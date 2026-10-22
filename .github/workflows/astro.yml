@@ -24,6 +24,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # full history: sitemap <lastmod> / JSON-LD dateModified come from
+          # each page's last git commit (src/lib/lastmod.mjs)
+          fetch-depth: 0
 
       - name: Setup Pages
         id: pages

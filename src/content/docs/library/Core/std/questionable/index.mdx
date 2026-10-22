@@ -1,6 +1,6 @@
 ---
 title: std::Questionable<T>
-description: Represents a type that can be nullable or panicable
+description: "std::Questionable<T>: represents a type that can be nullable or panicable. Type reference for the Kairo standard library."
 ---
 
 # `Questionable<T>`
@@ -9,7 +9,7 @@ Represents a type that can be nullable or panicable
 
 ## Constructors
 
-### [Questionable](./questionable/constructors/questionable-1)
+### [Questionable](/docs/library/core/std/questionable/constructors/questionable-1/)
 
 Default constructor (null)
 
@@ -17,7 +17,7 @@ Default constructor (null)
 Questionable() noexcept
 ```
 
-### [Questionable](./questionable/constructors/questionable-2)
+### [Questionable](/docs/library/core/std/questionable/constructors/questionable-2/)
 
 Null constructor
 
@@ -25,7 +25,7 @@ Null constructor
 Questionable(const std::null_t&) noexcept
 ```
 
-### [Questionable](./questionable/constructors/questionable-3)
+### [Questionable](/docs/library/core/std/questionable/constructors/questionable-3/)
 
 Value constructor
 
@@ -33,7 +33,7 @@ Value constructor
 Questionable(const T& value)
 ```
 
-### [Questionable](./questionable/constructors/questionable-4)
+### [Questionable](/docs/library/core/std/questionable/constructors/questionable-4/)
 
 Move value constructor
 
@@ -41,7 +41,7 @@ Move value constructor
 Questionable(T&& value)
 ```
 
-### [Questionable](./questionable/constructors/questionable-5)
+### [Questionable](/docs/library/core/std/questionable/constructors/questionable-5/)
 
 Error constructor
 
@@ -51,7 +51,7 @@ Questionable(const std::Panic::Frame& error)
 
 ## Operators
 
-### [operator==](./questionable/operators/operator-1)
+### [operator==](/docs/library/core/std/questionable/operators/operator-1/)
 
 Equality comparison with null
 
@@ -59,7 +59,7 @@ Equality comparison with null
 op ==(self, const std::null_t&) -> bool
 ```
 
-### [operator!=](./questionable/operators/operator-2)
+### [operator!=](/docs/library/core/std/questionable/operators/operator-2/)
 
 Inequality comparison with null
 
@@ -67,7 +67,7 @@ Inequality comparison with null
 op !=(self, const std::null_t&) -> bool
 ```
 
-### [operator?](./questionable/operators/operator-3)
+### [operator?](/docs/library/core/std/questionable/operators/operator-3/)
 
 Collapse operator to get T | null_t | Error
 
@@ -75,7 +75,7 @@ Collapse operator to get T | null_t | Error
 op ?(self) -> bool
 ```
 
-### [operator in](./questionable/operators/operator-in-4)
+### [operator in](/docs/library/core/std/questionable/operators/operator-in-4/)
 
 Contains operator
 
@@ -83,7 +83,7 @@ Contains operator
 op in(self, const E& other) -> bool
 ```
 
-### [operator as](./questionable/operators/operator-as-5)
+### [operator as](/docs/library/core/std/questionable/operators/operator-as-5/)
 
 Cast to error type
 
@@ -91,7 +91,7 @@ Cast to error type
 op as(self, E*) -> E
 ```
 
-### [operator as](./questionable/operators/operator-as-6)
+### [operator as](/docs/library/core/std/questionable/operators/operator-as-6/)
 
 Cast to value type
 
@@ -99,7 +99,7 @@ Cast to value type
 op as(self, T*) -> T
 ```
 
-### [operator*](./questionable/operators/operator-7)
+### [operator*](/docs/library/core/std/questionable/operators/operator-7/)
 
 Dereference operator
 
@@ -107,7 +107,7 @@ Dereference operator
 op *(self) -> &T
 ```
 
-### [operator T](./questionable/operators/operator-t-8)
+### [operator T](/docs/library/core/std/questionable/operators/operator-t-8/)
 
 Implicit conversion to T
 

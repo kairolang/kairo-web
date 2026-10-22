@@ -1,101 +1,100 @@
-/* ── Callouts ──
-   Styled blockquote alerts (GitHub-style syntax via remark-callouts).
-   Drop this into your global styles or import in your layout.
-   Uses the existing Kairo docs CSS variables (--border, --bg-2, --text, --text-2, --text-3, --red).
-*/
+/* ── Callouts ─────────────────────────────────────────────────────────
+   GitHub-style alerts (remark-callouts.mjs emits
+   .callout.callout-{note|tip|important|warning|caution} >
+   .callout-indicator(svg + span label) + .callout-content).
+
+   Rendered as an ASCII double-line box with the label notched into the
+   top border:
+
+     ╔══ ! WARNING ═══════════════════════════╗
+     ║  content                               ║
+     ╚════════════════════════════════════════╝
+
+   --c      type colour (border + label)
+   --c-bg   opaque tinted fill (the notch masks the border with it)
+   The type icon SVG is replaced by a mono glyph (::before).          */
 
 .callout {
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--bg-2);
+  --c: var(--text-3);
+  --c-bg: color-mix(in srgb, var(--c) 6%, var(--bg));
+  position: relative;
+  margin: 2.1rem 0 1.75rem;
   padding: 0;
-  margin: 1.5rem 0;
-  overflow: hidden;
+  border: 3px double color-mix(in srgb, var(--c) 62%, transparent);   /* ═ ║ */
+  border-radius: 0;
+  background: var(--c-bg);
+  background-clip: padding-box;
 }
 
 .callout-indicator {
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  z-index: 1;
+  /* centre on the 3px double border */
+  transform: translateY(calc(-50% - 1.5px));
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0.6rem 1rem;
-  font-family: var(--font-sans);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  border-bottom: 1px solid var(--border);
+  gap: 0.9ch;
+  max-width: calc(100% - 2rem);
+  padding: 0 1ch;
+  /* mask the border behind the notch: page bg above, callout fill below */
+  background: linear-gradient(var(--bg) calc(50% + 1.5px), var(--c-bg) 0);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--c-text, var(--c));
 }
-
-.callout-indicator svg {
-  flex-shrink: 0;
+.callout-indicator svg { display: none; }
+.callout-indicator::before {
+  content: var(--glyph, '!');
+  letter-spacing: 0;
 }
 
 .callout-content {
-  padding: 0.75rem 1rem;
-  font-size: 0.88rem;
-  line-height: 1.6;
+  padding: 1.05rem 1.2rem 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.65;
   color: var(--text-2);
 }
-
-.callout-content p {
-  margin: 0;
-}
-
-.callout-content p + p {
-  margin-top: 0.5rem;
-}
-
-.callout-content code {
-  font-size: 0.82rem;
-}
+.callout-content > :first-child { margin-top: 0; }
+.callout-content > :last-child { margin-bottom: 0; }
+.callout-content p { margin: 0; }
+.callout-content p + p,
+.callout-content p + ul,
+.callout-content p + ol,
+.callout-content ul + p,
+.callout-content ol + p { margin-top: 0.6rem; }
+.callout-content ul,
+.callout-content ol { margin: 0.5rem 0 0; }
+.callout-content strong { color: var(--text); }
+.callout-content code { font-size: 0.82rem; }
 
 .callout-content a {
   color: var(--accent);
-  text-decoration: none;
-}
-
-.callout-content a:hover {
   text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 3px;
+}
+.callout-content a:hover {
+  background: var(--accent);
+  color: var(--on-red);
+  text-decoration-color: transparent;
 }
 
-/* ── Type colors ── */
+/* ── Types ── (dark-theme hues; darker variants below keep AA on white) */
+.callout-note      { --c: #4a9eff; --glyph: 'i'; }
+.callout-tip       { --c: #3fb950; --glyph: '+'; }
+.callout-important { --c: #a371f7; --glyph: '*'; }
+.callout-warning   { --c: #d29922; --glyph: '!'; }
+.callout-caution   { --c: var(--red); --c-text: var(--accent); --glyph: '×'; }
 
-/* Note neutral / muted blue */
-.callout-note {
-  border-left-color: #4a9eff;
-}
-.callout-note .callout-indicator {
-  color: #4a9eff;
-}
-
-/* Tip green */
-.callout-tip {
-  border-left-color: #3fb950;
-}
-.callout-tip .callout-indicator {
-  color: #3fb950;
-}
-
-/* Important purple */
-.callout-important {
-  border-left-color: #a371f7;
-}
-.callout-important .callout-indicator {
-  color: #a371f7;
-}
-
-/* Warning yellow/amber */
-.callout-warning {
-  border-left-color: #d29922;
-}
-.callout-warning .callout-indicator {
-  color: #d29922;
-}
-
-/* Caution red (uses the Kairo accent) */
-.callout-caution {
-  border-left-color: var(--red);
-}
-.callout-caution .callout-indicator {
-  color: var(--red);
-}
+[data-theme="light"] .callout-note      { --c: #0969da; }
+[data-theme="light"] .callout-tip       { --c: #1a7f37; }
+[data-theme="light"] .callout-important { --c: #8250df; }
+[data-theme="light"] .callout-warning   { --c: #9a6700; }
+[data-theme="light"] .callout { --c-bg: color-mix(in srgb, var(--c) 5%, var(--bg-2)); }

@@ -1,18 +1,28 @@
 ---
 /**
  * Seo.astro - complete SEO head component
- * Handles meta tags, Open Graph, Twitter/X cards, and JSON-LD structured data.
+ * Meta tags, Open Graph, Twitter/X cards, icons/manifest/alternates, and a
+ * single JSON-LD @graph (WebSite, Organization, ComputerLanguage, compiler
+ * SoftwareApplication + SoftwareSourceCode, TechArticle, BlogPosting,
+ * CollectionPage, BreadcrumbList).
+ *
+ * `title` here is the FULL document title (BaseLayout formats it, see
+ * formatTitle in lib/seo.ts). URLs always end in "/" (trailingSlash: 'always').
  */
+import { SITE_URL, absUrl } from '../lib/seo';
 
 interface Props {
   title: string;
   description: string;
   canonicalURL: string;
   ogImage: string;
+  ogImageAlt?: string;
   /** 'website' for most pages, 'article' for blog posts */
   ogType?: 'website' | 'article';
   /** Controls which JSON-LD schemas are emitted */
   type?: 'home' | 'docs' | 'blog' | 'page';
+  /** Short page name (no " · Kairo …" suffix) used for headlines/breadcrumbs */
+  headline?: string;
   pubDate?: Date;
   modDate?: Date;
   author?: string;
@@ -26,8 +36,10 @@ const {
   description,
   canonicalURL,
   ogImage,
+  ogImageAlt,
   ogType = 'website',
   type = 'page',
+  headline = title,
   pubDate,
   modDate,
   author,
@@ -36,125 +48,229 @@ const {
   noindex = false,
 } = Astro.props;
 
-const siteURL = (Astro.site ?? new URL('https://kairolang.org')).toString().replace(/\/$/, '');
+const siteURL = (Astro.site ?? new URL(SITE_URL)).toString().replace(/\/$/, '');
 const siteName = 'Kairo';
+const path = new URL(canonicalURL).pathname;
 
-// Ensure ogImage is absolute
 const ogImageAbs = ogImage.startsWith('http') ? ogImage : `${siteURL}${ogImage}`;
+const ogImageType = /\.png$/i.test(ogImage) ? 'image/png' : /\.jpe?g$/i.test(ogImage) ? 'image/jpeg' : undefined;
+const imageAlt = ogImageAlt ?? `${headline} — Kairo programming language`;
 
-// ── JSON-LD schemas ──────────────────────────────────────────────────────────
-const schemas: object[] = [];
+// ── JSON-LD @graph ───────────────────────────────────────────────────────────
+const ID = {
+  website: `${siteURL}/#website`,
+  org: `${siteURL}/#organization`,
+  lang: `${siteURL}/#language`,
+  compiler: `${siteURL}/#compiler`,
+  source: `${siteURL}/#source`,
+  logo: `${siteURL}/#logo`,
+  page: `${canonicalURL}#webpage`,
+};
+const LOGO = {
+  '@type': 'ImageObject',
+  '@id': ID.logo,
+  url: `${siteURL}/icon-512.png`,
+  contentUrl: `${siteURL}/icon-512.png`,
+  width: 512,
+  height: 512,
+  caption: 'Kairo',
+};
+const GITHUB_ORG = 'https://github.com/kairolang';
+const GITHUB_REPO = 'https://github.com/kairolang/kairo';
+const languageRef = { '@type': 'ComputerLanguage', '@id': ID.lang, name: 'Kairo' };
 
-// WebSite (every page) - enables sitelinks search box
-schemas.push({
-  '@context': 'https://schema.org',
+const graph: Record<string, unknown>[] = [];
+
+// WebSite (every page) — names the site so "Kairo" resolves to the language
+graph.push({
   '@type': 'WebSite',
+  '@id': ID.website,
   name: siteName,
-  url: siteURL,
-  description: 'Kairo is a modern systems programming language. The Language Beyond C++.',
+  alternateName: ['Kairo Programming Language', 'Kairo Lang', 'kairolang'],
+  url: `${siteURL}/`,
+  description: 'Kairo is an open-source systems programming language with native, bidirectional C++ interop. The Language Beyond C++.',
+  inLanguage: 'en',
+  publisher: { '@id': ID.org },
+  about: { '@id': ID.lang },
   potentialAction: {
     '@type': 'SearchAction',
-    target: {
-      '@type': 'EntryPoint',
-      urlTemplate: `${siteURL}/docs?q={search_term_string}`,
-    },
+    target: { '@type': 'EntryPoint', urlTemplate: `${siteURL}/docs/?q={search_term_string}` },
     'query-input': 'required name=search_term_string',
   },
 });
 
-// Homepage - SoftwareApplication + Organization
+// Organization (every page, so publisher refs always resolve)
+graph.push({
+  '@type': 'Organization',
+  '@id': ID.org,
+  name: 'Kairo Software Foundation',
+  alternateName: ['KSF', 'kairolang'],
+  url: `${siteURL}/ksf/`,
+  logo: LOGO,
+  image: { '@id': ID.logo },
+  email: 'donations@kairolang.org',
+  sameAs: [GITHUB_ORG],
+});
+
+// Language identity: full node on the home page, a typed reference elsewhere
 if (type === 'home') {
-  schemas.push({
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
+  graph.push({
+    '@type': 'ComputerLanguage',
+    '@id': ID.lang,
     name: 'Kairo',
+    alternateName: ['Kairo Programming Language', 'Kairo Lang', 'Kairo language', 'kairolang'],
+    url: `${siteURL}/`,
     description,
-    url: siteURL,
-    applicationCategory: 'DeveloperApplication',
-    operatingSystem: 'Linux, macOS, Windows',
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    publisher: {
-      '@type': 'Organization',
-      name: 'Kairo Software Foundation',
-      url: `${siteURL}/ksf`,
-    },
+    image: ogImageAbs,
+    logo: { '@id': ID.logo },
+    sameAs: [GITHUB_REPO, GITHUB_ORG],
+    subjectOf: { '@id': ID.source },
+    creator: { '@id': ID.org },
   });
-  schemas.push({
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'Kairo Software Foundation',
-    url: `${siteURL}/ksf`,
-    logo: { '@type': 'ImageObject', url: `${siteURL}/kairo-logo.svg` },
-    sameAs: [
-      'https://github.com/kairolang',
-    ],
+  graph.push({
+    '@type': 'SoftwareApplication',
+    '@id': ID.compiler,
+    name: 'Kairo compiler',
+    alternateName: ['kairo', 'Kairo toolchain'],
+    description: 'The Kairo compiler and toolchain: build Kairo programs with native, bidirectional C and C++ interop.',
+    url: `${siteURL}/docs/install/`,
+    downloadUrl: `${siteURL}/docs/install/`,
+    installUrl: `${siteURL}/docs/install/`,
+    softwareHelp: { '@type': 'CreativeWork', url: `${siteURL}/docs/` },
+    applicationCategory: 'DeveloperApplication',
+    applicationSubCategory: 'Compiler',
+    operatingSystem: 'Linux, macOS, Windows',
+    license: 'https://www.apache.org/licenses/LICENSE-2.0',
+    isAccessibleForFree: true,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    publisher: { '@id': ID.org },
+    about: { '@id': ID.lang },
+    sameAs: [GITHUB_REPO],
+  });
+  graph.push({
+    '@type': 'SoftwareSourceCode',
+    '@id': ID.source,
+    name: 'kairo',
+    description: 'Source code of the Kairo programming language compiler and standard library.',
+    codeRepository: GITHUB_REPO,
+    url: GITHUB_REPO,
+    license: 'https://www.apache.org/licenses/LICENSE-2.0',
+    targetProduct: { '@id': ID.compiler },
+    about: { '@id': ID.lang },
+    publisher: { '@id': ID.org },
+  });
+  graph.push({
+    '@type': 'WebPage',
+    '@id': ID.page,
+    url: canonicalURL,
+    name: title,
+    description,
+    isPartOf: { '@id': ID.website },
+    about: { '@id': ID.lang },
+    primaryImageOfPage: { '@type': 'ImageObject', url: ogImageAbs, width: 1200, height: 630 },
+    inLanguage: 'en',
+    ...(modDate ? { dateModified: modDate.toISOString() } : {}),
   });
 }
 
-// Blog post - BlogPosting
-if (type === 'blog' && pubDate) {
-  schemas.push({
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: title,
+// Docs page — TechArticle
+if (type === 'docs') {
+  graph.push({
+    '@type': 'TechArticle',
+    '@id': ID.page,
+    headline: headline.slice(0, 110),
+    name: title,
     description,
     url: canonicalURL,
-    datePublished: pubDate.toISOString(),
+    inLanguage: 'en',
+    image: { '@type': 'ImageObject', url: ogImageAbs, width: 1200, height: 630 },
     ...(modDate ? { dateModified: modDate.toISOString() } : {}),
-    author: { '@type': 'Person', name: author ?? 'Kairo Team' },
-    publisher: {
-      '@type': 'Organization',
-      name: siteName,
-      url: siteURL,
-      logo: { '@type': 'ImageObject', url: `${siteURL}/kairo-logo.svg` },
-    },
-    image: ogImageAbs,
+    isPartOf: { '@id': ID.website },
+    about: languageRef,
+    author: { '@id': ID.org },
+    publisher: { '@id': ID.org },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalURL },
+  });
+}
+
+// Blog post — BlogPosting
+if (type === 'blog' && pubDate) {
+  graph.push({
+    '@type': 'BlogPosting',
+    '@id': ID.page,
+    headline: headline.slice(0, 110),
+    name: title,
+    description,
+    url: canonicalURL,
+    inLanguage: 'en',
+    datePublished: pubDate.toISOString(),
+    dateModified: (modDate ?? pubDate).toISOString(),
+    author: { '@type': 'Person', name: author ?? 'Kairo Team', url: `${siteURL}/contributors/` },
+    publisher: { '@id': ID.org },
+    image: { '@type': 'ImageObject', url: ogImageAbs, width: 1200, height: 630 },
+    isPartOf: { '@id': ID.website },
+    about: languageRef,
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalURL },
     ...(tags.length ? { keywords: tags.join(', ') } : {}),
   });
 }
 
-// Docs page - TechArticle
-if (type === 'docs') {
-  schemas.push({
-    '@context': 'https://schema.org',
-    '@type': 'TechArticle',
+// Listing pages — CollectionPage
+if (type === 'page' && (path === '/blog/' || path === '/contributors/')) {
+  graph.push({
+    '@type': 'CollectionPage',
+    '@id': ID.page,
+    url: canonicalURL,
     name: title,
     description,
-    url: canonicalURL,
-    publisher: {
-      '@type': 'Organization',
-      name: siteName,
-      url: siteURL,
-    },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalURL },
+    inLanguage: 'en',
+    isPartOf: { '@id': ID.website },
+    about: languageRef,
+    publisher: { '@id': ID.org },
+    ...(modDate ? { dateModified: modDate.toISOString() } : {}),
   });
 }
 
-// Breadcrumbs
+// Breadcrumbs (trailing-slash absolute URLs)
 if (breadcrumbs.length > 0) {
-  schemas.push({
-    '@context': 'https://schema.org',
+  graph.push({
     '@type': 'BreadcrumbList',
     itemListElement: breadcrumbs.map((crumb, i) => ({
       '@type': 'ListItem',
       position: i + 1,
       name: crumb.name,
-      item: crumb.url.startsWith('http') ? crumb.url : `${siteURL}${crumb.url}`,
+      item: absUrl(crumb.url),
     })),
   });
 }
+
+const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
 ---
 
 <!-- Primary meta -->
 <meta name="description" content={description} />
-<meta name="theme-color" content="#09090b" />
 {noindex
-  ? <meta name="robots" content="noindex, nofollow" />
+  ? <meta name="robots" content="noindex, follow" />
   : <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 }
 {author && <meta name="author" content={author} />}
 {tags.length > 0 && <meta name="keywords" content={tags.join(', ')} />}
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08080a" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafafa" />
+<meta name="color-scheme" content="dark light" />
+
+<!-- Canonical + alternates -->
+{!noindex && <link rel="canonical" href={canonicalURL} />}
+{!noindex && <link rel="alternate" hreflang="en" href={canonicalURL} />}
+{!noindex && <link rel="alternate" hreflang="x-default" href={canonicalURL} />}
+<link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+<link rel="alternate" type="text/plain" href="/llms.txt" title="LLM context" />
+
+<!-- Icons + manifest -->
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" href="/kairo-file-icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
 
 <!-- Open Graph -->
 <meta property="og:site_name" content={siteName} />
@@ -164,12 +280,16 @@ if (breadcrumbs.length > 0) {
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:image" content={ogImageAbs} />
-<meta property="og:image:alt" content={`${siteName} - ${title}`} />
+<meta property="og:image:secure_url" content={ogImageAbs} />
+{ogImageType && <meta property="og:image:type" content={ogImageType} />}
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={imageAlt} />
 {ogType === 'article' && pubDate && (
   <meta property="article:published_time" content={pubDate.toISOString()} />
 )}
-{ogType === 'article' && modDate && (
-  <meta property="article:modified_time" content={modDate.toISOString()} />
+{ogType === 'article' && (modDate ?? pubDate) && (
+  <meta property="article:modified_time" content={(modDate ?? pubDate)!.toISOString()} />
 )}
 {ogType === 'article' && author && (
   <meta property="article:author" content={author} />
@@ -184,12 +304,7 @@ if (breadcrumbs.length > 0) {
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={ogImageAbs} />
-<meta name="twitter:image:alt" content={`${siteName} - ${title}`} />
-
-<!-- Canonical -->
-<link rel="canonical" href={canonicalURL} />
+<meta name="twitter:image:alt" content={imageAlt} />
 
 <!-- JSON-LD structured data -->
-{schemas.map(schema => (
-  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
-))}
+<script type="application/ld+json" set:html={jsonLd} />

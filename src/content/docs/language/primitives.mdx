@@ -24,9 +24,9 @@ hold it, up to `i512`. See [Literal inference](#5-literal-inference--a-separate-
 | `u16` | 2 bytes | Unsigned 16-bit integer | `uint16_t` |
 | `u32` | 4 bytes | Unsigned 32-bit integer | `uint32_t` |
 | `u64` | 8 bytes | Unsigned 64-bit integer | `uint64_t` |
-| `u128` | 16 bytes | [Unsigned 128-bit integer]((#extended-width-integers-u128u512-i128i512)) | `__uint128_t` |
-| `u256` | 32 bytes | [Unsigned 256-bit integer]((#extended-width-integers-u128u512-i128i512)) |   |
-| `u512` | 64 bytes | [Unsigned 512-bit integer]((#extended-width-integers-u128u512-i128i512)) |   |
+| `u128` | 16 bytes | [Unsigned 128-bit integer](#extended-width-integers-u128u512-i128i512) | `__uint128_t` |
+| `u256` | 32 bytes | [Unsigned 256-bit integer](#extended-width-integers-u128u512-i128i512) |   |
+| `u512` | 64 bytes | [Unsigned 512-bit integer](#extended-width-integers-u128u512-i128i512) |   |
 | `i8` | 1 byte | Signed 8-bit integer | `int8_t` |
 | `i16` | 2 bytes | Signed 16-bit integer | `int16_t` |
 | `i32` | 4 bytes | Signed 32-bit integer | `int32_t` |
@@ -135,7 +135,7 @@ var y: f80 = 1.0    // error P003E: long double is binary128 here; use f128
 ## Implicit Conversions
 
 Integer and float types can be **implicitly widened** `i32` to `i64`, `f32` to `f64` but narrowing
-conversions require an explicit cast. See [Casting](/docs/language/casting) for details.
+conversions require an explicit cast. See [Casting](/docs/language/casting/) for details.
 
 ```kairo
 var a: i32 = 42
@@ -275,11 +275,11 @@ var void_t: MyObj<void> = MyObj<void>()  // void is valid here
 | `*T` | 8 bytes | Safe pointer non-null, compiler-tracked |
 | `unsafe *T` | 8 bytes | Raw pointer nullable, no safety checks |
 
-`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [Tether](/docs/language/tether). See [Pointers](/docs/language/pointers) for full details.
+`*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [Tether](/docs/language/tether/). See [Pointers](/docs/language/pointers/) for full details.
 
 `unsafe *T` is a raw C-style pointer with no compiler tracking. It can be null, and dereferencing a null
 
-`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-cpp), custom allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers) and [Unsafe](/docs/language/unsafe) for full details.
+`unsafe *T` is undefined behavior. Use `unsafe *T` for [C/C++ interop](/docs/language/c-cpp/), custom allocators, and other low-level scenarios. See [Pointers](/docs/language/pointers/) and [Unsafe](/docs/language/unsafe/) for full details.
 
 ```kairo
 var x = 42
@@ -441,7 +441,7 @@ and use that.
 
 > [!WARNING]
 > One case is not caught: passing a slice literal to a function that **stores** the slice. The literal's
-> storage ends with the statement, and the stored slice then points at nothing. Until [Tether](/docs/language/tether)
+> storage ends with the statement, and the stored slice then points at nothing. Until [Tether](/docs/language/tether/)
 > checks this, it is the programmer's responsibility.
 
 #### Slices in fields
@@ -688,7 +688,7 @@ step is required, so `u32 → i32` is E), and the signed→unsigned quadrant is 
 
 Float→int is E in all cases. The cast truncates toward zero and saturates on
 out-of-range values; it is never undefined behavior. See
-[Casting](/docs/language/casting#float-to-integer).
+[Casting](/docs/language/casting/#float-to-integer).
 
 ---
 
@@ -827,7 +827,7 @@ Conversion sequences have exactly two ranks:
 There is deliberately no ordering *within* rank 2. If two candidates are both reachable
 by W, the call is **ambiguous** and errors, even if one conversion is "narrower" in some
 intuitive sense. No `i32 → i64` beats `i32 → f64` tiebreaking. No promotion-vs-conversion
-distinction. The tie-breaks in [Function Overloading](/docs/language/functions#function-overloading)
+distinction. The tie-breaks in [Function Overloading](/docs/language/functions/#function-overloading)
 (reference binding, non-generic over generic, most specialized generic) never order conversions, so "no
 ordering within rank 2" still holds, and so does the guarantee below. This is the property that makes the
 flag safe:

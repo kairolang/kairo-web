@@ -1,6 +1,6 @@
 ---
 title: std::String::basic<Char, Traits>
-description: Represents a basic string type with specified character type and traits, similar to std::basic_string in C++
+description: "std::String::basic<Char, Traits>: the owning string type of the Kairo standard library, parameterised by character type and traits, like std::basic_string."
 ---
 
 # `basic<Char, Traits>`
@@ -24,7 +24,7 @@ Represents a basic string type with specified character type and traits, similar
 
 ## Constructors
 
-### [`basic`](./basic/constructors/basic-1)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-1/)
 
 Default constructor
 
@@ -32,7 +32,7 @@ Default constructor
 basic() noexcept
 ```
 
-### [`basic`](./basic/constructors/basic-2)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-2/)
 
 Copy constructor
 
@@ -40,7 +40,7 @@ Copy constructor
 basic(const basic& other) noexcept
 ```
 
-### [`basic`](./basic/constructors/basic-3)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-3/)
 
 Move constructor
 
@@ -48,7 +48,7 @@ Move constructor
 basic(basic&& other) noexcept
 ```
 
-### [`basic`](./basic/constructors/basic-4)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-4/)
 
 Constructor from C++ string
 
@@ -56,7 +56,7 @@ Constructor from C++ string
 basic(const libcxx::basic_string<CharT, Traits>& str) noexcept
 ```
 
-### [`basic`](./basic/constructors/basic-5)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-5/)
 
 Constructor from C-style string
 
@@ -64,7 +64,7 @@ Constructor from C-style string
 basic(const CharT* str) noexcept
 ```
 
-### [`basic`](./basic/constructors/basic-6)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-6/)
 
 Constructor with character repeated count times
 
@@ -72,7 +72,7 @@ Constructor with character repeated count times
 basic(const CharT chr, size_t count) noexcept
 ```
 
-### [`basic`](./basic/constructors/basic-7)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-7/)
 
 Constructor from C-style string with length
 
@@ -80,7 +80,7 @@ Constructor from C-style string with length
 basic(const CharT* str, size_t len) noexcept
 ```
 
-### [`basic`](./basic/constructors/basic-8)
+### [`basic`](/docs/library/core/std-string/basic/constructors/basic-8/)
 
 Constructor from string slice
 
@@ -90,7 +90,7 @@ basic(const slice_t& s) noexcept
 
 ## Operators
 
-### [`operator=`](./basic/operators/operator-1)
+### [`operator=`](/docs/library/core/std-string/basic/operators/operator-1/)
 
 Copy assignment operator
 
@@ -98,7 +98,7 @@ Copy assignment operator
 op =(self, const basic& other) -> &basic
 ```
 
-### [`operator=`](./basic/operators/operator-2)
+### [`operator=`](/docs/library/core/std-string/basic/operators/operator-2/)
 
 Move assignment operator
 
@@ -106,7 +106,7 @@ Move assignment operator
 op =(self, basic&& other) -> &basic
 ```
 
-### [`operator=`](./basic/operators/operator-3)
+### [`operator=`](/docs/library/core/std-string/basic/operators/operator-3/)
 
 Assignment from C-style string
 
@@ -114,7 +114,7 @@ Assignment from C-style string
 op =(self, const CharT* str) -> &basic
 ```
 
-### [`operator[]`](./basic/operators/operator-4)
+### [`operator[]`](/docs/library/core/std-string/basic/operators/operator-4/)
 
 Access character at index (mutable)
 
@@ -122,7 +122,7 @@ Access character at index (mutable)
 op [``](self, index: size_t) -> &CharT
 ```
 
-### [`operator[]`](./basic/operators/operator-5)
+### [`operator[]`](/docs/library/core/std-string/basic/operators/operator-5/)
 
 Access character at index (const)
 
@@ -130,7 +130,7 @@ Access character at index (const)
 op [``](self, index: size_t) -> const &CharT
 ```
 
-### [`operator+=`](./basic/operators/operator-6)
+### [`operator+=`](/docs/library/core/std-string/basic/operators/operator-6/)
 
 Append another string
 
@@ -138,7 +138,7 @@ Append another string
 op +=(self, const basic& other) -> &basic
 ```
 
-### [`operator+=`](./basic/operators/operator-7)
+### [`operator+=`](/docs/library/core/std-string/basic/operators/operator-7/)
 
 Append C-style string
 
@@ -146,7 +146,7 @@ Append C-style string
 op +=(self, const CharT* str) -> &basic
 ```
 
-### [`operator+=`](./basic/operators/operator-8)
+### [`operator+=`](/docs/library/core/std-string/basic/operators/operator-8/)
 
 Append character
 
@@ -154,7 +154,7 @@ Append character
 op +=(self, const U chr) -> &basic
 ```
 
-### [`operator+`](./basic/operators/operator-9)
+### [`operator+`](/docs/library/core/std-string/basic/operators/operator-9/)
 
 Concatenate with another string
 
@@ -162,7 +162,7 @@ Concatenate with another string
 op +(self, const basic& other) -> basic
 ```
 
-### [`operator+`](./basic/operators/operator-10)
+### [`operator+`](/docs/library/core/std-string/basic/operators/operator-10/)
 
 Concatenate with C-style string
 
@@ -170,7 +170,7 @@ Concatenate with C-style string
 op +(self, const CharT* str) -> basic
 ```
 
-### [`operator+`](./basic/operators/operator-11)
+### [`operator+`](/docs/library/core/std-string/basic/operators/operator-11/)
 
 Concatenate with character
 
@@ -178,7 +178,7 @@ Concatenate with character
 op +(self, const U chr) -> basic
 ```
 
-### [`operator==`](./basic/operators/operator-12)
+### [`operator==`](/docs/library/core/std-string/basic/operators/operator-12/)
 
 Equality comparison
 
@@ -186,7 +186,7 @@ Equality comparison
 op ==(self, const basic& other) -> bool
 ```
 
-### [`operator!=`](./basic/operators/operator-13)
+### [`operator!=`](/docs/library/core/std-string/basic/operators/operator-13/)
 
 Inequality comparison
 
@@ -194,7 +194,7 @@ Inequality comparison
 op !=(self, const basic& other) -> bool
 ```
 
-### [`operator<`](./basic/operators/operator-14)
+### [`operator<`](/docs/library/core/std-string/basic/operators/operator-14/)
 
 Less than comparison
 
@@ -202,7 +202,7 @@ Less than comparison
 op <(self, const basic& other) -> bool
 ```
 
-### [`operator>`](./basic/operators/operator-15)
+### [`operator>`](/docs/library/core/std-string/basic/operators/operator-15/)
 
 Greater than comparison
 
@@ -210,7 +210,7 @@ Greater than comparison
 op >(self, const basic& other) -> bool
 ```
 
-### [`operator<=`](./basic/operators/operator-16)
+### [`operator<=`](/docs/library/core/std-string/basic/operators/operator-16/)
 
 Less than or equal comparison
 
@@ -218,7 +218,7 @@ Less than or equal comparison
 op <=(self, const basic& other) -> bool
 ```
 
-### [`operator>=`](./basic/operators/operator-17)
+### [`operator>=`](/docs/library/core/std-string/basic/operators/operator-17/)
 
 Greater than or equal comparison
 
@@ -226,7 +226,7 @@ Greater than or equal comparison
 op >=(self, const basic& other) -> bool
 ```
 
-### [`operator slice_t`](./basic/operators/operator-slice_t-18)
+### [`operator slice_t`](/docs/library/core/std-string/basic/operators/operator-slice_t-18/)
 
 Conversion to slice
 
@@ -234,7 +234,7 @@ Conversion to slice
 op slice_t(self) -> slice_t
 ```
 
-### [`operator as`](./basic/operators/operator-as-19)
+### [`operator as`](/docs/library/core/std-string/basic/operators/operator-as-19/)
 
 Cast to slice
 
@@ -242,7 +242,7 @@ Cast to slice
 op as(self, const slice_t*) -> slice_t
 ```
 
-### [`operator as`](./basic/operators/operator-as-20)
+### [`operator as`](/docs/library/core/std-string/basic/operators/operator-as-20/)
 
 Cast to C-style string
 
@@ -250,7 +250,7 @@ Cast to C-style string
 op as(self, const char_t*) -> const char_t*
 ```
 
-### [`operator in`](./basic/operators/operator-in-21)
+### [`operator in`](/docs/library/core/std-string/basic/operators/operator-in-21/)
 
 Contains operator for slice
 
@@ -258,7 +258,7 @@ Contains operator for slice
 op in(self, needle: slice) -> bool
 ```
 
-### [`operator in`](./basic/operators/operator-in-22)
+### [`operator in`](/docs/library/core/std-string/basic/operators/operator-in-22/)
 
 Contains operator for character
 
@@ -268,7 +268,7 @@ op in(self, chr: CharT) -> bool
 
 ## Methods
 
-### [`push_back`](./basic/methods/push_back-1)
+### [`push_back`](/docs/library/core/std-string/basic/methods/push_back-1/)
 
 Appends a character to the end of the string
 
@@ -276,7 +276,7 @@ Appends a character to the end of the string
 push_back(self, c: CharT) -> void
 ```
 
-### [`append`](./basic/methods/append-2)
+### [`append`](/docs/library/core/std-string/basic/methods/append-2/)
 
 Appends another string
 
@@ -284,7 +284,7 @@ Appends another string
 append(self, const basic& other) -> void
 ```
 
-### [`append`](./basic/methods/append-3)
+### [`append`](/docs/library/core/std-string/basic/methods/append-3/)
 
 Appends C-style string with length
 
@@ -292,7 +292,7 @@ Appends C-style string with length
 append(self, const CharT* str, len: size_t) -> void
 ```
 
-### [`append`](./basic/methods/append-4)
+### [`append`](/docs/library/core/std-string/basic/methods/append-4/)
 
 Appends string slice
 
@@ -300,7 +300,7 @@ Appends string slice
 append(self, const slice_t& s) -> void
 ```
 
-### [`clear`](./basic/methods/clear-5)
+### [`clear`](/docs/library/core/std-string/basic/methods/clear-5/)
 
 Clears the string content
 
@@ -308,7 +308,7 @@ Clears the string content
 clear(self) -> void
 ```
 
-### [`replace`](./basic/methods/replace-6)
+### [`replace`](/docs/library/core/std-string/basic/methods/replace-6/)
 
 Replaces portion of string with another slice
 
@@ -316,7 +316,7 @@ Replaces portion of string with another slice
 replace(self, pos: size_t, len: size_t, const slice_t& other) -> void
 ```
 
-### [`reserve`](./basic/methods/reserve-7)
+### [`reserve`](/docs/library/core/std-string/basic/methods/reserve-7/)
 
 Reserves capacity for the string
 
@@ -324,7 +324,7 @@ Reserves capacity for the string
 reserve(self, new_cap: size_t) -> void
 ```
 
-### [`resize`](./basic/methods/resize-8)
+### [`resize`](/docs/library/core/std-string/basic/methods/resize-8/)
 
 Resizes the string to new size
 
@@ -332,7 +332,7 @@ Resizes the string to new size
 resize(self, new_size: size_t, c: CharT = CharT()) -> void
 ```
 
-### [`empty`](./basic/methods/empty-9)
+### [`empty`](/docs/library/core/std-string/basic/methods/empty-9/)
 
 Checks if string is empty
 
@@ -340,7 +340,7 @@ Checks if string is empty
 empty(self) -> bool
 ```
 
-### [`raw`](./basic/methods/raw-10)
+### [`raw`](/docs/library/core/std-string/basic/methods/raw-10/)
 
 Returns raw C-style string pointer
 
@@ -348,7 +348,7 @@ Returns raw C-style string pointer
 raw(self) -> const CharT*
 ```
 
-### [`size`](./basic/methods/size-11)
+### [`size`](/docs/library/core/std-string/basic/methods/size-11/)
 
 Returns the size of the string
 
@@ -356,7 +356,7 @@ Returns the size of the string
 size(self) -> size_t
 ```
 
-### [`length`](./basic/methods/length-12)
+### [`length`](/docs/library/core/std-string/basic/methods/length-12/)
 
 Returns the length of the string
 
@@ -364,7 +364,7 @@ Returns the length of the string
 length(self) -> size_t
 ```
 
-### [`is_empty`](./basic/methods/is_empty-13)
+### [`is_empty`](/docs/library/core/std-string/basic/methods/is_empty-13/)
 
 Checks if string is empty
 
@@ -372,7 +372,7 @@ Checks if string is empty
 is_empty(self) -> bool
 ```
 
-### [`raw_string`](./basic/methods/raw_string-14)
+### [`raw_string`](/docs/library/core/std-string/basic/methods/raw_string-14/)
 
 Returns reference to underlying C++ string
 
@@ -380,7 +380,7 @@ Returns reference to underlying C++ string
 raw_string(self) -> &string_t
 ```
 
-### [`subslice`](./basic/methods/subslice-15)
+### [`subslice`](/docs/library/core/std-string/basic/methods/subslice-15/)
 
 Returns a substring
 
@@ -388,7 +388,7 @@ Returns a substring
 subslice(self, pos: size_t, len: size_t) -> basic
 ```
 
-### [`l_strip`](./basic/methods/l_strip-16)
+### [`l_strip`](/docs/library/core/std-string/basic/methods/l_strip-16/)
 
 Strips whitespace from the left
 
@@ -396,7 +396,7 @@ Strips whitespace from the left
 l_strip(self, const char_vec& delim = {' ', '\t', '\n', '\r'}) -> basic
 ```
 
-### [`r_strip`](./basic/methods/r_strip-17)
+### [`r_strip`](/docs/library/core/std-string/basic/methods/r_strip-17/)
 
 Strips whitespace from the right
 
@@ -404,7 +404,7 @@ Strips whitespace from the right
 r_strip(self, const char_vec& delim = {' ', '\t', '\n', '\r'}) -> basic
 ```
 
-### [`strip`](./basic/methods/strip-18)
+### [`strip`](/docs/library/core/std-string/basic/methods/strip-18/)
 
 Strips whitespace from both ends
 
@@ -412,7 +412,7 @@ Strips whitespace from both ends
 strip(self, const char_vec& delim = {' ', '\t', '\n', '\r'}) -> basic
 ```
 
-### [`split`](./basic/methods/split-19)
+### [`split`](/docs/library/core/std-string/basic/methods/split-19/)
 
 Splits string by delimiter
 
@@ -420,7 +420,7 @@ Splits string by delimiter
 split(self, const basic& delim, op: slice_t::Operation = slice_t::Operation::Remove) -> vec<basic>
 ```
 
-### [`split_lines`](./basic/methods/split_lines-20)
+### [`split_lines`](/docs/library/core/std-string/basic/methods/split_lines-20/)
 
 Splits string by newlines
 
@@ -428,7 +428,7 @@ Splits string by newlines
 split_lines(self) -> vec<basic>
 ```
 
-### [`starts_with`](./basic/methods/starts_with-21)
+### [`starts_with`](/docs/library/core/std-string/basic/methods/starts_with-21/)
 
 Checks if string starts with needle
 
@@ -436,7 +436,7 @@ Checks if string starts with needle
 starts_with(self, const basic& needle) -> bool
 ```
 
-### [`starts_with`](./basic/methods/starts_with-22)
+### [`starts_with`](/docs/library/core/std-string/basic/methods/starts_with-22/)
 
 Checks if string starts with character
 
@@ -444,7 +444,7 @@ Checks if string starts with character
 starts_with(self, c: CharT) -> bool
 ```
 
-### [`starts_with`](./basic/methods/starts_with-23)
+### [`starts_with`](/docs/library/core/std-string/basic/methods/starts_with-23/)
 
 Checks if string starts with slice
 
@@ -452,7 +452,7 @@ Checks if string starts with slice
 starts_with(self, needle: slice) -> bool
 ```
 
-### [`ends_with`](./basic/methods/ends_with-24)
+### [`ends_with`](/docs/library/core/std-string/basic/methods/ends_with-24/)
 
 Checks if string ends with needle
 
@@ -460,7 +460,7 @@ Checks if string ends with needle
 ends_with(self, const basic& needle) -> bool
 ```
 
-### [`ends_with`](./basic/methods/ends_with-25)
+### [`ends_with`](/docs/library/core/std-string/basic/methods/ends_with-25/)
 
 Checks if string ends with character
 
@@ -468,7 +468,7 @@ Checks if string ends with character
 ends_with(self, c: CharT) -> bool
 ```
 
-### [`ends_with`](./basic/methods/ends_with-26)
+### [`ends_with`](/docs/library/core/std-string/basic/methods/ends_with-26/)
 
 Checks if string ends with slice
 
@@ -476,7 +476,7 @@ Checks if string ends with slice
 ends_with(self, needle: slice) -> bool
 ```
 
-### [`contains`](./basic/methods/contains-27)
+### [`contains`](/docs/library/core/std-string/basic/methods/contains-27/)
 
 Checks if string contains needle
 
@@ -484,7 +484,7 @@ Checks if string contains needle
 contains(self, const basic& needle) -> bool
 ```
 
-### [`contains`](./basic/methods/contains-28)
+### [`contains`](/docs/library/core/std-string/basic/methods/contains-28/)
 
 Checks if string contains character
 
@@ -492,7 +492,7 @@ Checks if string contains character
 contains(self, c: CharT) -> bool
 ```
 
-### [`lfind`](./basic/methods/lfind-29)
+### [`lfind`](/docs/library/core/std-string/basic/methods/lfind-29/)
 
 Finds first occurrence of needle
 
@@ -500,7 +500,7 @@ Finds first occurrence of needle
 lfind(self, needle: slice) -> usize?
 ```
 
-### [`rfind`](./basic/methods/rfind-30)
+### [`rfind`](/docs/library/core/std-string/basic/methods/rfind-30/)
 
 Finds last occurrence of needle
 
@@ -508,7 +508,7 @@ Finds last occurrence of needle
 rfind(self, needle: slice) -> usize?
 ```
 
-### [`find_first_of`](./basic/methods/find_first_of-31)
+### [`find_first_of`](/docs/library/core/std-string/basic/methods/find_first_of-31/)
 
 Finds first occurrence of any character in needle
 
@@ -516,7 +516,7 @@ Finds first occurrence of any character in needle
 find_first_of(self, needle: slice) -> usize?
 ```
 
-### [`find_last_of`](./basic/methods/find_last_of-32)
+### [`find_last_of`](/docs/library/core/std-string/basic/methods/find_last_of-32/)
 
 Finds last occurrence of any character in needle
 
@@ -524,7 +524,7 @@ Finds last occurrence of any character in needle
 find_last_of(self, needle: slice) -> usize?
 ```
 
-### [`find_first_not_of`](./basic/methods/find_first_not_of-33)
+### [`find_first_not_of`](/docs/library/core/std-string/basic/methods/find_first_not_of-33/)
 
 Finds first character not in needle
 
@@ -532,7 +532,7 @@ Finds first character not in needle
 find_first_not_of(self, needle: slice) -> usize?
 ```
 
-### [`find_last_not_of`](./basic/methods/find_last_not_of-34)
+### [`find_last_not_of`](/docs/library/core/std-string/basic/methods/find_last_not_of-34/)
 
 Finds last character not in needle
 

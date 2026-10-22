@@ -117,7 +117,7 @@ f0(7)       // same as f0(7, 2, 3)
 ```
 
 Out-of-line class methods have one more restriction: their defaults go on the in-class declaration. See
-[Classes](/docs/language/classes#rules).
+[Classes](/docs/language/classes/#rules).
 
 #### Evaluation order
 
@@ -374,13 +374,13 @@ The same holds for `*p` and for operators that return a reference, such as `cout
 `@move` is checked against the parameter's type, not just recorded:
 
 - **Move-only class:** `@move` is redundant, since passing already consumes the argument (see
-  [Ownership](/docs/language/ownership#function-parameters)), but it's allowed and checked.
+  [Ownership](/docs/language/ownership/#function-parameters)), but it's allowed and checked.
 - **Copy-only class:** `@move` is a compile error.
 - **Generic `T`:** `@move` is the only way to declare that the function consumes its argument. The body can
   then consume `x` whatever `T` turns out to be.
 
 In every case the call counts as the consuming use, and any later use of the argument in the caller is a
-[use-after-move error](/docs/language/ownership#moved-from-state).
+[use-after-move error](/docs/language/ownership/#moved-from-state).
 
 #### Imported-only forms
 
@@ -434,7 +434,7 @@ fn make(@inout out: [i32; 3]) {         // ok: the caller owns the array
 ```
 
 Returning a slice literal is also an error, because the literal's storage ends with the function. See
-[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+[Primitives](/docs/language/primitives/#how-long-a-slice-literals-storage-lives).
 
 ### No-return `!`
 
@@ -474,8 +474,8 @@ its respective page:
 | Return type | Description | Details |
 |---|---|---|
 | `yield T` | Generator: produces a sequence of `T` values | [Generators](#generators) |
-| `atomic T` | Atomic wrapper thread-safe operations | [Concurrency](/docs/language/concurrency) |
-| `thread T` | Thread-local storage | [Concurrency](/docs/language/concurrency) |
+| `atomic T` | Atomic wrapper thread-safe operations | [Concurrency](/docs/language/concurrency/) |
+| `thread T` | Thread-local storage | [Concurrency](/docs/language/concurrency/) |
 
 ### Generators
 
@@ -543,7 +543,7 @@ for x in it { }              // it reads a destroyed list
 
 > [!NOTE]
 > The current compiler does not report a generator that outlives what it refers to. See
-> [Implementation Status](/docs/status#not-diagnosed).
+> [Implementation Status](/docs/status/#not-diagnosed).
 
 ---
 
@@ -638,7 +638,7 @@ g([1, 2, 3])                // compile error: call to 'g' is ambiguous
 g([1, 2, 3] as [i32])       // ok
 ```
 
-See [Primitives](/docs/language/primitives#list-literal-arguments)
+See [Primitives](/docs/language/primitives/#list-literal-arguments)
 for the ranking rules.
 
 ### Unsafe overloads
@@ -662,11 +662,11 @@ var y = unsafe add(10, 20)   // calls the unsafe overload
 > [!NOTE]
 > `unsafe` overloads are not "unsafe memory" Tether still guarantees memory safety. The `unsafe` qualifier
 > signals that the function may not uphold other invariants that the safe version does. See
-> [Unsafe](/docs/language/unsafe) for the full unsafe model.
+> [Unsafe](/docs/language/unsafe/) for the full unsafe model.
 
 ### Const overloading restriction
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Place operators are exempt**, because they cannot be renamed: a place-returning operator (`[]`, `->`) may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators#const-overloading-operators).
+`const` and non-`const` methods with the same name and parameter types cannot coexist, use distinct names like `get()` and `get_mut()`. This restriction applies to named methods declared in Kairo source. An imported C++ class may have such a pair, and both members can be defined out of line (see [Overloading on mode](#overloading-on-mode)). **Place operators are exempt**, because they cannot be renamed: a place-returning operator (`[]`, `->`) may declare both a `self` overload (returning `*T`) and a `const self` overload (returning `*const T`), dispatched by receiver const-ness. See [Operators](/docs/language/operators/#const-overloading-operators).
 
 ```kairo
 class Foo {
@@ -771,8 +771,8 @@ fn <T derives Serializable> serialize(value: T) -> [byte] {
 > [!NOTE]
 > `impl` checks structural conformance the type satisfies the interface's required method signatures
 > without needing an explicit `impl` declaration. `derives` checks polymorphic inheritance the type is a
-> subclass of the specified class. See [Interfaces](/docs/language/interfaces) and
-> [Requires Clauses](/docs/language/requires) for details.
+> subclass of the specified class. See [Interfaces](/docs/language/interfaces/) and
+> [Requires Clauses](/docs/language/requires/) for details.
 
 ### Requires Clauses
 
@@ -785,8 +785,8 @@ fn <T impl ToString> print_value(value: T) requires sizeof T <= 64 {
 ```
 
 `requires` is a compile-time gate: the condition must hold at compile time or the program does not
-compile — no runtime fallback, no dispatch. See [Requires Clauses](/docs/language/requires) for the
-full constraint system and [Where Clauses](/docs/language/where) for runtime-conditional overload
+compile — no runtime fallback, no dispatch. See [Requires Clauses](/docs/language/requires/) for the
+full constraint system and [Where Clauses](/docs/language/where/) for runtime-conditional overload
 dispatch.
 
 ---
@@ -809,14 +809,14 @@ fn background() async -> Data          { /* ... */ }
 
 | Modifier | Free functions | Methods | Description |
 |---|---|---|---|
-| `const` | | Yes | Method does not modify `self`. See [Variables](/docs/language/variables#the-const-binding-rule) |
+| `const` | | Yes | Method does not modify `self`. See [Variables](/docs/language/variables/#the-const-binding-rule) |
 | `volatile` | Yes | Yes | Prevents certain compiler optimizations; for hardware interaction |
 | `unsafe` | Yes | Yes | Separate overload namespace for alternative implementations |
-| `eval` | Yes | Yes | Must be evaluable at compile time. See [Eval](/docs/language/eval) |
-| `async` | Yes | Yes | Asynchronous execution. See [Concurrency](/docs/language/concurrency) |
-| `panic` | Yes | Yes | May panic; callers must handle. See [Panic](/docs/language/panic) |
+| `eval` | Yes | Yes | Must be evaluable at compile time. See [Eval](/docs/language/eval/) |
+| `async` | Yes | Yes | Asynchronous execution. See [Concurrency](/docs/language/concurrency/) |
+| `panic` | Yes | Yes | May panic; callers must handle. See [Panic](/docs/language/panic/) |
 | `inline` | Yes | Yes | Puts the body in the interface. See [`inline`](#inline) |
-| `final` | | Yes | Prevents override in subclasses. See [Classes](/docs/language/classes) |
+| `final` | | Yes | Prevents override in subclasses. See [Classes](/docs/language/classes/) |
 
 ### `inline`
 
@@ -870,8 +870,8 @@ priv fn internal_helper() { /* ... */ }
 prot fn library_helper()  { /* ... */ }
 ```
 
-See [Modules](/docs/language/modules#visibility-on-top-level-declarations) for how visibility interacts
-with imports. Methods follow the member rules in [Classes](/docs/language/classes#default-visibility).
+See [Modules](/docs/language/modules/#visibility-on-top-level-declarations) for how visibility interacts
+with imports. Methods follow the member rules in [Classes](/docs/language/classes/#default-visibility).
 
 ---
 
@@ -881,10 +881,10 @@ ABI modifiers control name mangling, dispatch mechanism, and symbol visibility a
 
 | Modifier | Description |
 |---|---|
-| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-cpp) |
-| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-cpp) |
+| `ffi "c"` | C linkage no name mangling. See [C/C++ Interop](/docs/language/c-cpp/) |
+| `ffi "c++"` | C++ linkage Itanium or MSVC mangling. See [C/C++ Interop](/docs/language/c-cpp/) |
 | `static` | Internal linkage; no vtable dispatch. Cannot be `virtual` or `override` |
-| `virtual` | Dynamic dispatch via vtable. See [Classes](/docs/language/classes) |
+| `virtual` | Dynamic dispatch via vtable. See [Classes](/docs/language/classes/) |
 | `override` | Overrides a `virtual` method from a base class; implies `virtual` |
 
 `static`, `virtual`, and `override` are mutually exclusive with each other. `ffi` can be combined with any
@@ -950,8 +950,8 @@ var scale = fn (x: i32) -> i32 { return x * multiplier }   // captures multiplie
 scale(10)   // 30
 ```
 
-See [Closures](/docs/language/closures) for capture modes (`|*|`, `|a, *b|`), lifetime rules, and how
-closures interact with [Tether](/docs/language/tether).
+See [Closures](/docs/language/closures/) for capture modes (`|*|`, `|a, *b|`), lifetime rules, and how
+closures interact with [Tether](/docs/language/tether/).
 
 ---
 
@@ -970,7 +970,7 @@ class Vec2 {
 }
 ```
 
-See [Operators](/docs/language/operators#operator-overloading) for the full list of overloadable operators,
+See [Operators](/docs/language/operators/#operator-overloading) for the full list of overloadable operators,
 special operator syntax (`l++`/`r++`, `op as`, `op in`, `op delete`), and restrictions.
 
 ---
@@ -996,7 +996,7 @@ fn is_odd(n: u32) -> bool  = if n == 0 => false else => is_even(n - 1)
 Forward declarations are used when the definition lives elsewhere:
 
 - **FFI imports** the body is provided by a C or C++ library. See
-  [C/C++ Interop](/docs/language/c-cpp).
+  [C/C++ Interop](/docs/language/c-cpp/).
 - **Separate translation units** the declaration is visible to callers; the
   definition is linked in from another `.k` file.
 - **Out-of-line class methods** declared in the class body, defined outside it using the `Class::method` qualified-name syntax:
@@ -1017,7 +1017,7 @@ Forward declarations are used when the definition lives elsewhere:
     fn Parser::peek(const self) -> Token = self.tokens[self.pos]
     ```
 
-    See [Classes](/docs/language/classes#forward-declarations-and-out-of-line-definitions) for the full rules.
+    See [Classes](/docs/language/classes/#forward-declarations-and-out-of-line-definitions) for the full rules.
 
 ### Signature matching
 

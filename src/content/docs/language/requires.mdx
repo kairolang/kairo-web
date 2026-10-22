@@ -1,7 +1,7 @@
 ---
 order: 14
 title: Requires Clauses
-description: Compile-time constraints on functions, types, and interfaces in Kairo.
+description: "Requires clauses in Kairo: compile-time constraints on functions, types and interfaces, and how they restrict generic code."
 ---
 
 # Requires Clauses
@@ -10,7 +10,7 @@ description: Compile-time constraints on functions, types, and interfaces in Kai
 condition that must hold at compile time if it doesn't, the program does not compile. There is
 no runtime fallback, no dispatch, no branching. `requires` is a static gate.
 
-For runtime-conditional dispatch, see [Where Clauses](/docs/language/where).
+For runtime-conditional dispatch, see [Where Clauses](/docs/language/where/).
 
 | Property | Guarantee |
 |---|---|
@@ -89,8 +89,8 @@ Either way, the bounds are all a generic body can rely on. The body is checked o
 defined, against its bounds, never per instantiation. Calling a method no
 bound declares is a compile error in the generic itself, even if every type it is ever
 instantiated with happens to have that method. See
-[Type parameter constraints](/docs/language/classes#type-parameter-constraints) and
-[Generic Bodies](/docs/language/interfaces#generic-bodies).
+[Type parameter constraints](/docs/language/classes/#type-parameter-constraints) and
+[Generic Bodies](/docs/language/interfaces/#generic-bodies).
 
 The `requires` form is preferred when constraints are long or involve relationships between
 multiple type parameters:
@@ -206,7 +206,7 @@ clear_aligned<256>(&a)  // ok: 256 is a power of two
 clear_aligned<300>(&b)  // compile error: 300 is not a power of two
 ```
 
-See [Eval](/docs/language/eval) for compile-time evaluation rules.
+See [Eval](/docs/language/eval/) for compile-time evaluation rules.
 
 ---
 

@@ -1,0 +1,134 @@
+/* KAIRO // ASCII — resizable frame grips (src/lib/ascii/resize.ts).
+   Corners draw a heavy ┛ / ┗ over the frame's own corner bracket; edges are
+   thin invisible strips that light the border on hover. Quiet at rest:
+   visible on host hover / focus, faint on touch devices. */
+
+.rz-host { position: relative; }
+
+.rz-handle {
+  --rz-c: var(--text-2);
+  position: absolute;
+  z-index: 4;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── corners: 22px hit area centred on the frame corner ── */
+.rz-corner {
+  width: 22px;
+  height: 22px;
+  bottom: -11px;
+  opacity: 0;
+  transition: opacity var(--dur-fast, 140ms) var(--ease, ease);
+}
+.rz-handle--se { right: -11px; cursor: nwse-resize; }
+.rz-handle--sw { left: -11px; cursor: nesw-resize; }
+.rz-corner::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  bottom: 50%;
+  border-bottom: 2px solid var(--rz-c);
+}
+.rz-handle--se::before { right: 50%; border-right: 2px solid var(--rz-c); }
+.rz-handle--sw::before { left: 50%; border-left: 2px solid var(--rz-c); }
+/* tiny diagonal grip ticks just inside the corner: ascii "//" hint */
+.rz-corner::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  bottom: calc(50% + 4px);
+  background: var(--rz-c);
+  opacity: 0.55;
+}
+.rz-handle--se::after { right: calc(50% + 4px); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.rz-handle--sw::after { left: calc(50% + 4px); clip-path: polygon(0 0, 100% 100%, 0 100%); }
+
+/* ── edges: pointer-only strips ── */
+.rz-edge { opacity: 0; }
+.rz-handle--e,
+.rz-handle--w { top: 16px; bottom: 16px; width: 10px; cursor: ew-resize; }
+.rz-handle--e { right: -5px; }
+.rz-handle--w { left: -5px; }
+.rz-handle--s { left: 16px; right: 16px; bottom: -5px; height: 10px; cursor: ns-resize; }
+.rz-edge::before {
+  content: '';
+  position: absolute;
+  background: var(--red);
+}
+.rz-handle--e::before,
+.rz-handle--w::before { top: 0; bottom: 0; left: 50%; width: 1px; margin-left: -0.5px; }
+.rz-handle--s::before { left: 0; right: 0; top: 50%; height: 1px; margin-top: -0.5px; }
+
+/* discoverable, but quiet */
+.rz-host:hover > .rz-corner,
+.rz-host:focus-within > .rz-corner,
+.rz-host.is-resizing > .rz-corner { opacity: 1; }
+.rz-corner:hover,
+.rz-corner:focus-visible,
+.rz-host[data-rz-handle="se"] > .rz-handle--se,
+.rz-host[data-rz-handle="sw"] > .rz-handle--sw { --rz-c: var(--red); }
+.rz-corner:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.rz-edge:hover,
+.rz-host[data-rz-handle="e"] > .rz-handle--e,
+.rz-host[data-rz-handle="w"] > .rz-handle--w,
+.rz-host[data-rz-handle="s"] > .rz-handle--s { opacity: 0.6; }
+
+/* touch: bigger grips, faintly visible at rest, no edge strips */
+@media (hover: none), (pointer: coarse) {
+  /* 30px: stays inside the 16px phone gutter */
+  .rz-corner { width: 30px; height: 30px; bottom: -15px; opacity: 0.5; }
+  .rz-handle--se { right: -15px; }
+  .rz-handle--sw { left: -15px; }
+  .rz-edge { display: none; }
+}
+
+/* ── size readout: [ 80×24 ] under the active grip, fades after release ── */
+.rz-readout {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 4;
+  padding: 0.2rem 0.7ch;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  background-color: var(--bg);
+  border: 1px solid var(--frame-line);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow, 350ms) var(--ease, ease);
+  font-variant-numeric: tabular-nums;
+}
+.rz-readout::before { content: '[ '; content: '[ ' / ''; color: var(--text-3); }
+.rz-readout::after  { content: ' ]'; content: ' ]' / ''; color: var(--text-3); }
+.rz-host[data-rz-handle="sw"] > .rz-readout,
+.rz-host[data-rz-handle="w"] > .rz-readout { right: auto; left: 0; }
+.rz-readout.is-on { opacity: 1; transition-duration: var(--dur-instant, 80ms); }
+
+/* while dragging: one cursor everywhere, no accidental text selection */
+html.rz-dragging,
+html.rz-dragging * {
+  cursor: var(--rz-cursor, nwse-resize) !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rz-corner,
+  .rz-readout,
+  .rz-readout.is-on { transition: none; }
+}

@@ -1,6 +1,6 @@
 ---
 title: std::String::slice<Char, Traits>
-description: Represents a slice of a string with specified character type and traits, similar to std::string_view in C++
+description: "std::String::slice<Char, Traits>: a non-owning string view in the Kairo standard library, parameterised by character type and traits, like std::string_view."
 ---
 
 # `slice<Char, Traits>`
@@ -48,7 +48,7 @@ Operation type for string operations
 
 ## Constructors
 
-### [`slice`](./slice/constructors/slice-1)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-1/)
 
 Default constructor
 
@@ -56,7 +56,7 @@ Default constructor
 slice() noexcept
 ```
 
-### [`slice`](./slice/constructors/slice-2)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-2/)
 
 Copy constructor
 
@@ -64,7 +64,7 @@ Copy constructor
 slice(const slice& other) noexcept
 ```
 
-### [`slice`](./slice/constructors/slice-3)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-3/)
 
 Move constructor
 
@@ -72,7 +72,7 @@ Move constructor
 slice(slice&& other) noexcept
 ```
 
-### [`slice`](./slice/constructors/slice-4)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-4/)
 
 Constructor from C-style string
 
@@ -80,7 +80,7 @@ Constructor from C-style string
 slice(const CharT* str) noexcept
 ```
 
-### [`slice`](./slice/constructors/slice-5)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-5/)
 
 Constructor from C-style string with size
 
@@ -88,7 +88,7 @@ Constructor from C-style string with size
 slice(const CharT* str, size: size_t) noexcept
 ```
 
-### [`slice`](./slice/constructors/slice-6)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-6/)
 
 Constructor from string view
 
@@ -96,7 +96,7 @@ Constructor from string view
 slice(view: view_t) noexcept
 ```
 
-### [`slice`](./slice/constructors/slice-7)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-7/)
 
 Constructor from character vector
 
@@ -104,7 +104,7 @@ Constructor from character vector
 slice(vec: char_vec&) noexcept
 ```
 
-### [`slice`](./slice/constructors/slice-8)
+### [`slice`](/docs/library/core/std-string/slice/constructors/slice-8/)
 
 Constructor from character vector (move)
 
@@ -114,7 +114,7 @@ slice(vec: char_vec&&) noexcept
 
 ## Operators
 
-### [`operator view_t`](./slice/operators/operator-view_t-1)
+### [`operator view_t`](/docs/library/core/std-string/slice/operators/operator-view_t-1/)
 
 Conversion to string view
 
@@ -122,7 +122,7 @@ Conversion to string view
 op view_t(self) -> view_t
 ```
 
-### [`operator==`](./slice/operators/operator-2)
+### [`operator==`](/docs/library/core/std-string/slice/operators/operator-2/)
 
 Equality comparison
 
@@ -130,7 +130,7 @@ Equality comparison
 op ==(self, const slice& other) -> bool
 ```
 
-### [`operator!=`](./slice/operators/operator-3)
+### [`operator!=`](/docs/library/core/std-string/slice/operators/operator-3/)
 
 Inequality comparison
 
@@ -138,7 +138,7 @@ Inequality comparison
 op !=(self, const slice& other) -> bool
 ```
 
-### [`operator<`](./slice/operators/operator-4)
+### [`operator<`](/docs/library/core/std-string/slice/operators/operator-4/)
 
 Less than comparison
 
@@ -146,7 +146,7 @@ Less than comparison
 op <(self, const slice& other) -> bool
 ```
 
-### [`operator>`](./slice/operators/operator-5)
+### [`operator>`](/docs/library/core/std-string/slice/operators/operator-5/)
 
 Greater than comparison
 
@@ -154,7 +154,7 @@ Greater than comparison
 op >(self, const slice& other) -> bool
 ```
 
-### [`operator<=`](./slice/operators/operator-6)
+### [`operator<=`](/docs/library/core/std-string/slice/operators/operator-6/)
 
 Less than or equal comparison
 
@@ -162,7 +162,7 @@ Less than or equal comparison
 op <=(self, const slice& other) -> bool
 ```
 
-### [`operator>=`](./slice/operators/operator-7)
+### [`operator>=`](/docs/library/core/std-string/slice/operators/operator-7/)
 
 Greater than or equal comparison
 
@@ -170,7 +170,7 @@ Greater than or equal comparison
 op >=(self, const slice& other) -> bool
 ```
 
-### [`operator in`](./slice/operators/operator-in-8)
+### [`operator in`](/docs/library/core/std-string/slice/operators/operator-in-8/)
 
 Contains operator for slice
 
@@ -178,7 +178,7 @@ Contains operator for slice
 op in(self, needle: slice&) -> bool
 ```
 
-### [`operator in`](./slice/operators/operator-in-9)
+### [`operator in`](/docs/library/core/std-string/slice/operators/operator-in-9/)
 
 Contains operator for character
 
@@ -186,7 +186,7 @@ Contains operator for character
 op in(self, chr: CharT&) -> bool
 ```
 
-### [`operator[]`](./slice/operators/operator-10)
+### [`operator[]`](/docs/library/core/std-string/slice/operators/operator-10/)
 
 Access character at index
 
@@ -196,7 +196,7 @@ op [``](self, index: usize) -> CharT
 
 ## Methods
 
-### [`size`](./slice/methods/size-1)
+### [`size`](/docs/library/core/std-string/slice/methods/size-1/)
 
 Returns the length of the slice's data, essential for bounds checking and iteration
 
@@ -204,7 +204,7 @@ Returns the length of the slice's data, essential for bounds checking and iterat
 size(self) -> size_t
 ```
 
-### [`exchange`](./slice/methods/exchange-2)
+### [`exchange`](/docs/library/core/std-string/slice/methods/exchange-2/)
 
 Exchanges content with another slice
 
@@ -212,7 +212,7 @@ Exchanges content with another slice
 exchange(self, other: slice&) -> void
 ```
 
-### [`replace`](./slice/methods/replace-3)
+### [`replace`](/docs/library/core/std-string/slice/methods/replace-3/)
 
 Replaces content with another slice
 
@@ -220,7 +220,7 @@ Replaces content with another slice
 replace(self, other: slice&) -> void
 ```
 
-### [`replace`](./slice/methods/replace-4)
+### [`replace`](/docs/library/core/std-string/slice/methods/replace-4/)
 
 Replaces content with C-style string
 
@@ -228,7 +228,7 @@ Replaces content with C-style string
 replace(self, str: CharT*, size: usize) -> void
 ```
 
-### [`raw`](./slice/methods/raw-5)
+### [`raw`](/docs/library/core/std-string/slice/methods/raw-5/)
 
 Returns a pointer to the slice's underlying data, essential for direct access
 
@@ -236,7 +236,7 @@ Returns a pointer to the slice's underlying data, essential for direct access
 raw(self) -> const CharT*
 ```
 
-### [`is_empty`](./slice/methods/is_empty-6)
+### [`is_empty`](/docs/library/core/std-string/slice/methods/is_empty-6/)
 
 Indicates whether the slice has no data, crucial for control flow
 
@@ -244,7 +244,7 @@ Indicates whether the slice has no data, crucial for control flow
 is_empty(self) -> bool
 ```
 
-### [`subslice`](./slice/methods/subslice-7)
+### [`subslice`](/docs/library/core/std-string/slice/methods/subslice-7/)
 
 Creates a view into a portion of the slice, vital for safe substring operations
 
@@ -252,7 +252,7 @@ Creates a view into a portion of the slice, vital for safe substring operations
 subslice(self, pos: usize, len: usize) -> slice
 ```
 
-### [`l_strip`](./slice/methods/l_strip-8)
+### [`l_strip`](/docs/library/core/std-string/slice/methods/l_strip-8/)
 
 Strips whitespace from the left
 
@@ -260,7 +260,7 @@ Strips whitespace from the left
 l_strip(self, delim: char_vec& = {' ', '\t', '\n', '\r'}) -> slice
 ```
 
-### [`r_strip`](./slice/methods/r_strip-9)
+### [`r_strip`](/docs/library/core/std-string/slice/methods/r_strip-9/)
 
 Strips whitespace from the right
 
@@ -268,7 +268,7 @@ Strips whitespace from the right
 r_strip(self, delim: char_vec& = {' ', '\t', '\n', '\r'}) -> slice
 ```
 
-### [`strip`](./slice/methods/strip-10)
+### [`strip`](/docs/library/core/std-string/slice/methods/strip-10/)
 
 Strips whitespace from both ends
 
@@ -276,7 +276,7 @@ Strips whitespace from both ends
 strip(self, delim: char_vec& = {' ', '\t', '\n', '\r'}) -> slice
 ```
 
-### [`length`](./slice/methods/length-11)
+### [`length`](/docs/library/core/std-string/slice/methods/length-11/)
 
 Returns the length of the slice
 
@@ -284,7 +284,7 @@ Returns the length of the slice
 length(self) -> usize
 ```
 
-### [`starts_with`](./slice/methods/starts_with-12)
+### [`starts_with`](/docs/library/core/std-string/slice/methods/starts_with-12/)
 
 Checks if slice starts with needle
 
@@ -292,7 +292,7 @@ Checks if slice starts with needle
 starts_with(self, needle: slice&) -> bool
 ```
 
-### [`ends_with`](./slice/methods/ends_with-13)
+### [`ends_with`](/docs/library/core/std-string/slice/methods/ends_with-13/)
 
 Checks if slice ends with needle
 
@@ -300,7 +300,7 @@ Checks if slice ends with needle
 ends_with(self, needle: slice&) -> bool
 ```
 
-### [`contains`](./slice/methods/contains-14)
+### [`contains`](/docs/library/core/std-string/slice/methods/contains-14/)
 
 Checks if slice contains needle
 
@@ -308,7 +308,7 @@ Checks if slice contains needle
 contains(self, needle: slice&) -> bool
 ```
 
-### [`contains`](./slice/methods/contains-15)
+### [`contains`](/docs/library/core/std-string/slice/methods/contains-15/)
 
 Checks if slice contains character
 
@@ -316,7 +316,7 @@ Checks if slice contains character
 contains(self, chr: CharT&) -> bool
 ```
 
-### [`compare`](./slice/methods/compare-16)
+### [`compare`](/docs/library/core/std-string/slice/methods/compare-16/)
 
 Compares two slices lexicographically
 
@@ -324,7 +324,7 @@ Compares two slices lexicographically
 compare(self, other: slice&) -> isize
 ```
 
-### [`split_lines`](./slice/methods/split_lines-17)
+### [`split_lines`](/docs/library/core/std-string/slice/methods/split_lines-17/)
 
 Returns a vector of line views, necessary for line-based processing
 
@@ -332,7 +332,7 @@ Returns a vector of line views, necessary for line-based processing
 split_lines(self) -> slice_vec
 ```
 
-### [`split`](./slice/methods/split-18)
+### [`split`](/docs/library/core/std-string/slice/methods/split-18/)
 
 Returns a vector of views, necessary for delimiter-based processing
 
@@ -340,7 +340,7 @@ Returns a vector of views, necessary for delimiter-based processing
 split(self, delim: slice&, op: Operation = Operation::Remove) -> slice_vec
 ```
 
-### [`lfind`](./slice/methods/lfind-19)
+### [`lfind`](/docs/library/core/std-string/slice/methods/lfind-19/)
 
 Finds first occurrence of needle
 
@@ -348,7 +348,7 @@ Finds first occurrence of needle
 lfind(self, needle: slice&) -> usize?
 ```
 
-### [`rfind`](./slice/methods/rfind-20)
+### [`rfind`](/docs/library/core/std-string/slice/methods/rfind-20/)
 
 Finds last occurrence of needle
 
@@ -356,7 +356,7 @@ Finds last occurrence of needle
 rfind(self, needle: slice&) -> usize?
 ```
 
-### [`find_first_of`](./slice/methods/find_first_of-21)
+### [`find_first_of`](/docs/library/core/std-string/slice/methods/find_first_of-21/)
 
 Finds first occurrence of any character in needle
 
@@ -364,7 +364,7 @@ Finds first occurrence of any character in needle
 find_first_of(self, needle: slice&) -> usize?
 ```
 
-### [`find_last_of`](./slice/methods/find_last_of-22)
+### [`find_last_of`](/docs/library/core/std-string/slice/methods/find_last_of-22/)
 
 Finds last occurrence of any character in needle
 
@@ -372,7 +372,7 @@ Finds last occurrence of any character in needle
 find_last_of(self, needle: slice&) -> usize?
 ```
 
-### [`find_first_not_of`](./slice/methods/find_first_not_of-23)
+### [`find_first_not_of`](/docs/library/core/std-string/slice/methods/find_first_not_of-23/)
 
 Finds first character not in needle
 
@@ -380,7 +380,7 @@ Finds first character not in needle
 find_first_not_of(self, needle: slice&) -> usize?
 ```
 
-### [`find_last_not_of`](./slice/methods/find_last_not_of-24)
+### [`find_last_not_of`](/docs/library/core/std-string/slice/methods/find_last_not_of-24/)
 
 Finds last character not in needle
 

@@ -1,6 +1,6 @@
 ---
 title: std::Panic::Frame
-description: Represents a panic frame with error context and location information
+description: "std::Panic::Frame: represents a panic frame with error context and location information. Type reference for the Kairo standard library."
 ---
 
 # Frame
@@ -9,7 +9,7 @@ Represents a panic frame with error context and location information
 
 ## Constructors
 
-### [Frame](./frame/constructors/frame-1)
+### [Frame](/docs/library/core/std-panic/frame/constructors/frame-1/)
 
 Creates a panic frame with object, filename, and line number
 
@@ -17,7 +17,7 @@ Creates a panic frame with object, filename, and line number
 fn Frame(obj: T, filename: const char*, lineno: usize) requires <T>;
 ```
 
-### [Frame](./frame/constructors/frame-2)
+### [Frame](/docs/library/core/std-panic/frame/constructors/frame-2/)
 
 Creates a panic frame with object, filename as string, and line number
 
@@ -25,7 +25,7 @@ Creates a panic frame with object, filename as string, and line number
 fn Frame(obj: T, filename: string, lineno: usize) requires <T>;
 ```
 
-### [Frame](./frame/constructors/frame-3)
+### [Frame](/docs/library/core/std-panic/frame/constructors/frame-3/)
 
 Creates a panic frame from another frame (noreturn)
 
@@ -33,7 +33,7 @@ Creates a panic frame from another frame (noreturn)
 Frame(Frame& obj, const string& filename, usize lineno)
 ```
 
-### [Frame](./frame/constructors/frame-4)
+### [Frame](/docs/library/core/std-panic/frame/constructors/frame-4/)
 
 Creates a panic frame from another frame (move, noreturn)
 
@@ -43,7 +43,7 @@ Frame(Frame&& obj, const string& filename, usize lineno)
 
 ## Operators
 
-### [operator panic](./frame/operators/operator-panic-1)
+### [operator panic](/docs/library/core/std-panic/frame/operators/operator-panic-1/)
 
 Panic operator used in kairo code as 'panic ...'
 
@@ -53,7 +53,7 @@ op panic(self) -> void
 
 ## Methods
 
-### [file](./frame/methods/file-1)
+### [file](/docs/library/core/std-panic/frame/methods/file-1/)
 
 Returns the filename where the panic occurred
 
@@ -61,7 +61,7 @@ Returns the filename where the panic occurred
 file(self) -> string
 ```
 
-### [line](./frame/methods/line-2)
+### [line](/docs/library/core/std-panic/frame/methods/line-2/)
 
 Returns the line number where the panic occurred
 
@@ -69,7 +69,7 @@ Returns the line number where the panic occurred
 line(self) -> usize
 ```
 
-### [reason](./frame/methods/reason-3)
+### [reason](/docs/library/core/std-panic/frame/methods/reason-3/)
 
 Returns the reason for the panic
 
@@ -77,7 +77,7 @@ Returns the reason for the panic
 reason(self) -> string
 ```
 
-### [get_context](./frame/methods/get_context-4)
+### [get_context](/docs/library/core/std-panic/frame/methods/get_context-4/)
 
 Returns the panic context
 

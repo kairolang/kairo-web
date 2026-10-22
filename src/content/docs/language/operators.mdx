@@ -47,7 +47,7 @@ Unsigned overflow wraps around (modular arithmetic). Signed overflow depends on 
 - **Debug:** crashes with a diagnostic.
 - **Release:** wraps around silently.
 
-See [Primitives](/docs/language/primitives) for full details on numeric type behavior.
+See [Primitives](/docs/language/primitives/) for full details on numeric type behavior.
 
 ### Floating-point overflow
 
@@ -179,7 +179,7 @@ interface <T> Steppable {
 
 > [!NOTE]
 > Types do not need to explicitly `impl Steppable`. If a type satisfies the required method signatures, it
-> is automatically compatible with range operators. See [Interfaces](/docs/language/interfaces) for details
+> is automatically compatible with range operators. See [Interfaces](/docs/language/interfaces/) for details
 > on structural conformance.
 
 Ranges also work with slicing on strings and collections:
@@ -235,7 +235,7 @@ info.get_pretty_name()     // "i32"
 info.get_size()            // 4
 ```
 
-See [Type System](/docs/language/type-system) for full `TypeInfo` details.
+See [Type System](/docs/language/type-system/) for full `TypeInfo` details.
 
 ---
 
@@ -268,14 +268,14 @@ var v = Vector2D { x: 1.0, y: 2.0 }
 var s = v as string   // "Vector2D(1.0, 2.0)"
 ```
 
-See [Casting](/docs/language/casting) for the full conversion rules.
+See [Casting](/docs/language/casting/) for the full conversion rules.
 
 ---
 
 ## Operator Overloading
 
-Operators are overloaded by defining `fn op` methods on a class or [struct](/docs/language/structures), or
-in an [extension](/docs/language/extends). The syntax mirrors the operator being defined. An extension may
+Operators are overloaded by defining `fn op` methods on a class or [struct](/docs/language/structures/), or
+in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may
 declare any overloadable operator except `as`, `[]`, `->`, `.*`, `->*` and `delete`, which are
 **member-only**: they must be declared in the type's own body.
 
@@ -398,7 +398,7 @@ fn op r++ (self) -> T    // postfix: x++ the ++ is on the right of the operand
 
 # Const Overloading Operators
 
-`op []`, `op .*`, `op ->*` and `op ->` may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. For a place overload, the `const self` version returns `*const T` where the `self` version returns `*T` (see [Places and values](#places-and-values------)). This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions#const-overloading-restriction) for details.
+`op []`, `op .*`, `op ->*` and `op ->` may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. For a place overload, the `const self` version returns `*const T` where the `self` version returns `*T` (see [Places and values](#places-and-values------)). This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions/#const-overloading-restriction) for details.
 
 ```kairo
 class Buffer {
@@ -551,7 +551,7 @@ var p = &b[1]      // *i32 into b.data
 
 ### Delete Operator
 
-`op delete` defines custom destruction logic. If not defined, the compiler generates a default destructor. If any member has a deleted destructor (`fn op delete() = delete`), the containing type's destructor is also deleted and instances must be managed in an [unsafe](/docs/language/unsafe) context.
+`op delete` defines custom destruction logic. If not defined, the compiler generates a default destructor. If any member has a deleted destructor (`fn op delete() = delete`), the containing type's destructor is also deleted and instances must be managed in an [unsafe](/docs/language/unsafe/) context.
 
 > [!NOTE]
 > The `op delete` operator is **not** the same as C++'s `delete` operator. Kairo's `op delete` is simply a cleanup hook that can either be explicitly called or automatically invoked when a value goes out of scope. It is not used to free memory allocated with `@create T()`.
@@ -566,7 +566,7 @@ class FileHandle {
 }
 ```
 
-See [Tether](/docs/language/tether) for details on destruction order and allocator interaction.
+See [Tether](/docs/language/tether/) for details on destruction order and allocator interaction.
 
 
 ---
@@ -638,7 +638,7 @@ equal precedence and associate in the direction shown.
 
 `if` and `try` expressions bind looser than every operator. Their last arm extends as far right as it can, so
 `x + if c => 1 else => 2 + 5` is `x + (if c => 1 else => (2 + 5))`. An `if` or `try` used as an operand
-produces a warning ([S078W](/docs/language/diagnostics#s078w-if-or-try-expression-as-an-operators-operand));
+produces a warning ([S078W](/docs/language/diagnostics/#s078w-if-or-try-expression-as-an-operators-operand));
 parenthesize it: `x + (if c => 1 else => 2) + 5`.
 
 A `match` expression closes with `}` and binds as a primary expression: `match k { ... } + 1` needs no
@@ -646,7 +646,7 @@ parentheses.
 
 `=>` is punctuation, not an operator: it has no precedence and cannot be overloaded. It introduces the value
 of an arm in the value forms of `if`, `match`, and `try`. See
-[Control Flow](/docs/language/control-flow#if-as-an-expression-ternary-equivalent).
+[Control Flow](/docs/language/control-flow/#if-as-an-expression-ternary-equivalent).
 
 `as` binds looser than every prefix operator and tighter than every binary one: `-1 as u8` casts `-1`,
 `&x as *const T` casts the address, and `x as i64 + 1` is `(x as i64) + 1`.
@@ -674,10 +674,10 @@ f(g(&n), g(&n))     // always f(10, 20)
 
 Named arguments follow the same rule: they run in the order written, not parameter order. Defaults for
 omitted arguments run after all explicit arguments, in parameter order. See
-[Functions](/docs/language/functions#evaluation-order).
+[Functions](/docs/language/functions/#evaluation-order).
 
 `&&` and `||` are also left to right, with short-circuiting. See
-[Control Flow](/docs/language/control-flow).
+[Control Flow](/docs/language/control-flow/).
 
 The operands of a primitive operator follow C++ and their order is unspecified: in `a() + b()`, either call
 may run first.
@@ -697,4 +697,4 @@ For C++ developers the following C++ operators have no equivalent in Kairo:
 | `,` (comma operator) | Not supported use separate statements |
 | `new` / `delete` | `@create T()` / automatic via Tether, or `op delete` for custom destructors |
 | `typeid` | `typeof expr` returns `TypeInfo` |
-| `const_cast` / `reinterpret_cast` / `static_cast` / `dynamic_cast` | `as` for safe casts; see [Casting](/docs/language/casting) |
+| `const_cast` / `reinterpret_cast` / `static_cast` / `dynamic_cast` | `as` for safe casts; see [Casting](/docs/language/casting/) |

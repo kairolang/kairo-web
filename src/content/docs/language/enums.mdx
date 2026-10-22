@@ -9,7 +9,7 @@ description: Enum declarations, discriminants, underlying types, ADT variants wi
 Enums define a closed set of named variants. In their simplest form, each variant is an integer discriminant
 -- equivalent to a C++ `enum class`. Variants can also carry structured data (ADT enums), making them
 Kairo's mechanism for type-safe tagged unions. Dispatch on variants with `match`. See
-[Control Flow](/docs/language/control-flow#match) for the complete `match` syntax.
+[Control Flow](/docs/language/control-flow/#match) for the complete `match` syntax.
 
 ---
 
@@ -54,9 +54,9 @@ and `RW = Read | Write` work. `~` works in the underlying type: `All = ~0` in a 
 A variant without a discriminant is the previous value plus one, or 0 if it is first.
 
 A value that doesn't evaluate or doesn't fit the underlying type is
-[SC128E](/docs/language/diagnostics#sc128e-an-enum-discriminant-does-not-evaluate-or-does-not-fit). Two
+[SC128E](/docs/language/diagnostics/#sc128e-an-enum-discriminant-does-not-evaluate-or-does-not-fit). Two
 variants with the same value is
-[SC130E](/docs/language/diagnostics#sc130e-two-variants-of-an-enum-have-the-same-value); imported C++
+[SC130E](/docs/language/diagnostics/#sc130e-two-variants-of-an-enum-have-the-same-value); imported C++
 enums are exempt.
 
 Compound expressions are valid for bit flags:
@@ -105,7 +105,7 @@ permitted. The compiler errors if any discriminant does not fit in the specified
 
 > [!NOTE]
 > `derives` on an enum specifies the underlying integer type. This is distinct from `derives` on a
-> [class](/docs/language/classes#inheritance), which declares inheritance.
+> [class](/docs/language/classes/#inheritance), which declares inheritance.
 
 ---
 
@@ -126,7 +126,7 @@ an anonymous struct alongside the discriminant. A single enum can freely mix bot
 
 > [!NOTE]
 > A non-generic payload enum whose payload holds a type whose copy, move and destruction are not known
-> until instantiation (such as `Box<i32>` for a generic class `Box`) is not compiled yet. See [Status](/docs/status#not-compiled-yet).
+> until instantiation (such as `Box<i32>` for a generic class `Box`) is not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 ### Construction
 
@@ -139,13 +139,13 @@ There are three construction forms:
 | `.V` (or `Enum::V`) | Variant with no payload |
 
 A payload variant written without braces, braces on a variant without a payload, a missing field, or a
-field given twice is [SC131E](/docs/language/diagnostics#sc131e-a-variant-is-built-with-the-wrong-shape).
+field given twice is [SC131E](/docs/language/diagnostics/#sc131e-a-variant-is-built-with-the-wrong-shape).
 
 `Enum::V { field: value }` builds a payload variant anywhere; `.V { field: value }` and `.V` work where the
 expected type is known. A nullary variant takes no braces.
 
 ADT variants are constructed with the variant name followed by brace-delimited field assignment,
-matching [struct](/docs/language/structures) aggregate initialization:
+matching [struct](/docs/language/structures/) aggregate initialization:
 
 ```kairo
 enum <T> ParseResult {
@@ -198,7 +198,7 @@ fn report(result: ParseResult<f64>) -> string {
 
 > [!NOTE]
 > The current compiler does not report assigning to a `const` pattern binding yet. See
-> [Status](/docs/status#not-diagnosed).
+> [Status](/docs/status/#not-diagnosed).
 
 Field names in the destructuring pattern must match the names in the variant declaration. You can omit
 fields you do not need the compiler does not require exhaustive field extraction:
@@ -221,7 +221,7 @@ fn error_message(result: ParseResult<f64>) -> string {
 }
 ```
 
-See [Control Flow](/docs/language/control-flow#match) for the full `match` syntax, including guards
+See [Control Flow](/docs/language/control-flow/#match) for the full `match` syntax, including guards
 (`where`), ranges, and expression form.
 
 ### `match` as an expression
@@ -245,7 +245,7 @@ fn describe(result: ParseResult<f64>) -> string {
 ADT enums work in expression-form `match`. Each arm is `case pattern => value`, and every arm must produce
 the same type.
 
-See [Control Flow](/docs/language/control-flow#match-as-an-expression) for the full expression-form
+See [Control Flow](/docs/language/control-flow/#match-as-an-expression) for the full expression-form
 rules.
 
 ### Memory layout
@@ -255,7 +255,7 @@ a `u32`. A variant with no payload consumes no extra storage beyond the tag.
 
 > [!NOTE]
 > A `derives` type on an enum with payloads is accepted but ignored for now: the tag stays `u32`. See
-> [Status](/docs/status#not-compiled-yet).
+> [Status](/docs/status/#not-compiled-yet).
 
 ```
 ParseResult<f64> layout:
@@ -268,7 +268,7 @@ Copy and move operations follow the same pattern.
 ### Lifecycle category
 
 An enum whose variants carry payloads follows the struct rule for lifecycle: its
-[category](/docs/language/classes#lifecycle-categories) is the weakest of its payload fields' categories
+[category](/docs/language/classes/#lifecycle-categories) is the weakest of its payload fields' categories
 (COPY, then MOVE, then NON_TRANSFER), and it is trivially copyable or destructible only when every
 payload is. A plain enum is COPY.
 
@@ -307,7 +307,7 @@ enum <T impl Serializable> CacheEntry {
 }
 ```
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -375,7 +375,7 @@ fn main() -> i32 {
 
 As an argument, `.V` matches a parameter only if that parameter's enum has a variant `V`; this is how
 an overload is chosen. If more than one overload's enum has `V`, the call is ambiguous
-([SC064E](/docs/language/diagnostics#call-to-f-is-ambiguous-more-than-one-candidate-matches-at-the-same-rank)). A
+([SC064E](/docs/language/diagnostics/#call-to-f-is-ambiguous-more-than-one-candidate-matches-at-the-same-rank)). A
 generic parameter `T` gives `.V` no enum to take, so no overload matches (SC063E); write the variant in
 full, `Dir::North`:
 
@@ -396,7 +396,7 @@ fn main() -> i32 {
 
 A `.V` with nothing to give it an enum type, against a type that is not an enum, or naming a variant the
 enum does not have is
-[SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type).
+[SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type).
 
 ---
 
@@ -427,7 +427,7 @@ fn main() -> i32 {
 ## Extends
 
 Enums cannot contain methods in their body. Use `extend` blocks to add behavior, matching the same
-pattern as [structs](/docs/language/structures#extends):
+pattern as [structs](/docs/language/structures/#extends):
 
 ```kairo
 enum LogLevel {
@@ -495,8 +495,8 @@ extend LogLevel impl Loggable {
 ```
 
 The `extend` block and the enum definition must be in the same file. See
-[Extends](/docs/language/extends) for the full `extend` system and
-[Interfaces](/docs/language/interfaces) for interface declarations.
+[Extends](/docs/language/extends/) for the full `extend` system and
+[Interfaces](/docs/language/interfaces/) for interface declarations.
 
 ---
 
@@ -506,7 +506,7 @@ For plain enums without the `{ field: Type }` payload syntax, variants are stric
 If you need per-variant data, use an [ADT enum](#adt-enums).
 
 For untagged memory overlays where you manage the active member yourself, use
-[Unions](/docs/language/unions).
+[Unions](/docs/language/unions/).
 
 ---
 
@@ -538,7 +538,7 @@ Casting an integer to an enum that has no matching discriminant is undefined beh
 ADT enums cannot be cast to integers directly they carry payloads that have no integer
 representation. Cast the tag explicitly if you need the discriminant value.
 
-See [Casting](/docs/language/casting) for the full casting model.
+See [Casting](/docs/language/casting/) for the full casting model.
 
 ---
 

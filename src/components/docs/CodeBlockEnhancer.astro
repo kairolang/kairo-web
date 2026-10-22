@@ -1,14 +1,17 @@
 ---
-// Wraps Shiki code blocks in a window-style UI (runs client-side after render)
+// Wraps Shiki code blocks in an ASCII terminal frame (runs client-side after render):
+//   ┌─[ kairo ]──────────────────── 12 lines ─ [copy] ┐
 ---
 <script>
   function enhanceCodeBlocks() {
-    document.querySelectorAll('article.prose pre.astro-code').forEach(pre => {
+    document.querySelectorAll<HTMLElement>('article.prose pre.astro-code').forEach(pre => {
       if (pre.parentElement?.classList.contains('code-block-wrap')) return; // already wrapped
 
       const classes = Array.from(pre.classList);
       const langClass = classes.find(c => c.startsWith('language-'));
-      const lang = langClass ? langClass.replace('language-', '') : '';
+      const lang = (pre.dataset.language || (langClass ? langClass.replace('language-', '') : '') || 'code')
+        .replace(/[^a-z0-9+#._-]/gi, '');
+      const lines = (pre.querySelectorAll('.line').length) || (pre.textContent ?? '').replace(/\n$/, '').split('\n').length;
 
       const wrapper = document.createElement('div');
       wrapper.className = 'code-block-wrap';
@@ -16,31 +19,50 @@
       const header = document.createElement('div');
       header.className = 'code-block-header';
       header.innerHTML = `
-        ${lang ? `<span class="code-block-lang">${lang}</span>` : '<span class="code-block-lang">code</span>'}
-        <button class="code-copy-btn" title="Copy code">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          <span>Copy</span>
-        </button>
+        <span class="code-block-lang">${lang}</span>
+        <span class="code-block-rule" aria-hidden="true"></span>
+        <span class="code-block-meta" aria-hidden="true">${lines} line${lines === 1 ? '' : 's'}</span>
+        <button type="button" class="code-copy-btn" aria-label="Copy code"><span class="code-copy-label">copy</span></button>
+        <span class="code-copy-status sr-only" role="status" aria-live="polite"></span>
       `;
 
       pre.parentNode!.insertBefore(wrapper, pre);
       wrapper.appendChild(header);
       wrapper.appendChild(pre);
 
-      // Copy button
+      // Copy button: "[copy]" -> "[ok] copied" (or "[err]")
+      let timer = 0;
       header.querySelector('.code-copy-btn')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget as HTMLButtonElement;
+        const label = btn.querySelector('.code-copy-label')!;
+        const status = header.querySelector('.code-copy-status')!;
         const code = pre.textContent ?? '';
-        await navigator.clipboard.writeText(code);
-        const span = btn.querySelector('span')!;
-        span.textContent = 'Copied';
-        btn.classList.add('copied');
-        setTimeout(() => {
-          span.textContent = 'Copy';
-          btn.classList.remove('copied');
-        }, 1800);
+        let ok = true;
+        try {
+          await navigator.clipboard.writeText(code);
+        } catch {
+          // fallback for non-secure contexts / denied permission
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = code;
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+            document.body.appendChild(ta);
+            ta.select();
+            ok = document.execCommand('copy');
+            ta.remove();
+          } catch { ok = false; }
+        }
+        label.textContent = ok ? 'copied' : 'failed';
+        status.textContent = ok ? 'Code copied to clipboard' : 'Copy failed';
+        btn.classList.toggle('copied', ok);
+        btn.classList.toggle('failed', !ok);
+        clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          label.textContent = 'copy';
+          status.textContent = '';
+          btn.classList.remove('copied', 'failed');
+        }, 1600);
       });
     });
   }
@@ -128,68 +150,124 @@
 </script>
 
 <style is:global>
+  /* ── ASCII code frame ────────────────────────────────────────────
+     ┌─[ kairo ]─────────────────────── 12 lines  [copy] ┐
+     │ code                                               │
+     └────────────────────────────────────────────────────┘
+     1px frame + brighter corner ticks (same recipe as .ascii-frame). */
   .code-block-wrap {
+    --c: var(--frame-corner);
+    position: relative;
     margin: 1.5rem 0;
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
+    border: 1px solid var(--frame-line);
+    border-radius: 0;
+    background-color: var(--bg-2);
+    background-image:
+      linear-gradient(var(--c), var(--c)), linear-gradient(var(--c), var(--c)),
+      linear-gradient(var(--c), var(--c)), linear-gradient(var(--c), var(--c));
+    background-size: var(--corner-len) 1px, 1px var(--corner-len), var(--corner-len) 1px, 1px var(--corner-len);
+    background-position: 0 100%, 0 100%, 100% 100%, 100% 100%;
+    background-repeat: no-repeat;
+    background-origin: border-box;
+    box-shadow: none;
     overflow: hidden;
-    background: var(--bg-2);
-    box-shadow: var(--shadow-sm);
   }
 
   .code-block-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 7px 8px 7px 16px;
+    gap: 1ch;
+    min-width: 0;
+    padding: 0 0 0 1ch;
     background: var(--bg-3);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .code-block-lang {
+    border-bottom: 1px solid var(--frame-line);
     font-family: var(--font-mono);
-    font-size: 0.66rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-3);
+    font-size: 0.7rem;
+    line-height: 1;
+    height: 2.15rem;
   }
 
+  /* "─[ kairo ]" */
+  .code-block-lang {
+    flex-shrink: 0;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .code-block-lang::before { content: '─[ '; content: '─[ ' / ''; color: var(--text-3); font-weight: 400; }
+  .code-block-lang::after  { content: ' ]'; content: ' ]' / ''; color: var(--text-3); font-weight: 400; }
+
+  /* "──────────" filler */
+  .code-block-rule {
+    flex: 1 1 auto;
+    min-width: 1ch;
+    height: 1px;
+    background: var(--frame-line);
+  }
+  .code-block-meta {
+    flex-shrink: 0;
+    color: var(--text-3);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  /* "[copy]" — hover sweeps an inverse red block in steps */
   .code-copy-btn {
-    margin-left: auto;
+    flex-shrink: 0;
+    align-self: stretch;
     display: flex;
     align-items: center;
-    gap: 5px;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--text-3);
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 500;
-    padding: 3px 10px;
-    border-radius: var(--r-pill);
+    margin: 0;
+    padding: 0 1.4ch;
+    border: 0;
+    border-left: 1px solid var(--frame-line);
+    border-radius: 0;
+    font: inherit;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+    color: var(--text-2);
+    background-color: transparent;
+    background-image: linear-gradient(var(--red), var(--red));
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 0% 100%;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+    transition:
+      background-size var(--dur-fast) steps(5, end),
+      color 0s linear calc(var(--dur-fast) / 2);
   }
-  .code-copy-btn:hover {
-    border-color: var(--border-hi);
-    color: var(--text);
+  .code-copy-btn::before { content: '['; content: '[' / ''; }
+  .code-copy-btn::after  { content: ']'; content: ']' / ''; }
+  .code-copy-btn:hover,
+  .code-copy-btn:focus-visible {
+    background-size: 100% 100%;
+    color: var(--on-red);
   }
-  .code-copy-btn.copied { color: #28c840; }
+  .code-copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .code-copy-btn:active { transform: translateY(1px); }
+  .code-copy-btn.copied { color: #3fb950; background-size: 0% 100%; }
+  .code-copy-btn.failed { color: var(--accent); background-size: 0% 100%; }
+  [data-theme="light"] .code-copy-btn.copied { color: #1a7f37; }
 
   /* Override Shiki pre inside code-block-wrap */
   .code-block-wrap pre.astro-code {
     margin: 0 !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 1.15rem 1.4rem !important;
+    padding: 1.05rem 1.4rem 1.15rem !important;
     background: transparent !important;
   }
-
-  /* Prose override: don't style pre when it's inside our wrapper */
   .prose .code-block-wrap pre {
     margin: 0 !important;
     border: none !important;
+  }
+
+  @media (max-width: 480px) {
+    .code-block-meta { display: none; }
+    .code-block-wrap pre.astro-code { padding: 0.9rem 1rem 1rem !important; }
   }
 
   /* ── Code hints ──────────────────────────────────────────────── */
@@ -198,9 +276,8 @@
     position: relative;
     cursor: help;
     border-bottom: 1px dotted var(--text-3);
-    border-radius: 2px;
+    border-radius: 0;
     outline: none;
-    transition: border-color var(--dur-fast) var(--ease);
   }
   .astro-code .code-hint::before {
     content: '';
@@ -211,52 +288,53 @@
     border-right: 3.5px solid transparent;
     border-top: 4.5px solid var(--accent);
     opacity: 0.75;
-    transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
   }
   .astro-code .code-hint:hover,
   .astro-code .code-hint:focus-visible,
   .astro-code .code-hint[aria-describedby] {
-    border-bottom-color: var(--accent);
+    border-bottom: 1px solid var(--accent);
   }
   .astro-code .code-hint:hover::before,
   .astro-code .code-hint:focus-visible::before,
-  .astro-code .code-hint[aria-describedby]::before {
-    opacity: 1;
-    transform: translateY(1px);
-  }
+  .astro-code .code-hint[aria-describedby]::before { opacity: 1; }
   .astro-code .code-hint:focus-visible {
-    box-shadow: 0 0 0 2px var(--red-glow);
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
   }
 
-  /* Flag: a card hanging off a short pole planted on the marker. */
+  /* Popover: a square terminal note on a 1-char "pole".
+     ┌─[ hint ]──────────┐
+     │ title              │
+     │ body               │
+     └────────────────────┘                                       */
   .code-hint-pop {
     position: fixed;
     z-index: 200;
     top: 0;
     left: 0;
     width: max-content;
-    max-width: min(340px, calc(100vw - 24px));
+    max-width: min(360px, calc(100vw - 24px));
     padding: 10px 14px 11px;
     background: var(--bg-3);
     border: 1px solid var(--border-hi);
-    border-left: 2px solid var(--accent);
-    border-radius: 3px var(--r-md) var(--r-md) 3px;
-    box-shadow: var(--shadow-md);
+    border-left: 3px solid var(--accent);
+    border-radius: 0;
+    box-shadow: var(--shadow-hard);
     font-family: var(--font-sans);
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(4px);
+    clip-path: inset(0 0 100% 0);
     transition:
-      opacity var(--dur-fast) var(--ease),
-      transform var(--dur-fast) var(--ease),
+      clip-path var(--dur-fast) steps(4, end),
+      opacity 0s linear,
       visibility 0s linear var(--dur-fast);
   }
-  .code-hint-pop.below { transform: translateY(-4px); }
+  .code-hint-pop.below { clip-path: inset(0 0 100% 0); }
   .code-hint-pop.visible {
     opacity: 1;
     visibility: visible;
-    transform: none;
+    clip-path: inset(-20px -20px -20px -20px);
     transition-delay: 0s;
   }
   .code-hint-pop::after {
@@ -264,7 +342,7 @@
     position: absolute;
     left: calc(var(--pole-x, 0px) - 2px);
     top: 100%;
-    width: 2px;
+    width: 1px;
     height: 9px;
     background: var(--accent);
   }
@@ -274,14 +352,16 @@
   }
   .code-hint-title {
     margin: 0 0 4px;
-    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
     font-weight: 600;
     line-height: 1.4;
     color: var(--text);
   }
+  .code-hint-title::before { content: '// '; content: '// ' / ''; color: var(--text-3); font-weight: 400; }
   .code-hint-body {
     margin: 0;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     line-height: 1.55;
     color: var(--text-2);
   }
@@ -295,11 +375,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .astro-code .code-hint,
-    .astro-code .code-hint::before,
-    .code-hint-pop {
-      transition: none;
-      transform: none;
-    }
+    .code-copy-btn,
+    .code-hint-pop { transition: none; }
   }
 </style>

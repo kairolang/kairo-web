@@ -47,9 +47,9 @@ final `else` is mandatory. All arms must produce the same type.
 
 #### Arms are expressions, not blocks
 
-A braced arm is an error ([S073E](/docs/language/diagnostics#s073e-braced-value-arm-in-an-if-try-or-match-expression)),
+A braced arm is an error ([S073E](/docs/language/diagnostics/#s073e-braced-value-arm-in-an-if-try-or-match-expression)),
 and the compiler offers a fix-it. An arm needs a value: `=>` with nothing after it is an error. For several
-statements, use a [statement expression](/docs/language/operators#statement-expressions):
+statements, use a [statement expression](/docs/language/operators/#statement-expressions):
 
 ```kairo
 var v = if ready => ({ var t = load(); t.normalize(); (t.value); }) else => 0
@@ -70,7 +70,7 @@ draw(if wide => 80 else => 40, height)
 ```
 
 Using an `if` as the operand of an operator is legal, but it produces a warning
-([S078W](/docs/language/diagnostics#s078w-if-or-try-expression-as-an-operators-operand)). Parenthesize it:
+([S078W](/docs/language/diagnostics/#s078w-if-or-try-expression-as-an-operators-operand)). Parenthesize it:
 
 ```kairo
 var w = base + (if wide => 80 else => 40)
@@ -95,9 +95,9 @@ Inside an arm the ordinary rule applies: break after an operator, not before it.
 
 A nested `if` in any arm except the last must be in parentheses, and so must an `if` used as a condition.
 Otherwise it is a compile error
-([S077E](/docs/language/diagnostics#s077e-nested-if-or-try-expression-must-be-parenthesized)), and the
+([S077E](/docs/language/diagnostics/#s077e-nested-if-or-try-expression-must-be-parenthesized)), and the
 compiler offers a fix-it. A nested `if` in the final `else` arm is allowed, but write it as `else if`:
-`else => if` produces a warning ([S079W](/docs/language/diagnostics#s079w--between-else-and-if-is-redundant)).
+`else => if` produces a warning ([S079W](/docs/language/diagnostics/#s079w--between-else-and-if-is-redundant)).
 
 ```kairo
 var r = if a => (if b => 1 else => 2) else => 3     // ok
@@ -216,7 +216,7 @@ match result {
 }
 ```
 
-See [Enums](/docs/language/enums#adt-enums) for ADT enum declarations and construction.
+See [Enums](/docs/language/enums/#adt-enums) for ADT enum declarations and construction.
 
 ### `where` guards
 
@@ -325,13 +325,13 @@ var message = match result {
 Each arm is `case pattern => value` or `default => value`. All arms must produce the same type.
 
 - Arms are not separated by commas. A comma between arms is an error
-  ([S076E](/docs/language/diagnostics#s076e-match-arms-separated-by-a-comma)).
+  ([S076E](/docs/language/diagnostics/#s076e-match-arms-separated-by-a-comma)).
 - Guards come before the arrow: `case .Found(var v) where v > 0 => v`.
 - You may break before or after `=>`.
 - A `match` closes with `}`, so it can be used directly as an operand: `var n = match k { ... } + 1`. The
   parentheses rule for `if` and `try` does not apply to it.
 - All arms of one `match` use the same form, either all `=>` or all `{ }`. Mixing the two is an error
-  ([S075E](/docs/language/diagnostics#s075e-match-arms-mix--and---forms)).
+  ([S075E](/docs/language/diagnostics/#s075e-match-arms-mix--and---forms)).
 - In statement position, a `match` whose arms are all `=>` is an expression, and exhaustiveness is
   required as for any `match` expression. A `match` with block arms is a statement.
 
@@ -411,8 +411,8 @@ for item in collection {
 
 The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type
 that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does
-not make it iterable. See [Operators](/docs/language/operators#ranges) for the `Steppable` interface and
-[Operators](/docs/language/operators#special-operators) for the `op in` overload.
+not make it iterable. See [Operators](/docs/language/operators/#ranges) for the `Steppable` interface and
+[Operators](/docs/language/operators/#special-operators) for the `op in` overload.
 
 An imported C++ class iterates the way a C++ range-based `for` does: through its member `begin()` and
 `end()`, or else through free `begin()` and `end()` functions found by argument-dependent lookup.
@@ -512,7 +512,7 @@ with no fall-through by default).
 
 `try`/`catch` handles panics from functions annotated with the `panic` specifier. The compiler statically
 verifies that `catch` blocks cover all panic types that can propagate from the `try` body uncovered types
-are a compile error. See [Panic](/docs/language/panic) for the full panic model.
+are a compile error. See [Panic](/docs/language/panic/) for the full panic model.
 
 ```kairo
 try {
@@ -696,7 +696,7 @@ fn divide(a: i32, b: i32) panic -> i32 {
 }
 ```
 
-See [Panic](/docs/language/panic) for the full panic model, including `Panickable<T>`, desugaring semantics,
+See [Panic](/docs/language/panic/) for the full panic model, including `Panickable<T>`, desugaring semantics,
 and the zero-cost codegen strategy.
 
 ---
@@ -727,7 +727,7 @@ order.
 ```
 
 A plain block does not produce a value. To compute a value with statements, use a
-[statement expression](/docs/language/operators#statement-expressions), whose value is its last expression:
+[statement expression](/docs/language/operators/#statement-expressions), whose value is its last expression:
 
 ```kairo
 var result = ({
@@ -758,7 +758,7 @@ fn process() {
 All control flow constructs (`if`, `match`, `for`, `while`, `loop`, `try`) create implicit blocks
 their bodies follow the same scoping and destruction rules.
 
-See [Variables](/docs/language/variables#scope-and-lifetime) and [Tether](/docs/language/tether) for full lifetime semantics.
+See [Variables](/docs/language/variables/#scope-and-lifetime) and [Tether](/docs/language/tether/) for full lifetime semantics.
 
 ---
 
@@ -784,7 +784,7 @@ control flow guarantees.
 
 Kairo does not have a `goto` keyword. `label!` and `jump!` are compiler intrinsics surfaced with macro
 syntax to make jump usage explicit and greppable in a codebase. They are not user-defined macros see
-[Macros](/docs/language/macros) for the macro system.
+[Macros](/docs/language/macros/) for the macro system.
 
 ---
 
@@ -805,7 +805,7 @@ eval if platform == "linux" {
 ```
 
 This is equivalent to `#if` / `#elif` / `#else` in C/C++, but operates on Kairo's compile-time evaluation
-system rather than a preprocessor. See [Eval](/docs/language/eval) for details on what qualifies as a
+system rather than a preprocessor. See [Eval](/docs/language/eval/) for details on what qualifies as a
 compile-time constant.
 
 ---
@@ -879,13 +879,13 @@ var x: i32 = if valid => compute() else => fatal("invalid state")
 // fatal() returns ! which coerces to i32
 ```
 
-See [Functions](/docs/language/functions) for return type syntax and [Type System](/docs/language/type-system) for how `!` interacts with type inference.
+See [Functions](/docs/language/functions/) for return type syntax and [Type System](/docs/language/type-system/) for how `!` interacts with type inference.
 
 ---
 
 ## `return`
 
-`return` exits the current function with a value. See [Functions](/docs/language/functions) for full details
+`return` exits the current function with a value. See [Functions](/docs/language/functions/) for full details
 on return types, `void` returns, and expression-bodied functions.
 
 ---
@@ -915,6 +915,6 @@ For C++ developers the following C++ constructs have no equivalent in Kairo:
 | `goto` | `label!` / `jump!` intrinsics |
 | `do { ... } while` | `loop` with a conditional `break` at the end |
 | `switch` fall-through | `match` but no fall-through |
-| `throw` / C++ exceptions | `panic` / `try`/`catch` (see [Panic](/docs/language/panic)) |
-| `#if` / `#ifdef` | `eval if` (see [Eval](/docs/language/eval)) |
-| `constexpr` / `consteval` | `eval` functions / vars (see [Eval](/docs/language/eval)) |
+| `throw` / C++ exceptions | `panic` / `try`/`catch` (see [Panic](/docs/language/panic/)) |
+| `#if` / `#ifdef` | `eval if` (see [Eval](/docs/language/eval/)) |
+| `constexpr` / `consteval` | `eval` functions / vars (see [Eval](/docs/language/eval/)) |

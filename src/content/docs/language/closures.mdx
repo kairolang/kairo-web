@@ -191,7 +191,7 @@ var divergent = fn () panic -> ! {
 > [!NOTE]
 > Closures cannot be `eval`, `const`, `unsafe`, `virtual`, `override`, `inline`, or `final`.
 
-See [Panic](/docs/language/panic) for the full panic model.
+See [Panic](/docs/language/panic/) for the full panic model.
 
 ---
 
@@ -219,7 +219,7 @@ var nested_mixed = fn () -> fn(i32) -> i32 {
 
 ## Tether and Lifetime Safety
 
-[Tether](/docs/language/tether) tracks closure captures the same way it tracks any other borrow. If a closure
+[Tether](/docs/language/tether/) tracks closure captures the same way it tracks any other borrow. If a closure
 captures a variable by pointer and the closure outlives the variable, Tether will attempt to auto-promote the
 capture to a smart pointer (shared, weak, or unique). If promotion is not possible, the compiler emits a
 hard error.

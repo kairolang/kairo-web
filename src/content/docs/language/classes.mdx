@@ -1,7 +1,7 @@
 ---
 order: 7
 title: Classes
-description: Class declarations, constructors, destructors, lifecycle categories, inheritance, virtual dispatch, abstract classes, generics, visibility, memory layout, and out-of-line definitions in Kairo.
+description: "Classes in Kairo: constructors, destructors, lifecycle categories, inheritance, virtual dispatch, abstract classes, generics, visibility and memory layout."
 ---
 
 # Classes
@@ -85,7 +85,7 @@ class Tree {
 ```
 
 The rule does not depend on where a method is written. It is identical in a `class`, `struct`, `union` or
-`interface` body, in an [`extend`](/docs/language/extends) block, in an out-of-line `fn Type::method`
+`interface` body, in an [`extend`](/docs/language/extends/) block, in an out-of-line `fn Type::method`
 definition, and inside a closure in any of those.
 
 `Self` (capitalized) is a type alias for the enclosing class. In a generic class `class <T> Foo`, `Self`
@@ -161,7 +161,7 @@ class Account {
 ```
 
 Visibility also applies at the top level a `priv class` is only accessible within its file, a `prot
-class` within its module and subclasses. See [Modules](/docs/language/modules) for how top-level
+class` within its module and subclasses. See [Modules](/docs/language/modules/) for how top-level
 visibility interacts with imports.
 
 > [!NOTE]
@@ -190,7 +190,7 @@ var p = Point(1.0, 2.0)
 ```
 
 Constructors support all the features of regular functions default parameters, named arguments,
-overloading by parameter types, generic type parameters. See [Functions](/docs/language/functions).
+overloading by parameter types, generic type parameters. See [Functions](/docs/language/functions/).
 
 ### Const members in constructors
 
@@ -233,7 +233,7 @@ var a = Defaults()     // ok: x is zero-initialized
 var b = NoDefault()    // compile error: default constructor is deleted
 ```
 
-See [Variables](/docs/language/variables#default-initialization) for default initialization rules.
+See [Variables](/docs/language/variables/#default-initialization) for default initialization rules.
 
 ---
 
@@ -312,7 +312,7 @@ fn Buffer(self, const other: Self) = default
 ```
 
 Inline placement (`@copy fn Buffer(self, const other: Self) = default`) is permitted but discouraged. See
-[Attributes](/docs/language/attributes) for the full attribute syntax.
+[Attributes](/docs/language/attributes/) for the full attribute syntax.
 
 ### The transfer constructor
 
@@ -378,7 +378,7 @@ class Bad {
 The one exception is both being `= delete`, the canonical **NON_TRANSFER** form.
 
 A class also cannot declare two transfer constructors of the same kind, such as `@copy` with and without
-`const` ([SC057E](/docs/language/diagnostics#sc057e-more-than-one-transfer-constructor)).
+`const` ([SC057E](/docs/language/diagnostics/#sc057e-more-than-one-transfer-constructor)).
 
 ### The four categories
 
@@ -480,7 +480,7 @@ This implies a consistency rule: if the transfer ctor has a body and `op delete`
 
 The converse is checked too. A defaulted `@copy` constructor requires every base and field to be copyable, and
 a defaulted `@move` requires every base and field to be movable or copyable. Otherwise it is a compile error
-([SC129E](/docs/language/diagnostics#sc129e-a-defaulted-transfer-constructor-cannot-be-generated)) naming the field. A transfer constructor with a body is exempt; it decides for itself how each field
+([SC129E](/docs/language/diagnostics/#sc129e-a-defaulted-transfer-constructor-cannot-be-generated)) naming the field. A transfer constructor with a body is exempt; it decides for itself how each field
 is transferred.
 
 ### Implicit-copy-with-custom-destructor warning
@@ -503,7 +503,7 @@ class UniqueFile {
 
 ### Tether copy elision
 
-For COPY classes, [Tether](/docs/language/tether) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. Tether does not elide if the move constructor is
+For COPY classes, [Tether](/docs/language/tether/) may emit a move instead of a copy when it proves the source is unused after the transfer. This is a pure optimization with no observable semantic difference the source is destroyed either way, just earlier when elided. Tether does not elide if the move constructor is
 deleted. Users do not opt into or out of this optimization.
 
 ---
@@ -665,7 +665,7 @@ A copyable base with a move-only derived class is a compile error slicing a deri
 base pointer would otherwise silently copy the base subobject of a class that promised never to be
 copied.
 
-See [Casting](/docs/language/casting) for upcasting and downcasting.
+See [Casting](/docs/language/casting/) for upcasting and downcasting.
 
 ---
 
@@ -796,7 +796,7 @@ fn <T impl Hashable> insert(set: {T}, item: T) { ... }
 insert(my_set, Point(1.0, 2.0))   // compiles: Point has hash()
 ```
 
-See [Interfaces](/docs/language/interfaces) and [Requires Clauses](/docs/language/requires).
+See [Interfaces](/docs/language/interfaces/) and [Requires Clauses](/docs/language/requires/).
 
 ---
 
@@ -881,7 +881,7 @@ interface Defaultable {
 fn <T impl Copyable> store(item: T) -> T { ... }
 ```
 
-See [Requires Clauses](/docs/language/requires) for the full constraint system.
+See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ---
 
@@ -914,14 +914,14 @@ not take `self` and cannot access instance members.
 
 > [!NOTE]
 > Static fields do not compile yet: an initializer on one is rejected, and without one the program does
-> not link. See [Status](/docs/status#not-compiled-yet).
+> not link. See [Status](/docs/status/#not-compiled-yet).
 
 ---
 
 ## Const Methods
 
 A method that takes `const self` promises not to modify the object (except `mutable` members). It is
-the ["can I change the pointee?"](/docs/language/variables#the-const-binding-rule) question asked
+the ["can I change the pointee?"](/docs/language/variables/#the-const-binding-rule) question asked
 about the receiver. Only `const` methods can be called through a `*const T` pointer or on a `const`
 binding:
 
@@ -945,7 +945,7 @@ sensor->value()        // ok: const method
 // sensor->calibrate(1.0)  // compile error: not const
 ```
 
-`const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables#the-const-binding-rule).
+`const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables/#the-const-binding-rule).
 
 ### Mutable members
 
@@ -994,7 +994,7 @@ pub class Gate {
 Every module that uses `Gate` compiles `is_open` itself, so a call to it can be inlined there. Every
 `inline` method of a class goes with the class, whether or not Kairo code calls it, because the C++
 compiler may call methods Kairo never sees (`await_ready`, `initial_suspend`, ...). The class definition
-itself is unchanged: the bodies are emitted after it, outside it. See [Functions](/docs/language/functions#inline)
+itself is unchanged: the bodies are emitted after it, outside it. See [Functions](/docs/language/functions/#inline)
 for the rules.
 
 `inline` is allowed on `virtual` and `override` methods. If every virtual method of a class is `inline`, the
@@ -1187,7 +1187,7 @@ Special operators beyond arithmetic:
 `op =` is **not** user-definable it is auto-derived from the transfer constructor. See
 [Lifecycle Categories](#lifecycle-categories).
 
-See [Operators](/docs/language/operators#operator-overloading) for the full list of overloadable
+See [Operators](/docs/language/operators/#operator-overloading) for the full list of overloadable
 operators and restrictions.
 
 ---
@@ -1222,14 +1222,14 @@ A plain `var` declaration allocates on the stack:
 var obj = Foo(42)   // stack-allocated
 ```
 
-Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether) determines
+Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether/) determines
 whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
 var ptr = @create Foo(42)
 ```
 
-See [Pointers](/docs/language/pointers) and [Tether](/docs/language/tether).
+See [Pointers](/docs/language/pointers/) and [Tether](/docs/language/tether/).
 
 ---
 
@@ -1240,13 +1240,13 @@ Structs and classes are distinct types:
 | | Class | Struct |
 |---|---|---|
 | Member default visibility | `priv` for variables | `pub` for all members |
-| Methods in body | Yes | No (use [extends](/docs/language/extends)) |
+| Methods in body | Yes | No (use [extends](/docs/language/extends/)) |
 | Aggregate initialization | Only if the class declares no constructor | Yes (`Foo { field: value }`) |
 | Inheritance | `derives` | Not supported |
 | Virtual dispatch | Yes | No |
 | Lifecycle categories | Yes | N/A (no transfer constructors; copyable whenever every field is) |
 
-See [Structures](/docs/language/structures).
+See [Structures](/docs/language/structures/).
 
 ---
 

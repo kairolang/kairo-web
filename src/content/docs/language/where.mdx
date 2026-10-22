@@ -1,7 +1,7 @@
 ---
 order: 15
 title: Where Clauses
-description: Where clauses attach runtime-conditional constraints to declarations. They are evaluated at runtime, and can be used for dispatching on values or types.
+description: "Where clauses in Kairo attach runtime-conditional constraints to declarations. They are evaluated at runtime and can dispatch on values or types."
 ---
 
 # Where Clauses
@@ -11,7 +11,7 @@ specifies a condition that is checked at the call site if it fails, execution fa
 the next matching overload. The compiler folds multiple `where`-constrained overloads into a
 single function with branch dispatch.
 
-For compile-time constraints, see [Requires Clauses](/docs/language/requires).
+For compile-time constraints, see [Requires Clauses](/docs/language/requires/).
 
 | Property | Guarantee |
 |---|---|
@@ -150,7 +150,7 @@ match result {
 ```
 
 A match guard that fails causes the arm to be skipped and evaluation continues to the next arm.
-See [Control Flow](/docs/language/control-flow#match) for the full `match` syntax.
+See [Control Flow](/docs/language/control-flow/#match) for the full `match` syntax.
 
 ---
 
@@ -218,7 +218,7 @@ var a = access(data, 5)          // safe dispatch
 var b = unsafe access(data, 5)   // unsafe overload, no where dispatch
 ```
 
-See [Unsafe](/docs/language/unsafe) for the unsafe overload model.
+See [Unsafe](/docs/language/unsafe/) for the unsafe overload model.
 
 ---
 

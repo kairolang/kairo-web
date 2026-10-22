@@ -1,29 +1,35 @@
 ---
+import AsciiArt from './ascii/AsciiArt.astro';
+
 const languageLinks = [
-  { href: '/docs', label: 'Documentation' },
-  { href: '/docs/install', label: 'Installation' },
+  { href: '/docs/', label: 'Documentation' },
+  { href: '/docs/install/', label: 'Installation' },
   { href: '/llms.txt', label: 'LLM Context', hidden: true },
   { href: '/llms-full.txt', label: 'LLM Full Docs', hidden: true },
-  { href: '/blog', label: 'Blog' },
+  { href: '/blog/', label: 'Blog' },
   { href: 'https://github.com/kairolang/kairo/releases', label: 'Changelog', external: true },
 ];
 
 const communityLinks = [
   { href: 'https://github.com/kairolang/kairo', label: 'GitHub', external: true },
-  { href: '/ksf', label: 'KSF' }
+  { href: '/contributors/', label: 'Contributors' },
+  { href: '/ksf/', label: 'KSF' },
 ];
 
 const year = new Date().getFullYear();
 ---
 <footer class="site-footer">
   <div class="container">
+    <!-- Giant ASCII wordmark (decorative) -->
+    <a href="/" class="footer-wordmark-link" aria-label="Kairo home">
+      <AsciiArt text="KAIRO" max={34} class="footer-wordmark" />
+    </a>
+
     <div class="footer-grid">
-      <!-- Column 1: Logo + tagline -->
+      <!-- Column 1: tagline as terminal output -->
       <div class="footer-brand">
-        <a href="/" class="footer-logo">
-          <img src="/kairo-file-icon.svg" alt="" width="24" height="24" />
-          <span class="footer-wordmark">kairo</span>
-        </a>
+        <p class="footer-cmd"><span class="prompt">kairo --version</span></p>
+        <p class="footer-out">kairo 0.1.0-alpha <span class="dim">(stage0, c++)</span></p>
         <p class="footer-tagline">
           The Language Beyond C++<br>
           Compiled systems language. Two-way C++ interop.
@@ -31,145 +37,158 @@ const year = new Date().getFullYear();
       </div>
 
       <!-- Column 2: Language -->
-      <div>
-        <p class="footer-col-title">Language</p>
-        <div class="footer-links">
+      <nav aria-label="Language">
+        <p class="footer-col-title">~/language</p>
+        <ul class="ascii-tree footer-links">
           {languageLinks.map(link => (
-            <a
-              href={link.href}
-              target={link.external ? '_blank' : undefined}
-              rel={link.external ? 'noopener noreferrer' : undefined}
-              class={link.hidden ? 'sr-only-link' : 'footer-link'}
-            >
-              {link.label}
-              {link.external && !link.hidden && (
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg>
-              )}
-            </a>
+            <li class={link.hidden ? 'sr-only' : undefined}>
+              <a
+                href={link.href}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : undefined}
+                class={link.hidden ? 'sr-only-link' : 'footer-link'}
+              >
+                {link.label}
+                {link.external && !link.hidden && <span class="footer-ext" aria-hidden="true" data-scramble-skip>↗</span>}
+              </a>
+            </li>
           ))}
-        </div>
-      </div>
+        </ul>
+      </nav>
 
       <!-- Column 3: Community -->
-      <div>
-        <p class="footer-col-title">Community</p>
-        <div class="footer-links">
+      <nav aria-label="Community">
+        <p class="footer-col-title">~/community</p>
+        <ul class="ascii-tree footer-links">
           {communityLinks.map(link => (
-            <a
-              href={link.href}
-              target={link.external ? '_blank' : undefined}
-              rel={link.external ? 'noopener noreferrer' : undefined}
-              class="footer-link"
-            >
-              {link.label}
-              {link.external && (
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg>
-              )}
-            </a>
+            <li>
+              <a
+                href={link.href}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : undefined}
+                class="footer-link"
+              >
+                {link.label}
+                {link.external && <span class="footer-ext" aria-hidden="true" data-scramble-skip>↗</span>}
+              </a>
+            </li>
           ))}
-        </div>
-      </div>
+        </ul>
+      </nav>
     </div>
 
-    <!-- Bottom bar -->
+    <!-- Bottom status line -->
     <div class="footer-bottom">
       <p class="footer-legal">
         &copy; {year} Dhruvan Kartik. Open source under the
         <a
-          href="https://kairolang.org/LICENSE.txt"
+          href="/LICENSE.txt"
           target="_blank"
           rel="noopener noreferrer"
         >Apache 2.0 License (with Runtime Exception)</a>.
       </p>
-      <div class="footer-version">
-        <span class="footer-version-dot"></span>
-        v0.1.0-alpha
-      </div>
+      <p class="footer-version">
+        <span>v0.1.0-alpha</span>
+        <span class="footer-sep" aria-hidden="true">│</span>
+        <span><span class="dim">exit</span> 0</span><span class="blink-cursor-glyph" aria-hidden="true">█</span>
+      </p>
     </div>
   </div>
 </footer>
 
 <style>
+  /* Keep the root as <footer class="site-footer"> directly under <body>:
+     the docs footer gate selects `body > footer.site-footer`.
+     position: relative anchors the absolutely positioned .sr-only items
+     inside the footer's own box. */
   .site-footer {
+    position: relative;
     border-top: 1px solid var(--border);
-    padding: 4.5rem 0 2rem;
+    padding: 3.5rem 0 2rem;
     margin-top: auto;
     background: var(--bg);
+    font-family: var(--font-mono);
   }
+
+  .footer-wordmark-link {
+    display: block;
+    text-decoration: none;
+    margin-bottom: 3rem;
+  }
+  .footer-wordmark-link :global(.footer-wordmark) {
+    --art-shadow: color-mix(in srgb, var(--red) 30%, var(--bg));
+  }
+  /* one ≤200ms burst on hover/focus only (RESTRAINT) */
+  .footer-wordmark-link:hover :global(.ascii-art),
+  .footer-wordmark-link:focus-visible :global(.ascii-art) { animation: glitch 180ms steps(2, end) 1; }
 
   .footer-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
     gap: 3rem;
-    padding-bottom: 3rem;
-    border-bottom: 1px solid var(--border);
+    padding-bottom: 2.5rem;
+    border-bottom: 1px dashed var(--border-hi);
   }
 
-  .footer-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    text-decoration: none;
-    margin-bottom: 1.1rem;
+  .footer-cmd, .footer-out {
+    font-size: 0.8rem;
+    line-height: 1.7;
   }
-  .footer-wordmark {
-    font-weight: 600;
-    font-size: 1rem;
-    letter-spacing: -0.02em;
-    color: var(--text);
-  }
+  .footer-cmd { color: var(--text); }
+  .footer-out { color: var(--text-2); margin-bottom: 1rem; }
 
   .footer-tagline {
-    font-size: 0.875rem;
-    color: var(--text-3);
-    line-height: 1.7;
-    max-width: 300px;
-    margin-bottom: 1rem;
-  }
-
-  .footer-byline {
-    font-size: 0.78rem;
-    color: var(--text-3);
-  }
-  .footer-byline a {
+    font-size: 0.8rem;
     color: var(--text-2);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-  }
-  .footer-byline a:hover {
-    color: var(--text);
-    border-bottom-color: var(--border-hi);
+    line-height: 1.7;
+    max-width: 340px;
   }
 
   .footer-col-title {
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    margin-bottom: 1.1rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    /* reads like `tree` output: the root sits directly on the first ├── */
+    line-height: 1.3;
+    margin-bottom: 0;
   }
 
+  /* A true monospace block: rows touch (no gap), and every row is exactly
+     one 1.3em line — the height of Geist Mono's box-drawing glyphs — so
+     the ├/└ verticals join into one continuous line. */
   .footer-links {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 0;
+    font-size: 0.82rem;
+    line-height: 1.3;
+    /* whole-pixel rows, rounded DOWN so the glyphs overlap by a hair:
+       fractional rows (17.056px) leave a faint anti-aliased seam where one
+       ├ meets the next, and rounding up leaves a visible gap */
+    line-height: round(down, 1.3em, 1px);
   }
+  .footer-links > li::before { line-height: inherit; top: 0; }
 
   .footer-link {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.875rem;
+    gap: 0.6ch;
+    /* pinned to the row height and top-aligned so neither the hover padding
+       nor the ↗ glyph can grow the line box */
+    height: 1.3em;
+    height: 1lh;
+    vertical-align: top;
     color: var(--text-2);
     text-decoration: none;
-    transition: color var(--dur-fast) var(--ease);
+    padding: 0 0.3ch;
+    margin: 0 -0.3ch;
     width: fit-content;
   }
-  .footer-link:hover { color: var(--text); }
-  .footer-link svg { color: var(--text-3); }
+  .footer-ext { line-height: 1; }
+  .footer-link:hover { background: var(--text); color: var(--bg); }
+  .footer-ext { color: var(--text-3); }
+  .footer-link:hover .footer-ext { color: inherit; }
 
   .sr-only-link {
     position: absolute;
@@ -187,48 +206,43 @@ const year = new Date().getFullYear();
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-top: 1.75rem;
+    padding-top: 1.5rem;
     flex-wrap: wrap;
     gap: 1rem;
   }
 
   .footer-legal {
-    font-size: 0.76rem;
-    color: var(--text-3);
+    font-size: 0.72rem;
+    color: var(--text-2);
+    line-height: 1.6;
   }
   .footer-legal a {
-    color: var(--text-3);
-    text-decoration: none;
-    border-bottom: 1px solid var(--border);
-    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-  }
-  .footer-legal a:hover {
     color: var(--text-2);
-    border-bottom-color: var(--border-hi);
+    text-decoration: underline;
+    text-decoration-color: var(--border-hi);
+    text-underline-offset: 3px;
   }
+  .footer-legal a:hover { color: var(--accent); text-decoration-color: var(--accent); }
 
   .footer-version {
     display: flex;
     align-items: center;
-    gap: 7px;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: var(--text-3);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    gap: 1ch;
+    font-size: 0.72rem;
+    color: var(--text-2);
+    letter-spacing: 0.04em;
   }
-  .footer-version-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--red);
-    box-shadow: 0 0 8px var(--red-glow);
-  }
+  .footer-sep { color: var(--text-3); }
 
   @media (max-width: 768px) {
     .footer-grid {
-      grid-template-columns: 1fr;
-      gap: 2.25rem;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
     }
+    .footer-brand { grid-column: 1 / -1; }
+    .footer-wordmark-link { margin-bottom: 2rem; }
+  }
+  @media (max-width: 420px) {
+    .footer-grid { grid-template-columns: 1fr; }
   }
 </style>

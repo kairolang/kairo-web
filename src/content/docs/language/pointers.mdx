@@ -1,7 +1,7 @@
 ---
 order: 16
 title: Pointers & Raw Pointers
-description: Safe pointers, unsafe raw pointers, null semantics, pointer arithmetic, smart pointer promotion, void pointers, double pointers, and pointer safety rules in Kairo.
+description: "Pointers in Kairo: safe and unsafe raw pointers, null semantics, pointer arithmetic, smart pointer promotion, void and double pointers, and safety rules."
 ---
 
 # Pointers & Raw Pointers
@@ -15,7 +15,7 @@ hold a memory address.
 ## Safe Pointers (`*T`)
 
 `*T` is the default pointer type. The compiler tracks its provenance via
-[Tether](/docs/language/tether). It is never null, so a dereference needs no check:
+[Tether](/docs/language/tether/). It is never null, so a dereference needs no check:
 
 ```kairo
 var x = 42
@@ -85,7 +85,7 @@ var p: unsafe *i32 = unsafe &x   // create raw pointer from safe binding
 
 Dereferencing a null `unsafe *T` is undefined behavior. The compiler will not insert a check.
 
-Raw pointers are required for [C/C++ interop](/docs/language/c-cpp), custom allocators, hardware
+Raw pointers are required for [C/C++ interop](/docs/language/c-cpp/), custom allocators, hardware
 register access, and any scenario where Tether tracking is not possible or not desired.
 
 ### Creating raw pointers
@@ -145,7 +145,7 @@ Each question has exactly one place it can be answered. `var ptr: const *const i
 same thing as `const ptr: *const i32`, but it is rejected, because the pointer question belongs to
 the declaration keyword.
 
-See [Variables](/docs/language/variables#the-const-binding-rule) for the full `const` model.
+See [Variables](/docs/language/variables/#the-const-binding-rule) for the full `const` model.
 
 ---
 
@@ -246,7 +246,7 @@ const pp: *const *i32 = &p
 
 ## Smart Pointer Promotion
 
-[Tether](/docs/language/tether) analyzes pointer usage and determines when a safe pointer needs smart
+[Tether](/docs/language/tether/) analyzes pointer usage and determines when a safe pointer needs smart
 pointer ownership semantics. In **debug** builds it performs the promotion and warns; in **release**
 builds the same situation is a hard error naming the type to annotate. The smart pointer types are
 compiler intrinsics exposed through the standard library:
@@ -279,8 +279,8 @@ var ptr: std::Unique<Config> = @create Config(8080)
 var shared: std::Shared<Config> = @create Config(8080)
 ```
 
-See [Tether](/docs/language/tether) for the full lifetime and promotion model, and
-[Ownership](/docs/language/ownership) for borrowing semantics.
+See [Tether](/docs/language/tether/) for the full lifetime and promotion model, and
+[Ownership](/docs/language/ownership/) for borrowing semantics.
 
 ---
 
@@ -301,7 +301,7 @@ var raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
 unsafe std::free(raw)
 ```
 
-See [Tether](/docs/language/tether) for how allocation interacts with lifetime tracking.
+See [Tether](/docs/language/tether/) for how allocation interacts with lifetime tracking.
 
 ---
 
@@ -330,7 +330,7 @@ p == r    // true: same address
 dereference them: `*x == *y`. For raw pointers (`unsafe *T`), use `==` for address comparison and
 dereference manually after a null check.
 
-See [Operators](/docs/language/operators#comparison) for the full comparison model.
+See [Operators](/docs/language/operators/#comparison) for the full comparison model.
 
 ---
 
@@ -346,8 +346,8 @@ var f: fn(i32, i32) -> i32 = add
 // var p = f as unsafe *void   // compile error: function pointers are not data pointers
 ```
 
-See [Functions](/docs/language/functions#function-pointers) for function pointer syntax and
-[Closures](/docs/language/closures) for closures as function pointers.
+See [Functions](/docs/language/functions/#function-pointers) for function pointer syntax and
+[Closures](/docs/language/closures/) for closures as function pointers.
 
 ---
 
@@ -379,7 +379,7 @@ var val = q ?? &fallback     // use fallback pointer if q is null
 var forced = unwrap!(q)      // panics if null
 ```
 
-See [Variables](/docs/language/variables#nullable-types) for the full nullable type system.
+See [Variables](/docs/language/variables/#nullable-types) for the full nullable type system.
 
 ---
 

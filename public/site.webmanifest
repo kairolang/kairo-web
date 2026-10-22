@@ -1,0 +1,17 @@
+{
+  "name": "Kairo Programming Language",
+  "short_name": "Kairo",
+  "description": "Kairo is an open-source systems programming language with native, bidirectional C++ interop.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#08080a",
+  "theme_color": "#08080a",
+  "lang": "en",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/kairo-file-icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

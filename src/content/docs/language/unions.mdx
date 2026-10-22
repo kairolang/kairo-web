@@ -11,7 +11,7 @@ memory layout tool for hardware registers, binary protocol parsing, and type pun
 for tracking which field is active there is no compiler-managed tag.
 
 For type-safe tagged unions with compiler-enforced variant tracking, use
-[ADT enums](/docs/language/enums#adt-enums).
+[ADT enums](/docs/language/enums/#adt-enums).
 
 ---
 
@@ -77,7 +77,7 @@ union Bad {
 }
 ```
 
-If you need a union of non-trivial types, use an [ADT enum](/docs/language/enums#adt-enums) the
+If you need a union of non-trivial types, use an [ADT enum](/docs/language/enums/#adt-enums) the
 compiler manages construction, destruction, and active-variant tracking for you.
 
 ---
@@ -117,7 +117,7 @@ pkt.payload.as_int = 42
 ```
 
 For a type-safe version of this pattern (where the opcode determines which payload field is valid),
-use an [ADT enum](/docs/language/enums#adt-enums) instead.
+use an [ADT enum](/docs/language/enums/#adt-enums) instead.
 
 ---
 
@@ -189,7 +189,7 @@ union Payload {
 ## No Extends
 
 Unions do not support `extend` blocks. They are raw memory overlays with no behavior adding
-methods would blur the line between unions and [classes](/docs/language/classes). If you need methods
+methods would blur the line between unions and [classes](/docs/language/classes/). If you need methods
 on overlapping data, wrap the union in a struct or class and add behavior there.
 
 ---

@@ -1,5 +1,7 @@
 ---
 import { Code } from 'astro:components';
+import { renderFiglet, artSize, toneArt } from '../../lib/ascii/figlet';
+import '../../styles/resize.css';
 
 let kairoLang: any = 'rust';
 try {
@@ -34,516 +36,814 @@ test "dot product of two vectors" {
     var result = dot(a, b)
     assert result == 130, f"expected 130, got {result}"
 }`;
+
+// The reflowing text wall around the knot (and under the resizable window):
+// the dot_product.k source flattened into one continuous line of text.
+const flowText = heroCode.replace(/\s+/g, ' ').trim() + '  // EOF dot_product.k  ';
+const codeLines = heroCode.split('\n').length;
+
+const logoArt = renderFiglet('KAIRO');
+const logoCols = artSize(logoArt).cols;
 ---
 
-<section class="hero" id="hero">
-  <!-- Backdrop: 3D wireframe scene behind a frosted glass layer -->
-  <div class="hero-backdrop" aria-hidden="true">
-    <canvas id="hero-scene" class="hero-scene"></canvas>
-    <div class="hero-frost"></div>
-    <div class="hero-spot"></div>
-    <div class="hero-grain"></div>
-  </div>
+<section class="hero" id="hero" aria-labelledby="hero-title">
+  <div class="hero-top" id="hero-top">
+    <div class="container hero-grid">
+      <div class="hero-copy" id="hero-copy">
+        <a
+          href="https://github.com/kairolang/kairo/releases"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hero-chip pop-in"
+          style="--d: 0ms;"
+        >
+          <span class="hero-chip-ver">v0.1.0-alpha</span>
+          <span class="hero-chip-note">open source systems language</span>
+          <span class="hero-chip-arrow" aria-hidden="true">↗</span>
+        </a>
 
-  <div class="container hero-inner">
-    <!-- Badge -->
-    <a href="https://github.com/kairolang/kairo/releases" target="_blank" rel="noopener noreferrer" class="hero-badge fade-up" style="--d: 0ms;">
-      <span class="hero-badge-dot"></span>
-      v0.1.0-alpha
-      <span class="hero-badge-sep"></span>
-      <span class="hero-badge-muted">Open source systems language</span>
-      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
-    </a>
+        <!-- ASCII KAIRO (decorative; the h1 below carries the real text) -->
+        <div
+          class="ascii-fit hero-logo"
+          data-hero-logo
+          aria-hidden="true"
+          style={`--art-max: 30px;`}
+        ><span class="ascii-art" style={`--cols:${logoCols};`} set:html={toneArt(logoArt)} /></div>
 
-    <!-- Headline -->
-    <h1 class="hero-title display">
-      <span class="mask-line"><span style="--d: 120ms;">The Language</span></span>
-      <span class="mask-line"><span class="hero-title-accent" style="--d: 260ms;">Beyond C++</span></span>
-    </h1>
+        <h1 class="hero-title" id="hero-title">
+          <span class="sr-only">Kairo — </span>
+          <span class="hero-tagline type-in" style="--d: 260ms;">The Language <span class="hero-tagline-accent">Beyond C++</span></span>
+        </h1>
 
-    <!-- Sub -->
-    <p class="hero-sub fade-up" style="--d: 480ms;">
-      C++ can <code>#include</code> a <code>.k</code> file. Kairo can call any C++ library
-      with zero bindings. The boundary doesn't exist.
-    </p>
+        <p class="hero-sub print-in" style="--d: 380ms;">
+          C++ can <code>#include</code> a <code>.k</code> file. Kairo can call any C++ library
+          with zero bindings. The boundary doesn't exist.
+        </p>
 
-    <!-- Actions -->
-    <div class="hero-actions fade-up" style="--d: 620ms;">
-      <a href="/docs" class="btn-primary hero-btn">
-        Get Started
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </a>
-      <a href="https://github.com/kairolang/kairo" class="btn-outline hero-btn" target="_blank" rel="noopener noreferrer">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-        </svg>
-        View on GitHub
-      </a>
-    </div>
+        <div class="hero-actions pop-in" style="--d: 480ms;">
+          <a href="/docs/" class="ascii-btn ascii-btn--primary ascii-btn--lg">
+            <span class="ascii-btn-label">Get started</span>
+            <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>→</span>
+          </a>
+          <a
+            href="https://github.com/kairolang/kairo"
+            class="ascii-btn ascii-btn--ghost ascii-btn--lg"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+            </svg>
+            <span class="ascii-btn-label">View on GitHub</span>
+          </a>
+        </div>
 
-    <!-- Status caption -->
-    <p class="hero-status fade-up" style="--d: 740ms;">
-      <span class="hero-status-dot"></span>
-      stage(0) written in C++ &nbsp;·&nbsp; stage(1) self-hosting in progress
-    </p>
+        <!-- Boot log: compiler status. The tags are buttons: each drops a small
+             terminal readout below the log (Escape / second click closes). -->
+        <div class="hero-boot" id="hero-boot">
+          <p class="hero-boot-line">
+            <button
+              type="button"
+              class="hero-boot-tag hero-boot-tag--ok pop-in"
+              style="--d: 540ms;"
+              data-boot="ok"
+              aria-expanded="false"
+              aria-controls="hero-boot-ok"
+            >[ok]<span class="sr-only"> stage(0) details</span></button>
+            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="560">stage(0) compiler — C++</span>
+          </p>
+          <p class="hero-boot-line">
+            <button
+              type="button"
+              class="hero-boot-tag hero-boot-tag--wip pop-in"
+              style="--d: 660ms;"
+              data-boot="wip"
+              aria-expanded="false"
+              aria-controls="hero-boot-wip"
+            >[..]<span class="sr-only"> stage(1) details</span></button>
+            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="680">stage(1) self-hosting — in progress</span>
+            <span class="hero-spin pop-in" style="--d: 900ms;" aria-hidden="true"><span>|/-\</span></span>
+          </p>
 
-    <!-- Code window -->
-    <div class="hero-stage fade-up" style="--d: 860ms;">
-      <div class="hero-window-wrap" id="hero-window">
-        <div class="code-window hero-window">
-          <div class="code-window-bar">
-            <div class="window-dots"><span></span><span></span><span></span></div>
-            <span class="code-window-title">dot_product.k</span>
-            <span class="code-window-badge">kairo</span>
+          <div class="hero-boot-pop" id="hero-boot-ok" data-boot-pop="ok" role="group" aria-label="stage(0) compiler" hidden>
+            <p class="bp-line"><span class="bp-prompt" aria-hidden="true">$</span> <span class="bp-tw">kairo --version</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">kairo v0.1.0-alpha</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">stage(0) · bootstrap compiler · C++</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">transpiles Kairo → C++ · no LLVM</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">status: frozen, kept to build stage(1)</span></p>
+            <p class="bp-line bp-exit"><span class="bp-tw">exit 0</span></p>
           </div>
-          <div class="hero-code-body">
-            <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark-default', light: 'github-light-default' }} defaultColor={false} />
+
+          <div class="hero-boot-pop" id="hero-boot-wip" data-boot-pop="wip" role="group" aria-label="stage(1) self-hosting" hidden>
+            <p class="bp-line"><span class="bp-tw">stage(1) · self-hosted compiler · Kairo</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">builds with stage(0) + patched LLVM</span></p>
+            <p class="bp-line bp-bar-line">
+              <span class="bp-bar" data-boot-bar aria-hidden="true">[░░░░░░░░░░░░░░░░░░░░░░░░]</span>
+              <span class="bp-bar-note">in progress</span>
+            </p>
+            <p class="bp-line bp-dim">bar is illustrative, not a measurement</p>
+            <p class="bp-line bp-out bp-late"><span class="bp-tw">next: stage(1.5) → stage(2) · Tether</span></p>
+            <p class="bp-line bp-late"><a class="bp-link" href="/docs/status/">→ /docs/status/</a> <span class="bp-dim">what isn't compiled yet</span></p>
           </div>
         </div>
-        <!-- Reflection glow under the window -->
-        <div class="hero-window-glow" aria-hidden="true"></div>
+      </div>
+
+      <!-- The knot lives here; the canvas spans the whole band -->
+      <div class="hero-stage" id="hero-stage" data-flow-text={flowText} aria-hidden="true">
+        <span class="hero-stage-cap">fig.01 &nbsp;torus_knot(2, 3)</span>
       </div>
     </div>
+  </div>
+
+  <!-- dot_product.k -->
+  <div class="container hero-code-wrap" id="hero-code-wrap" data-snap>
+    <figure class="ascii-frame ascii-frame--fill hero-code" id="hero-code">
+      <span class="ascii-frame-title">dot_product.k</span>
+      <span class="ascii-frame-meta">kairo</span>
+      <div class="hero-code-body">
+        <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark-default', light: 'github-light-default' }} defaultColor={false} />
+      </div>
+      <figcaption class="hero-code-status">
+        <span class="hero-code-mode">-- KAIRO --</span>
+        <span>dot_product.k</span>
+        <span class="hero-code-dim" aria-hidden="true">·</span>
+        <span>{codeLines} lines</span>
+        <span class="hero-code-dim" aria-hidden="true">·</span>
+        <span>utf-8</span>
+        <span class="hero-code-end">EOF</span>
+      </figcaption>
+    </figure>
   </div>
 </section>
 
 <style>
   .hero {
     position: relative;
+  }
+
+  /* ── Top band: full-bleed ASCII scene ── */
+  .hero-top {
+    position: relative;
+    /* clip sideways only: a boot-log readout may hang below the band */
     overflow: hidden;
-    padding: clamp(5rem, 12vh, 9rem) 0 0;
+    overflow-x: clip;
+    overflow-y: visible;
+    z-index: 2;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    min-height: min(calc(100svh - 52px), 920px);
   }
+  .hero-top :global(.hero-ascii-canvas) {
+    z-index: 0;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 84%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 84%, transparent 100%);
+  }
+  :global([data-theme="light"]) .hero-top :global(.hero-ascii-canvas) { opacity: 0.92; }
 
-  /* ── Backdrop layers ── */
-  .hero-backdrop {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  /* 3D wireframe scene (canvas) */
-  .hero-scene {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-  [data-theme="light"] .hero-scene { opacity: 0.5; }
-
-  /* Frosted glass over the scene — shapes become glowing forms */
-  .hero-frost {
-    position: absolute;
-    inset: 0;
-    -webkit-backdrop-filter: blur(13px) saturate(160%);
-    backdrop-filter: blur(13px) saturate(160%);
-    background: color-mix(in srgb, var(--bg) 18%, transparent);
-  }
-  /* Fade the scene out toward the next section */
-  .hero-backdrop::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 30%;
-    background: linear-gradient(to bottom, transparent, var(--bg));
-  }
-
-  /* Soft white light cone from above — gives the page depth immediately */
-  .hero-spot {
-    position: absolute;
-    top: -360px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 1300px;
-    height: 800px;
-    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 65%);
-  }
-  [data-theme="light"] .hero-spot { display: none; }
-
-  /* Film grain — kills gradient banding, adds texture */
-  .hero-grain {
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 180px 180px;
-    opacity: 0.05;
-    mix-blend-mode: overlay;
-  }
-  [data-theme="light"] .hero-grain { opacity: 0.025; }
-
-  .hero-inner {
+  .hero-grid {
     position: relative;
     z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1.5rem, 4vw, 2.5rem);
+    padding-block: clamp(2.25rem, 7vh, 5rem) clamp(1.5rem, 4vh, 3rem);
+  }
+  @media (min-width: 960px) {
+    .hero-grid {
+      grid-template-columns: minmax(0, 1.04fr) minmax(0, 1fr);
+      gap: clamp(2rem, 4vw, 4rem);
+      align-items: center;
+      padding-block: clamp(3rem, 8vh, 5.5rem);
+    }
+  }
+
+  .hero-copy {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
+    align-items: flex-start;
+    min-width: 0;
+    max-width: 620px;
   }
 
-  /* Badge */
-  .hero-badge {
+  /* ── Version chip: [ v0.1.0-alpha ] ── */
+  .hero-chip {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    background: color-mix(in srgb, var(--bg-3) 75%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text);
+    gap: 1.25ch;
+    max-width: 100%;
     font-family: var(--font-mono);
-    font-size: 0.74rem;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    padding: 6px 14px;
-    border-radius: var(--r-pill);
-    margin-bottom: 2.25rem;
-    text-decoration: none;
-    transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
-  }
-  .hero-badge:hover {
-    border-color: var(--border-hi);
-    background: var(--bg-3);
-  }
-  .hero-badge svg { color: var(--text-3); }
-  .hero-badge-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--red);
-    box-shadow: 0 0 10px var(--red-glow);
-    flex-shrink: 0;
-  }
-  .hero-badge-sep {
-    width: 1px;
-    height: 12px;
-    background: var(--border-hi);
-  }
-  .hero-badge-muted { color: var(--text-3); font-weight: 400; }
-  @media (max-width: 480px) {
-    .hero-badge-muted, .hero-badge-sep { display: none; }
-  }
-
-  /* Headline */
-  .hero-title {
-    font-size: clamp(2.6rem, 7.2vw, 5.4rem);
-    margin-bottom: 1.75rem;
-  }
-  .hero-title-accent {
-    background: linear-gradient(135deg, var(--red-hi) 0%, var(--red) 45%, var(--red-lo) 110%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-  }
-  [data-theme="light"] .hero-title-accent {
-    background: linear-gradient(135deg, #e8102a 0%, #b00820 60%, #7a0513 110%);
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
-
-  /* Sub */
-  .hero-sub {
-    font-size: clamp(1rem, 1.6vw, 1.18rem);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
     color: var(--text-2);
-    max-width: 560px;
-    line-height: 1.65;
-    margin-bottom: 2.25rem;
-    text-wrap: balance;
+    text-decoration: none;
+    padding: 0.45em 0.9em;
+    border: 1px solid var(--border-hi);
+    background-color: var(--bg);
+    margin-bottom: clamp(1.25rem, 3vh, 2rem);
+    transition: color var(--dur-instant) steps(1, end), border-color var(--dur-instant) steps(1, end), background-color var(--dur-instant) steps(1, end);
+  }
+  .hero-chip-ver { color: var(--text); font-weight: 600; white-space: nowrap; }
+  .hero-chip-ver::before { content: '[ '; content: '[ ' / ''; color: var(--accent); }
+  .hero-chip-ver::after  { content: ' ]'; content: ' ]' / ''; color: var(--accent); }
+  .hero-chip-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .hero-chip-arrow { color: var(--text-3); }
+  .hero-chip:hover,
+  .hero-chip:focus-visible {
+    background-color: var(--red);
+    border-color: var(--red);
+    color: var(--on-red);
+  }
+  .hero-chip:hover .hero-chip-ver,
+  .hero-chip:hover .hero-chip-arrow,
+  .hero-chip:focus-visible .hero-chip-ver,
+  .hero-chip:focus-visible .hero-chip-arrow,
+  .hero-chip:hover .hero-chip-ver::before,
+  .hero-chip:hover .hero-chip-ver::after,
+  .hero-chip:focus-visible .hero-chip-ver::before,
+  .hero-chip:focus-visible .hero-chip-ver::after { color: var(--on-red); }
+  @media (max-width: 400px) {
+    .hero-chip-note { display: none; }
+  }
+
+  /* ── Title: ASCII KAIRO + tagline (real <h1> text) ── */
+  .hero-title {
+    width: 100%;
+    margin: 0 0 1.4rem;
+    font-family: var(--font-mono);
+  }
+  .hero-logo {
+    display: block;
+    width: 100%;
+    margin-bottom: clamp(0.9rem, 2.4vh, 1.4rem);
+    cursor: default;
+  }
+  /* hidden until the decode paints its first frame (failsafe: shown at 1.2s) */
+  :global(.js) .hero-logo:not([data-decoded]) {
+    visibility: hidden;
+    animation: hero-failsafe 0s linear 1.2s forwards;
+  }
+  @keyframes hero-failsafe { to { visibility: visible; } }
+
+  .hero-tagline {
+    display: block;
+    font-size: clamp(1.35rem, 3.1vw, 2.3rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.035em;
+    color: var(--text);
+  }
+  .hero-tagline-accent { color: var(--red); }
+
+  .hero-sub {
+    font-size: clamp(0.92rem, 1.25vw, 1.02rem);
+    line-height: 1.7;
+    color: var(--text-2);
+    max-width: 52ch;
+    margin: 0 0 1.75rem;
   }
   .hero-sub code {
-    font-size: 0.85em;
+    font-size: 0.92em;
+    color: var(--text);
     background: var(--bg-3);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1px 6px;
-    color: var(--text);
+    border-radius: 0;
+    padding: 0 0.4ch;
   }
 
-  /* Actions */
   .hero-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.85rem;
     flex-wrap: wrap;
-    margin-bottom: 1.5rem;
-  }
-  .hero-btn {
-    font-size: 0.95rem;
-    padding: 12px 28px;
+    gap: 0.75rem;
+    margin-bottom: 1.6rem;
   }
 
-  /* Status caption */
-  .hero-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+  /* ── Boot log ── */
+  .hero-boot {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.04em;
-    color: var(--text-3);
-    margin-bottom: clamp(3rem, 7vh, 5rem);
+    font-size: 0.74rem;
+    line-height: 1.75;
+    color: var(--text-2);
+    border-left: 1px solid var(--frame-line);
+    padding-left: 1.1ch;
   }
-  .hero-status-dot {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: #28c840;
-    box-shadow: 0 0 8px rgba(40, 200, 64, 0.5);
+  .hero-boot-line {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 1ch;
   }
-
-  /* Code window stage */
-  .hero-stage {
-    width: 100%;
-    max-width: 880px;
-    perspective: 1400px;
-  }
-  .hero-window-wrap {
+  .hero-boot {
     position: relative;
-    transform-style: preserve-3d;
-    will-change: transform;
   }
-  .hero-window {
-    text-align: left;
+  .hero-boot-tag {
+    --tag: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--tag);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: color var(--dur-instant) steps(1, end), background-color var(--dur-instant) steps(1, end);
+  }
+  .hero-boot-tag--ok { --tag: #3fb950; }
+  :global([data-theme="light"]) .hero-boot-tag--ok { --tag: #1a7f37; }
+  .hero-boot-tag--wip { --tag: var(--accent); }
+  .hero-boot-tag:hover { background-color: color-mix(in srgb, var(--tag) 16%, transparent); }
+  .hero-boot-tag:focus-visible { outline: 1px solid var(--tag); outline-offset: 2px; }
+  .hero-boot-tag[aria-expanded="true"] { background-color: var(--tag); color: var(--bg); }
+
+  /* ── Boot readout: a small terminal dropped under the log ── */
+  .hero-boot-pop {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 0.55rem);
+    left: -1px;
+    width: max-content;
+    max-width: min(46ch, calc(100vw - 2rem));
+    margin: 0;
+    padding: 0.6rem 1.1ch 0.65rem;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    color: var(--text-2);
+    background-color: var(--bg);
+    border: 1px solid var(--frame-line);
+    box-shadow: var(--shadow-hard, none);
+  }
+  .hero-boot-pop[hidden] { display: none; }
+  .hero-boot-pop::before {
+    content: attr(aria-label);
+    content: attr(aria-label) / '';
+    position: absolute;
+    top: -0.85em;
+    left: 0.6ch;
+    padding: 0 0.6ch;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    background-color: var(--bg);
+  }
+  /* open: one stepped top-to-bottom print (≤160ms), then still */
+  .hero-boot-pop.is-opening { animation: boot-print 160ms steps(6, end) both; }
+  @keyframes boot-print {
+    from { clip-path: inset(0 0 100% 0); }
+    to   { clip-path: inset(0 0 0 0); }
+  }
+  .bp-line { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .bp-prompt { color: var(--accent); }
+  .bp-line:first-child { color: var(--text); }
+  .bp-exit { color: #3fb950; }
+  :global([data-theme="light"]) .bp-exit { color: #1a7f37; }
+  .bp-dim, .bp-line.bp-dim { color: var(--text-3); }
+  .bp-bar-line { display: flex; flex-wrap: wrap; column-gap: 1ch; white-space: pre; }
+  .bp-bar { color: var(--accent); letter-spacing: 0; }
+  .bp-bar-note { color: var(--text-2); }
+  .hero-boot-pop .bp-late { visibility: hidden; }
+  .hero-boot-pop.is-done .bp-late { visibility: visible; }
+  .bp-link {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+  }
+  .bp-link:hover, .bp-link:focus-visible { color: var(--text); text-decoration-style: solid; }
+  .hero-spin {
+    display: inline-block;
+    width: 1ch;
+    overflow: hidden;
+    vertical-align: bottom;
+    color: var(--accent);
+  }
+  .hero-spin > span {
+    display: block;
+    width: 4ch;
+    white-space: pre;
+    animation: hero-spin 1.3s steps(4, end) infinite;
+  }
+  @keyframes hero-spin { to { transform: translateX(-4ch); } }
+
+  /* ── Stage (the knot's slot) ── */
+  .hero-stage {
+    position: relative;
+    height: clamp(280px, 88vw, 440px);
+    pointer-events: none;
+  }
+  @media (min-width: 960px) {
+    .hero-stage {
+      height: auto;
+      align-self: stretch;
+      min-height: 500px;
+    }
+  }
+  .hero-stage-cap {
+    position: absolute;
+    left: 0;
+    bottom: -0.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    white-space: nowrap;
+    background-color: var(--bg);
+    padding-right: 1ch;
+  }
+  .hero-stage-cap::before { content: '└─ '; content: '└─ ' / ''; }
+
+  /* ── dot_product.k frame ── */
+  /* the wrap spans the full container so the window can be dragged wider
+     than its resting 872px (= the old 920px wrap minus its padding) */
+  .hero-code-wrap {
+    position: relative;
+    padding-top: clamp(1rem, 4vh, 2.5rem);
+  }
+  .hero-code {
+    --frame-pad: 0;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 872px;
+    margin: 0 auto;
+    padding-top: 0.9rem;
+  }
+  /* resized: an inline width wins over the resting max (never past the wrap) */
+  .hero-code[style*="width"] { max-width: 100%; }
+  .hero-code-body[style*="height"] { overflow: auto; overscroll-behavior: contain; }
+
+  /* soft wrap once the window has been resized: a no-op until it is narrower
+     than the code; wrapped rows hang under the code, not the line number */
+  .hero-code.is-wrapped .hero-code-body :global(pre.astro-code) {
+    width: auto;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+  }
+  .hero-code.is-wrapped .hero-code-body :global(.line) {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
+    padding-left: var(--ln-gutter, 5ch);
+    text-indent: calc(-1 * var(--ln-gutter, 5ch));
   }
   .hero-code-body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    counter-reset: ln;
   }
   .hero-code-body :global(pre.astro-code) {
     margin: 0 !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 1.4rem 1.6rem !important;
-    font-size: 0.84rem !important;
+    padding: 1.1rem 1.4rem 1.2rem 0.6rem !important;
+    font-size: 0.82rem !important;
     line-height: 1.75 !important;
     font-family: var(--font-mono) !important;
     background: transparent !important;
     min-width: 0;
     width: max-content;
   }
-
-  .hero-window-glow {
-    position: absolute;
-    left: 10%;
-    right: 10%;
-    bottom: -36px;
-    height: 80px;
-    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
-    filter: blur(28px);
-    opacity: 0.55;
-    pointer-events: none;
-    z-index: -1;
+  .hero-code-body :global(.line) { counter-increment: ln; }
+  .hero-code-body :global(.line)::before {
+    content: counter(ln);
+    display: inline-block;
+    width: 3ch;
+    margin-right: 2ch;
+    text-align: right;
+    color: var(--text-3);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  @media (max-width: 520px) {
+    .hero-code-body :global(pre.astro-code) { font-size: 0.74rem !important; padding: 0.9rem 1rem 1rem 0.2rem !important; }
+    .hero-code-body :global(.line)::before { margin-right: 1.25ch; }
+    .hero-code { --ln-gutter: 4.25ch; }
   }
 
+  /* lines print in, top to bottom, when the frame first enters the viewport */
+  :global(.js) .hero-code-body:not(.is-printed) {
+    clip-path: inset(0 0 100% 0);
+    animation: hero-code-failsafe 0s linear 3s forwards;
+  }
+  @keyframes hero-code-failsafe { to { clip-path: none; } }
+  .hero-code-body.is-printed {
+    animation: hero-code-print 300ms steps(var(--lines, 24), end) both;
+  }
+  @keyframes hero-code-print {
+    0%   { clip-path: inset(0 0 100% 0); }
+    99%  { clip-path: inset(0 0 0 0); }
+    100% { clip-path: none; }
+  }
+
+  .hero-code-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 1.25ch;
+    padding: 0.45rem 0.9rem;
+    border-top: 1px solid var(--frame-line);
+    background-color: var(--bg-3);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    color: var(--text-2);
+  }
+  .hero-code-mode { color: var(--accent); font-weight: 600; }
+  .hero-code-dim { color: var(--text-3); }
+  .hero-code-end { margin-left: auto; color: var(--text-3); }
+
   @media (prefers-reduced-motion: reduce) {
-    .hero-window-wrap { transform: none !important; }
+    :global(.js) .hero-code-body:not(.is-printed) { clip-path: none; animation: none; }
+    .hero-code-body.is-printed { animation: none; }
+    :global(.js) .hero-logo:not([data-decoded]) { visibility: visible; animation: none; }
+    .hero-boot-pop.is-opening { animation: none; }
   }
 </style>
 
 <script>
-  // Scroll-driven "settle" — the code window starts gently tilted back and
-  // straightens as it scrolls into view. transform-only, rAF-throttled.
-  function initHeroWindow() {
-    const wrap = document.getElementById('hero-window');
-    if (!wrap) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  import { createHeroScene, type HeroScene } from './hero/scene';
+  import { createGutterWall, type GutterWall } from './hero/gutter';
+  import { decodeLogo } from './hero/logo';
+  import { onceVisible, reducedMotion, stillPage } from '../../lib/ascii/motion';
+  import { holdSnap, makeResizable } from '../../lib/ascii/resize';
+  import { typewrite } from '../../lib/ascii/typewriter';
 
-    let ticking = false;
+  let scene: HeroScene | null = null;
+  let disposeCode: (() => void) | null = null;
 
-    function update() {
-      ticking = false;
-      const rect = wrap.getBoundingClientRect();
-      const vh = window.innerHeight;
-      // progress: 0 when the window's top enters the viewport bottom,
-      // 1 when its top reaches 45% of the viewport height
-      const raw = (vh - rect.top) / (vh * 0.55);
-      const p = Math.min(1, Math.max(0, raw));
-      const eased = 1 - Math.pow(1 - p, 3);
-      const rx = (1 - eased) * 9;        // rotateX 9deg -> 0
-      const scale = 0.955 + eased * 0.045;
-      const ty = (1 - eased) * 22;
-      wrap.style.transform = `rotateX(${rx}deg) scale(${scale}) translateY(${ty}px)`;
-    }
+  /** resting max width of #hero-code (keep in sync with .hero-code max-width) */
+  const CODE_MAX = 872;
 
-    function onScroll() {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(update);
-    }
+  /**
+   * dot_product.k is resizable from its bottom corners/edges. As it narrows,
+   * the code soft-wraps (the page below reflows with it) and the source text
+   * pours into the space it vacates, laid out by pretext every frame.
+   */
+  function initCodeResize(frame: HTMLElement, body: HTMLElement, text: string) {
+    disposeCode?.();
+    const wrap = document.getElementById('hero-code-wrap');
+    if (!wrap || typeof ResizeObserver === 'undefined') return;
+    const wall: GutterWall = createGutterWall({ wrap, frame, defaultMax: CODE_MAX, text });
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll, { passive: true });
-    update();
+    // metrics cached at drag start (reads), used during the drag (no reads)
+    let chrome = 0, charW = 7.9, lineH = 23, padX = 0, contentW = 0, bodyH = 0;
+    const readMetrics = () => {
+      const fr = frame.getBoundingClientRect();
+      const br = body.getBoundingClientRect();
+      chrome = fr.height - br.height;
+      const pre = body.querySelector('pre');
+      if (pre) {
+        const cs = getComputedStyle(pre);
+        const fs = parseFloat(cs.fontSize) || 13;
+        charW = fs * 0.6;
+        lineH = parseFloat(cs.lineHeight) || fs * 1.75;
+        padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+      }
+      const ws = getComputedStyle(wrap);
+      contentW = wrap.clientWidth - (parseFloat(ws.paddingLeft) || 0) - (parseFloat(ws.paddingRight) || 0);
+      return fr;
+    };
+
+    const dispose = makeResizable(frame, {
+      handles: ['sw', 'se', 'e', 'w', 's'],
+      anchor: 'center',
+      label: 'the dot_product.k window',
+      measure: readMetrics,
+      minWidth: () => Math.min(contentW, 300),
+      maxWidth: () => contentW,
+      minHeight: () => chrome + lineH * 6,
+      maxHeight: () => chrome + body.scrollHeight,
+      apply(w, h, dw, dh) {
+        if (dw) {
+          frame.classList.add('is-wrapped');
+          frame.style.width = w + 'px';
+        }
+        if (dh || frame.dataset.rzH) {
+          frame.dataset.rzH = '1';
+          body.style.height = Math.round(h - chrome) + 'px';
+        }
+      },
+      reset() {
+        frame.style.width = '';
+        body.style.height = '';
+        delete frame.dataset.rzH;
+        frame.classList.remove('is-wrapped');
+      },
+      // terminal-style cols×rows of the code viewport
+      readout: (w) => {
+        const cols = Math.max(1, Math.floor((w - 2 - padX) / charW) - 5);
+        const rows = Math.max(1, Math.round((bodyH || 0) / lineH));
+        return `${cols}×${rows}`;
+      },
+    });
+
+    // the frame's real box after layout (wrapping can change its height)
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        if (e.target === wrap) { wall.measure(); continue; }
+        const b = e.borderBoxSize?.[0];
+        const w = b ? b.inlineSize : (e.target as HTMLElement).offsetWidth;
+        const h = b ? b.blockSize : (e.target as HTMLElement).offsetHeight;
+        bodyH = Math.max(0, h - chrome);
+        wall.draw(w, h);
+      }
+    });
+    ro.observe(wrap);
+    ro.observe(frame);
+
+    disposeCode = () => { ro.disconnect(); dispose(); wall.destroy(); disposeCode = null; };
   }
 
-  initHeroWindow();
-  document.addEventListener('astro:page-load', initHeroWindow);
+  /**
+   * Boot log tags → tiny terminal readouts. [ok] types a short stage(0)
+   * version log; [..] fills an (explicitly illustrative) stage(1) bar that
+   * stalls, then links to /docs/status/. One open at a time; a second click,
+   * Escape or a click elsewhere closes it. Opens instantly (one 160ms stepped
+   * print); typing plays on the first open only. Reduced motion: final text.
+   */
+  const BAR_N = 24;
+  // fill steps [cells, ms to wait before this step]: quick start, then stalls
+  const BAR_STEPS: Array<[number, number]> = [
+    [1, 140], [2, 80], [3, 80], [4, 80], [5, 90], [6, 90], [7, 110], [8, 130],
+    [9, 420], [10, 160], [11, 900], [12, 1400],
+  ];
 
-  // ── 3D wireframe scene ─────────────────────────────────────────────
-  // A rotating torus knot, a flowing wave lattice, and depth particles,
-  // perspective-projected onto a 2D canvas with additive blending. The
-  // frosted glass layer above turns it into soft glowing structure.
-  function initHeroScene() {
-    const canvas = document.getElementById('hero-scene') as HTMLCanvasElement | null;
-    if (!canvas || canvas.dataset.init) return;
-    canvas.dataset.init = '1';
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  function initBoot(root: HTMLElement) {
+    const boot = root.querySelector<HTMLElement>('#hero-boot');
+    if (!boot) return;
+    const btns = Array.from(boot.querySelectorAll<HTMLButtonElement>('[data-boot]'));
+    const pops = new Map<string, HTMLElement>();
+    boot.querySelectorAll<HTMLElement>('[data-boot-pop]').forEach((p) => pops.set(p.dataset.bootPop!, p));
+    const played = new Set<string>();
+    let open: string | null = null;
+    let timers: number[] = [];
+    const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+    const later = (fn: () => void, ms: number) => { timers.push(window.setTimeout(fn, ms)); };
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
-    let W = 0, H = 0;
+    const drawBar = (bar: HTMLElement, n: number, head: boolean) => {
+      const full = Math.max(0, n - (head ? 1 : 0));
+      bar.textContent = '[' + '▓'.repeat(full) + (head && n > 0 ? '▒' : '') + '░'.repeat(BAR_N - n) + ']';
+    };
 
-    function resize() {
-      const host = canvas!.parentElement!;
-      W = host.clientWidth;
-      H = host.clientHeight;
-      canvas!.width = W * DPR;
-      canvas!.height = H * DPR;
-      ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
-    }
-    resize();
-    window.addEventListener('resize', () => { resize(); if (reduced) frame(0); }, { passive: true });
-
-    // Palette — brand red, ember, magenta (rgba prefixes, alpha appended)
-    const RED = '232,16,42', EMBER = '255,110,64', MAGENTA = '168,24,110';
-
-    // Torus knot (p=2, q=3) sampled as a polyline
-    const KN = 360;
-    const knot: number[][] = [];
-    for (let i = 0; i <= KN; i++) {
-      const t = (i / KN) * Math.PI * 2;
-      const R = 1, r = 0.45;
-      knot.push([
-        (R + r * Math.cos(3 * t)) * Math.cos(2 * t),
-        (R + r * Math.cos(3 * t)) * Math.sin(2 * t),
-        r * Math.sin(3 * t) * 1.7,
-      ]);
+    function finish(pop: HTMLElement) {
+      clearTimers();
+      pop.querySelectorAll<HTMLElement>('.bp-tw').forEach((el) => {
+        const t = el.dataset.typewriterText;
+        if (t !== undefined) el.textContent = t;
+        el.style.visibility = '';
+      });
+      const bar = pop.querySelector<HTMLElement>('[data-boot-bar]');
+      if (bar) drawBar(bar, BAR_STEPS[BAR_STEPS.length - 1][0], true);
+      pop.classList.add('is-done');
     }
 
-    // Drifting depth particles
-    const parts = Array.from({ length: 64 }, () => ({
-      x: Math.random() * 2 - 1,
-      y: Math.random() * 2 - 1,
-      z: Math.random() * 2 - 1,
-      v: Math.random() * 0.0009 + 0.0003,
-      s: Math.random(),
-    }));
-
-    // Pointer parallax (heavily smoothed)
-    let mx = 0, my = 0, smx = 0, smy = 0;
-    window.addEventListener('mousemove', (e: MouseEvent) => {
-      mx = e.clientX / window.innerWidth - 0.5;
-      my = e.clientY / window.innerHeight - 0.5;
-    }, { passive: true });
-
-    function frame(time: number) {
-      const c = ctx!;
-      c.clearRect(0, 0, W, H);
-      smx += (mx - smx) * 0.03;
-      smy += (my - smy) * 0.03;
-
-      c.globalCompositeOperation = 'lighter';
-      c.lineCap = 'round';
-
-      // ── Torus knot, centered behind the headline ──
-      const cx = W * 0.5, cy = H * 0.38;
-      const scale = Math.min(W, H) * 0.34;
-      const ay = time * 0.00010 + smx * 0.7;
-      const ax = 0.6 + Math.sin(time * 0.00004) * 0.12 + smy * 0.4;
-      const cosY = Math.cos(ay), sinY = Math.sin(ay);
-      const cosX = Math.cos(ax), sinX = Math.sin(ax);
-
-      let px = 0, py = 0, pf = 0;
-      for (let i = 0; i <= KN; i++) {
-        const [x0, y0, z0] = knot[i];
-        // rotate Y then X
-        const x1 = x0 * cosY + z0 * sinY;
-        const z1 = -x0 * sinY + z0 * cosY;
-        const y2 = y0 * cosX - z1 * sinX;
-        const z2 = y0 * sinX + z1 * cosX;
-        // perspective
-        const f = 2.6 / (2.6 + z2);
-        const sx = cx + x1 * scale * f;
-        const sy = cy + y2 * scale * f;
-        if (i > 0) {
-          const depth = (f - 0.62) / 0.55;            // 0 far -> 1 near
-          const seg = i / KN;
-          const col = seg < 0.45 ? RED : seg < 0.75 ? MAGENTA : EMBER;
-          c.strokeStyle = `rgba(${col},${(0.28 + depth * 0.5).toFixed(3)})`;
-          c.lineWidth = 1.4 + depth * 3.2;
-          c.beginPath();
-          c.moveTo(px, py);
-          c.lineTo(sx, sy);
-          c.stroke();
-        }
-        px = sx; py = sy; pf = f;
+    async function play(key: string, pop: HTMLElement) {
+      const lines = Array.from(pop.querySelectorAll<HTMLElement>('.bp-tw'));
+      const bar = pop.querySelector<HTMLElement>('[data-boot-bar]');
+      const late = new Set(Array.from(pop.querySelectorAll<HTMLElement>('.bp-late .bp-tw')));
+      // freeze every line's text, blank the ones still to type (layout stays put)
+      for (const el of lines) {
+        el.dataset.typewriterText = el.dataset.typewriterText ?? el.textContent ?? '';
+        el.style.visibility = 'hidden';
       }
-
-      // ── Flowing wave lattice across the lower half ──
-      const wy = H * 0.9, wScale = W * 0.62;
-      const ROWS = 7, COLS = 56;
-      for (let r = 0; r < ROWS; r++) {
-        const z = r / (ROWS - 1);                      // 0 near -> 1 far
-        const a = 0.34 * (1 - z * 0.7);
-        c.strokeStyle = `rgba(${r === 0 ? EMBER : RED},${a.toFixed(3)})`;
-        c.lineWidth = 1.6 - z * 0.7;
-        c.beginPath();
-        for (let i = 0; i <= COLS; i++) {
-          const x = i / COLS - 0.5;
-          const wave =
-            Math.sin(x * 7 + time * 0.0006 + z * 2.2) * 0.45 +
-            Math.cos(x * 13 - time * 0.0004 + z * 4) * 0.22;
-          const f = 1.6 / (1.6 + z * 2.1);
-          const sx = W * 0.5 + x * wScale * (1 + z * 1.6) * f;
-          const sy = wy - z * H * 0.30 + wave * H * 0.05 * f;
-          i === 0 ? c.moveTo(sx, sy) : c.lineTo(sx, sy);
-        }
-        c.stroke();
+      if (bar) drawBar(bar, 0, false);
+      const token = timers;
+      const alive = () => open === key && token === timers;
+      for (const el of lines) {
+        if (late.has(el)) continue;
+        if (!alive()) return;
+        el.style.visibility = '';
+        await typewrite(el, { cps: 150 });
       }
-
-      // ── Depth particles ──
-      for (const pt of parts) {
-        pt.y -= pt.v;
-        if (pt.y < -1.1) { pt.y = 1.1; pt.x = Math.random() * 2 - 1; }
-        const x1 = pt.x * cosY + pt.z * sinY;
-        const z1 = -pt.x * sinY + pt.z * cosY;
-        const f = 2.6 / (2.6 + z1);
-        const sx = W * 0.5 + x1 * W * 0.46 * f;
-        const sy = H * 0.5 + pt.y * H * 0.55 * f;
-        const a = (0.05 + pt.s * 0.3) * f;
-        c.fillStyle = pt.s > 0.86 ? `rgba(${EMBER},${a.toFixed(3)})` : `rgba(255,235,235,${(a * 0.55).toFixed(3)})`;
-        c.beginPath();
-        c.arc(sx, sy, (0.6 + pt.s * 1.6) * f, 0, Math.PI * 2);
-        c.fill();
+      if (bar) {
+        await new Promise<void>((resolve) => {
+          let acc = 0;
+          for (const [n, wait] of BAR_STEPS) {
+            acc += wait;
+            later(() => drawBar(bar, n, true), acc);
+          }
+          later(resolve, acc + 60);
+        });
       }
-
-      c.globalCompositeOperation = 'source-over';
+      if (!alive()) return;
+      pop.classList.add('is-done');
+      for (const el of late) {
+        if (!alive()) return;
+        el.style.visibility = '';
+        await typewrite(el, { cps: 150 });
+      }
     }
 
-    if (reduced) {
-      frame(8000); // single composed frame, no motion
-      return;
+    function close(focusBtn = false) {
+      if (!open) return;
+      const key = open;
+      const pop = pops.get(key);
+      const btn = btns.find((b) => b.dataset.boot === key);
+      open = null;
+      if (pop) { finish(pop); pop.hidden = true; pop.classList.remove('is-opening'); }
+      if (btn) { btn.setAttribute('aria-expanded', 'false'); if (focusBtn) btn.focus(); }
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown, true);
     }
 
-    let raf = 0;
-    let running = false;
-    function loop(t: number) {
-      frame(t);
-      raf = requestAnimationFrame(loop);
+    function show(key: string) {
+      const pop = pops.get(key);
+      const btn = btns.find((b) => b.dataset.boot === key);
+      if (!pop || !btn) return;
+      close();
+      open = key;
+      btn.setAttribute('aria-expanded', 'true');
+      pop.hidden = false;
+      pop.classList.remove('is-opening');
+      void pop.offsetWidth;
+      pop.classList.add('is-opening');
+      pop.addEventListener('animationend', () => pop.classList.remove('is-opening'), { once: true });
+      document.addEventListener('keydown', onKey);
+      document.addEventListener('pointerdown', onDown, true);
+      const quiet = reducedMotion() || played.has(key);
+      if (quiet) finish(pop);
+      else { played.add(key); pop.classList.remove('is-done'); void play(key, pop); }
+      // keep the readout on screen (one small scroll, never yanked by snap)
+      const r = pop.getBoundingClientRect();
+      const over = r.bottom + 16 - window.innerHeight;
+      if (over > 0) {
+        holdSnap();
+        window.scrollBy({ top: Math.min(over, Math.max(0, r.top - 72)), behavior: reducedMotion() ? 'auto' : 'smooth' });
+      }
     }
-    function start() { if (!running) { running = true; raf = requestAnimationFrame(loop); } }
-    function stop() { if (running) { running = false; cancelAnimationFrame(raf); } }
 
-    const hero = document.getElementById('hero');
-    if (hero) {
-      new IntersectionObserver(entries => {
-        entries[0].isIntersecting ? start() : stop();
-      }, { threshold: 0.01 }).observe(hero);
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape' || !open) return;
+      const inside = boot!.contains(document.activeElement);
+      close(inside);
     }
-    start();
+    function onDown(e: PointerEvent) {
+      if (!open) return;
+      const t = e.target as Node | null;
+      if (t && boot!.contains(t)) return;
+      close();
+    }
+
+    btns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.boot!;
+        if (open === key) close();
+        else show(key);
+      });
+    });
   }
 
-  initHeroScene();
-  document.addEventListener('astro:page-load', initHeroScene);
+  function initHero() {
+    const root = document.getElementById('hero');
+    if (!root || root.dataset.init) return;
+    root.dataset.init = '1';
+    const still = stillPage();
+
+    // 1. KAIRO lens-sweeps in (every load; it's the hero moment, ~900ms)
+    const logo = root.querySelector<HTMLElement>('[data-hero-logo]');
+    if (logo) {
+      if (still) logo.setAttribute('data-decoded', '');
+      else void decodeLogo(logo, { duration: 900 });
+    }
+
+    try { initBoot(root); } catch { /* the boot log still reads fine */ }
+
+    // 2. The ASCII scene: knot + lattice + text wall flowing around it
+    const top = document.getElementById('hero-top');
+    const stage = document.getElementById('hero-stage');
+    if (top && stage && typeof ResizeObserver !== 'undefined') {
+      scene?.destroy();
+      try {
+        scene = createHeroScene({
+          host: top,
+          stage,
+          copy: document.getElementById('hero-copy'),
+          text: stage.dataset.flowText || 'kairo',
+          intro: !still,
+          still,
+        });
+      } catch { scene = null; }
+    }
+
+    // 3. dot_product.k prints in line by line on first view
+    const body = root.querySelector<HTMLElement>('.hero-code-body');
+    const frame = document.getElementById('hero-code');
+    if (body && frame) {
+      try { initCodeResize(frame, body, stage?.dataset.flowText || 'kairo'); } catch { /* resizing is a bonus */ }
+    }
+    if (body) {
+      const lines = body.querySelectorAll('.line').length || 24;
+      body.style.setProperty('--lines', String(lines));
+      if (still) body.classList.add('is-printed');
+      // observe the (unclipped) frame: IO treats the clipped body as zero-area
+      else onceVisible(root.querySelector('#hero-code') ?? body, () => body.classList.add('is-printed'), { threshold: 0.12 });
+    }
+  }
+
+  initHero();
+  document.addEventListener('astro:page-load', initHero);
 </script>

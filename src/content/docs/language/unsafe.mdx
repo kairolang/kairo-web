@@ -21,7 +21,7 @@ raw, and a raw pointer does not require an `unsafe` block to use.
 
 ## Unsafe Blocks
 
-An `unsafe { ... }` block suspends [Tether](/docs/language/tether) for all operations within its scope.
+An `unsafe { ... }` block suspends [Tether](/docs/language/tether/) for all operations within its scope.
 Inside an unsafe block:
 
 - Tether does not track pointer lifetimes or provenance
@@ -77,7 +77,7 @@ Tether-tracked equivalents automatically. `std::unique_ptr<T>` maps to `std::Uni
 A mismatch between Tether's promotion and the C++ function's expected smart pointer type is a
 compile error.
 
-See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp/) for the full FFI model.
 
 ---
 
@@ -141,7 +141,7 @@ buf[100] = 0x00    // no bounds check UB if out of allocation
 unsafe std::free(buf)
 ```
 
-See [Pointers](/docs/language/pointers) for the full pointer model.
+See [Pointers](/docs/language/pointers/) for the full pointer model.
 
 ---
 
@@ -203,7 +203,7 @@ unsafe process(42)   // calls unsafe version
 | `unsafe` + `volatile` | Yes |
 
 `unsafe` is an overload qualifier: the other modifiers apply to the safe and unsafe versions alike. See
-[Functions](/docs/language/functions#modifier-compatibility) for the full modifier compatibility
+[Functions](/docs/language/functions/#modifier-compatibility) for the full modifier compatibility
 table.
 
 ---
@@ -215,7 +215,7 @@ Kairo's safety model has a clear boundary:
 **Inside normal code:** Tether tracks all pointer lifetimes and proves every safe dereference sound.
 `*T` is non-null by construction, so its dereference needs no check; a `*T?` must be unwrapped or
 proven non-null. Where a proof is missing, the response depends on the clause (see the
-[Residual Table](/docs/language/tether#the-residual-table)): bounds and epoch residuals get a runtime
+[Residual Table](/docs/language/tether/#the-residual-table)): bounds and epoch residuals get a runtime
 check in both modes, while nullability and ownership residuals are transformed in debug (null guard,
 smart pointer promotion) and are hard errors in release. Everything else is a compile error. Memory
 safety is the compiler's responsibility.

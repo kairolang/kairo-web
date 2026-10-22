@@ -1,0 +1,60 @@
+---
+/**
+ * FIGlet heading: block-letter art for the eyes, a real <hN> for SEO and
+ * screen readers (visually hidden text inside the same heading).
+ *
+ *   <AsciiTitle text="DOCS" level={1} size="xl" />
+ *   <AsciiTitle text="CONTRIBUTORS" narrowText={'CONTRI-\nBUTORS'} level={1} srText="Contributors" />
+ *   <AsciiTitle text="404" level={1} size="hero" align="center" glitch />
+ *
+ * size → max font px: hero 56 | xl 34 | lg 22 | md 14 | sm 9   (or pass max)
+ *
+ * The art gets the rect lens by default (shade-in sweep once + cursor lens,
+ * see AsciiArt / lib/ascii/lens.ts). lens="reveal" | "hover" | false to change.
+ * `glitch` only applies when the hover lens is off (no stacked hover effects
+ * on large art).
+ */
+import AsciiArt from './AsciiArt.astro';
+
+interface Props {
+  text: string;
+  level?: 1 | 2 | 3 | 4 | 5 | 6;
+  size?: 'hero' | 'xl' | 'lg' | 'md' | 'sm';
+  max?: number;
+  /** accessible heading text; defaults to `text` */
+  srText?: string;
+  narrowText?: string;
+  align?: 'left' | 'center' | 'right';
+  tone?: 'two-tone' | 'solid';
+  color?: string;
+  /** RGB-split jitter on hover (ignored while the hover lens is on) */
+  glitch?: boolean;
+  /** rect lens: true (default) | 'reveal' | 'hover' | false */
+  lens?: boolean | 'reveal' | 'hover';
+  lensDelay?: number;
+  lensDuration?: number;
+  id?: string;
+  class?: string;
+}
+
+const SIZES = { hero: 56, xl: 34, lg: 22, md: 14, sm: 9 } as const;
+const { text, level = 2, size = 'lg', max, srText, narrowText, align = 'left', tone, color, glitch = false, id, class: cls, lens = true, lensDelay, lensDuration } = Astro.props;
+const hoverLens = lens === true || lens === 'hover';
+const H = `h${level}` as const;
+const px = max ?? SIZES[size];
+---
+<H id={id} class:list={['ascii-title', glitch && !hoverLens && 'glitch', cls]} data-align={align}>
+  <span class="sr-only">{srText ?? text}</span>
+  <AsciiArt as="span" text={text} narrowText={narrowText} max={px} align={align} tone={tone} color={color} lens={lens} lensDelay={lensDelay} lensDuration={lensDuration} />
+</H>
+
+<style>
+  .ascii-title {
+    display: block;
+    width: 100%;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .ascii-title :global(.ascii-fit) { display: block; }
+</style>

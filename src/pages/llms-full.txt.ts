@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 
 export const GET: APIRoute = async ({ site }) => {
-  const siteURL = (site ?? new URL('https://kairolang.org')).toString().replace(/\/$/, '');
+  const siteURL = (site ?? new URL('https://www.kairolang.org')).toString().replace(/\/$/, '');
 
   const docs = await getCollection('docs');
   const blog = await getCollection('blog');
@@ -11,11 +11,11 @@ export const GET: APIRoute = async ({ site }) => {
 
   const slugToUrl = (id: string) => {
     const clean = id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
-    return !clean || clean === 'index' ? `${siteURL}/docs` : `${siteURL}/docs/${clean}`;
+    return !clean || clean === 'index' ? `${siteURL}/docs/` : `${siteURL}/docs/${clean}/`;
   };
 
   const blogSlugToUrl = (id: string) => {
-    return `${siteURL}/blog/${id.replace(/\.mdx?$/, '')}`;
+    return `${siteURL}/blog/${id.replace(/\.mdx?$/, '')}/`;
   };
 
   let content = `# Kairo - Complete Documentation\n`;

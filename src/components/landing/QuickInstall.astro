@@ -1,9 +1,11 @@
 ---
+import AsciiButton from '../ascii/AsciiButton.astro';
+
 const platforms = [
   {
     id: 'unix',
     label: 'macOS / Linux',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+    shell: 'sh',
     commands: [
       { label: 'Quick install', cmd: 'curl -fsSL https://kairolang.org/install.sh | bash' },
       { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo.git && cd kairo-lang && xmake build -j8' },
@@ -12,7 +14,7 @@ const platforms = [
   {
     id: 'windows',
     label: 'Windows',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>`,
+    shell: 'pwsh',
     commands: [
       { label: 'PowerShell', cmd: 'irm https://kairolang.org/install.ps1 | iex' },
       { label: 'From source', cmd: 'git clone https://github.com/kairolang/kairo.git\ncd kairo-lang && xmake build -j8' },
@@ -21,7 +23,7 @@ const platforms = [
   {
     id: 'source',
     label: 'From Source',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+    shell: 'sh',
     commands: [
       { label: 'Clone', cmd: 'git clone https://github.com/kairolang/kairo.git' },
       { label: 'Build', cmd: 'cd kairo-lang && xmake build -j8 -v' },
@@ -31,68 +33,92 @@ const platforms = [
 ];
 ---
 
-<section class="install-section">
+<section class="install-section" data-snap aria-labelledby="install-title">
   <div class="container">
-    <div class="install-grid">
+    <!-- splitter grid: dragging the terminal's left grip widens it, the copy column takes the rest -->
+    <div class="install-grid" data-reflow="grid" data-reflow-min="260">
 
       <!-- Left: Text -->
-      <div class="install-copy" data-reveal>
-        <div class="section-label">Install</div>
-        <h2 class="display install-title">
+      <div class="install-copy" data-reveal-stagger>
+        <div class="section-label">02 — Install</div>
+        <h2 class="display install-title" id="install-title">
           Install Kairo
         </h2>
         <!-- <p class="install-sub">
           One command gets you the compiler, formatter, LSP, and package manager.
           No separate installs, no configuration.
         </p> -->
-        <div class="install-alpha">
+        <p class="install-alpha">
           <span class="install-alpha-tag">Alpha</span>
           <span class="install-alpha-text">Written in C++, being rewritten in Kairo. APIs may change.</span>
-        </div>
-        <a href="/docs/install" class="btn-primary install-cta">
-          Full Install Guide
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        </a>
+        </p>
+        <AsciiButton href="/docs/install/" label="Full Install Guide" class="install-cta" />
       </div>
 
       <!-- Right: Terminal -->
-      <!-- <div class="install-panel-col" data-reveal data-reveal-delay="120">
-        <div class="segmented install-segmented" id="install-tabs" role="tablist" aria-label="Platform">
-          <div class="segmented-thumb" id="install-tabs-thumb"></div>
-          {platforms.map((p, i) => (
-            <button
-              class={`segmented-btn ${i === 0 ? 'active' : ''}`}
-              data-tab={p.id}
-              role="tab"
-              aria-selected={i === 0 ? 'true' : 'false'}
-            >
-              <Fragment set:html={p.icon} />
-              {p.label}
-            </button>
-          ))}
-        </div> -->
+      <div class="install-term-col">
+        <div class="ascii-frame ascii-frame--fill install-term" id="install-term" data-resizable data-resize-min="400">
+          <span class="ascii-frame-title" id="install-term-title">~/kairo — {platforms[0].shell}</span>
+          <span class="ascii-frame-meta">tty1</span>
 
-        <!-- {platforms.map((p, i) => (
-          <div data-panel={p.id} class={`install-panel ${i === 0 ? 'is-active' : ''}`} style={i !== 0 ? 'display:none;' : ''}>
-            {p.commands.map(cmd => (
-              <div class="code-window cmd-block">
-                <div class="code-window-bar">
-                  <span class="code-window-title">{cmd.label}</span>
-                  <button class="copy-btn" data-copy={cmd.cmd} aria-label={`Copy ${cmd.label} command`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                    Copy
-                  </button>
-                </div>
-                <div class="cmd-body"><span class="cmd-prompt">$ </span>{cmd.cmd}</div>
+          <div class="term-bar">
+            <div class="segmented install-segmented" id="install-tabs" role="tablist" aria-label="Platform">
+              <div class="segmented-thumb" id="install-tabs-thumb" aria-hidden="true"></div>
+              {platforms.map((p, i) => (
+                <button
+                  type="button"
+                  class={`segmented-btn ${i === 0 ? 'active' : ''}`}
+                  id={`install-tab-${p.id}`}
+                  data-tab={p.id}
+                  data-shell={p.shell}
+                  role="tab"
+                  aria-selected={i === 0 ? 'true' : 'false'}
+                  aria-controls={`install-panel-${p.id}`}
+                  tabindex={i === 0 ? '0' : '-1'}
+                >{p.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div class="term-screen">
+            {platforms.map((p, i) => (
+              <div
+                class="install-panel"
+                id={`install-panel-${p.id}`}
+                data-panel={p.id}
+                role="tabpanel"
+                aria-labelledby={`install-tab-${p.id}`}
+                hidden={i !== 0}
+              >
+                {p.commands.map((cmd, j) => (
+                  <div class="cmd">
+                    <div class="cmd-head">
+                      <span class="cmd-label"><span aria-hidden="true"># </span>{cmd.label}</span>
+                      <button
+                        type="button"
+                        class="copy-btn"
+                        data-copy={cmd.cmd}
+                        aria-label={`Copy ${cmd.label} command`}
+                      >[copy]</button>
+                    </div>
+                    <div class="cmd-body">
+                      {cmd.cmd.split('\n').map((line, k) => (
+                        <div class="cmd-line">
+                          <span class="cmd-prompt" aria-hidden="true">{p.shell === 'pwsh' ? 'PS>' : '$'}</span>
+                          <code class="cmd-text" data-tw-pending={j === 0 && k === 0 ? '' : undefined}>{line}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
+            <div class="cmd-line cmd-idle" aria-hidden="true">
+              <span class="cmd-prompt">$</span><span class="blink-cursor-glyph">█</span>
+            </div>
           </div>
-        ))} -->
+          <span class="sr-only" aria-live="polite" id="install-live"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -100,29 +126,29 @@ const platforms = [
 
 <style>
   .install-section {
-    padding: clamp(5rem, 12vh, 9rem) 0;
+    padding: clamp(5rem, 12vh, 8.5rem) 0;
     border-top: 1px solid var(--border);
     position: relative;
   }
 
   .install-grid {
     display: grid;
-    grid-template-columns: 1fr 1.25fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
     gap: clamp(2.5rem, 6vw, 5rem);
     align-items: center;
   }
   .install-grid > * { min-width: 0; }
 
-  @media (max-width: 820px) {
+  @media (max-width: 860px) {
     .install-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 2.5rem;
     }
   }
 
   .install-title {
-    font-size: clamp(1.9rem, 4vw, 3rem);
-    margin-bottom: 1.1rem;
+    font-size: clamp(1.75rem, 3.8vw, 2.8rem);
+    margin: 0 0 1.25rem;
   }
 
   .install-sub {
@@ -136,99 +162,147 @@ const platforms = [
   .install-alpha {
     display: flex;
     align-items: baseline;
-    gap: 0.6rem;
-    margin-bottom: 2rem;
+    gap: 1.2ch;
+    margin: 0 0 2rem;
+    max-width: 440px;
   }
   .install-alpha-tag {
-    font-family: var(--font-mono);
-    font-size: 0.64rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--accent);
-    background: color-mix(in srgb, var(--red) 9%, transparent);
-    border: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
-    padding: 2px 9px;
-    border-radius: var(--r-pill);
     flex-shrink: 0;
   }
+  .install-alpha-tag::before { content: '['; content: '[' / ''; color: var(--text-3); margin-right: 0.3ch; }
+  .install-alpha-tag::after  { content: ']'; content: ']' / ''; color: var(--text-3); margin-left: 0.3ch; }
   .install-alpha-text {
-    font-size: 0.85rem;
-    color: var(--text-3);
-    line-height: 1.5;
-  }
-
-  .install-cta { text-decoration: none; }
-
-  .install-segmented {
-    margin-bottom: 1.25rem;
-  }
-  .install-segmented .segmented-btn :global(svg) { flex-shrink: 0; }
-
-  .cmd-block { margin-bottom: 0.9rem; }
-  .cmd-block:last-child { margin-bottom: 0; }
-
-  .cmd-body {
-    padding: 14px 18px;
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
     color: var(--text-2);
-    overflow-x: auto;
-    white-space: pre;
-    -webkit-overflow-scrolling: touch;
+    line-height: 1.55;
+  }
+
+  /* ── Terminal ── */
+  .install-term {
+    --frame-pad: 0;
+    padding-top: 0.55rem;
+  }
+  .term-bar {
+    padding: 0.6rem 0.9rem 0.7rem;
+    border-bottom: 1px dashed var(--frame-line);
+  }
+  .install-segmented { max-width: 100%; }
+
+  .term-screen {
+    padding: 1.1rem 1.1rem 1.2rem;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    min-height: 15.5rem;
+  }
+
+  .cmd + .cmd { margin-top: 1.1rem; }
+  .cmd-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
+    margin-bottom: 0.2rem;
+  }
+  .cmd-label {
+    color: var(--text-2);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+  .cmd-label > span[aria-hidden] { color: var(--text-3); }
+
+  .cmd-line {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
     min-width: 0;
-    width: 100%;
   }
   .cmd-prompt {
     color: var(--accent);
+    flex-shrink: 0;
     user-select: none;
+    -webkit-user-select: none;
   }
+  .cmd-text {
+    font: inherit;
+    color: var(--text);
+    background: none;
+    border: 0;
+    padding: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .js .cmd-text[data-tw-pending] { visibility: hidden; }
+  .cmd-idle { margin-top: 1.1rem; }
+  .cmd-idle .blink-cursor-glyph { margin-left: 0; }
 
   .copy-btn {
     margin-left: auto;
-    background: transparent;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    color: var(--text-3);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-family: var(--font-sans);
-    font-size: 0.7rem;
-    font-weight: 500;
-    padding: 3px 10px;
-    border-radius: var(--r-pill);
-    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
     flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    padding: 0.3rem 0.5ch;
+    color: var(--text-2);
+    background-color: transparent;
+    background-image: linear-gradient(var(--red), var(--red));
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: 0% 100%;
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
     white-space: nowrap;
+    transition:
+      background-size var(--dur-fast) steps(4, end),
+      color 60ms steps(1, end);
   }
-  .copy-btn:hover {
-    color: var(--text);
-    border-color: var(--border-hi);
+  .copy-btn:hover,
+  .copy-btn:focus-visible {
+    background-size: 100% 100%;
+    color: var(--on-red);
+  }
+  .copy-btn.is-copied {
+    background-size: 0% 100%;
+    color: var(--accent);
   }
 
-  /* Panel transitions */
-  .install-panel {
-    opacity: 0;
-    transform: translateY(10px);
+  /* tab swap: one stepped print-in */
+  .install-panel.is-swap { animation: termIn 180ms steps(6, end) both; }
+  @keyframes termIn {
+    from { clip-path: inset(0 0 100% 0); }
+    to   { clip-path: inset(0 0 0 0); }
   }
-  .install-panel.is-active {
-    opacity: 1;
-    transform: none;
-    transition:
-      opacity var(--dur-med) var(--ease),
-      transform var(--dur-med) var(--ease);
+
+  @media (max-width: 480px) {
+    .term-screen { padding: 1rem 0.85rem 1.1rem; font-size: 0.74rem; }
+    .term-bar { padding: 0.55rem 0.6rem 0.65rem; }
   }
 </style>
 
 <script>
+  import { onceVisible, seenThisSession, stillPage } from '../../lib/ascii/motion';
+  import { typewrite } from '../../lib/ascii/typewriter';
+
   function initInstall() {
+    const term = document.getElementById('install-term');
     const tabsContainer = document.getElementById('install-tabs');
     const thumb = document.getElementById('install-tabs-thumb');
-    if (!tabsContainer || !thumb) return;
+    if (!term || !tabsContainer || !thumb || term.dataset.init) return;
+    term.dataset.init = '1';
 
-    const buttons = Array.from(tabsContainer.querySelectorAll<HTMLElement>('.segmented-btn'));
-    const panels = document.querySelectorAll<HTMLElement>('.install-panel');
+    const title = document.getElementById('install-term-title');
+    const live = document.getElementById('install-live');
+    const buttons = Array.from(tabsContainer.querySelectorAll<HTMLButtonElement>('.segmented-btn'));
+    const panels = Array.from(term.querySelectorAll<HTMLElement>('.install-panel'));
+    let visible = false;
 
     function moveThumb(btn: HTMLElement, animate = true) {
       if (!thumb) return;
@@ -241,53 +315,116 @@ const platforms = [
       }
     }
 
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const target = btn.dataset.tab;
-        buttons.forEach(b => {
-          b.classList.remove('active');
-          b.setAttribute('aria-selected', 'false');
-        });
-        btn.classList.add('active');
-        btn.setAttribute('aria-selected', 'true');
-        moveThumb(btn);
-        panels.forEach(panel => {
-          const isTarget = panel.dataset.panel === target;
-          if (isTarget) {
-            panel.style.display = 'block';
-            panel.classList.remove('is-active');
-            void panel.offsetWidth;
-            panel.classList.add('is-active');
-          } else {
-            panel.style.display = 'none';
-            panel.classList.remove('is-active');
+    // Type the panel's first command once per tab session; otherwise show it.
+    function typeFirst(panel: HTMLElement) {
+      const el = panel.querySelector<HTMLElement>('.cmd-text[data-tw-pending]');
+      if (!el) return;
+      el.removeAttribute('data-tw-pending');
+      const key = 'install:' + (panel.dataset.panel || '');
+      if (stillPage() || seenThisSession(key)) return;
+      void typewrite(el, { cps: 75 });
+    }
+
+    function select(btn: HTMLButtonElement, { focus = false, animate = true } = {}) {
+      if (btn.classList.contains('active')) { if (focus) btn.focus(); return; }
+      const target = btn.dataset.tab;
+      buttons.forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        b.tabIndex = on ? 0 : -1;
+      });
+      if (focus) btn.focus({ preventScroll: true });
+      moveThumb(btn, animate);
+      if (title) title.textContent = `~/kairo — ${btn.dataset.shell || 'sh'}`;
+      panels.forEach((p) => {
+        if (p.dataset.panel === target) {
+          p.hidden = false;
+          if (animate) {
+            p.classList.remove('is-swap');
+            void p.offsetWidth;
+            p.classList.add('is-swap');
+            p.addEventListener('animationend', () => p.classList.remove('is-swap'), { once: true });
           }
-        });
+          if (visible) typeFirst(p);
+          else if (animate) p.querySelector('[data-tw-pending]')?.removeAttribute('data-tw-pending');
+        } else {
+          p.hidden = true;
+        }
+      });
+    }
+
+    buttons.forEach((btn, i) => {
+      btn.addEventListener('click', () => select(btn));
+      btn.addEventListener('keydown', (e) => {
+        let j = -1;
+        if (e.key === 'ArrowRight') j = (i + 1) % buttons.length;
+        else if (e.key === 'ArrowLeft') j = (i - 1 + buttons.length) % buttons.length;
+        else if (e.key === 'Home') j = 0;
+        else if (e.key === 'End') j = buttons.length - 1;
+        if (j < 0) return;
+        e.preventDefault();
+        select(buttons[j], { focus: true });
       });
     });
 
-    const active = buttons.find(b => b.classList.contains('active')) || buttons[0];
-    if (active) {
-      moveThumb(active, false);
-      if ('fonts' in document) {
-        (document as any).fonts.ready.then(() => moveThumb(active, false));
+    // Default to the visitor's platform (no animation).
+    if (/Windows/i.test(navigator.userAgent)) {
+      const win = buttons.find((b) => b.dataset.tab === 'windows');
+      if (win) select(win, { animate: false });
+    }
+
+    const placeThumb = () => {
+      const a = buttons.find((b) => b.classList.contains('active')) || buttons[0];
+      if (a) moveThumb(a, false);
+    };
+    placeThumb();
+    if ('fonts' in document) (document as any).fonts.ready.then(placeThumb);
+    if ('ResizeObserver' in window) new ResizeObserver(placeThumb).observe(tabsContainer);
+    else window.addEventListener('resize', placeThumb, { passive: true });
+
+    if (stillPage()) {
+      term.querySelectorAll('[data-tw-pending]').forEach((el) => el.removeAttribute('data-tw-pending'));
+    }
+    onceVisible(term, () => {
+      visible = true;
+      const active = panels.find((p) => !p.hidden);
+      if (active) typeFirst(active);
+    }, { threshold: 0.35 });
+
+    // Copy buttons: [copy] -> [ok] copied
+    async function copyText(text: string): Promise<boolean> {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (_) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          ta.remove();
+          return ok;
+        } catch (_) {
+          return false;
+        }
       }
     }
-    window.addEventListener('resize', () => {
-      const a = buttons.find(b => b.classList.contains('active'));
-      if (a) moveThumb(a, false);
-    }, { passive: true });
-
-    // Copy buttons
-    document.querySelectorAll('.copy-btn').forEach(btn => {
+    term.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
+      let timer = 0;
       btn.addEventListener('click', async () => {
-        const text = (btn as HTMLElement).dataset.copy || '';
-        try {
-          await navigator.clipboard.writeText(text);
-          const original = btn.innerHTML;
-          btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg> Copied`;
-          setTimeout(() => { btn.innerHTML = original; }, 1800);
-        } catch (_) {}
+        const ok = await copyText(btn.dataset.copy || '');
+        btn.textContent = ok ? '[ok] copied' : '[err] copy failed';
+        btn.classList.toggle('is-copied', ok);
+        if (live) live.textContent = ok ? 'Command copied to clipboard' : 'Copy failed';
+        clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          btn.textContent = '[copy]';
+          btn.classList.remove('is-copied');
+        }, 1600);
       });
     });
   }

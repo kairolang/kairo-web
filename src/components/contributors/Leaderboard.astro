@@ -1,0 +1,123 @@
+---
+/**
+ * ASCII bar chart of contributions:
+ *
+ *   #01  @login           ████████████████████░░░░  1,628  91.6%
+ *
+ * Real data lives in an accessible <ol> (screen readers hear rank, login,
+ * count); the bars are aria-hidden decoration. Section motion: rows
+ * print in one after another (data-reveal-stagger).
+ *
+ * The frame is resizable (auto-bound grips). The rows respond to the LIST's
+ * width (container query), not the viewport, so dragging the frame narrower
+ * re-flows them live into the stacked two-line layout.
+ */
+import AsciiFrame from '../ascii/AsciiFrame.astro';
+import { bar, type Contributor } from '../../lib/contributors';
+
+interface Props {
+  contributors: Contributor[];
+  total: number;
+  limit?: number;
+}
+
+const { contributors, total, limit = 10 } = Astro.props;
+const top = contributors.slice(0, limit);
+const max = top[0]?.contributions ?? 0;
+const fmt = new Intl.NumberFormat('en-US');
+const pct = (n: number) => (total ? ((n / total) * 100).toFixed(1) : '0.0') + '%';
+---
+<AsciiFrame title="leaderboard.txt" meta="contributions" class="lb" variant="fill" data-resize-min="280">
+  <p class="lb-cmd" aria-hidden="true"><span class="lb-prompt">$</span> git shortlog -sn --all | head -{limit}</p>
+  <ol class="lb-list" data-reveal-stagger data-stagger-step="50">
+    {top.map((c, i) => (
+      <li class="lb-row">
+        <span class="lb-rank tabular" aria-hidden="true">#{String(i + 1).padStart(2, '0')}</span>
+        <a class="lb-login" href={c.html_url} target="_blank" rel="noopener noreferrer">@{c.login}</a>
+        <span class="lb-bar" aria-hidden="true">
+          <span class="lb-bar--wide">{bar(c.contributions, max, 40)}</span>
+          <span class="lb-bar--narrow">{bar(c.contributions, max, 16)}</span>
+        </span>
+        <span class="lb-num tabular">{fmt.format(c.contributions)}<span class="sr-only"> contributions</span></span>
+        <span class="lb-pct tabular" aria-hidden="true">{pct(c.contributions)}</span>
+      </li>
+    ))}
+  </ol>
+  <p class="lb-foot" aria-hidden="true">
+    <span>── {top.length} of {contributors.length} shown</span>
+    <span>Σ {fmt.format(total)} ──</span>
+  </p>
+</AsciiFrame>
+
+<style>
+  .lb { --frame-pad: 1.75rem 1.25rem 1.1rem; container: lb / inline-size; }
+  .lb-cmd {
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+    color: var(--text-2);
+  }
+  .lb-prompt { color: var(--accent); }
+
+  .lb-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+  }
+  .lb-row {
+    display: grid;
+    grid-template-columns: 3.5ch minmax(0, 16ch) max-content 7ch 6ch;
+    justify-content: start;
+    align-items: baseline;
+    column-gap: 1.25ch;
+    white-space: nowrap;
+  }
+  .lb-rank { color: var(--text-3); }
+  .lb-login {
+    color: var(--text);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lb-login:hover,
+  .lb-login:focus-visible {
+    background-color: var(--accent);
+    color: var(--on-red);
+  }
+  .lb-bar { color: var(--red); letter-spacing: 0; line-height: 1.3; }
+  .lb-bar--narrow { display: none; }
+  .lb-num { color: var(--text); text-align: right; font-weight: 600; }
+  .lb-pct { color: var(--text-2); text-align: right; }
+  .lb-row:first-child .lb-rank { color: var(--accent); }
+
+  .lb-foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    margin: 1rem 0 0;
+    font-size: 0.72rem;
+    color: var(--text-3);
+  }
+
+  /* wide row ≈ 77.5ch at 0.8rem ≈ 595px; below that, stack the bar under the name */
+  @container lb (max-width: 600px) {
+    .lb-row {
+      grid-template-columns: 3.5ch minmax(0, 1fr) 7ch;
+      grid-template-areas:
+        'rank login num'
+        '.    bar  bar';
+      row-gap: 0.1rem;
+    }
+    .lb-rank { grid-area: rank; }
+    .lb-login { grid-area: login; }
+    .lb-num { grid-area: num; }
+    .lb-bar { grid-area: bar; overflow: hidden; }
+    .lb-pct { display: none; }
+    .lb-bar--wide { display: none; }
+    .lb-bar--narrow { display: inline; }
+    .lb-list { gap: 0.6rem; }
+  }
+</style>

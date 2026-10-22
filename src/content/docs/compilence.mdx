@@ -81,7 +81,7 @@ Kairo's `string` is a four-word value (32 bytes on 64-bit): `{data, len, cp_len,
 - **Byte indexing:** `s.bytes[i]` returns a raw `u8` at byte offset `i`. This is O(1) always but returns raw UTF-8 bytes, not characters.
 - **Iteration:** `for ch in s` yields `char` values (decoded codepoints) sequentially.
 
-See [Primitives](/docs/language/primitives#strings) for the full string API.
+See [Primitives](/docs/language/primitives/#strings) for the full string API.
 
 ### Identifiers
 
@@ -129,7 +129,7 @@ Kairo primitives, conversions to C++ string types are implicit:
 | `as cxx::std::u32string` | UTF-32 `std::u32string` | APIs expecting `char32_t` sequences |
 | C `const char*` | Null-terminated UTF-8 `u8` pointer | Implicit conversion; no `unsafe` block required |
 
-See [C/C++ Interop](/docs/language/c-cpp) for the full FFI model.
+See [C/C++ Interop](/docs/language/c-cpp/) for the full FFI model.
 
 ### What Kairo Does Not Do
 
@@ -201,8 +201,8 @@ DWARF 4 is available via `--dwarf-version=4` for targets that require it
 
 What Kairo emits:
 
-- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14`. Kairo lowers to a
-  Clang token stream and Clang's frontend tags the compilation unit as C++. A
+- `DW_AT_language` is set to `DW_LANG_C_plus_plus_14` so existing C++
+  debuggers and tooling work unchanged. A
   proper `DW_LANG_Kairo` language tag will be registered with the DWARF
   committee once the language spec stabilizes.
 - Source file paths in DWARF use the paths as given to the compiler, resolved
@@ -271,7 +271,7 @@ When Kairo calls into C++ via `ffi "c++" import`, the C++ code is compiled by
 Clang using the same backend invocation. Headers are compiled by the pinned
 Clang at the standard `--cxx-std` selects: `c++17`, `c++20` (default), or
 `c++23`. What that covers, and what it does not yet (named modules, for one),
-is listed in the [coverage matrix](/docs/language/c-cpp#coverage-matrix).
+is listed in the [coverage matrix](/docs/language/c-cpp/#coverage-matrix).
 
 The ABI boundary between Kairo-emitted code and C++-emitted code is:
 
@@ -302,7 +302,7 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
   value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe`
   block.
 
-See [C/C++ Interop](/docs/language/c-cpp) and [Unsafe](/docs/language/unsafe)
+See [C/C++ Interop](/docs/language/c-cpp/) and [Unsafe](/docs/language/unsafe/)
 for the full FFI safety model.
 
 ---
@@ -356,8 +356,9 @@ depending on whether the optimizer's heuristics fire).
   standard in Kairo.
 - **MISRA / CERT / SEI coding standards**: These are auditable properties of
   specific programs, not language-level guarantees. Kairo does not ship a MISRA
-  checker, and there is no generated C++ source to hand to one: the compiler
-  feeds Clang a token stream, not a file.
+  checker, and Kairo does not generate source in any other language to hand to
+  one. The only C++ it generates is headers, for interop or integrated CI checks
+  (e.g. when shipping a C++ library written in Kairo).
 - **ISO/IEC 9899 (C standard)**: Same as C++. C interop works through the FFI
   layer. Kairo is not a C compiler.
 

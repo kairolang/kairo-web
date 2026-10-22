@@ -1,62 +1,75 @@
 ---
+import AsciiArt from '../ascii/AsciiArt.astro';
+import AsciiButton from '../ascii/AsciiButton.astro';
+import AsciiField from '../ascii/AsciiField.astro';
 ---
-<section class="cta-section">
-  <div class="ambient cta-ambient" aria-hidden="true"></div>
+<section class="cta-section" data-snap aria-labelledby="cta-title">
+  <!-- slow drifting noise field (starts on the old still frame); faded out under the copy.
+       Reduced motion: that one still frame. -->
+  <AsciiField
+    preset="noise"
+    size={13}
+    fps={20}
+    radius={170}
+    strength={0.3}
+    opacity={0.24}
+    mask="radial-gradient(ellipse 58% 62% at 50% 52%, transparent 38%, #000 88%)"
+  />
 
   <div class="container cta-inner">
-    <div class="section-label" data-reveal>Get Started</div>
+    <div class="section-label">03 — Get Started</div>
 
-    <h2 class="display cta-title" data-reveal data-reveal-delay="80">
+    <!-- Lens text (AsciiArt default): the art loads in as dim shade glyphs and
+         a column-snapped rectangle sweeps across once, then follows the cursor.
+         It is this title's one motion; nothing re-rolls, nothing flashes. -->
+    <div class="cta-art">
+      <AsciiArt text="OPEN SOURCE" narrowText={'OPEN\nSOURCE'} max={15} align="center" />
+    </div>
+
+    <h2 class="display cta-title" id="cta-title">
       The source<br>
-      <span class="cta-accent">is open.</span>
+      <span class="accent">is open.</span>
     </h2>
 
-    <p class="cta-sub" data-reveal data-reveal-delay="160">
+    <p class="cta-sub">
       Compiler, standard library, and toolchain are on GitHub.
       Apache 2.0 with runtime exception.
     </p>
 
-    <div class="cta-actions" data-reveal data-reveal-delay="240">
-      <a href="/docs" class="btn-primary cta-btn">
-        Start with Docs
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M5 12h14M12 5l7 7-7 7"/>
-        </svg>
-      </a>
+    <!-- the buttons are resizable boxes; the centred row re-centres around them -->
+    <div class="cta-actions">
+      <AsciiButton href="/docs/" label="Start with Docs" size="lg" data-resizable data-resize-anchor="center" data-resize-readout="off" />
       <a
         href="https://github.com/kairolang/kairo"
-        class="btn-outline cta-btn"
+        class="ascii-btn ascii-btn--ghost ascii-btn--lg"
         target="_blank"
         rel="noopener noreferrer"
+        data-resizable
+        data-resize-anchor="center"
+        data-resize-readout="off"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
         </svg>
-        Source on GitHub
+        <span class="ascii-btn-label">Source on GitHub</span>
+        <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>↗</span>
       </a>
     </div>
 
-    <p class="cta-footer-note" data-reveal data-reveal-delay="320">
-      Apache 2.0 License · Kairo Software Foundation · Open Source
+    <p class="cta-footer-note">
+      <span>Apache 2.0 License</span><span class="cta-sep" aria-hidden="true">│</span>
+      <span>Kairo Software Foundation</span><span class="cta-sep" aria-hidden="true">│</span>
+      <span>Open Source</span>
     </p>
   </div>
 </section>
 
 <style>
   .cta-section {
-    padding: clamp(6rem, 16vh, 11rem) 0;
+    padding: clamp(5.5rem, 14vh, 9.5rem) 0;
     border-top: 1px solid var(--border);
     position: relative;
     overflow: hidden;
-  }
-
-  .cta-ambient {
-    width: 760px;
-    height: 480px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
   }
 
   .cta-inner {
@@ -68,50 +81,60 @@
     text-align: center;
   }
 
+  .cta-art {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0.75rem 0 2.25rem;
+  }
   .cta-title {
-    font-size: clamp(2.4rem, 6.5vw, 4.6rem);
-    margin-bottom: 1.5rem;
-  }
-  .cta-accent {
-    background: linear-gradient(135deg, var(--red-hi) 0%, var(--red) 50%, var(--red-lo) 115%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-  }
-  [data-theme="light"] .cta-accent {
-    background: linear-gradient(135deg, #e8102a 0%, #b00820 60%, #7a0513 115%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    font-size: clamp(1.9rem, 4.6vw, 3.3rem);
+    margin: 0 0 1.25rem;
   }
 
   .cta-sub {
-    font-size: 1.08rem;
+    font-family: var(--font-sans);
+    font-size: 1.02rem;
     color: var(--text-2);
     max-width: 480px;
-    margin-bottom: 2.5rem;
+    margin: 0 0 2.25rem;
     line-height: 1.7;
     text-wrap: balance;
+    /* near-solid backing in case the field reaches the copy on small screens */
+    background-color: color-mix(in srgb, var(--bg) 82%, transparent);
   }
+
+  /* a grip drag is not a button press: no :active nudge while resizing */
+  .cta-actions > :global(.is-resizing) { transform: none; }
 
   .cta-actions {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* full row (buttons stay centred): a widened button grows the row
+       instead of wrapping its sibling onto a second line */
+    width: 100%;
     gap: 0.85rem;
     flex-wrap: wrap;
   }
-  .cta-btn {
-    font-size: 0.98rem;
-    padding: 13px 32px;
-  }
 
   .cta-footer-note {
-    font-family: var(--font-mono);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem 1.2ch;
     font-size: 0.68rem;
-    color: var(--text-3);
+    color: var(--text-2);
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    margin-top: 3.5rem;
+    margin: 3rem 0 0;
+    padding: 0.2rem 1ch;
+    background-color: color-mix(in srgb, var(--bg) 82%, transparent);
+  }
+  .cta-sep { color: var(--text-3); }
+
+  @media (max-width: 480px) {
+    .cta-footer-note { flex-direction: column; align-items: center; }
+    .cta-sep { display: none; }
+    .cta-actions { flex-direction: column; align-items: stretch; width: 100%; max-width: 320px; }
   }
 </style>

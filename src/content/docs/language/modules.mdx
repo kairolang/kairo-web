@@ -1,14 +1,14 @@
 ---
 order: 22
 title: Modules
-description: File-to-module mapping, library entry files, module namespaces, visibility, circular dependencies, and module reopening.
+description: "How Kairo modules work: file-to-module mapping, library entry files, module namespaces, visibility, circular dependencies and module reopening."
 ---
 
 # Modules
 
 Kairo's module system maps source files and directories to namespaces. Every `.k` file is a module. A directory containing a `module.k` entry file is a library. Use the `module` keyword to declare namespaces within a file, similar to C++ `namespace`.
 
-See [Imports](/docs/language/imports) for how to bring names from modules into scope.
+See [Imports](/docs/language/imports/) for how to bring names from modules into scope.
 
 ## File-to-Module Mapping
 
@@ -208,7 +208,7 @@ println("hello")
 
 **Core language primitives** (`i32`, `string`, `bool`, `[T]`, etc.) and **built-in syntax** (`if`, `for`, `match`, etc.) are always available without any import. Only **standard library functions and types** (`std::println`, `std::Error`, `std::Shared`, etc.) require an explicit import.
 
-See [Imports](/docs/language/imports) for import syntax and the `pub import` pattern for re-exporting.
+See [Imports](/docs/language/imports/) for import syntax and the `pub import` pattern for re-exporting.
 
 ## Circular Dependencies
 
@@ -255,4 +255,4 @@ pub eval MAX_CONNECTIONS = 1024
 priv static request_count: i32 = 0
 ```
 
-See [Imports](/docs/language/imports#visibility-on-imports) for how visibility affects what is re-exported via `pub import`.
+See [Imports](/docs/language/imports/#visibility-on-imports) for how visibility affects what is re-exported via `pub import`.

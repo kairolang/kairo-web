@@ -1,7 +1,7 @@
 ---
 order: 12
 title: Type System
-description: Type aliases, type inference, implicit conversions, subtyping, TypeInfo, typeof, nullable nesting, void and never types, function types, and type identity in Kairo.
+description: "The Kairo type system: type aliases, inference, implicit conversions, subtyping, TypeInfo, typeof, nullable nesting, void and never, and function types."
 ---
 
 # Type System
@@ -118,7 +118,7 @@ var v = [1, 2, 3]       // [i32]
 var p = (1.0, true)     // (f64, bool)
 ```
 
-See [Primitives](/docs/language/primitives) for default literal types.
+See [Primitives](/docs/language/primitives/) for default literal types.
 
 ### Generic argument inference
 
@@ -166,7 +166,7 @@ fn name() = "Kairo"                // inferred as string
 fn typed(x: i32) -> i64 = x as i64 // explicit still allowed
 ```
 
-See [Functions](/docs/language/functions#expression-bodied-functions)
+See [Functions](/docs/language/functions/#expression-bodied-functions)
 
 ---
 
@@ -186,7 +186,7 @@ var x: f32 = 1.0f32
 var y: f64 = x       // ok: f32 to f64
 ```
 
-Narrowing conversions require an explicit `as` cast. See [Casting](/docs/language/casting).
+Narrowing conversions require an explicit `as` cast. See [Casting](/docs/language/casting/).
 
 ### Integer widening into C/C++ parameters
 
@@ -203,7 +203,7 @@ fn grow(n: u32) {
 ```
 
 `u64` to `usize` still needs `as`, because it narrows on 32-bit targets; on 16-bit
-targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
+targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/primitives/#41-the-cc-boundary).
 
 ### `T` to `T?` - Non-nullable to Nullable
 
@@ -217,7 +217,7 @@ maybe_log(s)   // string implicitly converts to string?
 ```
 
 The reverse (`T?` to `T`) requires explicit unwrapping see
-[Variables](/docs/language/variables#nullable-types).
+[Variables](/docs/language/variables/#nullable-types).
 
 ### Derived-to-base pointer
 
@@ -234,7 +234,7 @@ feed(&dog)   // *Dog implicitly converts to *Animal
 ```
 
 This is always safe the base subobject is at a known offset. The reverse (base-to-derived) requires
-an explicit cast because it can fail at runtime. See [Casting](/docs/language/casting).
+an explicit cast because it can fail at runtime. See [Casting](/docs/language/casting/).
 
 ### List literal to a container
 
@@ -269,7 +269,7 @@ The other direction, `[T;]` to `[T]`, stays explicit because it allocates.
 ### `@implicit` conversion operators
 
 A type's `op as` marked `@implicit` applies without `as` where its exact result type is wanted. See
-[Implicit `op as`](/docs/language/operators#implicit-op-as).
+[Implicit `op as`](/docs/language/operators/#implicit-op-as).
 
 ### No other implicit conversions
 
@@ -293,7 +293,7 @@ Kairo has a limited subtyping hierarchy:
 
 Interface-satisfying types are not subtypes of the interface. Interfaces are constraints checked at
 compile time via `impl` bounds, not runtime-dispatchable types. For runtime polymorphism, use
-base class pointers with [virtual dispatch](/docs/language/classes#virtual-dispatch) or
+base class pointers with [virtual dispatch](/docs/language/classes/#virtual-dispatch) or
 `unsafe *void` for type-erased pointers.
 
 ---
@@ -323,7 +323,7 @@ or in any other type position:
 // var y: Foo<!>     // compile error
 ```
 
-See [Functions](/docs/language/functions#no-return-) for no-return function semantics.
+See [Functions](/docs/language/functions/#no-return-) for no-return function semantics.
 
 ---
 
@@ -342,7 +342,7 @@ var y: Foo<void>  // valid - ok
 var x: void       // compile error
 ```
 
-See [Primitives](/docs/language/primitives#void) for details.
+See [Primitives](/docs/language/primitives/#void) for details.
 
 ---
 
@@ -368,7 +368,7 @@ var x: (i32?)? = null   // ok: Nullable<Nullable<i32>>
 
 Nested nullables are rarely useful. If you find yourself writing `(T?)?`, reconsider the data model.
 
-See [Variables](/docs/language/variables#nullable-types) for null checking, safe access, and unwrapping.
+See [Variables](/docs/language/variables/#nullable-types) for null checking, safe access, and unwrapping.
 
 ---
 
@@ -390,8 +390,8 @@ var x: (i32) = 42   // same as var x: i32 = 42
 
 There is no unit type or empty tuple `()`. Functions that return nothing use `void`.
 
-See [Primitives](/docs/language/primitives#tuples-t1-t2-) for tuple syntax and
-[Variables](/docs/language/variables#destructuring) for tuple destructuring.
+See [Primitives](/docs/language/primitives/#tuples-t1-t2-) for tuple syntax and
+[Variables](/docs/language/variables/#destructuring) for tuple destructuring.
 
 ---
 
@@ -422,8 +422,8 @@ is a property of methods (it constrains `self`), not of the function signature. 
 different overload namespace, not a different type. `async` and `eval` require named function
 declarations.
 
-See [Functions](/docs/language/functions#function-pointers) and
-[Closures](/docs/language/closures) for function pointer usage.
+See [Functions](/docs/language/functions/#function-pointers) and
+[Closures](/docs/language/closures/) for function pointer usage.
 
 ---
 
@@ -454,7 +454,7 @@ The literal syntax and the aliased names are interchangeable.
 
 A list literal `[a, b, c]` is an array `[T; 3]` unless its target is a slice or a vector. Arrays are not
 value types: they cannot be copied, assigned, passed by value, or returned. See
-[Primitives](/docs/language/primitives#collections) for the full rules on arrays, slices, vectors, and list
+[Primitives](/docs/language/primitives/#collections) for the full rules on arrays, slices, vectors, and list
 literals.
 
 `N` in `[T; N]` must be a compile-time evaluable expression. Runtime-dependent array sizes are not
@@ -467,7 +467,7 @@ var buffer: [u8; SIZE] = [0; SIZE]    // ok: SIZE is compile-time
 // var dynamic: [u8; runtime_val]     // compile error: N must be compile-time
 ```
 
-See [Eval](/docs/language/eval) for compile-time evaluation rules.
+See [Eval](/docs/language/eval/) for compile-time evaluation rules.
 
 ---
 
@@ -543,8 +543,8 @@ fn <T> process(x: T) {
 }
 ```
 
-See [Eval](/docs/language/eval) for compile-time evaluation and
-[Control Flow](/docs/language/control-flow#compile-time-branching) for `eval if`.
+See [Eval](/docs/language/eval/) for compile-time evaluation and
+[Control Flow](/docs/language/control-flow/#compile-time-branching) for `eval if`.
 
 ---
 
@@ -552,9 +552,9 @@ See [Eval](/docs/language/eval) for compile-time evaluation and
 
 `Self` is a type alias that resolves to the enclosing type. It is available in:
 
-- [Class](/docs/language/classes#self-and-self) bodies and methods
-- [Interface](/docs/language/interfaces#operators-in-interfaces) signatures
-- [Extend](/docs/language/extends) blocks
+- [Class](/docs/language/classes/#self-and-self) bodies and methods
+- [Interface](/docs/language/interfaces/#operators-in-interfaces) signatures
+- [Extend](/docs/language/extends/) blocks
 
 `Self` always refers to a reference to the type. For a pointer, use `*Self`. In a generic class
 `class <T> Foo`, `Self` resolves to `Foo<T>`:

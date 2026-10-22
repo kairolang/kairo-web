@@ -1,6 +1,7 @@
 ---
 import CodeBlockEnhancer from '../components/docs/CodeBlockEnhancer.astro';
-import TableOfContents from '../components/docs/TableOfContents.astro';
+import AsciiButton from '../components/ascii/AsciiButton.astro';
+import AsciiFrame from '../components/ascii/AsciiFrame.astro';
 import BaseLayout from './BaseLayout.astro';
 
 interface Props {
@@ -14,11 +15,14 @@ interface Props {
 
 const { title, description, pubDate, author = 'Kairo Team', tags = [], headings = [] } = Astro.props;
 
+// Frontmatter dates are UTC midnight: format in UTC so the day never slips.
 const formattedDate = pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
+  timeZone: 'UTC',
 });
+const isoDate = pubDate.toISOString().slice(0, 10);
 
 const slot = await Astro.slots.render('default');
 const wordCount = slot.replace(/<[^>]+>/g, '').split(/\s+/).length;
@@ -26,9 +30,32 @@ const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
 const breadcrumbs = [
   { name: 'Home', url: '/' },
-  { name: 'Blog', url: '/blog' },
+  { name: 'Blog', url: '/blog/' },
   { name: title, url: Astro.url.pathname },
 ];
+
+const slug = decodeURIComponent(Astro.url.pathname.replace(/\/+$/, '').split('/').pop() ?? 'post');
+
+// key ..... value  (dot leaders are decorative)
+const LEAD = 12;
+const leader = (k: string) => ' ' + '.'.repeat(Math.max(2, LEAD - k.length - 1));
+const meta: Array<{ k: string; v: string; dt?: string }> = [
+  { k: 'author', v: author },
+  { k: 'published', v: formattedDate, dt: isoDate },
+  { k: 'read', v: `${readingTime} min read` },
+  { k: 'words', v: wordCount.toLocaleString('en-US') },
+];
+
+// TOC as a tree: h2 at the root, h3 nested under the preceding h2.
+type Node = { slug: string; text: string; children: Node[] };
+const toc: Node[] = [];
+for (const h of headings) {
+  if (h.depth === 2) toc.push({ slug: h.slug, text: h.text, children: [] });
+  else if (h.depth === 3) {
+    const parent = toc[toc.length - 1];
+    (parent ? parent.children : toc).push({ slug: h.slug, text: h.text, children: [] });
+  }
+}
 ---
 <BaseLayout
   title={`${title} - Kairo Blog`}
@@ -40,173 +67,456 @@ const breadcrumbs = [
   tags={tags}
   breadcrumbs={breadcrumbs}
 >
-  <div class="blog-post-container">
-    <div class="blog-post-grid">
+  <div class="post-container">
+    <!-- Scroll detents (DESIGN §11): only the header block (top) and the footer
+         block (end) are marked. The article body never snaps. -->
+    <nav class="post-crumbs" aria-label="Breadcrumb" data-snap>
+      <a href="/">~</a><span class="dim" aria-hidden="true">/</span><a href="/blog/">blog</a><span class="dim" aria-hidden="true">/</span><span class="post-crumb-cur" aria-current="page">{slug}</span>
+    </nav>
 
-      <!-- Left: meta sidebar -->
-      <aside class="blog-post-aside">
-        <a href="/blog" class="back-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          All posts
-        </a>
-
-        <div class="blog-meta">
-          <p class="meta-label">Author</p>
-          <p class="meta-value meta-bold">{author}</p>
-
-          <p class="meta-label">Published</p>
-          <p class="meta-value">{formattedDate}</p>
-
-          <p class="meta-label">Reading time</p>
-          <p class="meta-value">{readingTime} min read</p>
-
-          {tags.length > 0 && (
-            <div>
-              <p class="meta-label">Tags</p>
-              <div class="meta-tags">
-                {tags.map(tag => <span class="tag">{tag}</span>)}
-              </div>
-            </div>
-          )}
-        </div>
-      </aside>
-
+    <div class="post-grid">
       <!-- Center: content -->
-      <main class="blog-post-main">
-        <header class="blog-post-header">
-          <div class="section-label">Blog</div>
-          <h1 class="display blog-post-title">{title}</h1>
-          <p class="blog-post-desc">{description}</p>
-        </header>
+      <main class="post-main">
+        <AsciiFrame as="header" title={`${slug}.mdx`} meta="post" variant="fill" class="post-head" id="post-head">
+          <div class="section-label">Blog <span class="post-label-date">/ {isoDate}</span></div>
+          <!-- Large title: hover rect lens only (calm page: no load-in sweep). -->
+          <h1 class="post-title" data-lens="hover">{title}</h1>
+          <p class="post-desc">{description}</p>
 
-        <article class="prose">
+          <dl class="post-kv">
+            {meta.map((m) => (
+              <div class="kv-row">
+                <dt>{m.k}<span class="kv-lead" aria-hidden="true">{leader(m.k)}</span></dt>
+                <dd>{m.dt ? <time datetime={m.dt}>{m.v}</time> : m.v}</dd>
+              </div>
+            ))}
+            {tags.length > 0 && (
+              <div class="kv-row">
+                <dt>tags<span class="kv-lead" aria-hidden="true">{leader('tags')}</span></dt>
+                <dd class="kv-tags">{tags.map((tag) => <span class="tag">{tag}</span>)}</dd>
+              </div>
+            )}
+          </dl>
+
+          {toc.length > 0 && (
+            <details class="post-toc-mobile">
+              <summary><span class="toc-sum-label">contents</span> <span class="dim">({headings.filter((h) => h.depth === 2 || h.depth === 3).length})</span></summary>
+              <nav aria-label="On this page" class="post-toc">
+                <ul class="toc-tree">
+                  {toc.map((n) => (
+                    <li>
+                      <a href={`#${n.slug}`} class="post-toc-link">{n.text}</a>
+                      {n.children.length > 0 && (
+                        <ul>
+                          {n.children.map((c) => (
+                            <li><a href={`#${c.slug}`} class="post-toc-link post-toc-h3">{c.text}</a></li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </details>
+          )}
+        </AsciiFrame>
+
+        <article class="prose post-body" id="post-body">
           <slot />
         </article>
         <CodeBlockEnhancer />
 
-        <div class="blog-post-footer">
-          <a href="/blog" class="btn-outline blog-footer-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            All posts
+        <div class="ascii-rule post-eof" aria-hidden="true">EOF</div>
+
+        <div class="post-footer" data-snap="end">
+          <a href="/blog/" class="ascii-btn ascii-btn--ghost post-btn-back">
+            <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>←</span>
+            <span class="ascii-btn-label">All posts</span>
           </a>
-          <a href="/docs" class="btn-primary blog-footer-btn">
-            Read the Docs
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
+          <AsciiButton href="/docs/" label="Read the Docs" />
         </div>
       </main>
 
-      <!-- Right: TOC -->
-      <aside class="blog-toc">
-        <TableOfContents headings={headings} />
-      </aside>
+      <!-- Right rail: progress + TOC tree -->
+      <aside class="post-rail" aria-label="Post navigation">
+        <div class="rail-block rail-progress" aria-hidden="true">
+          <div class="rail-label">read</div>
+          <div class="read-bar" data-read-bar>[<span class="rb-fill"></span><span class="rb-empty">░░░░░░░░░░░░░░░░</span>]<span class="rb-pct">   0%</span></div>
+        </div>
 
+        {toc.length > 0 && (
+          <nav aria-label="On this page" class="rail-block post-toc">
+            <div class="rail-label">$ tree --toc</div>
+            <div class="toc-root" aria-hidden="true">.</div>
+            <ul class="toc-tree">
+              {toc.map((n) => (
+                <li>
+                  <a href={`#${n.slug}`} class="post-toc-link">{n.text}</a>
+                  {n.children.length > 0 && (
+                    <ul>
+                      {n.children.map((c) => (
+                        <li><a href={`#${c.slug}`} class="post-toc-link post-toc-h3">{c.text}</a></li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+
+        <div class="rail-block">
+          <a href="/blog/" class="rail-back"><span aria-hidden="true">cd ../</span>blog</a>
+        </div>
+      </aside>
     </div>
   </div>
 </BaseLayout>
 
 <style>
-  .blog-post-container {
-    max-width: 1400px;
+  .post-container {
+    max-width: 1180px;
     margin: 0 auto;
     padding: 0 1.5rem;
   }
-  .blog-post-grid {
-    display: grid;
-    grid-template-columns: 200px minmax(0, 1fr) 200px;
-    gap: 3rem;
-    padding: 4rem 0;
-    align-items: start;
+  @media (max-width: 480px) {
+    .post-container { padding: 0 1rem; }
   }
-  .blog-post-aside {
-    position: sticky;
-    top: 92px;
-  }
-  .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: var(--text-3);
-    text-decoration: none;
-    margin-bottom: 2rem;
-    transition: color var(--dur-fast) var(--ease);
-  }
-  .back-link:hover { color: var(--text); }
-  .back-link svg { transition: transform var(--dur-fast) var(--ease); }
-  .back-link:hover svg { transform: translateX(-3px); }
 
-  .meta-label {
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    color: var(--text-3);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 0.4rem;
-    margin-top: 1.3rem;
-  }
-  .meta-label:first-child { margin-top: 0; }
-  .meta-value { font-size: 0.875rem; color: var(--text-2); margin: 0; }
-  .meta-bold { font-weight: 600; color: var(--text); }
-  .meta-tags {
+  /* ── breadcrumb path ─────────────────────────────────────────── */
+  .post-crumbs {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    align-items: baseline;
+    gap: 0.4ch;
+    padding: 2.5rem 0 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
   }
+  .post-crumbs a {
+    color: var(--accent);
+    text-decoration: none;
+    padding: 0 0.2ch;
+  }
+  .post-crumbs a:hover,
+  .post-crumbs a:focus-visible {
+    background: var(--accent);
+    color: var(--on-red);
+  }
+  .post-crumb-cur { color: var(--text-2); }
 
-  .blog-post-header {
+  .post-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 4rem;
+    padding-bottom: 5rem;
+    align-items: start;
+  }
+  .post-main { min-width: 0; }
+
+  /* ── header block ────────────────────────────────────────────── */
+  .post-head {
+    --frame-pad: 1.75rem 1.75rem 1.5rem;
     margin-bottom: 3rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid var(--border);
   }
-  .blog-post-title {
-    font-size: clamp(1.9rem, 4vw, 2.9rem);
-    margin: 0.75rem 0 1rem;
+  .post-label-date { color: var(--text-2); letter-spacing: 0.06em; }
+  .post-title {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: clamp(1.55rem, 3.6vw, 2.5rem);
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    color: var(--text);
+    margin: 0.9rem 0 0.9rem;
+    text-wrap: balance;
+    overflow-wrap: break-word;
   }
-  .blog-post-desc {
-    font-size: 1.08rem;
+  .post-desc {
+    font-family: var(--font-sans);
+    font-size: 1.04rem;
     color: var(--text-2);
     line-height: 1.65;
-    margin: 0;
-    text-wrap: balance;
+    margin: 0 0 1.5rem;
+    max-width: 62ch;
   }
-  .blog-post-footer {
-    margin-top: 4rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--border);
+
+  .post-kv {
+    margin: 0;
+    padding-top: 1.1rem;
+    border-top: 1px dashed var(--frame-line);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.7;
+    display: grid;
+    gap: 0.15rem;
+  }
+  .kv-row {
+    display: grid;
+    grid-template-columns: 13ch minmax(0, 1fr);
+    align-items: baseline;
+  }
+  .kv-row dt { color: var(--text-2); white-space: pre; }
+  .kv-lead { color: var(--text-3); }
+  .kv-row dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  .kv-row:first-child dd { font-weight: 600; }
+  .kv-tags { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+
+  /* ── TOC tree (lines drawn as 1px rules so wrapped items stay connected) ─ */
+  .toc-tree,
+  .toc-tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .toc-tree {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.45;
+    --tree-line: var(--text-3);
+  }
+  .toc-tree li {
+    position: relative;
+    padding-left: 3.5ch;
+  }
+  .toc-tree li::before {
+    /* │ — runs the full height unless this is the last child */
+    content: '';
+    position: absolute;
+    left: 0.5ch;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--tree-line);
+  }
+  .toc-tree li:last-child::before { bottom: auto; height: calc(0.5lh + 0.3rem); }
+  .toc-tree li::after {
+    /* ── */
+    content: '';
+    position: absolute;
+    left: 0.5ch;
+    width: 2.4ch;
+    top: calc(0.5lh + 0.3rem);
+    height: 1px;
+    background: var(--tree-line);
+  }
+  .post-toc-link {
+    display: block;
+    padding: 0.3rem 0.5ch;
+    margin-left: -0.5ch;
+    color: var(--text-2);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: color var(--dur-instant) steps(1, end), background-color var(--dur-instant) steps(1, end);
+  }
+  .post-toc-h3 { color: var(--text-2); font-size: 0.72rem; }
+  .post-toc-link:hover,
+  .post-toc-link:focus-visible {
+    color: var(--text);
+    background-color: var(--bg-3);
+  }
+  .post-toc-link.active {
+    color: var(--accent);
+  }
+  .post-toc-link.active::before {
+    content: '> ';
+    content: '> ' / '';
+  }
+
+  /* ── right rail ─────────────────────────────────────────────── */
+  .post-rail {
+    position: sticky;
+    top: 88px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    font-family: var(--font-mono);
+    padding-bottom: 1rem;
+  }
+  .rail-block + .rail-block {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px dashed var(--frame-line);
+  }
+  .rail-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    margin-bottom: 0.5rem;
+  }
+  .rail-label::before {
+    content: '// ';
+    content: '// ' / '';
+    color: var(--text-3);
+  }
+  .read-bar {
+    font-size: 0.75rem;
+    white-space: pre;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+  }
+  .rb-fill { color: var(--red); }
+  .rb-empty { color: var(--text-3); }
+  .rb-pct { color: var(--text-2); }
+  .toc-root {
+    font-size: 0.75rem;
+    color: var(--text-3);
+    line-height: 1.2;
+    padding-left: 0.2ch;
+  }
+  .rail-back {
+    font-size: 0.78rem;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 2px 0.5ch;
+    margin-left: -0.5ch;
+  }
+  .rail-back span { color: var(--text-2); }
+  .rail-back:hover,
+  .rail-back:focus-visible { background: var(--accent); color: var(--on-red); }
+  .rail-back:hover span,
+  .rail-back:focus-visible span { color: var(--on-red); }
+
+  /* ── mobile TOC (inside the header block) ───────────────────── */
+  .post-toc-mobile {
+    display: none;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--frame-line);
+    font-family: var(--font-mono);
+  }
+  .post-toc-mobile summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.78rem;
+    color: var(--text-2);
+    width: fit-content;
+    padding: 2px 0.5ch;
+    margin-left: -0.5ch;
+  }
+  .post-toc-mobile summary::-webkit-details-marker { display: none; }
+  .post-toc-mobile summary::before {
+    content: '[+] ';
+    content: '[+] ' / '';
+    color: var(--accent);
+  }
+  .post-toc-mobile[open] summary::before { content: '[-] '; content: '[-] ' / ''; }
+  .post-toc-mobile summary:hover { color: var(--text); }
+  .toc-sum-label { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.7rem; }
+  .post-toc-mobile .post-toc { margin-top: 0.75rem; }
+
+  /* ── end of post ────────────────────────────────────────────── */
+  .post-eof { margin-top: 4rem; }
+  .post-footer {
+    margin-top: 1.75rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
   }
-  .blog-footer-btn {
-    font-size: 0.875rem;
-    padding: 10px 22px;
-    text-decoration: none;
-  }
-  .blog-toc {
-    position: sticky;
-    top: 92px;
-  }
+  .post-btn-back:hover .ascii-btn-icon,
+  .post-btn-back:focus-visible .ascii-btn-icon { transform: translateX(-0.5ch); }
 
-  @media (max-width: 1200px) {
-    .blog-post-grid { grid-template-columns: 180px minmax(0, 1fr); }
-    .blog-toc { display: none; }
+  @media (max-width: 1080px) {
+    .post-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .post-rail { display: none; }
+    .post-toc-mobile { display: block; }
   }
-  @media (max-width: 900px) {
-    .blog-post-grid { grid-template-columns: 1fr; padding: 2.5rem 0; }
-    .blog-post-aside {
-      position: static;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1.5rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .back-link { flex-basis: 100%; margin-bottom: 0; }
-    .blog-meta { display: flex; flex-wrap: wrap; gap: 1.5rem; }
-    .meta-label { margin-top: 0; }
+  @media (max-width: 640px) {
+    .post-crumbs { padding-top: 1.75rem; }
+    .post-head { --frame-pad: 1.4rem 1rem 1.15rem; margin-bottom: 2.25rem; }
+    .post-head :global(.ascii-frame-meta) { display: none; }
+    .post-kv { font-size: 0.76rem; }
   }
 </style>
+
+<script>
+  import { bindResizable } from '../lib/ascii/resize';
+
+  // Reading progress as an ASCII bar in the rail. Scroll-driven only (no
+  // ambient motion); geometry is cached and re-measured on resize.
+  function initReadProgress() {
+    const bar = document.querySelector<HTMLElement>('[data-read-bar]');
+    const body = document.getElementById('post-body');
+    const fill = bar?.querySelector<HTMLElement>('.rb-fill');
+    const empty = bar?.querySelector<HTMLElement>('.rb-empty');
+    const label = bar?.querySelector<HTMLElement>('.rb-pct');
+    if (!bar || !body || !fill || !empty || !label || bar.dataset.init) return;
+    bar.dataset.init = '1';
+    const CELLS = 16;
+    let top = 0, height = 1, vh = window.innerHeight, ticking = false, last = -1;
+    const measure = () => {
+      const r = body.getBoundingClientRect();
+      top = r.top + window.scrollY;
+      height = r.height;
+      vh = window.innerHeight;
+    };
+    const update = () => {
+      ticking = false;
+      const start = top - vh * 0.3;
+      const end = top + height - vh;
+      const p = end > start ? (window.scrollY - start) / (end - start) : 1;
+      const pct = Math.round(Math.max(0, Math.min(1, p)) * 100);
+      if (pct === last) return;
+      last = pct;
+      const n = Math.round((pct / 100) * CELLS);
+      fill.textContent = '█'.repeat(n);
+      empty.textContent = '░'.repeat(CELLS - n);
+      label.textContent = ' ' + String(pct).padStart(3, ' ') + '%';
+    };
+    const request = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
+    const remeasure = () => { measure(); request(); };
+    measure();
+    update();
+    window.addEventListener('scroll', request, { passive: true });
+    window.addEventListener('resize', remeasure, { passive: true });
+    if ('ResizeObserver' in window) {
+      const ro = new ResizeObserver(remeasure);
+      ro.observe(body);
+      const head = document.getElementById('post-head');
+      if (head) ro.observe(head);
+    }
+  }
+
+  // Scroll-spy for the TOC tree (rail + mobile copy).
+  function initPostToc() {
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.post-toc-link'));
+    const root = document.querySelector<HTMLElement>('.post-grid');
+    if (!links.length || !root || root.dataset.tocInit) return;
+    root.dataset.tocInit = '1';
+    const ids = Array.from(new Set(links.map((l) => decodeURIComponent(l.hash.slice(1))).filter(Boolean)));
+    const els = ids.map((id) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+    if (!els.length) return;
+    const setActive = (id: string) => {
+      for (const l of links) l.classList.toggle('active', decodeURIComponent(l.hash.slice(1)) === id);
+    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) if (entry.isIntersecting) setActive(entry.target.id);
+      },
+      { rootMargin: '-64px 0px -65% 0px', threshold: 0 },
+    );
+    els.forEach((el) => io.observe(el));
+  }
+
+  // Code blocks are framed client-side by CodeBlockEnhancer (.code-block-wrap,
+  // shared with docs, so not edited here). BaseLayout's idle bindResizable()
+  // normally runs after that; re-binding the post body is idempotent and
+  // guarantees the grips even if the wrap lands later (page-load navigations).
+  function initPostResize() {
+    const body = document.getElementById('post-body');
+    if (!body || document.documentElement.dataset.resize === 'off') return;
+    const run = () => { try { bindResizable(body); } catch { /* resizing is a bonus */ } };
+    if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 1200 });
+    else setTimeout(run, 400);
+  }
+
+  function initPost() { initReadProgress(); initPostToc(); initPostResize(); }
+  initPost();
+  document.addEventListener('astro:page-load', initPost);
+</script>
