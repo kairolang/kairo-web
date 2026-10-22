@@ -15,7 +15,8 @@
  * tones, plus the logo's crossed gradients: every face family is brightest
  * at the corner its L-shaped strip wraps around and darkens along both bars
  * away from it, so each bar shows one face brightening toward one end and
- * the other toward the opposite end.
+ * the other toward the opposite end. The base follows the logo's base
+ * instead: two equal bands snapped to whole rows, crossing full-to-faint.
  *
  * Motion (driven by scene.ts's loop time): it always holds the illusion
  * view, with a slow roll sway about the view axis (which never breaks the
@@ -274,10 +275,12 @@ export function createPenrose() {
     const inv = 1 / ks;
     const useLens = la > 0.02, LR2 = LR * LR;
     const qx = cellW * 0.25, qy = cellH * 0.25;
-    // the base's bottom edge (the figure's lowest line) in px: y = by0 + bk·x
-    project(1 + w, 0, 0, pt); const bxa = ox + pt[0] * ks, bya = oy + pt[1] * ks;
-    project(1 + w, 1 + w, 0, pt);
-    const bk = (oy + pt[1] * ks - bya) / (ox + pt[0] * ks - bxa || 1e-9), by0 = bya - bk * bxa;
+    // the base's seam in px (y = sy0 + bk·x) and its faces' height in whole rows
+    project(1 + w, 0, w, pt); const sxa = ox + pt[0] * ks, sya = oy + pt[1] * ks;
+    project(1 + w, 1 + w, w, pt);
+    const bk = (oy + pt[1] * ks - sya) / (ox + pt[0] * ks - sxa || 1e-9), sy0 = sya - bk * sxa;
+    project(1 + w, 0, 0, pt);
+    const bandK = Math.max(1, Math.round((oy + pt[1] * ks - bk * (ox + pt[0] * ks) - sy0) / cellH));
     for (let r = r0; r <= r1; r++) {
       let lo = 32767, hi = -1;
       const cyc = (r + 0.5) * cellH;
@@ -305,8 +308,12 @@ export function createPenrose() {
         const i = r * cols + c;
         // cell centre (through the lens)
         const ccx = m !== 1 ? lx + (cxc - lx) * m : cxc, ccy = m !== 1 ? ly + (cyc - ly) * m : cyc;
-        // the figure stands on a row line: no edge glyphs below the base
-        if (n < 4 && ccy > by0 + bk * ccx) continue;
+        // the base's rows: its seam snapped to the nearest row line and bandK
+        // rows of face either side (through the lens, magnified with it)
+        const sy = Math.round((sy0 + bk * ccx) / cellH) * cellH, bh = bandK * cellH;
+        const band = ccy >= sy - bh && ccy < sy + bh;
+        // the figure stands on that bottom row line: nothing hangs below it
+        if (ccy >= sy + bh) continue;
         // face creases read as a darker seam line; partial cells as softer edge glyphs
         let v = crease ? vmin * 0.82 : sum / n;
         if (n < 4) v *= 0.62 + 0.095 * n;
@@ -314,12 +321,13 @@ export function createPenrose() {
         // so a crease or soft edge there is a whole extra row of mid glyphs.
         // There (all base, or base and another face split top/bottom, as where
         // the right bar's inner face stops on the base) the cell centre picks
-        // one side: two clean bands with their edges on row lines
+        // one side and the base keeps to its rows: two equal bands, clean edges
         const ns = n - nb;
-        if (nb && (crease || n < 4) && (!ns || (nbT === nb ? !nsT : !nbT && nsT === ns))) {
-          if (cast(MIRROR ? (ox - ccx) * inv : (ccx - ox) * inv, (ccy - oy) * inv) && hitB) v = hitV;
-          else if (!ns) continue;
-          else v = ns > 1 ? sumS / ns : sumS * 0.81;
+        if (nb && !ns && !band) continue;
+        if (nb && (crease || n < 4 || !band) && (!ns || (nbT === nb ? !nsT : !nbT && nsT === ns))) {
+          if (band && cast(MIRROR ? (ox - ccx) * inv : (ccx - ox) * inv, (ccy - oy) * inv) && hitB) v = hitV;
+          else if (ns) v = ns > 1 ? sumS / ns : sumS * 0.81;
+          else v = sum / n; // an outer-edge cell kept to fill the face's rows
         }
         v += lk * 0.08;
         lbuf[i] = v > 0.999 ? 0.999 : v;
