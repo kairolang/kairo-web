@@ -4,16 +4,31 @@ import AsciiArt from './ascii/AsciiArt.astro';
 const languageLinks = [
   { href: '/docs/', label: 'Documentation' },
   { href: '/docs/install/', label: 'Installation' },
+  { href: '/docs/status/', label: 'Status' },
   { href: '/llms.txt', label: 'LLM Context', hidden: true },
   { href: '/llms-full.txt', label: 'LLM Full Docs', hidden: true },
   { href: '/blog/', label: 'Blog' },
   { href: 'https://github.com/kairolang/kairo/releases', label: 'Changelog', external: true },
 ];
 
+const helpLinks = [
+  { href: 'https://github.com/kairolang/kairo/discussions', label: 'Get help', external: true },
+  { href: 'https://discord.gg/VHCnPccDc', label: 'Discord', external: true },
+  { href: 'https://github.com/kairolang/kairo/issues/new/choose', label: 'Report an issue', external: true },
+  { href: 'https://github.com/kairolang/kairo/blob/main/CONTRIBUTING.md', label: 'Contributing', external: true },
+];
+
 const communityLinks = [
   { href: 'https://github.com/kairolang/kairo', label: 'GitHub', external: true },
+  { href: 'https://www.linkedin.com/company/kairo-software-foundation', label: 'LinkedIn', external: true },
   { href: '/contributors/', label: 'Contributors' },
   { href: '/ksf/', label: 'KSF' },
+];
+
+const columns = [
+  { title: '~/language', label: 'Language', links: languageLinks },
+  { title: '~/help', label: 'Help', links: helpLinks },
+  { title: '~/community', label: 'Community', links: communityLinks },
 ];
 
 const year = new Date().getFullYear();
@@ -36,46 +51,28 @@ const year = new Date().getFullYear();
         </p>
       </div>
 
-      <!-- Column 2: Language -->
-      <nav aria-label="Language">
-        <p class="footer-col-title">~/language</p>
-        <ul class="ascii-tree footer-links">
-          {languageLinks.map(link => (
-            <li class={link.hidden ? 'sr-only' : undefined}>
-              <a
-                href={link.href}
-                target={link.external ? '_blank' : undefined}
-                rel={link.external ? 'noopener noreferrer' : undefined}
-                class={link.hidden ? 'sr-only-link' : 'footer-link'}
-                tabindex={link.hidden ? -1 : undefined}
-              >
-                {link.label}
-                {link.external && !link.hidden && <span class="footer-ext" aria-hidden="true" data-scramble-skip>↗</span>}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <!-- Column 3: Community -->
-      <nav aria-label="Community">
-        <p class="footer-col-title">~/community</p>
-        <ul class="ascii-tree footer-links">
-          {communityLinks.map(link => (
-            <li>
-              <a
-                href={link.href}
-                target={link.external ? '_blank' : undefined}
-                rel={link.external ? 'noopener noreferrer' : undefined}
-                class="footer-link"
-              >
-                {link.label}
-                {link.external && <span class="footer-ext" aria-hidden="true" data-scramble-skip>↗</span>}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <!-- Columns 2-4: link trees -->
+      {columns.map(col => (
+        <nav aria-label={col.label}>
+          <p class="footer-col-title">{col.title}</p>
+          <ul class="ascii-tree footer-links">
+            {col.links.map(link => (
+              <li class={link.hidden ? 'sr-only' : undefined}>
+                <a
+                  href={link.href}
+                  target={link.external ? '_blank' : undefined}
+                  rel={link.external ? 'noopener noreferrer' : undefined}
+                  class={link.hidden ? 'sr-only-link' : 'footer-link'}
+                  tabindex={link.hidden ? -1 : undefined}
+                >
+                  {link.label}
+                  {link.external && !link.hidden && <span class="footer-ext" aria-hidden="true" data-scramble-skip>↗</span>}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
     </div>
 
     <!-- Bottom status line -->
@@ -125,7 +122,7 @@ const year = new Date().getFullYear();
 
   .footer-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
     gap: 3rem;
     padding-bottom: 2.5rem;
     border-bottom: 1px dashed var(--border-hi);
@@ -237,11 +234,14 @@ const year = new Date().getFullYear();
 
   @media (max-width: 768px) {
     .footer-grid {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 2rem;
     }
     .footer-brand { grid-column: 1 / -1; }
     .footer-wordmark-link { margin-bottom: 2rem; }
+  }
+  @media (max-width: 560px) {
+    .footer-grid { grid-template-columns: 1fr 1fr; }
   }
   @media (max-width: 420px) {
     .footer-grid { grid-template-columns: 1fr; }
