@@ -178,7 +178,7 @@ var port = try parse_port(input)
 `try`/`catch` can produce a value. Each arm is `catch ... => value`, and every arm must produce the same
 type. `finally` is not permitted in expression form.
 
-See [Control Flow](/docs/language/control-flow#trycatch-as-an-expression) for the `=>` arm rules: arm
+See [Control Flow](/docs/language/control-flow/#trycatch-as-an-expression) for the `=>` arm rules: arm
 forms, line breaks, and nesting.
 
 ---
@@ -226,7 +226,7 @@ A standalone `finally` behaves like the destructor of a local declared at the sa
 its enclosing block rather than the function, runs only if execution reached it, and runs in reverse
 declaration order (LIFO) together with the scope's destructors.
 
-See [Control Flow](/docs/language/control-flow#finally) for full `finally` semantics.
+See [Control Flow](/docs/language/control-flow/#finally) for full `finally` semantics.
 
 ---
 
@@ -251,8 +251,8 @@ fn fatal(msg: string) -> ! {
 }
 ```
 
-See [Functions](/docs/language/functions#no-return-) and
-[Type System](/docs/language/type-system#the-never-type-) for `!` semantics.
+See [Functions](/docs/language/functions/#no-return-) and
+[Type System](/docs/language/type-system/#the-never-type-) for `!` semantics.
 
 ---
 
@@ -276,7 +276,7 @@ This means:
 
 > [!NOTE]
 > The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use
-> the platform unwinder. See [Exceptions](/docs/language/c-cpp#exceptions) in C/C++ Interop.
+> the platform unwinder. See [Exceptions](/docs/language/c-cpp/#exceptions) in C/C++ Interop.
 
 > [!NOTE]
 > The `panic` statement inside a function body (`panic SomeError(...)`) does not halt the program.

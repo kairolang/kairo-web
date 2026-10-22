@@ -1,7 +1,7 @@
 ---
 order: 27
 title: Diagnostics
-description: Compiler error messages for arrays, slices, vectors, list literals, overload resolution, default arguments, lifecycle, enums and variant construction, unsupported features, and value arms in Kairo, what each one means, and how to fix it.
+description: "Kairo compiler error messages explained: arrays, slices, overload resolution, default arguments, lifecycle, enums and value arms, and how to fix each one."
 ---
 
 # Diagnostics
@@ -41,7 +41,7 @@ var f: [i32] = []              // ok
 
 A list literal that becomes a slice `[T;]` is a view of a temporary array. These errors report the positions
 where the view would outlive that array. See
-[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+[Primitives](/docs/language/primitives/#how-long-a-slice-literals-storage-lives).
 
 ### `a list literal returned from a function is a view of a temporary array and would outlive it; use '[T]' to own the elements, or bind the literal to a 'var' first`
 
@@ -77,13 +77,13 @@ scope that outlives the slice and use that variable.
 
 > [!NOTE]
 > Passing a slice literal to a function that stores the slice is not diagnosed. Until
-> [Tether](/docs/language/tether) checks it, it is the programmer's responsibility.
+> [Tether](/docs/language/tether/) checks it, it is the programmer's responsibility.
 
 ---
 
 ## Arrays
 
-A fixed array `[T; N]` is not a value type. See [Primitives](/docs/language/primitives#arrays-t-n).
+A fixed array `[T; N]` is not a value type. See [Primitives](/docs/language/primitives/#arrays-t-n).
 
 ### `an array is not copyable; initialize it from a list literal, or view the source through a slice or a pointer`
 
@@ -135,7 +135,7 @@ f([1, 2, 3] as [i32])          // ok
 ```
 
 **Fix:** make the argument's type explicit with `as` or a typed local. See
-[Primitives](/docs/language/primitives#list-literal-arguments).
+[Primitives](/docs/language/primitives/#list-literal-arguments).
 
 ---
 
@@ -151,7 +151,7 @@ fn m(self, y: i32 = self.v) { }       // error SC106E
 ```
 
 **Fix:** add an overload that leaves the parameter out and forwards the value. See
-[Functions](/docs/language/functions#a-default-stands-alone).
+[Functions](/docs/language/functions/#a-default-stands-alone).
 
 ### SC107E: a named argument skips a defaulted parameter of an imported C++ function
 
@@ -164,7 +164,7 @@ blit(4, scale: 2)            // error SC107E
 ```
 
 **Fix:** pass the earlier arguments explicitly: `blit(4, y: 0, scale: 2)`. See
-[Functions](/docs/language/functions#defaults-on-imported-c-functions).
+[Functions](/docs/language/functions/#defaults-on-imported-c-functions).
 
 ---
 
@@ -194,7 +194,7 @@ class TwoCopies {
 ```
 
 **Fix:** keep one transfer constructor. See
-[Classes](/docs/language/classes#the-transfer-constructor).
+[Classes](/docs/language/classes/#the-transfer-constructor).
 
 ### SC110E: a constructor has the shape of a transfer constructor but is not declared as one
 
@@ -214,7 +214,7 @@ class C {
 ```
 
 **Fix:** put `@copy` or `@move` on the constructor and write the parameter bare. See
-[Classes](/docs/language/classes#the-transfer-constructor).
+[Classes](/docs/language/classes/#the-transfer-constructor).
 
 ### SC129E: a defaulted transfer constructor cannot be generated
 
@@ -239,7 +239,7 @@ class CopiesUnique {
 ```
 
 **Fix:** write the transfer constructor body yourself, change its kind, or `= delete` it. See
-[Classes](/docs/language/classes#defaulted-moves-of-non-movable-members).
+[Classes](/docs/language/classes/#defaulted-moves-of-non-movable-members).
 
 ---
 
@@ -268,7 +268,7 @@ enum Order {
 ```
 
 **Fix:** use only literals, operators, `as` to an integer type, and earlier variants, and keep the value in
-range or widen the underlying type. See [Enums](/docs/language/enums#discriminant-values).
+range or widen the underlying type. See [Enums](/docs/language/enums/#discriminant-values).
 
 ### SC130E: two variants of an enum have the same value
 
@@ -285,7 +285,7 @@ enum Flags {
 
 Imported C++ enums are exempt.
 
-**Fix:** give each variant a distinct value. See [Enums](/docs/language/enums#discriminant-values).
+**Fix:** give each variant a distinct value. See [Enums](/docs/language/enums/#discriminant-values).
 
 ### SC123E: a variant name does not fit the expected type
 
@@ -321,7 +321,7 @@ fn main() -> i32 {
 ```
 
 **Fix:** give `.V` an expected enum type, or write the enum's name before it (`Dir::North`). See
-[Enums](/docs/language/enums#shorthand-syntax).
+[Enums](/docs/language/enums/#shorthand-syntax).
 
 ### SC131E: a variant is built with the wrong shape
 
@@ -360,7 +360,7 @@ fn main() -> i32 {
 }
 ```
 
-See [Enums](/docs/language/enums#construction).
+See [Enums](/docs/language/enums/#construction).
 
 ---
 
@@ -406,7 +406,7 @@ enum W { Has { b: Box<i32> }, Empty }   // error SC116E
 > var w: W<i32> = .Empty
 > ```
 
-**Fix:** rewrite around the construct for now. See [Status](/docs/status).
+**Fix:** rewrite around the construct for now. See [Status](/docs/status/).
 
 ---
 
@@ -425,7 +425,7 @@ fn count() -> i32 {
 ```
 
 **Fix:** declare the function `-> yield T`, or remove the `yield`. See
-[Generators](/docs/language/functions#generators).
+[Generators](/docs/language/functions/#generators).
 
 ### SC112E: this kind of function cannot be a generator
 
@@ -448,7 +448,7 @@ fn main() -> yield i32 { }   // error SC112E
 and what its `long double` is.
 
 **Fix:** use `f64` where `long double` is binary64, or `f128` where it is binary128. See
-[Primitives](/docs/language/primitives#f80-follows-the-targets-long-double).
+[Primitives](/docs/language/primitives/#f80-follows-the-targets-long-double).
 
 ### P007E: bundled sysroot for the target is malformed
 
@@ -456,14 +456,14 @@ A `--target` matched a folder under `<prefix>/sysroot/`, but the folder is not a
 `SYSROOT.toml`, or the manifest does not parse. A note says which.
 
 **Fix:** restore the manifest by re-extracting the sysroot, or remove the folder to fall back to `--sysroot`.
-See [Cross-compilation](/docs/language/c-cpp#cross-compilation).
+See [Cross-compilation](/docs/language/c-cpp/#cross-compilation).
 
 ---
 
 ## Value Arms
 
 The value forms of `if`, `match`, and `try`. See
-[Control Flow](/docs/language/control-flow#if-as-an-expression-ternary-equivalent).
+[Control Flow](/docs/language/control-flow/#if-as-an-expression-ternary-equivalent).
 
 ### S073E: braced value arm in an 'if', 'try' or 'match' expression
 

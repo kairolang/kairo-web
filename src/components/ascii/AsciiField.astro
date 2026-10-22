@@ -1,0 +1,63 @@
+---
+/**
+ * Animated ASCII glyph field background (canvas, auto-bound by initAscii()).
+ * Place inside a positioned parent; it fills it (absolute, inset 0).
+ *
+ *   <section style="position:relative">
+ *     <AsciiField preset="noise" size={14} opacity={0.55} />
+ *     …content (give it position:relative; z-index:1)…
+ *   </section>
+ *
+ * All fields share one rAF scheduler; each ticks only while on screen and the
+ * tab is visible. Narrow screens get fewer, larger cells. Reduced motion and
+ * calm pages → one still frame (the same frame an animated field starts on).
+ *
+ * RESTRAINT: animated fields are for the homepage only (hero + slow section
+ * bands, ~20fps, low halo strength). Anywhere else pass `still` (one frame,
+ * no loop). Default opacity is 0.35; stay within ~0.15–0.45 and put copy on
+ * a solid backing (.on-field).
+ */
+interface Props {
+  preset?: 'plasma' | 'noise' | 'rain' | 'ripple' | 'static';
+  /** glyph size px (default 14) */
+  size?: number;
+  /** frame rate (default 24) */
+  fps?: number;
+  /** render a single still frame, no animation loop (use outside the hero) */
+  still?: boolean;
+  /** pointer halo on/off (default on) */
+  pointer?: boolean;
+  /** halo radius px (default 150) */
+  radius?: number;
+  /** halo strength 0..1 (default 0.6; use ~0.25–0.35 for section bands) */
+  strength?: number;
+  /** animation clock offset in seconds (default 3.2 = the still frame, so motion starts from it) */
+  t0?: number;
+  /** glyph ramp, dark → bright (default " .:-=+*#%@") */
+  ramp?: string;
+  /** default 0.35 (restraint range ~0.15–0.45) */
+  opacity?: number;
+  /** CSS mask, e.g. 'linear-gradient(#000 60%, transparent)' to fade an edge */
+  mask?: string;
+  class?: string;
+}
+const { preset = 'plasma', size = 14, fps = 24, still = false, pointer = true, radius = 150, strength, t0 = 3.2, ramp, opacity = 0.35, mask, class: cls } = Astro.props;
+const style = [
+  opacity !== 1 ? `opacity:${opacity}` : '',
+  mask ? `-webkit-mask-image:${mask};mask-image:${mask}` : '',
+].filter(Boolean).join(';') || undefined;
+---
+<div
+  class:list={['ascii-field', cls]}
+  aria-hidden="true"
+  data-ascii-field={preset}
+  data-field-size={size}
+  data-field-fps={fps}
+  data-field-pointer={pointer && !still ? 'on' : 'off'}
+  data-field-still={still ? '' : undefined}
+  data-field-radius={radius}
+  data-field-strength={strength}
+  data-field-t0={still ? undefined : t0}
+  data-field-ramp={ramp}
+  style={style}
+></div>

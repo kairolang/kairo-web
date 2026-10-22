@@ -20,15 +20,15 @@ it. Each entry is removed when the gap closes.
 | Map literals `{k: v}` | Not compiled | — |
 | File-scope `var` | Not compiled | Move the variable into a function, or use `eval` for constants |
 | Initializing a `const` field in a constructor | Not supported | — |
-| Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
+| Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
 | Associated types (`type Node` in an interface) | Not parsed yet | — |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
 | Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | — |
-| Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
+| Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | — |
 | Static fields (`static count: i32` in a class) | Type-check, but do not link: no definition is emitted yet | Use a file-scope `static` variable |
-| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
-| A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
+| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
+| A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 
 ---
 
@@ -42,28 +42,28 @@ diagnostic. This covers `priv` constructors and writes to `const` fields.
 ## Not Diagnosed
 
 Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with
-the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether) lands; until
+the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether/) lands; until
 then, pass a `var` or a `[T]` to any function that keeps what it is given. See
-[Primitives](/docs/language/primitives#how-long-a-slice-literals-storage-lives).
+[Primitives](/docs/language/primitives/#how-long-a-slice-literals-storage-lives).
 
 Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not
-reported. See [Enums](/docs/language/enums#destructuring-with-match).
+reported. See [Enums](/docs/language/enums/#destructuring-with-match).
 
 Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a
-default constructor. See [Generic Bodies](/docs/language/interfaces#generic-bodies).
+default constructor. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
 
-Three [`extend`](/docs/language/extends) rules are not diagnosed yet:
+Three [`extend`](/docs/language/extends/) rules are not diagnosed yet:
 
 - A plain `extend` outside the type's file, or an `extend ... impl` in neither the type's nor the interface's
-  file, is accepted. See [Same-File Restriction](/docs/language/extends#same-file-restriction).
+  file, is accepted. See [Same-File Restriction](/docs/language/extends/#same-file-restriction).
 - Calling an extension member whose bounds the type arguments do not satisfy is not reported at the call site.
-  See [Generic Extends](/docs/language/extends#generic-extends).
+  See [Generic Extends](/docs/language/extends/#generic-extends).
 - An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See
-  [Interface Conformance](/docs/language/extends#interface-conformance).
+  [Interface Conformance](/docs/language/extends/#interface-conformance).
 
-A [generator](/docs/language/functions#generator-lifetimes) that outlives the object it was created from, or
+A [generator](/docs/language/functions/#generator-lifetimes) that outlives the object it was created from, or
 an `@inout` argument it was given, is not caught; it dangles. This becomes an error when
-[Tether](/docs/language/tether) covers generators. Until then, do not keep a generator longer than the object
+[Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object
 it came from.
 
 ---
@@ -71,7 +71,7 @@ it came from.
 ## Language Gaps
 
 - A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See
-  [C & C++ Interoperability](/docs/language/c-cpp#strings-and-const-char).
+  [C & C++ Interoperability](/docs/language/c-cpp/#strings-and-const-char).
 - Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object
   and for primitive operators whose two operands both have side effects. See
-  [Operators](/docs/language/operators#evaluation-order).
+  [Operators](/docs/language/operators/#evaluation-order).

@@ -25,115 +25,177 @@ function esc(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-const chevron = `<svg class="sidebar-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>`;
-
-// Render a collapsible section (top-level or sub-section)
-function renderSection(section: TreeSection, sectionPath: string, isSub: boolean): string {
-  const collapsed = section.defaultCollapsed;
-  const labelActive = section.indexPage && isActive(section.indexPage.id) ? ' active' : '';
-  const labelClass = `sidebar-group-label${isSub ? ' sidebar-sublabel' : ''} sidebar-grouplabel-link${labelActive}`;
-
-  const labelHtml = section.indexPage
-    ? `<a href="${section.indexPage.href}" class="${labelClass}">${esc(formatSectionName(section.name))}</a>`
-    : `<div class="sidebar-group-label${isSub ? ' sidebar-sublabel' : ''}">${esc(formatSectionName(section.name))}</div>`;
-
-  const headerHtml = `<div class="sidebar-collapsible-header">${labelHtml}<button class="sidebar-section-btn" aria-label="Toggle ${esc(section.name)} section">${chevron}</button></div>`;
-  const bodyHtml = `<div class="sidebar-collapsible-body">${renderChildren(section, sectionPath)}</div>`;
-  const containerClass = isSub ? 'sidebar-subgroup sidebar-collapsible' : 'sidebar-group sidebar-collapsible';
-
-  return `<div class="${containerClass}" data-section="${esc(sectionPath)}" data-collapsed="${collapsed}">${headerHtml}${bodyHtml}</div>`;
+/* ── ASCII file tree ──────────────────────────────────────────────────
+   Every row carries its own guide columns, one per depth level:
+     p = "│   "  (an ancestor still has siblings below)
+     b = "    "  (ancestor was the last child)
+     t = "├── "  (this row has siblings below)
+     e = "└── "  (this row is the last child)
+   The guides are drawn as 1px CSS lines (see global.css .tg) so they
+   stay continuous at any row height / when a long title wraps.
+   Purely decorative: aria-hidden.                                       */
+function guides(trail: boolean[], last: boolean): string {
+  let g = '';
+  for (const more of trail) g += `<i class="tg ${more ? 'p' : 'b'}"></i>`;
+  g += `<i class="tg ${last ? 'e' : 't'}"></i>`;
+  return `<span class="tree-guides" aria-hidden="true">${g}</span>`;
 }
 
-// Render children of a section (pages and sub-sections)
-function renderChildren(section: TreeSection, parentPath: string): string {
-  let html = '';
-  for (const child of section.children) {
-    if (child.kind === 'section') {
-      const childPath = `${parentPath}/${child.name}`;
-      html += renderSection(child, childPath, true);
-    } else {
-      const active = isActive(child.id) ? ' active' : '';
-      html += `<a href="${child.href}" class="sidebar-link${active}">${esc(child.title)}</a>`;
-    }
+function pageRow(page: TreePage, trail: boolean[], last: boolean): string {
+  const active = isActive(page.id);
+  return `<a href="${page.href}" class="sidebar-link tree-row${active ? ' active' : ''}"${active ? ' aria-current="page"' : ''}>${guides(trail, last)}<span class="tree-label">${esc(page.title)}</span></a>`;
+}
+
+// A collapsible directory: "├── [-] language/"
+function renderSection(section: TreeSection, sectionPath: string, trail: boolean[], last: boolean, top: boolean): string {
+  const collapsed = section.defaultCollapsed;
+  const pretty = formatSectionName(section.name);
+  const dirName = `${esc(section.name)}<span class="tree-slash" aria-hidden="true">/</span>`;
+  const bodyId = `sb-${sectionPath.replace(/[^a-zA-Z0-9_-]+/g, '-')}`;
+  const toggle = `<button type="button" class="sidebar-section-btn tree-toggle" aria-expanded="${!collapsed}" aria-controls="${bodyId}" aria-label="Toggle ${esc(pretty)} section"><span class="tree-toggle-glyph" aria-hidden="true"></span></button>`;
+
+  let label: string;
+  if (section.indexPage) {
+    const active = isActive(section.indexPage.id);
+    label = `<a href="${section.indexPage.href}" class="sidebar-group-label sidebar-grouplabel-link tree-label${active ? ' active' : ''}"${active ? ' aria-current="page"' : ''} title="${esc(pretty)}">${dirName}</a>`;
+  } else {
+    // no index page: the name itself toggles the directory
+    label = `<button type="button" class="sidebar-group-label sidebar-section-btn tree-label tree-label-btn" aria-expanded="${!collapsed}" aria-controls="${bodyId}" title="${esc(pretty)}">${dirName}</button>`;
   }
+
+  const header = `<div class="sidebar-collapsible-header tree-row tree-dir">${guides(trail, last)}${toggle}${label}</div>`;
+  const body = `<div class="sidebar-collapsible-body" id="${bodyId}">${renderChildren(section, sectionPath, [...trail, !last])}</div>`;
+  const cls = top ? 'sidebar-group sidebar-collapsible' : 'sidebar-subgroup sidebar-collapsible';
+  return `<div class="${cls}" data-section="${esc(sectionPath)}" data-collapsed="${collapsed}">${header}${body}</div>`;
+}
+
+function renderChildren(section: TreeSection, parentPath: string, trail: boolean[]): string {
+  let html = '';
+  section.children.forEach((child, i) => {
+    const last = i === section.children.length - 1;
+    if (child.kind === 'section') html += renderSection(child, `${parentPath}/${child.name}`, trail, last, false);
+    else html += pageRow(child, trail, last);
+  });
   return html;
 }
 
-// Root-level pages (no containing folder) and top-level sections
+// Root: index + root pages first (flat), then the top-level directories.
 const rootPages = tree.children.filter((c): c is TreePage => c.kind === 'page');
 const rootSections = tree.children.filter((c): c is TreeSection => c.kind === 'section');
+const rootList: Array<TreePage | TreeSection> = [
+  ...(tree.indexPage ? [tree.indexPage] : []),
+  ...rootPages,
+  ...rootSections,
+];
 
-// Root group: index + root pages shown flat (no section label, not collapsible)
-const rootItems: string[] = [];
-if (tree.indexPage) {
-  const active = isActive(tree.indexPage.id) ? ' active' : '';
-  rootItems.push(`<a href="${tree.indexPage.href}" class="sidebar-link${active}">${esc(tree.indexPage.title)}</a>`);
-}
-for (const p of rootPages) {
-  const active = isActive(p.id) ? ' active' : '';
-  rootItems.push(`<a href="${p.href}" class="sidebar-link${active}">${esc(p.title)}</a>`);
-}
-
-const rootGroupHtml = rootItems.length > 0
-  ? `<div class="sidebar-group">${rootItems.join('')}</div>`
-  : '';
-
-const sectionsHtml = rootSections.map(s => renderSection(s, s.name, false)).join('');
+let treeHtml = '';
+rootList.forEach((node, i) => {
+  const last = i === rootList.length - 1;
+  treeHtml += node.kind === 'section'
+    ? renderSection(node, node.name, [], last, true)
+    : pageRow(node, [], last);
+});
 ---
 
-<nav class="docs-sidebar-nav">
-  <div style="padding:0.5rem 0;">
-    <!-- Back to home on mobile -->
-    <div style="padding:0 1.5rem 1.5rem;display:none;" class="sidebar-back">
-      <a href="/" style="
-        font-family:var(--font-sans);
-        font-size:0.78rem;
-        font-weight:500;
-        color:var(--text-3);
-        text-decoration:none;
-        display:flex;
-        align-items:center;
-        gap:6px;
-        transition:color 0.2s;
-      ">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
-        </svg>
-        Back to home
-      </a>
-    </div>
-
-    <Fragment set:html={rootGroupHtml + sectionsHtml} />
+<nav class="docs-sidebar-nav" aria-label="Documentation">
+  <!-- Back to home (mobile drawer only) -->
+  <div class="sidebar-back">
+    <a href="/" class="sidebar-back-link"><span aria-hidden="true">cd </span>~<span class="sr-only"> back to home</span></a>
   </div>
+
+  <div class="sidebar-tree-root" aria-hidden="true">
+    <span class="dim">$</span> tree <a href="/docs/" tabindex="-1">~/docs</a>
+  </div>
+
+  <div class="sidebar-tree" id="sidebar-tree">
+    <Fragment set:html={treeHtml} />
+  </div>
+  <p class="sidebar-tree-foot" aria-hidden="true">{allDocs.length} files</p>
 </nav>
 
-<style>
-  @media (max-width: 1024px) {
-    .sidebar-back {
-      display: block !important;
+<!-- Apply saved collapse states synchronously, before first paint and before
+     the layout's sidebar scroll restore runs, so nothing jumps. A section that
+     contains the active page is always open. -->
+<script is:inline>
+  (function () {
+    var root = document.getElementById('sidebar-tree');
+    if (!root) return;
+    var secs = root.querySelectorAll('.sidebar-collapsible');
+    for (var i = 0; i < secs.length; i++) {
+      var s = secs[i];
+      var hasActive = s.querySelector('.sidebar-link.active, .sidebar-grouplabel-link.active');
+      var v = null;
+      if (hasActive) v = 'false';
+      else { try { v = localStorage.getItem('sidebar-section:' + s.getAttribute('data-section')); } catch (_) {} }
+      if (v === 'true' || v === 'false') {
+        s.setAttribute('data-collapsed', v);
+        var h = s.firstElementChild;
+        if (h) { var b = h.querySelectorAll('.sidebar-section-btn'); for (var j = 0; j < b.length; j++) b[j].setAttribute('aria-expanded', String(v === 'false')); }
+      }
     }
+  })();
+</script>
+
+<style>
+  .docs-sidebar-nav {
+    padding: 0.25rem 0 1rem;
+    font-family: var(--font-mono);
+  }
+  .sidebar-back { display: none; padding: 0 1.25rem 1rem; }
+  .sidebar-back-link {
+    font-size: 0.78rem;
+    color: var(--text-2);
+    text-decoration: none;
+    padding: 2px 4px;
+    margin-left: -4px;
+  }
+  .sidebar-back-link span[aria-hidden] { color: var(--text-3); }
+  .sidebar-back-link:hover { background: var(--text); color: var(--bg); }
+  .sidebar-back-link:hover span[aria-hidden] { color: inherit; }
+
+  .sidebar-tree-root {
+    padding: 0 1.25rem 0.35rem;
+    font-size: 0.76rem;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .sidebar-tree-root a {
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .sidebar-tree { padding: 0 0.75rem 0 1.25rem; }
+  .sidebar-tree-foot {
+    margin: 0.5rem 0 0;
+    padding: 0 1.25rem;
+    font-size: 0.68rem;
+    color: var(--text-3);
+    letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 1024px) {
+    .sidebar-back { display: block; }
   }
 </style>
 
 <script>
   function initCollapsible() {
-    document.querySelectorAll<HTMLElement>('.sidebar-collapsible').forEach(section => {
-      const key = `sidebar-section:${section.dataset.section}`;
-      const saved = localStorage.getItem(key);
+    const root = document.getElementById('sidebar-tree');
+    if (!root || root.dataset.init) return;
+    root.dataset.init = '1';
 
-      // Restore saved state; but always expand if this section contains the active page
-      const hasActive = section.querySelector('.sidebar-link.active, .sidebar-grouplabel-link.active');
-      if (hasActive) {
-        section.dataset.collapsed = 'false';
-      } else if (saved !== null) {
-        section.dataset.collapsed = saved;
-      }
-
-      section.querySelector('.sidebar-section-btn')?.addEventListener('click', () => {
-        const isCollapsed = section.dataset.collapsed === 'true';
-        section.dataset.collapsed = isCollapsed ? 'false' : 'true';
-        localStorage.setItem(key, section.dataset.collapsed);
-      });
+    // Event delegation: one listener for every [+]/[-] toggle and dir label.
+    root.addEventListener('click', (e) => {
+      const btn = (e.target as Element | null)?.closest?.<HTMLElement>('.sidebar-section-btn');
+      if (!btn || !root.contains(btn)) return;
+      const section = btn.closest<HTMLElement>('.sidebar-collapsible');
+      if (!section) return;
+      const collapsed = section.dataset.collapsed !== 'true';
+      section.dataset.collapsed = String(collapsed);
+      section.firstElementChild
+        ?.querySelectorAll('.sidebar-section-btn')
+        .forEach((b) => b.setAttribute('aria-expanded', String(!collapsed)));
+      try { localStorage.setItem(`sidebar-section:${section.dataset.section}`, String(collapsed)); } catch (_) {}
     });
   }
 

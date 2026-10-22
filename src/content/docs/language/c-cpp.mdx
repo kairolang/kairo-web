@@ -1,7 +1,7 @@
 ---
 order: 26
 title: C & C++ Interoperability
-description: Native bidirectional interop between Kairo and C/C++ — the kairo and kcc drivers, the pinned toolchain, FFI declarations, inline C++, pointer safety, templates, allocators, ownership, and the ABI contract enforced by kld.
+description: "Bidirectional C and C++ interop in Kairo: the kairo and kcc drivers, FFI imports, inline C++, templates, allocators, ownership and the kld ABI contract."
 ---
 
 # C & C++ Interoperability
@@ -29,16 +29,16 @@ The table below summarizes which C and C++ features Kairo can consume and expose
 | Feature | Direction | Notes |
 |---|---|---|
 | Functions | Bidirectional | Includes variadic functions |
-| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/language/structures) |
-| Unions | Bidirectional | See [Unions](/docs/language/unions) |
-| Enums | Bidirectional | See [Enums](/docs/language/enums) |
-| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/language/classes) |
+| Structs | Bidirectional | Layout-compatible; see [Structs](/docs/language/structures/) |
+| Unions | Bidirectional | See [Unions](/docs/language/unions/) |
+| Enums | Bidirectional | See [Enums](/docs/language/enums/) |
+| Classes | Bidirectional | Vtable-compatible; see [Classes](/docs/language/classes/) |
 | Tuples | Bidirectional | Emitted as named structs; see [Tuples across the boundary](#tuples-across-the-boundary) |
 | Templates | Bidirectional | Instantiation across the boundary; see [below](#templates-and-concepts) |
 | Concepts | Bidirectional | Kairo's `impl` constraints map to C++20 concepts |
 | Namespaces | Bidirectional | |
 | Pointers & References | Bidirectional | Requires `unsafe` on the Kairo side; see [below](#pointers-and-references) |
-| Operator Overloading | Bidirectional | See [Operators on C++ types](#operators-on-c-types) and [Operators](/docs/language/operators) |
+| Operator Overloading | Bidirectional | See [Operators on C++ types](#operators-on-c-types) and [Operators](/docs/language/operators/) |
 | Lambdas | Bidirectional | |
 | Exceptions | C++ → Kairo only | Kairo never throws; its errors are values. See [Exceptions](#exceptions) |
 | Macros | C++ → Kairo | Preprocessor macros are expanded before Kairo sees them |
@@ -61,9 +61,9 @@ kairo foo.k              # produces foo.out
 ```
 
 When `foo.k` contains `ffi "c++" import "header.h"`, `kairo` runs the pinned Clang's frontend over `header.h` to
-extract declarations, then lowers `foo.k` to a Clang token stream and compiles it with **that same Clang
-instance**. The compiler that read the header and the compiler that generated the code are byte-identical, so
-there is no version skew to reconcile.
+extract declarations. At the interop boundary, Kairo hands **that same Clang instance** a token stream containing
+exactly what it would emit if you requested a C++ header for `foo.k`. The compiler that read the header and the
+compiler that consumes Kairo's declarations are byte-identical, so there is no version skew to reconcile.
 
 ### `kcc` — the C++ driver
 
@@ -116,7 +116,7 @@ How `--target` finds its sysroot:
 - A bundled sysroot takes precedence over `--sysroot`. With no matching folder, `--sysroot` is used if given;
   otherwise there are no system headers.
 - A matching folder without a loadable `SYSROOT.toml` is an error:
-  [P007E](/docs/language/diagnostics#p007e-bundled-sysroot-for-the-target-is-malformed) "bundled sysroot for
+  [P007E](/docs/language/diagnostics/#p007e-bundled-sysroot-for-the-target-is-malformed) "bundled sysroot for
   the target is malformed".
 
 > [!NOTE]
@@ -180,7 +180,7 @@ Hello from C++! x = 42
 
 An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
 Naming a later parameter while an earlier defaulted one is omitted is an error (SC107E); pass the earlier
-ones explicitly. See [Functions](/docs/language/functions#defaults-on-imported-c-functions).
+ones explicitly. See [Functions](/docs/language/functions/#defaults-on-imported-c-functions).
 
 ### Operators on C++ types
 
@@ -195,7 +195,7 @@ Using an operator on C++ types follows C++ lookup:
 - **C++20 rewrites:** when an operand is a C++ type and no `!=` takes the operands, `a != b` is `!(a == b)`;
   `<` and the other relational operators fall back to `<=>` the same way. Kairo types keep Kairo's own rule:
   `!=` is derived from `op ==` only when the type declares no `op !=`. See
-  [Derived comparisons](/docs/language/operators#derived-comparisons).
+  [Derived comparisons](/docs/language/operators/#derived-comparisons).
 
 Unary `*` on an imported C++ class calls its `operator*`, which is how C++ iterators and smart pointers are
 read.
@@ -207,7 +207,7 @@ fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or
 `intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one,
 whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t`
 directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
-[Conversion Lattice §4.1](/docs/language/primitives#41-the-cc-boundary).
+[Conversion Lattice §4.1](/docs/language/primitives/#41-the-cc-boundary).
 
 ---
 
@@ -482,7 +482,7 @@ fn example() {
 Kairo's standard library lands inside `namespace kairo`, which is why a C++ translation unit sees Kairo's library
 under `kairo::` and its own under the unqualified `std::` it already uses. Nothing is renamed on the C++ side.
 Your own code lands in its module's namespace, or, for an entry file, in a namespace named after the file's stem.
-See [Modules](/docs/language/modules#module-paths-are-c-namespaces).
+See [Modules](/docs/language/modules/#module-paths-are-c-namespaces).
 
 > [!NOTE]
 > `inline "c++"` blocks are not supported from Stage 1 onward. Use `ffi "c++"` to import declarations and call
@@ -541,12 +541,12 @@ fn syscall_example(fd: i32, buf: *u8, len: usize) -> isize {
 
 ## Pointers and References
 
-Kairo's [pointer model](/docs/language/pointers) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
+Kairo's [pointer model](/docs/language/pointers/) distinguishes safe pointers (`*T`, non-nullable, tracked) from raw
 pointers (`unsafe *T`, no tracking). Passing any pointer or reference across the FFI boundary requires explicit
 `unsafe` context because the compiler cannot enforce safety guarantees on the C/C++ side.
 
 C++ reference *parameters* (`T&`, `const T&`, `T&&`) are not pointers. They map to Kairo's parameter modes
-(`@inout x: T`, `x: T`, `@move x: T`). See [Parameter passing modes](/docs/language/functions#parameter-passing-modes).
+(`@inout x: T`, `x: T`, `@move x: T`). See [Parameter passing modes](/docs/language/functions/#parameter-passing-modes).
 
 ### Calls that return a reference
 
@@ -566,7 +566,7 @@ fn main() {
 }
 ```
 
-See [Reference returns from C++](/docs/language/functions#reference-returns-from-c) for how these calls are typed.
+See [Reference returns from C++](/docs/language/functions/#reference-returns-from-c) for how these calls are typed.
 
 ### Safe variable, unsafe pass
 
@@ -649,7 +649,7 @@ delete p;   // runs Kairo's destructor, then returns memory to Kairo's global al
 
 This works because Kairo emits the class, and therefore emits the destructor. `~MyKairoClass` performs Kairo's
 destruction semantics; C++'s `delete` merely sequences destructor-then-deallocate, which is the same pair of
-operations Kairo spells as [`delete obj`](/docs/language/tether#delete-operation) followed by `@free`.
+operations Kairo spells as [`delete obj`](/docs/language/tether/#delete-operation) followed by `@free`.
 
 Pointer parameters and return values stay raw `*T` — there is no wrapper type, no ABI change, and no cost at the
 call boundary.
@@ -662,7 +662,7 @@ allocations. The isolation is structural, not a restriction.
 
 ### The operators bind to the *global* allocator, always
 
-Kairo's [scoped allocator](/docs/language/tether#scoped-allocator) mechanism works by swapping the allocator the
+Kairo's [scoped allocator](/docs/language/tether/#scoped-allocator) mechanism works by swapping the allocator the
 process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that
 indirection and address the global allocator directly.
 
@@ -681,7 +681,7 @@ of what is active at the call site.
 
 The invariant that makes this sound: **objects reachable from C++ were allocated by the global allocator.** A
 pointer allocated through a scoped allocator that escapes the allocator's scope is a hard error under
-[Tether](/docs/language/tether), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
+[Tether](/docs/language/tether/), so a scoped-allocated object cannot reach a C++ `delete` in the first place.
 
 ### What is still an error
 
@@ -702,7 +702,7 @@ override does apply to them — `core` provides `CxxNewAllocator`:
 @mem::set_allocator(core::CxxNewAllocator)
 ```
 
-This is the unusual case, not the default. The [intentional friction](/docs/language/tether#global-allocator) rule
+This is the unusual case, not the default. The [intentional friction](/docs/language/tether/#global-allocator) rule
 applies: the annotation must appear at the top of every file in the affected dependency graph.
 
 ### Ownership annotations in generated headers
@@ -815,7 +815,7 @@ which is deliberately TU-local.
 
 Kairo and C++ signal failure differently, and the two models meet at one place: a Kairo `try`/`catch`.
 
-- **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic): a tagged union value returned to
+- **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic/): a tagged union value returned to
   the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
 - **`try`/`catch` handles both.** Around a Kairo call it lowers to a `match` on the returned tagged union.
@@ -843,10 +843,10 @@ unwind info for exactly those frames: a Kairo function gets it only when it sits
 `try` that can catch from that call. Kairo code with no such path carries no unwind tables.
 
 > [!NOTE]
-> Unlike Kairo's [panic system](/docs/language/panic), the compiler cannot statically determine every exception
+> Unlike Kairo's [panic system](/docs/language/panic/), the compiler cannot statically determine every exception
 > type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue
 > to the next enclosing Kairo `try`. An exception that no Kairo `try` catches keeps unwinding like any C++
-> exception. If it reaches a [`@no_unwind`](/docs/language/attributes#unwinding) function, the program
+> exception. If it reaches a [`@no_unwind`](/docs/language/attributes/#unwinding) function, the program
 > terminates (`std::terminate`).
 
 ### Kairo → C++: Kairo never throws
@@ -857,7 +857,7 @@ value returned to the caller, not an object propagated by the unwinder. No excep
 - A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
 - A C++ exception thrown by C++ code that Kairo calls can unwind through Kairo frames, unless a Kairo `try`
   catches it.
-- A function marked [`@no_unwind`](/docs/language/attributes#unwinding) has `noexcept` on its generated C++
+- A function marked [`@no_unwind`](/docs/language/attributes/#unwinding) has `noexcept` on its generated C++
   declaration and definition, so `noexcept`-conditional C++ code that calls it takes the `noexcept(true)`
   branch. An exception that reaches it terminates the program.
 
@@ -903,14 +903,13 @@ Two Kairo-specific guarantees strengthen the baseline:
 - **ABI settings are recorded in the object and verified at link.** See
   [Link-time ABI verification](#link-time-abi-verification).
 
-### Emission stages
+### ABI stability across compiler stages
 
-Kairo lowers to a Clang token stream at every stage. Later stages emit *more* information, not different
-information — the ABI does not change:
+Later compiler stages emit *more* information, not different information — the ABI does not change:
 
 | Stage | Emits |
 |---|---|
-| Stage 1 | The core lowering: declarations, definitions, ordering, mangling. |
+| Stage 1 | Declarations, definitions, ordering, mangling. |
 | Stage 2 | The same, plus lifetime, aliasing, and ownership attributes derived from Tether analysis. |
 
 Objects from either stage are ABI-compatible. Stage 2's additions give the C++ side more static checking, not a

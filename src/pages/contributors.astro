@@ -1,0 +1,288 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AsciiTitle from '../components/ascii/AsciiTitle.astro';
+import AsciiFrame from '../components/ascii/AsciiFrame.astro';
+import AsciiButton from '../components/ascii/AsciiButton.astro';
+import AsciiField from '../components/ascii/AsciiField.astro';
+import ContributorCard from '../components/contributors/ContributorCard.astro';
+import Leaderboard from '../components/contributors/Leaderboard.astro';
+import { getContributors } from '../lib/contributors';
+
+const data = await getContributors();
+const people = data.contributors;
+const total = people.reduce((s, c) => s + c.contributions, 0);
+const fmt = new Intl.NumberFormat('en-US');
+const synced = data.generated_at.slice(0, 10);
+
+const GFI = 'https://github.com/kairolang/kairo/issues?q=is%3Aopen+label%3A%22good+first+issue%22';
+const ways = [
+  { area: 'compiler', desc: 'the Kairo front end, type checker and code generation' },
+  { area: 'stdlib', desc: 'the standard library and lib-helix runtime' },
+  { area: 'tooling', desc: 'kairo-lsp, editor support and build tooling' },
+  { area: 'docs', desc: 'the language reference, guides and this website' },
+];
+---
+<BaseLayout
+  title="Contributors"
+  description="Meet the people building Kairo: every contributor across the kairolang GitHub org, ranked by contributions, plus how to make your first one."
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Contributors', url: '/contributors/' },
+  ]}
+>
+  <!-- ── Title: this page's one moment. The FIGlet title is lens text (shade-in
+       sweep once, then the hover rect lens); it carries no other motion. Behind it,
+       the same slow drifting noise field as the home CTA band: dim, masked away
+       from the copy column, one still frame under reduced motion. ── -->
+  <section class="ct-hero" aria-labelledby="ct-title">
+    <AsciiField
+      preset="noise"
+      size={13}
+      fps={20}
+      radius={170}
+      strength={0.3}
+      opacity={0.22}
+      class="ct-field"
+    />
+    <div class="container ct-hero-inner">
+      <div class="section-label print-in">contributors — {data.org}</div>
+      <div class="ct-title">
+        <AsciiTitle
+          id="ct-title"
+          text="CONTRIBUTORS"
+          narrowText={'CONTRI\nBUTORS'}
+          srText="Contributors"
+          level={1}
+          size="xl"
+        />
+      </div>
+      <p class="ct-lede sans print-in" style="--d: 120ms;">
+        Kairo is built in the open by everyone listed here. Every commit, review and fix across the
+        <a href="https://github.com/kairolang" target="_blank" rel="noopener noreferrer">kairolang</a> organization counts.
+      </p>
+      <!-- resizable: the strip (block width) and each tile (flex row; siblings fill) -->
+      <dl class="ct-stats print-in" style="--d: 160ms;" data-resizable data-reflow="flex" aria-label="Contributor stats">
+        <div data-resizable data-resize-min="96"><dt>contributors</dt><dd class="tabular">{fmt.format(people.length)}</dd></div>
+        <div data-resizable data-resize-min="96"><dt>contributions</dt><dd class="tabular">{fmt.format(total)}</dd></div>
+        <div data-resizable data-resize-min="96"><dt>repos</dt><dd class="tabular">{data.repos.length}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ── 01 — Leaderboard ── -->
+  <section class="ct-section">
+    <div class="container">
+      <div class="section-label">01 — Leaderboard</div>
+      <h2 class="ct-h2">Top contributors</h2>
+      <Leaderboard contributors={people} total={total} />
+    </div>
+  </section>
+
+  <!-- ── 02 — Everyone ── -->
+  <section class="ct-section">
+    <div class="container">
+      <div class="section-label">02 — Everyone</div>
+      <h2 class="ct-h2">All contributors <span class="ct-h2-count" aria-hidden="true">[{people.length}]</span></h2>
+      <p class="ct-note">
+        <span class="comment" aria-hidden="true"></span>
+        Hover or focus a card to develop the photo. Each links to the contributor's GitHub profile.
+      </p>
+      <!-- card wall: dragging a card snaps it to span N columns; the rest backfill -->
+      <ul class="ct-grid" data-reveal-stagger data-reflow="grid-span">
+        {people.map((c, i) => (
+          <li><ContributorCard contributor={c} rank={i + 1} /></li>
+        ))}
+      </ul>
+      <p class="ct-sync" aria-label={`Data scanned from ${data.repos.length} repositories, last synced ${synced}`}>
+        <span class="ct-sync-k">scanned:</span> {data.repos.join(' · ')}
+        <br />
+        <span class="ct-sync-k">synced:</span> {synced} <span class="ct-sync-src">[{data.source === 'live' ? 'live' : 'snapshot'}]</span>
+        <span class="ct-sync-k">· bots excluded</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── 03 — Become a contributor ── -->
+  <section class="ct-section ct-cta-section">
+    <div class="container">
+      <div class="section-label">03 — Join in</div>
+      <AsciiFrame title="become_a_contributor.sh" meta="exit 0" variant="double" class="ct-cta">
+        <h2 class="ct-cta-title">Become a contributor</h2>
+        <p class="ct-cta-copy sans">
+          All skill levels welcome. Pick an issue labeled <strong>good first issue</strong>, read the docs,
+          and open a pull request. Your name shows up here on the next build.
+        </p>
+        <div class="ct-term-box" data-resizable data-resize-min="240"><pre class="ct-term" aria-label="Getting started commands"><span class="ct-p">$</span> git clone https://github.com/kairolang/kairo
+<span class="ct-p">$</span> cd kairo &amp;&amp; git checkout -b my-first-fix
+<span class="ct-c"># pick something from the good-first-issue list, then open a PR</span></pre></div>
+        <ul class="ascii-tree ct-ways">
+          {ways.map((w) => (
+            <li><span class="ct-way">{w.area}</span> <span class="ct-way-desc">{w.desc}</span></li>
+          ))}
+        </ul>
+        <div class="ct-actions">
+          <AsciiButton href={GFI} label="Good first issues" external />
+          <AsciiButton href="https://github.com/kairolang/kairo" label="kairolang/kairo" variant="ghost" external />
+          <AsciiButton href="/docs/" label="Read the docs" variant="ghost" />
+          <AsciiButton href="/ksf/" label="Support the KSF" variant="ghost" />
+        </div>
+      </AsciiFrame>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  /* ── hero ── */
+  .ct-hero {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(6.5rem, 14vw, 9rem) 0 clamp(2.5rem, 6vw, 4rem);
+    border-bottom: 1px dashed var(--border-hi);
+  }
+  /* The field is faded out where the copy sits (a soft ellipse over the left text
+     column) and toward the bottom rule; it reads strongest at the right/top edges. */
+  .ct-hero :global(.ct-field) {
+    -webkit-mask-image:
+      radial-gradient(ellipse 62% 70% at 24% 62%, transparent 30%, #000 82%),
+      linear-gradient(#000 55%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      radial-gradient(ellipse 62% 70% at 24% 62%, transparent 30%, #000 82%),
+      linear-gradient(#000 55%, transparent);
+    mask-composite: intersect;
+  }
+  .ct-hero-inner { position: relative; z-index: 1; }
+  .ct-title { margin: 1.25rem 0 1.5rem; max-width: 62rem; }
+  .ct-lede {
+    max-width: 58ch;
+    width: fit-content;
+    margin: 0;
+    /* near-solid backing in case the field reaches the copy on small screens */
+    background-color: color-mix(in srgb, var(--bg) 82%, transparent);
+    font-size: 1.02rem;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .ct-lede a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  .ct-lede a:hover,
+  .ct-lede a:focus-visible { background-color: var(--accent); color: var(--on-red); text-decoration: none; }
+
+  .ct-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 2rem 0 0;
+    border: 1px solid var(--frame-line);
+    width: fit-content;
+    max-width: 100%;
+    background-color: var(--bg-2);
+  }
+  .ct-stats > div {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.7rem 1.1rem;
+    border-right: 1px solid var(--frame-line);
+  }
+  .ct-stats > div:last-child { border-right: 0; }
+  .ct-stats dt {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-2);
+  }
+  .ct-stats dd {
+    margin: 0.15rem 0 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* ── sections ── */
+  .ct-section { padding: clamp(3rem, 7vw, 5rem) 0 0; }
+  .ct-cta-section { padding-bottom: clamp(4rem, 9vw, 6.5rem); }
+  .ct-h2 {
+    margin: 0.6rem 0 1.5rem;
+    font-size: clamp(1.35rem, 3.2vw, 1.9rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+  .ct-h2-count { color: var(--text-3); font-weight: 500; }
+  .ct-note {
+    margin: -0.75rem 0 1.5rem;
+    font-size: 0.8rem;
+    color: var(--text-2);
+  }
+
+  .ct-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+    gap: 1.5rem 1.25rem;
+  }
+  .ct-grid > li { display: flex; min-width: 0; }
+  .ct-grid > li > :global(.c-card) { flex: 1; }
+
+  .ct-sync {
+    margin: 1.75rem 0 0;
+    font-size: 0.72rem;
+    line-height: 1.8;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .ct-sync-k { color: var(--text-2); opacity: 0.85; }
+  .ct-sync-src { color: var(--accent); }
+
+  /* ── CTA ── */
+  .ct-cta { --frame-pad: clamp(1.5rem, 4vw, 2.5rem); margin-top: 1rem; }
+  .ct-cta-title {
+    margin: 0.25rem 0 0.75rem;
+    font-size: clamp(1.4rem, 3.6vw, 2.2rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: var(--text);
+  }
+  .ct-cta-copy {
+    max-width: 60ch;
+    margin: 0 0 1.5rem;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .ct-cta-copy strong { color: var(--text); font-weight: 600; }
+  /* resizable wrapper (the <pre> scrolls, so it can't carry grips itself);
+     the pre stretches to whatever height the wrapper is dragged to */
+  .ct-term-box { display: flex; flex-direction: column; margin: 0 0 1.5rem; max-width: 100%; }
+  .ct-term {
+    flex: 1 1 auto;
+    margin: 0;
+    padding: 0.9rem 1rem;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text);
+    background-color: var(--bg-3);
+    border: 1px solid var(--frame-line);
+    border-radius: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .ct-p { color: var(--accent); }
+  .ct-c { color: var(--text-2); }
+  .ct-ways { margin: 0 0 1.75rem; font-size: 0.8rem; }
+  .ct-way { color: var(--text); font-weight: 600; }
+  .ct-way::after { content: ' —' / ''; color: var(--text-3); }
+  .ct-way-desc { color: var(--text-2); }
+  .ct-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  @media (max-width: 480px) {
+    .ct-stats { width: 100%; }
+    .ct-stats > div { flex: 1 1 0; padding: 0.6rem 0.75rem; min-width: 0; }
+    .ct-stats dd { font-size: 1.2rem; }
+    .ct-stats dt { font-size: 0.6rem; letter-spacing: 0.06em; }
+  }
+</style>

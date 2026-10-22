@@ -20,10 +20,11 @@ export interface TreeSection {
   children: Array<TreePage | TreeSection>;
 }
 
+/** Canonical URL path for a doc id. Always ends with "/" (trailingSlash: 'always'). */
 export function docHref(id: string): string {
   const clean = id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
-  if (!clean || clean === 'index') return '/docs';
-  return `/docs/${clean}`;
+  if (!clean || clean === 'index') return '/docs/';
+  return `/docs/${clean}/`;
 }
 
 export function formatSectionName(name: string): string {

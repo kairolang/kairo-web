@@ -1,0 +1,49 @@
+---
+/**
+ * ASCII frame: 1px line, bright corner brackets, optional title notch.
+ *
+ *   <AsciiFrame title="dot_product.k" meta="kairo">…</AsciiFrame>
+ *   <AsciiFrame as="a" href="/docs/" variant="fill" hover>…</AsciiFrame>
+ *   <AsciiFrame variant="double" title="WARNING">…</AsciiFrame>
+ *   <AsciiFrame resizable={false}>…</AsciiFrame>      no drag grips
+ *   <AsciiFrame resizable="y">…</AsciiFrame>          height only
+ *
+ * Renders  ┌─[ title ]──────────< meta >─┐
+ *          │ slot                         │
+ *          └──────────────────────────────┘
+ */
+import type { HTMLTag } from 'astro/types';
+
+interface Props {
+  title?: string;
+  /** small uppercase tag on the right of the top edge, e.g. "kairo" */
+  meta?: string;
+  as?: HTMLTag;
+  class?: string;
+  /** visual variants (combinable): fill | accent | dashed | double | shadow | flush */
+  variant?: string | string[];
+  /** red corners + line on hover */
+  hover?: boolean;
+  /** inner padding (CSS length). Default 1.25rem; 0 via variant="flush" */
+  pad?: string;
+  /** background colour BEHIND the frame (for the notch mask) when it isn't var(--bg) */
+  outer?: string;
+  /**
+   * drag-to-resize grips (src/lib/ascii/resize.ts; never on docs pages).
+   * true (default) = both axes, 'x' | 'y' = one axis, false = opt out.
+   * Tune with data-resize-min / data-resize-max ("240" or "240x120").
+   */
+  resizable?: boolean | 'x' | 'y' | 'both';
+  [key: string]: any;
+}
+
+const { title, meta, as: Tag = 'div', class: cls, variant, hover = false, pad, outer, resizable = true, ...rest } = Astro.props;
+const rz = resizable === false ? 'false' : resizable === 'x' || resizable === 'y' ? resizable : '';
+const variants = (Array.isArray(variant) ? variant : variant ? variant.split(/\s+/) : []).map((v) => `ascii-frame--${v}`);
+const style = [pad ? `--frame-pad:${pad}` : '', outer ? `--frame-outer:${outer}` : ''].filter(Boolean).join(';') || undefined;
+---
+<Tag class:list={['ascii-frame', ...variants, hover && 'ascii-frame--hover', cls]} style={style} data-resizable={rz} {...rest}>
+  {title && <span class="ascii-frame-title">{title}</span>}
+  {meta && <span class="ascii-frame-meta">{meta}</span>}
+  <slot />
+</Tag>

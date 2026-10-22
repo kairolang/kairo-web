@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import { sectionFromId } from '../lib/docs-tree';
 
 export const GET: APIRoute = async ({ site }) => {
-  const siteURL = (site ?? new URL('https://kairolang.org')).toString().replace(/\/$/, '');
+  const siteURL = (site ?? new URL('https://www.kairolang.org')).toString().replace(/\/$/, '');
 
   const docs = await getCollection('docs');
   const blog = await getCollection('blog');
@@ -21,11 +21,11 @@ export const GET: APIRoute = async ({ site }) => {
 
   const slugToUrl = (id: string) => {
     const clean = id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
-    return !clean || clean === 'index' ? `${siteURL}/docs` : `${siteURL}/docs/${clean}`;
+    return !clean || clean === 'index' ? `${siteURL}/docs/` : `${siteURL}/docs/${clean}/`;
   };
 
   const blogSlugToUrl = (id: string) => {
-    return `${siteURL}/blog/${id.replace(/\.mdx?$/, '')}`;
+    return `${siteURL}/blog/${id.replace(/\.mdx?$/, '')}/`;
   };
 
   let content = `# Kairo\n\n`;
@@ -59,7 +59,7 @@ export const GET: APIRoute = async ({ site }) => {
 
   content += `## Optional\n\n`;
   content += `- [Full Documentation](${siteURL}/llms-full.txt): Complete Kairo documentation in a single plaintext file for AI consumption\n`;
-  content += `- [Kairo Software Foundation](${siteURL}/ksf): The nonprofit governing body behind Kairo\n`;
+  content += `- [Kairo Software Foundation](${siteURL}/ksf/): The nonprofit governing body behind Kairo\n`;
   content += `- [Search API](${siteURL}/search.json): Structured JSON index of all documentation pages\n`;
 
   return new Response(content, {

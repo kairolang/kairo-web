@@ -1,74 +1,88 @@
 ---
+// Terminal theme switch: "[● dark]" ⇄ "[○ lite]" (same width, no layout shift). Same storage contract as
+// before: localStorage 'theme' = 'light' | 'dark'; data-theme="light" on <html>.
 ---
 <button
   id="theme-toggle"
   class="theme-toggle"
-  aria-label="Toggle theme"
+  type="button"
+  aria-label="Switch to light theme"
   title="Toggle dark/light mode"
 >
-  <!-- Sun icon (shown in dark mode) -->
-  <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="12" cy="12" r="4"/>
-    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-  </svg>
-  <!-- Moon icon (shown in light mode) -->
-  <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-  </svg>
+  <span class="tt-glyph" aria-hidden="true">●</span><span class="tt-label" aria-hidden="true">dark</span>
 </button>
 
 <style>
   .theme-toggle {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: var(--r-pill);
+    gap: 0.6ch;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 500;
+    line-height: 1;
     color: var(--text-2);
     background: transparent;
-    border: none;
+    border: 0;
+    border-radius: 0;
+    padding: 6px 2px;
     cursor: pointer;
     flex-shrink: 0;
-    transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+    white-space: nowrap;
   }
-  .theme-toggle:hover {
-    color: var(--text);
-    background: color-mix(in srgb, var(--text) 7%, transparent);
+  .theme-toggle::before { content: '['; color: var(--text-3); }
+  .theme-toggle::after  { content: ']'; color: var(--text-3); }
+  .tt-glyph { color: var(--red); display: inline-block; }
+  .tt-label { display: inline-block; }
+  .theme-toggle:hover { color: var(--accent); }
+  .theme-toggle:hover::before,
+  .theme-toggle:hover::after { color: var(--accent); }
+  .theme-toggle.flip .tt-glyph { animation: ttFlip 160ms steps(4, end); }
+  @keyframes ttFlip {
+    0%   { transform: scaleX(1); }
+    50%  { transform: scaleX(0); }
+    100% { transform: scaleX(1); }
   }
-  .theme-toggle svg {
-    transition: transform var(--dur-med) var(--ease-spring);
-  }
-  .theme-toggle:active svg {
-    transform: rotate(40deg) scale(0.9);
+  @media (max-width: 1040px) {
+    .tt-label { display: none; }
   }
 </style>
 
 <script>
   function initThemeToggle() {
     const btn = document.getElementById('theme-toggle');
-    const sun = document.getElementById('icon-sun');
-    const moon = document.getElementById('icon-moon');
+    if (!btn || btn.dataset.init) return;
+    btn.dataset.init = '1';
+    const glyph = btn.querySelector<HTMLElement>('.tt-glyph');
+    const label = btn.querySelector<HTMLElement>('.tt-label');
     const html = document.documentElement;
 
-    function updateIcons() {
+    function render() {
       const isLight = html.getAttribute('data-theme') === 'light';
-      if (sun) sun.style.display = isLight ? 'none' : 'block';
-      if (moon) moon.style.display = isLight ? 'block' : 'none';
+      if (glyph) glyph.textContent = isLight ? '○' : '●';
+      if (label) label.textContent = isLight ? 'lite' : 'dark';
+      btn!.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
     }
 
-    updateIcons();
+    render();
 
-    btn?.addEventListener('click', () => {
+    btn.addEventListener('click', () => {
       const isLight = html.getAttribute('data-theme') === 'light';
-      if (isLight) {
-        html.removeAttribute('data-theme');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        html.setAttribute('data-theme', 'light');
-        localStorage.setItem('theme', 'light');
+      try {
+        if (isLight) {
+          html.removeAttribute('data-theme');
+          localStorage.setItem('theme', 'dark');
+        } else {
+          html.setAttribute('data-theme', 'light');
+          localStorage.setItem('theme', 'light');
+        }
+      } catch (_) {
+        if (isLight) html.removeAttribute('data-theme'); else html.setAttribute('data-theme', 'light');
       }
-      updateIcons();
+      render();
+      btn.classList.remove('flip');
+      void btn.offsetWidth;
+      btn.classList.add('flip');
     });
   }
 

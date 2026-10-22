@@ -1,13 +1,8 @@
 ---
 import { Code } from 'astro:components';
-
-let kairoLang: any = 'rust';
-try {
-  const res = await fetch(
-    'https://raw.githubusercontent.com/kairolang/kairo-lsp/lsp-v1/public/syntaxes/kairo.tmLanguage.json'
-  );
-  if (res.ok) kairoLang = await res.json();
-} catch {}
+import { langFor } from './kairo-lang';
+import AsciiField from '../ascii/AsciiField.astro';
+import '../../styles/resize.css';
 
 const examples = [
   {
@@ -220,78 +215,124 @@ fn start_server(path: string) -> Config {
     },
   },
 ];
+
+const inlineCode = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/`([^`]+)`/g, '<code>$1</code>');
+
+const LANG_NAMES: Record<string, string> = { k: 'kairo', kro: 'kairo', cpp: 'c++', hpp: 'c++' };
+const enc = new TextEncoder();
+const panes = await Promise.all(
+  examples.map(async (ex) => {
+    const ext = ex.filename.split('.').pop() ?? 'txt';
+    return {
+      ...ex,
+      ext,
+      lang: await langFor(ex.filename),
+      langName: LANG_NAMES[ext] ?? ext,
+      lines: ex.code.split('\n').length,
+      bytes: enc.encode(ex.code).length,
+    };
+  }),
+);
+// vim-style "~" rows fill the empty viewport under short files
+const TILDES = Array.from({ length: 30 }, () => '~').join('\n');
 ---
 
-<section class="showcase-section">
-  <div class="container">
+<section class="showcase-section" id="code-showcase" aria-labelledby="showcase-title">
+  <!-- the same slow drifting noise field as the CTA (own clock offset), faded
+       out under the content; copy sits on solid backing. Reduced motion: one
+       still frame. -->
+  <AsciiField
+    preset="noise"
+    size={13}
+    fps={20}
+    radius={170}
+    strength={0.3}
+    t0={7.4}
+    opacity={0.24}
+    mask="radial-gradient(ellipse 60% 64% at 50% 52%, transparent 40%, #000 90%)"
+  />
+  <div class="container showcase-inner">
 
     <!-- Heading -->
-    <div class="showcase-head" data-reveal>
-      <div class="section-label">Code</div>
-      <h2 class="display showcase-h2">
+    <div class="showcase-head" data-reveal-stagger>
+      <div class="section-label">01 — Code</div>
+      <h2 class="display showcase-h2" id="showcase-title">
         See it in action.
         <span class="dim">Clean syntax. No magic.</span>
       </h2>
     </div>
 
-    <!-- Segmented control -->
-    <div class="showcase-tabs-row" data-reveal data-reveal-delay="100">
-      <div class="segmented" id="code-tabs" role="tablist" aria-label="Code examples">
-        <div class="segmented-thumb" id="code-tabs-thumb"></div>
-        {examples.map((ex, i) => (
+    <!-- ASCII tab bar -->
+    <div class="showcase-tabs-row">
+      <div class="segmented showcase-tabs" id="code-tabs" role="tablist" aria-label="Code examples">
+        <div class="segmented-thumb" id="code-tabs-thumb" aria-hidden="true"></div>
+        {panes.map((ex, i) => (
           <button
+            type="button"
             class={`segmented-btn ${i === 0 ? 'active' : ''}`}
+            id={`code-tab-${ex.id}`}
             data-tab={ex.id}
             role="tab"
             aria-selected={i === 0 ? 'true' : 'false'}
+            aria-controls={`code-panel-${ex.id}`}
+            tabindex={i === 0 ? '0' : '-1'}
           >{ex.label}</button>
         ))}
       </div>
+      <p class="showcase-hint" aria-hidden="true">// {panes.length} examples · <kbd>←</kbd> <kbd>→</kbd> to switch</p>
     </div>
 
-    <div class="showcase-grid" data-reveal data-reveal-delay="180">
+    <div class="showcase-grid">
 
-      <!-- LEFT: code -->
-      <div class="showcase-code">
-        {examples.map((ex, i) => {
-          const ext = ex.filename.split('.').pop() ?? 'txt';
-          const lang = ext === 'k' || ext === 'kro' ? kairoLang : ext;
-          return (
-            <div
-              class={`code-panel ${i === 0 ? 'is-active' : ''}`}
-              data-panel={ex.id}
-              style={i !== 0 ? 'display:none;' : ''}
-            >
-              <div class="code-window">
-                <div class="code-window-bar">
-                  <div class="window-dots"><span></span><span></span><span></span></div>
-                  <span class="code-window-title">{ex.filename}</span>
-                  <span class="code-window-badge">{ext}</span>
+      <!-- LEFT: code panes -->
+      <div class="showcase-code" id="showcase-code">
+        {panes.map((ex, i) => (
+          <div
+            class="code-panel"
+            id={`code-panel-${ex.id}`}
+            data-panel={ex.id}
+            role="tabpanel"
+            aria-labelledby={`code-tab-${ex.id}`}
+            hidden={i !== 0}
+          >
+            <div class="ascii-frame ascii-frame--fill pane">
+              <span class="ascii-frame-title"><span class="pane-name glitch">{ex.filename}</span></span>
+              <span class="ascii-frame-meta">{ex.langName}</span>
+              <div class="pane-view">
+                <div class="pane-body" tabindex="0" aria-label={`${ex.filename} source`}>
+                  <div class="pane-code">
+                    <Code
+                      code={ex.code}
+                      lang={ex.lang}
+                      themes={{ dark: 'github-dark-default', light: 'github-light-default' }}
+                      defaultColor={false}
+                    />
+                  </div>
+                  <pre class="pane-tilde" aria-hidden="true">{TILDES}</pre>
                 </div>
-                <div class="showcase-body">
-                  <Code
-                    code={ex.code}
-                    lang={lang}
-                    themes={{ dark: 'github-dark-default', light: 'github-light-default' }}
-                    defaultColor={false}
-                  />
-                </div>
+                <span class="pane-scan" aria-hidden="true"></span>
+              </div>
+              <div class="pane-status" aria-hidden="true">
+                <span class="pane-mode">normal</span>
+                <span class="pane-file">"{ex.filename}" {ex.lines}L, {ex.bytes}B</span>
+                <span class="pane-right">{ex.langName} │ utf-8 │ ln 1</span>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
 
-      <!-- RIGHT: blurb -->
+      <!-- RIGHT: blurb trees -->
       <div class="showcase-blurbs">
-        {examples.map((ex, i) => (
-          <div class={`blurb-panel ${i === 0 ? 'is-active' : ''}`} data-blurb={ex.id} style={i !== 0 ? 'display:none;' : ''}>
-            <p class="blurb-heading">{ex.blurb.heading}</p>
-            <ul class="blurb-list">
+        {panes.map((ex, i) => (
+          <div class="blurb-panel" data-blurb={ex.id} hidden={i !== 0}>
+            <h3 class="blurb-heading">{ex.blurb.heading}</h3>
+            <ul class="blurb-tree">
               {ex.blurb.points.map(pt => (
                 <li>
-                  <span class="blurb-label">{pt.label}</span>
-                  <span class="blurb-body" set:html={pt.body.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+                  <span class="blurb-label" set:html={inlineCode(pt.label)} />
+                  <span class="blurb-body" set:html={inlineCode(pt.body)} />
                 </li>
               ))}
             </ul>
@@ -305,16 +346,32 @@ fn start_server(path: string) -> Config {
 
 <style>
   .showcase-section {
-    padding: clamp(5rem, 12vh, 9rem) 0;
+    padding: clamp(5rem, 12vh, 8.5rem) 0;
+    border-top: 1px solid var(--border);
     position: relative;
+    overflow: hidden;
   }
+  .showcase-inner {
+    position: relative;
+    z-index: 1;
+  }
+  /* solid backing for copy over the field (readability first) */
+  .showcase-head > *,
+  .showcase-hint,
+  .showcase-blurbs {
+    background-color: var(--bg);
+    box-shadow: 0 0 0 0.6rem var(--bg);
+  }
+  .showcase-head > * { width: fit-content; margin-inline: auto; }
+  .showcase-tabs { background-color: var(--bg); }
 
   .showcase-head {
     text-align: center;
-    margin-bottom: 2.5rem;
+    margin-bottom: 2.25rem;
   }
   .showcase-h2 {
-    font-size: clamp(1.9rem, 4vw, 3rem);
+    font-size: clamp(1.75rem, 3.8vw, 2.8rem);
+    margin: 0;
   }
   .showcase-h2 .dim {
     display: block;
@@ -323,120 +380,321 @@ fn start_server(path: string) -> Config {
 
   .showcase-tabs-row {
     display: flex;
-    justify-content: center;
-    margin-bottom: 2.5rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 2.25rem;
     max-width: 100%;
   }
+  .showcase-tabs { max-width: 100%; }
+  .showcase-hint {
+    margin: 0;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+  }
+  .showcase-hint kbd { font-size: 0.9em; color: var(--text-2); }
 
+  /* --sc-code: the code column's width while the pane is drag-resized; the
+     blurb column takes the rest and reflows live */
   .showcase-grid {
     display: grid;
-    grid-template-columns: 1.55fr 1fr;
-    gap: 3rem;
+    grid-template-columns: minmax(0, var(--sc-code, 1.6fr)) minmax(240px, 1fr);
+    gap: clamp(2rem, 4vw, 3.25rem);
     align-items: start;
   }
   .showcase-code { min-width: 0; }
 
   @media (max-width: 900px) {
-    .showcase-grid {
-      grid-template-columns: 1fr;
-      gap: 2rem;
-    }
+    .showcase-grid { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
     .showcase-head { text-align: left; }
-    .showcase-tabs-row { justify-content: flex-start; }
+    .showcase-head > * { margin-inline: 0; }
+    .showcase-tabs-row { align-items: flex-start; }
+    .showcase-hint { display: none; }
   }
 
-  /* Panel transitions */
-  .code-panel,
-  .blurb-panel {
-    opacity: 0;
-    transform: translateY(10px);
+  /* ── Code pane: ASCII frame + vim viewport ── */
+  .pane {
+    --frame-pad: 0;
+    padding-top: 0.6rem;
   }
-  .code-panel.is-active,
-  .blurb-panel.is-active {
-    opacity: 1;
-    transform: none;
-    transition:
-      opacity var(--dur-med) var(--ease),
-      transform var(--dur-med) var(--ease);
-  }
+  .pane-name { display: inline-block; }
 
-  .showcase-body {
-    overflow-x: auto;
+  .pane-view {
+    position: relative;
+    overflow: hidden;
+  }
+  .pane-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    height: var(--sc-pane-h, 540px);
+    overflow: auto;
     -webkit-overflow-scrolling: touch;
-    max-height: 560px;
-    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
   }
-  .showcase-body :global(pre.astro-code) {
+  .pane-body:focus-visible { outline-offset: -2px; }
+  .pane-code { flex-shrink: 0; min-width: 100%; }
+
+  .pane-code :global(pre.astro-code) {
     margin: 0 !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 1.4rem 1.6rem !important;
-    font-size: 0.84rem !important;
+    padding: 1.1rem 1.5rem 0 !important;
+    font-size: 0.82rem !important;
     line-height: 1.75 !important;
     font-family: var(--font-mono) !important;
     background: transparent !important;
     min-width: 0;
     width: max-content;
+    overflow: visible !important;
+  }
+  .pane-tilde {
+    flex: 1 0 0;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0 1.5rem 1.1rem;
+    border: 0;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.75;
+    color: var(--text-3);
+    opacity: 0.7;
+    user-select: none;
   }
 
-  /* Blurb */
-  .blurb-heading {
-    font-size: 1.05rem;
-    font-weight: 600;
-    letter-spacing: -0.015em;
-    color: var(--text);
-    margin: 0 0 1.5rem;
+  .pane-status {
+    display: flex;
+    align-items: center;
+    gap: 1.5ch;
+    border-top: 1px solid var(--frame-line);
+    background: var(--bg-3);
+    font-size: 0.68rem;
+    line-height: 1;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
   }
-  .blurb-list {
+  .pane-mode {
+    padding: 0.5rem 1ch;
+    background: var(--red);
+    color: var(--on-red);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .pane-file { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .pane-right { margin-left: auto; padding-right: 1ch; color: var(--text-3); }
+
+  @media (max-width: 900px) {
+    .pane-body { height: var(--sc-pane-h, 420px); }
+  }
+
+  /* soft wrap once the pane has been resized narrower than its code;
+     wrapped rows hang 2ch in so each source line still reads as one */
+  .showcase-code.is-wrapped .pane-code { width: 100%; min-width: 0; }
+  .showcase-code.is-wrapped .pane-code :global(pre.astro-code) {
+    width: auto;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+  }
+  .showcase-code.is-wrapped .pane-code :global(.line) {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
+    padding-left: 2ch;
+    text-indent: -2ch;
+  }
+  @media (max-width: 520px) {
+    .pane-right { display: none; }
+    .pane-code :global(pre.astro-code) { font-size: 0.76rem !important; padding: 1rem 1rem 0 !important; }
+    .pane-tilde { font-size: 0.76rem; padding: 0 1rem 1rem; }
+  }
+
+  /* ── Tab swap: stepped print-in + one scan line, then still ── */
+  .code-panel.is-swap .pane-view { animation: paneIn 220ms steps(8, end) both; }
+  .code-panel.is-swap .pane-scan { animation: paneScan 220ms steps(8, end) both; }
+  .blurb-panel.is-swap { animation: paneIn 200ms steps(6, end) 40ms both; }
+
+  .pane-scan {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent calc(100% - 28px),
+      color-mix(in srgb, var(--red) 9%, transparent) calc(100% - 2px),
+      var(--red) 0
+    );
+  }
+  @keyframes paneIn {
+    from { clip-path: inset(0 0 100% 0); }
+    to   { clip-path: inset(0 0 0 0); }
+  }
+  @keyframes paneScan {
+    0%   { opacity: 1; transform: translateY(-100%); }
+    99%  { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(0); }
+  }
+
+  /* ── Blurb: "├── label" tree ── */
+  .blurb-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin: 0.25rem 0 1.4rem;
+  }
+  .blurb-heading::before {
+    content: '▌';
+    content: '▌' / '';
+    color: var(--red);
+  }
+  .blurb-tree {
     list-style: none;
     padding: 0;
     margin: 0;
+    font-size: 0.84rem;
+  }
+  .blurb-tree li {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 1.4rem;
+    gap: 0.35rem;
+    padding: 0 0 1.25rem 4.2ch;
   }
-  .blurb-list li {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    padding-left: 1.1rem;
-    border-left: 2px solid var(--border);
-    transition: border-color var(--dur-med) var(--ease);
+  .blurb-tree li:last-child { padding-bottom: 0; }
+  .blurb-tree li::before {
+    content: '├──';
+    content: '├──' / '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    line-height: 1.45;
+    color: var(--text-3);
+    transition: color var(--dur-instant) steps(1, end);
   }
-  .blurb-list li:hover {
-    border-color: var(--accent);
+  .blurb-tree li:last-child::before { content: '└──'; content: '└──' / ''; }
+  /* continuous rail down the tree, under the ├ stroke */
+  .blurb-tree li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: calc(0.5ch - 0.5px);
+    top: 1.2em;
+    bottom: 0;
+    width: 1px;
+    background: var(--text-3);
+    opacity: 0.8;
   }
+  .blurb-tree li:hover::before { color: var(--accent); }
+
   .blurb-label {
-    font-size: 0.88rem;
     font-weight: 600;
+    line-height: 1.45;
     color: var(--text);
-    letter-spacing: -0.01em;
   }
   .blurb-body {
-    font-size: 0.86rem;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
     color: var(--text-2);
     line-height: 1.65;
   }
-  .blurb-body :global(code) {
+  .blurb-tree :global(code) {
     font-family: var(--font-mono);
-    font-size: 0.8em;
+    font-size: 0.86em;
     color: var(--text);
     background: var(--bg-3);
     border: 1px solid var(--border);
-    padding: 1px 5px;
-    border-radius: 5px;
+    padding: 0 0.4ch;
+    border-radius: 0;
   }
+  .blurb-label :global(code) { color: var(--accent); }
 </style>
 
 <script>
+  import { makeResizable } from '../../lib/ascii/resize';
+
+  /**
+   * The code column is resizable from its bottom-right corner / right and
+   * bottom edges: the grid's first track follows --sc-code (blurb column
+   * reflows live), every pane's viewport follows --sc-pane-h, and the code
+   * soft-wraps once narrower than its longest line. ≤900px (single column):
+   * height only.
+   */
+  function initPaneResize(root: HTMLElement) {
+    const col = root.querySelector<HTMLElement>('#showcase-code');
+    const grid = root.querySelector<HTMLElement>('.showcase-grid');
+    if (!col || !grid) return;
+    let chrome = 0, gap = 0, charW = 7.9, lineH = 23, padX = 0, bodyH = 0;
+    const visibleBody = () =>
+      col.querySelector<HTMLElement>('.code-panel:not([hidden]) .pane-body') ?? col.querySelector<HTMLElement>('.pane-body');
+
+    makeResizable(col, {
+      handles: ['se', 'e', 's'],
+      anchor: 'start',
+      label: 'the code pane',
+      axis: () => (window.innerWidth <= 900 ? 'y' : 'both'),
+      measure: () => {
+        const r = col.getBoundingClientRect();
+        const b = visibleBody();
+        bodyH = b ? b.getBoundingClientRect().height : 0;
+        chrome = r.height - bodyH;
+        gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+        const pre = b?.querySelector('pre');
+        if (pre) {
+          const cs = getComputedStyle(pre);
+          const fs = parseFloat(cs.fontSize) || 13;
+          charW = fs * 0.6;
+          lineH = parseFloat(cs.lineHeight) || fs * 1.75;
+          padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+        }
+        return r;
+      },
+      minWidth: 340,
+      maxWidth: () => grid.clientWidth - gap - 260,
+      minHeight: () => chrome + lineH * 7,
+      maxHeight: () => chrome + Math.max(540, window.innerHeight * 0.9),
+      apply(w, h, dw, dh) {
+        if (dw) {
+          col.classList.add('is-wrapped');
+          grid.style.setProperty('--sc-code', w + 'px');
+        }
+        if (dh) {
+          bodyH = Math.round(h - chrome);
+          root.style.setProperty('--sc-pane-h', bodyH + 'px');
+        }
+      },
+      reset() {
+        grid.style.removeProperty('--sc-code');
+        root.style.removeProperty('--sc-pane-h');
+        col.classList.remove('is-wrapped');
+      },
+      readout: (w) => {
+        const cols = Math.max(1, Math.floor((w - 2 - padX) / charW));
+        const rows = Math.max(1, Math.floor(bodyH / lineH));
+        return `${cols}×${rows}`;
+      },
+    });
+  }
+
   function initCodeTabs() {
+    const root = document.getElementById('code-showcase');
     const tabsContainer = document.getElementById('code-tabs');
     const thumb = document.getElementById('code-tabs-thumb');
-    if (!tabsContainer || !thumb) return;
+    if (!root || !tabsContainer || !thumb || root.dataset.init) return;
+    root.dataset.init = '1';
 
-    const buttons = Array.from(tabsContainer.querySelectorAll<HTMLElement>('.segmented-btn'));
-    const panels = document.querySelectorAll<HTMLElement>('.code-panel');
-    const blurbs = document.querySelectorAll<HTMLElement>('.blurb-panel');
+    const buttons = Array.from(tabsContainer.querySelectorAll<HTMLButtonElement>('.segmented-btn'));
+    const panels = Array.from(root.querySelectorAll<HTMLElement>('.code-panel'));
+    const blurbs = Array.from(root.querySelectorAll<HTMLElement>('.blurb-panel'));
 
     function moveThumb(btn: HTMLElement, animate = true) {
       if (!thumb) return;
@@ -449,49 +707,74 @@ fn start_server(path: string) -> Config {
       }
     }
 
-    function show(els: NodeListOf<HTMLElement>, attr: string, target: string | undefined) {
-      els.forEach(el => {
-        const isTarget = el.dataset[attr] === target;
-        if (isTarget) {
-          el.style.display = 'block';
-          el.classList.remove('is-active');
-          void el.offsetWidth;
-          el.classList.add('is-active');
+    function swapIn(el: HTMLElement) {
+      el.hidden = false;
+      el.classList.remove('is-swap');
+      void el.offsetWidth;
+      el.classList.add('is-swap');
+      el.addEventListener('animationend', () => el.classList.remove('is-swap'), { once: true });
+    }
+
+    function select(btn: HTMLButtonElement, focus = false) {
+      if (btn.classList.contains('active')) { if (focus) btn.focus(); return; }
+      const target = btn.dataset.tab;
+      buttons.forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        b.tabIndex = on ? 0 : -1;
+      });
+      if (focus) btn.focus({ preventScroll: true });
+      // keep the active tab visible inside the bar (never scrolls the page)
+      const c = tabsContainer!;
+      const left = btn.offsetLeft - (c.clientWidth - btn.offsetWidth) / 2;
+      c.scrollTo({ left: Math.max(0, left), behavior: 'auto' });
+      moveThumb(btn);
+
+      panels.forEach((p) => {
+        if (p.dataset.panel === target) {
+          swapIn(p);
+          const name = p.querySelector<HTMLElement>('.pane-name');
+          if (name) {
+            name.classList.remove('is-glitching');
+            void name.offsetWidth;
+            name.classList.add('is-glitching');
+            setTimeout(() => name.classList.remove('is-glitching'), 200);
+          }
         } else {
-          el.style.display = 'none';
-          el.classList.remove('is-active');
+          p.hidden = true;
+          p.classList.remove('is-swap');
         }
+      });
+      blurbs.forEach((b) => {
+        if (b.dataset.blurb === target) swapIn(b);
+        else { b.hidden = true; b.classList.remove('is-swap'); }
       });
     }
 
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const target = btn.dataset.tab;
-        buttons.forEach(b => {
-          b.classList.remove('active');
-          b.setAttribute('aria-selected', 'false');
-        });
-        btn.classList.add('active');
-        btn.setAttribute('aria-selected', 'true');
-        btn.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-        moveThumb(btn);
-        show(panels, 'panel', target);
-        show(blurbs, 'blurb', target);
+    buttons.forEach((btn, i) => {
+      btn.addEventListener('click', () => select(btn));
+      btn.addEventListener('keydown', (e) => {
+        let j = -1;
+        if (e.key === 'ArrowRight') j = (i + 1) % buttons.length;
+        else if (e.key === 'ArrowLeft') j = (i - 1 + buttons.length) % buttons.length;
+        else if (e.key === 'Home') j = 0;
+        else if (e.key === 'End') j = buttons.length - 1;
+        if (j < 0) return;
+        e.preventDefault();
+        select(buttons[j], true);
       });
     });
 
-    // Position thumb on the initial active tab (after fonts settle)
-    const active = buttons.find(b => b.classList.contains('active')) || buttons[0];
-    if (active) {
-      moveThumb(active, false);
-      if ('fonts' in document) {
-        (document as any).fonts.ready.then(() => moveThumb(active, false));
-      }
-    }
-    window.addEventListener('resize', () => {
-      const a = buttons.find(b => b.classList.contains('active'));
+    const placeThumb = () => {
+      const a = buttons.find((b) => b.classList.contains('active')) || buttons[0];
       if (a) moveThumb(a, false);
-    }, { passive: true });
+    };
+    placeThumb();
+    try { initPaneResize(root); } catch { /* resizing is a bonus */ }
+    if ('fonts' in document) (document as any).fonts.ready.then(placeThumb);
+    if ('ResizeObserver' in window) new ResizeObserver(placeThumb).observe(tabsContainer);
+    else window.addEventListener('resize', placeThumb, { passive: true });
   }
 
   initCodeTabs();

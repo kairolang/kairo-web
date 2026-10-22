@@ -4,67 +4,102 @@ const pathname = Astro.url.pathname;
 
 const links = [
   { href: '/', label: 'Home', active: pathname === '/' || pathname === '' },
-  { href: '/docs', label: 'Docs', active: pathname.startsWith('/docs') },
-  { href: '/blog', label: 'Blog', active: pathname.startsWith('/blog') },
-  { href: '/ksf', label: 'KSF', active: pathname === '/ksf' || pathname === '/ksf/' },
+  { href: '/docs/', label: 'Docs', active: pathname.startsWith('/docs') },
+  { href: '/blog/', label: 'Blog', active: pathname.startsWith('/blog') },
+  { href: '/ksf/', label: 'KSF', active: pathname === '/ksf' || pathname === '/ksf/' },
+  { href: '/contributors/', label: 'Contributors', active: pathname.startsWith('/contributors') },
 ];
+
+// Terminal prompt cwd: "/" → "~", "/docs/language/x" → "~/docs"
+const seg = pathname.split('/').filter(Boolean)[0];
+const cwd = seg ? `~/${seg.toLowerCase()}` : '~';
+// Longest cwd any nav route produces. The prompt reserves this width on
+// desktop; anything longer (e.g. a 404 at /some-long-path) is ellipsized.
+const LONGEST_CWD = links
+  .map(l => { const s = l.href.split('/').filter(Boolean)[0]; return s ? `~/${s.toLowerCase()}` : '~'; })
+  .reduce((a, b) => (b.length > a.length ? b : a), '~');
 ---
 
 <header class="site-header" id="site-header">
   <div class="header-inner container">
-    <!-- Logo -->
+    <!-- Logo + live prompt -->
     <a href="/" class="header-logo" aria-label="Kairo home">
-      <img src="/kairo-file-icon.svg" alt="" width="26" height="26" />
-      <span class="header-wordmark">kairo</span>
+      <img src="/kairo-file-icon.svg" alt="" width="22" height="22" />
+      <!-- .hp-sizer is invisible and reserves the width of the LONGEST prompt
+           (~/contributors) so the centered nav never shifts between pages; it
+           shares the live prompt's classes so the responsive hides apply to
+           both. .hp-live overlays it. -->
+      <span class="header-prompt" aria-hidden="true"><span class="hp-sizer"><span class="hp-user">kairo</span><span class="hp-at">@lang</span><span class="hp-sep">:</span><span class="hp-cwd">{LONGEST_CWD}</span><span class="hp-dollar">$</span><span class="hp-cursor-s">█</span></span><span class="hp-live"><span class="hp-user">kairo</span><span class="hp-at">@lang</span><span class="hp-sep">:</span><span class="hp-cwd">{cwd}</span><span class="hp-dollar">$</span><span class="hp-cursor">█</span></span></span>
     </a>
 
-    <!-- Desktop nav -->
+    <!-- Desktop nav: [home] [docs] [blog] [ksf] [contributors] -->
     <nav class="header-nav" aria-label="Primary">
       {links.map(l => (
-        <a href={l.href} class={`nav-link ${l.active ? 'active' : ''}`}>{l.label}</a>
+        <a
+          href={l.href}
+          class:list={['nav-link', { active: l.active }]}
+          aria-current={l.active ? 'page' : undefined}
+        >{l.label.toLowerCase()}</a>
       ))}
     </nav>
 
     <!-- Right cluster -->
     <div class="header-actions">
+      <span class="header-ruler tabular" data-scroll-ruler aria-hidden="true">TOP</span>
       <a
         href="https://github.com/kairolang/kairo"
         target="_blank"
         rel="noopener noreferrer"
-        class="header-icon-btn"
+        class="header-gh"
         aria-label="Kairo on GitHub"
+        data-scramble-hover
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
         </svg>
+        <span class="header-gh-label">github</span><span class="header-gh-arrow" aria-hidden="true" data-scramble-skip>↗</span>
       </a>
       <ThemeToggle />
-      <a href="/docs/install" class="btn-primary header-cta">Install</a>
+      <a href="/docs/install/" class="btn-primary header-cta">Install</a>
 
-      <!-- Hamburger (mobile) -->
-      <button id="hamburger" class="header-icon-btn hamburger-btn" aria-label="Open menu" aria-expanded="false">
-        <svg class="icon-menu" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-          <line x1="4" y1="8" x2="20" y2="8"/>
-          <line x1="4" y1="16" x2="20" y2="16"/>
-        </svg>
-        <svg class="icon-close" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="display:none;">
-          <path d="M18 6 6 18M6 6l12 12"/>
-        </svg>
+      <!-- Menu (mobile) -->
+      <button
+        id="hamburger"
+        class="header-menu-btn"
+        aria-label="Open menu"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+      >
+        <span class="hm-label hm-open" aria-hidden="true">menu</span>
+        <span class="hm-label hm-close" aria-hidden="true">^C</span>
       </button>
     </div>
   </div>
 
-  <!-- Mobile menu -->
+  <!-- Mobile drawer -->
   <div class="mobile-menu" id="mobile-menu">
-    {links.map(l => (
-      <a href={l.href} class="mobile-nav-link">{l.label}</a>
-    ))}
-    <a href="https://github.com/kairolang/kairo" class="mobile-nav-link" target="_blank" rel="noopener noreferrer">
-      GitHub
-      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:baseline;margin-left:4px;">
-        <path d="M7 17 17 7M7 7h10v10"/>
-      </svg>
-    </a>
+    <div class="container mobile-menu-inner">
+      <p class="mm-head" aria-hidden="true"><span class="dim">$</span> ls ~/</p>
+      <nav class="mm-nav" aria-label="Mobile">
+        {links.map((l, i) => (
+          <a
+            href={l.href}
+            class:list={['mobile-nav-link', { active: l.active }]}
+            aria-current={l.active ? 'page' : undefined}
+          >
+            <span class="mm-idx" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+            <span class="mm-label">{l.label.toLowerCase()}</span>
+          </a>
+        ))}
+        <a href="https://github.com/kairolang/kairo" class="mobile-nav-link" target="_blank" rel="noopener noreferrer">
+          <span class="mm-idx" aria-hidden="true">{String(links.length + 1).padStart(2, '0')}</span>
+          <span class="mm-label">github</span>
+          <span class="dim" aria-hidden="true">↗</span>
+        </a>
+      </nav>
+      <a href="/docs/install/" class="btn-primary mm-cta">Install Kairo</a>
+      <p class="mm-foot" aria-hidden="true"><span class="dim">exit</span> 0<span class="blink-cursor-glyph">█</span></p>
+    </div>
   </div>
 </header>
 
@@ -73,118 +108,212 @@ const links = [
     position: sticky;
     top: 0;
     z-index: 50;
-    background: transparent;
-    transition:
-      background var(--dur-med) var(--ease),
-      box-shadow var(--dur-med) var(--ease),
-      border-color var(--dur-med) var(--ease);
-    border-bottom: 1px solid transparent;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    view-transition-name: site-header;
+    font-family: var(--font-mono);
   }
-  .site-header.scrolled {
-    background: color-mix(in srgb, var(--bg) 72%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
-    border-bottom-color: var(--border);
-  }
+  .site-header.scrolled { border-bottom-color: var(--border-hi); }
 
+  /* prompt | nav (centered in the leftover gap) | right cluster */
   .header-inner {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    height: 60px;
-    gap: 1rem;
+    height: 52px;
+    gap: 1.25rem;
   }
+  .header-logo    { grid-column: 1; }
+  .header-nav     { grid-column: 2; justify-self: center; }
+  .header-actions { grid-column: 3; }
 
+  /* ── logo + prompt ── */
   .header-logo {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
     text-decoration: none;
     flex-shrink: 0;
+    min-width: 0;
   }
-  .header-logo img {
-    transition: transform var(--dur-med) var(--ease-spring);
-  }
-  .header-logo:hover img {
-    transform: rotate(-8deg) scale(1.06);
-  }
-  .header-wordmark {
-    font-weight: 600;
-    font-size: 1.06rem;
-    letter-spacing: -0.02em;
+  .header-logo img { flex-shrink: 0; }
+  .header-prompt {
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    white-space: nowrap;
     color: var(--text);
+    /* sizer stays in flow and sets the width; the live prompt overlays it */
+    position: relative;
+    display: inline-block;
   }
+  .hp-sizer { visibility: hidden; display: inline-block; }
+  .hp-cursor-s { display: inline-block; }
+  .hp-live {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow: hidden;
+  }
+  .hp-live > * { flex-shrink: 0; }
+  .hp-live > .hp-cwd {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hp-user { font-weight: 700; color: var(--text); }
+  .hp-at { color: var(--text-3); }
+  .hp-sep { color: var(--text-3); }
+  .hp-cwd { color: var(--accent); }
+  .hp-dollar { color: var(--text-3); margin-right: 0.5ch; }
+  /* RESTRAINT: the header is on every page, so its cursor blinks 3x on load
+     and then sits solid. It only blinks again while the logo is hovered. */
+  .hp-cursor { color: var(--red); animation: blink 1.06s steps(1, end) 3; }
+  :global([data-motion="calm"]) .hp-cursor { animation: none; }
+  .header-logo:hover .hp-user { color: var(--accent); }
+  .header-logo:hover .hp-cursor,
+  .header-logo:focus-visible .hp-cursor { animation: hpBlink 1.06s steps(1, end) infinite; }
+  @keyframes hpBlink { 50% { opacity: 0; } }
 
+  /* ── nav ── */
   .header-nav {
     display: flex;
     align-items: center;
     gap: 2px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
   }
 
+  /* ── right cluster ── */
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.9rem;
     flex-shrink: 0;
   }
 
-  .header-icon-btn {
+  .header-ruler {
+    font-size: 0.68rem;
+    color: var(--text-3);
+    letter-spacing: 0.06em;
+    min-width: 3ch;
+    text-align: right;
+    padding-right: 0.9rem;
+    border-right: 1px solid var(--border);
+  }
+
+  .header-gh {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: var(--r-pill);
+    gap: 0.6ch;
+    font-size: 0.76rem;
     color: var(--text-2);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+    text-decoration: none;
+    padding: 4px 2px;
   }
-  .header-icon-btn:hover {
-    color: var(--text);
-    background: color-mix(in srgb, var(--text) 7%, transparent);
-  }
+  .header-gh:hover { color: var(--accent); }
+  .header-gh-arrow { color: var(--text-3); }
+  .header-gh:hover .header-gh-arrow { color: var(--accent); }
 
   .header-cta {
-    font-size: 0.82rem;
-    padding: 7px 16px;
-    margin-left: 4px;
+    font-size: 0.72rem;
+    padding: 0.75em 0.9em;
   }
 
-  .hamburger-btn { display: none; }
+  /* ── menu button ── */
+  .header-menu-btn {
+    display: none;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--border-hi);
+    padding: 6px 8px;
+    border-radius: 0;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .header-menu-btn::before { content: '['; color: var(--text-3); }
+  .header-menu-btn::after  { content: ']'; color: var(--text-3); }
+  .header-menu-btn:hover { border-color: var(--red); color: var(--accent); }
+  .hm-label { display: inline-block; min-width: 4ch; text-align: center; }
+  .hm-close { display: none; }
+  .header-menu-btn[aria-expanded="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .header-menu-btn[aria-expanded="true"] .hm-open { display: none; }
+  .header-menu-btn[aria-expanded="true"] .hm-close { display: inline-block; }
 
-  /* The header needs relative positioning for the centered nav */
-  .header-inner { position: relative; }
-
-  /* Mobile menu */
+  /* ── mobile drawer ── */
   .mobile-menu {
     display: none;
-    flex-direction: column;
-    background: color-mix(in srgb, var(--bg) 85%, transparent);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
-    border-bottom: 1px solid var(--border);
-    padding: 0.5rem 1.5rem 1rem;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border-hi);
+    max-height: calc(100dvh - 52px);
+    overflow-y: auto;
   }
   .mobile-menu.open {
-    display: flex;
-    animation: fadeUp 0.35s var(--ease-out) both;
+    display: block;
+    animation: printIn 220ms steps(6, end) both;
   }
+  .mobile-menu-inner {
+    padding-top: 1rem;
+    padding-bottom: 1.25rem;
+    border-left: 1px dashed var(--border-hi);
+    margin-top: 0;
+  }
+  .mm-head, .mm-foot {
+    font-size: 0.74rem;
+    color: var(--text-2);
+    letter-spacing: 0.02em;
+  }
+  .mm-head { margin-bottom: 0.5rem; }
+  .mm-foot { margin-top: 1rem; }
+  .mm-nav { display: flex; flex-direction: column; }
+  .mm-idx { color: var(--text-3); font-size: 0.7rem; min-width: 2ch; }
+  .mm-cta { margin-top: 1rem; width: 100%; }
 
-  @media (max-width: 820px) {
+  /* ── responsive ── */
+  @media (max-width: 1180px) {
+    .hp-at { display: none; }
+    .header-ruler { display: none; }
+  }
+  @media (max-width: 1040px) {
+    .header-gh-label, .header-gh-arrow { display: none; }
+  }
+  @media (max-width: 900px) {
     .header-nav { display: none; }
-    .hamburger-btn { display: inline-flex; }
+    .header-gh { display: none; }
+    .header-menu-btn { display: inline-flex; }
+    /* original flex row (no empty middle grid track adding a second gap) */
+    .header-inner { display: flex; }
+    .header-actions { margin-left: auto; }
+    /* nav is hidden here, so no width reservation: the prompt is just its
+       own text again (mobile layout unchanged) */
+    .hp-sizer { display: none; }
+    .hp-live { position: static; display: inline; }
+  }
+  @media (max-width: 520px) {
     .header-cta { display: none; }
+    .header-inner { gap: 0.75rem; }
+    .header-actions { gap: 0.6rem; }
+  }
+  @media (max-width: 380px) {
+    .hp-sep, .hp-cwd { display: none; }
+  }
+  @media (min-width: 901px) {
+    .mobile-menu, .mobile-menu.open { display: none; }
   }
 </style>
 
 <script>
   function initHeader() {
     const header = document.getElementById('site-header');
+    if (!header || header.dataset.init) return;
+    header.dataset.init = '1';
     const hamburger = document.getElementById('hamburger');
     const mobileMenu = document.getElementById('mobile-menu');
 
@@ -200,14 +329,20 @@ const links = [
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
 
-    hamburger?.addEventListener('click', () => {
-      const open = mobileMenu?.classList.toggle('open');
-      hamburger.setAttribute('aria-expanded', String(!!open));
-      const menuIcon = hamburger.querySelector('.icon-menu') as HTMLElement | null;
-      const closeIcon = hamburger.querySelector('.icon-close') as HTMLElement | null;
-      if (menuIcon) menuIcon.style.display = open ? 'none' : 'block';
-      if (closeIcon) closeIcon.style.display = open ? 'block' : 'none';
-      if (open) header?.classList.add('scrolled');
+    function setOpen(open: boolean) {
+      mobileMenu?.classList.toggle('open', open);
+      hamburger?.setAttribute('aria-expanded', String(open));
+      hamburger?.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    }
+    hamburger?.addEventListener('click', () => setOpen(!mobileMenu?.classList.contains('open')));
+    mobileMenu?.addEventListener('click', (e) => {
+      if ((e.target as Element).closest('a')) setOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mobileMenu?.classList.contains('open')) {
+        setOpen(false);
+        hamburger?.focus();
+      }
     });
   }
 

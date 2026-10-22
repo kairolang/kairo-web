@@ -1,0 +1,115 @@
+{
+  "org": "kairolang",
+  "generated_at": "2026-10-22T05:55:30.537Z",
+  "repos": [
+    ".github",
+    "kairo",
+    "kairo-lsp",
+    "kairo-std",
+    "kairo-sysroots",
+    "kairo-web",
+    "lib-helix"
+  ],
+  "contributors": [
+    {
+      "login": "Ze7111",
+      "avatar_url": "https://avatars.githubusercontent.com/u/68388561?v=4",
+      "html_url": "https://github.com/Ze7111",
+      "contributions": 1628,
+      "repos": [
+        {
+          "name": "kairo",
+          "contributions": 1269
+        },
+        {
+          "name": "lib-helix",
+          "contributions": 227
+        },
+        {
+          "name": "kairo-web",
+          "contributions": 69
+        },
+        {
+          "name": "kairo-lsp",
+          "contributions": 36
+        },
+        {
+          "name": "kairo-std",
+          "contributions": 15
+        },
+        {
+          "name": "kairo-sysroots",
+          "contributions": 10
+        },
+        {
+          "name": ".github",
+          "contributions": 2
+        }
+      ]
+    },
+    {
+      "login": "OjasTalgaonkar",
+      "avatar_url": "https://avatars.githubusercontent.com/u/98263229?v=4",
+      "html_url": "https://github.com/OjasTalgaonkar",
+      "contributions": 121,
+      "repos": [
+        {
+          "name": "kairo",
+          "contributions": 120
+        },
+        {
+          "name": "kairo-web",
+          "contributions": 1
+        }
+      ]
+    },
+    {
+      "login": "mbambav",
+      "avatar_url": "https://avatars.githubusercontent.com/u/145611459?v=4",
+      "html_url": "https://github.com/mbambav",
+      "contributions": 22,
+      "repos": [
+        {
+          "name": "kairo-lsp",
+          "contributions": 13
+        },
+        {
+          "name": "kairo",
+          "contributions": 9
+        }
+      ]
+    },
+    {
+      "login": "jrcarl624",
+      "avatar_url": "https://avatars.githubusercontent.com/u/61999256?v=4",
+      "html_url": "https://github.com/jrcarl624",
+      "contributions": 5,
+      "repos": [
+        {
+          "name": "kairo-lsp",
+          "contributions": 2
+        },
+        {
+          "name": "lib-helix",
+          "contributions": 2
+        },
+        {
+          "name": "kairo",
+          "contributions": 1
+        }
+      ]
+    },
+    {
+      "login": "Mubelotix",
+      "avatar_url": "https://avatars.githubusercontent.com/u/42696684?v=4",
+      "html_url": "https://github.com/Mubelotix",
+      "contributions": 1,
+      "repos": [
+        {
+          "name": "kairo",
+          "contributions": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,40 +1,42 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import AsciiArt from '../components/ascii/AsciiArt.astro';
+import AsciiFrame from '../components/ascii/AsciiFrame.astro';
+import AsciiButton from '../components/ascii/AsciiButton.astro';
 ---
-<BaseLayout title="404 - Kairo" description="Page not found.">
-  <section class="nf-section">
-    <div class="ambient nf-ambient" aria-hidden="true"></div>
-    <div class="grid-texture" aria-hidden="true"></div>
+<BaseLayout title="Page Not Found" description="This page does not exist. Browse the Kairo programming language docs and blog, or head back to the homepage." noindex>
+  <!-- single screen: not a scroll detent -->
+  <section class="nf-section" id="nf" data-snap="off">
+    <!-- Glyph rain that collapses into a rubble heap once, then settles. -->
+    <div class="ascii-field nf-field" id="nf-field" aria-hidden="true"></div>
 
     <div class="container nf-inner">
-      <div class="nf-code fade-up" style="--d: 0ms;">404</div>
+      <h1 class="nf-h1">
+        <span class="sr-only">404: </span>
+        <!-- lens text: shade-in sweep once, then the hover lens (no print-in / glitch on top) -->
+        <span class="nf-art" id="nf-art">
+          <AsciiArt as="span" text="404" max={40} align="center" />
+        </span>
+        <span class="display nf-title pop-in" style="--d: 160ms;">This page doesn't exist in any timeline.</span>
+      </h1>
 
-      <h1 class="display nf-title fade-up" style="--d: 120ms;">This page doesn't exist in any timeline.</h1>
-
-      <p class="nf-sub fade-up" style="--d: 220ms;">
+      <p class="nf-sub sans pop-in" style="--d: 220ms;">
         The page you're looking for has been moved, deleted,
         or may have never existed. Check the URL and try again.
       </p>
 
-      <!-- Error readout -->
-      <div class="code-window nf-error fade-up" style="--d: 320ms;">
-        <div class="code-window-bar">
-          <div class="window-dots"><span></span><span></span><span></span></div>
-          <span class="code-window-title">kairo</span>
+      <!-- Error readout (typed out once per session) -->
+      <AsciiFrame title="kairo" meta="exit 404" variant="fill" class="nf-error pop-in" style="--d: 260ms;" data-resize-anchor="center" data-resize-min="240">
+        <div class="nf-error-body" id="nf-error">
+          <div class="nf-line"><span class="nf-err">error</span><span class="nf-err-code">[E404]</span>: page not found</div>
+          <div class="nf-line"><span class="nf-dim">  --&gt; </span><span id="current-path" class="nf-path">/unknown</span></div>
+          <div class="nf-line"><span class="nf-hint">hint</span>: try <a href="/">/</a> or <a href="/docs/">/docs</a><span class="nf-cursor" aria-hidden="true">█</span></div>
         </div>
-        <div class="nf-error-body">
-          <span class="nf-err">error</span><span class="nf-err-code">[E404]</span>: page not found<br>
-          <span class="nf-dim">  --&gt; </span><span id="current-path" class="nf-path">/unknown</span><br>
-          <span class="nf-dim">hint</span>: try <a href="/">/</a> or <a href="/docs">/docs</a>
-        </div>
-      </div>
+      </AsciiFrame>
 
-      <div class="nf-actions fade-up" style="--d: 420ms;">
-        <a href="/" class="btn-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          Go Home
-        </a>
-        <a href="/docs" class="btn-outline">View Docs</a>
+      <div class="nf-actions pop-in" style="--d: 320ms;">
+        <AsciiButton href="/" label="Go home" />
+        <AsciiButton href="/docs/" label="View docs" variant="ghost" />
       </div>
     </div>
   </section>
@@ -48,77 +50,104 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     justify-content: center;
     position: relative;
     overflow: hidden;
-    padding: 4rem 0;
+    padding: clamp(3rem, 8vh, 5rem) 0;
   }
-  .nf-ambient {
-    width: 700px;
-    height: 460px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
+  .nf-field {
+    opacity: 0.4;
+    /* keep the glyphs away from the copy: clear in the middle, rubble at the edges */
+    -webkit-mask-image: radial-gradient(ellipse 66% 64% at 50% 44%, transparent 0 52%, #000 100%);
+    mask-image: radial-gradient(ellipse 66% 64% at 50% 44%, transparent 0 52%, #000 100%);
   }
+  :global([data-theme="light"]) .nf-field { opacity: 0.32; }
 
   .nf-inner {
     position: relative;
     z-index: 1;
+    width: 100%;
+    max-width: 680px;
     text-align: center;
-    max-width: 620px;
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
-  .nf-code {
-    font-size: clamp(7rem, 18vw, 12rem);
-    font-weight: 650;
-    line-height: 1;
-    letter-spacing: -0.05em;
-    background: linear-gradient(180deg, var(--red-hi) 0%, var(--red) 45%, var(--red-lo) 110%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    margin-bottom: 1.25rem;
-    font-variant-numeric: tabular-nums;
+  .nf-h1 {
+    display: block;
+    width: 100%;
+    margin: 0 0 1rem;
   }
-
+  .nf-art {
+    display: block;
+    width: 100%;
+    margin-bottom: 1.5rem;
+    cursor: default;
+  }
+  .nf-art :global(.ascii-fit) { display: block; width: 100%; }
   .nf-title {
-    font-size: clamp(1.3rem, 3vw, 1.8rem);
-    margin-bottom: 1rem;
+    display: block;
+    font-size: clamp(1.2rem, 3vw, 1.7rem);
   }
 
   .nf-sub {
     font-size: 1rem;
     color: var(--text-2);
     line-height: 1.7;
-    margin-bottom: 2.25rem;
+    margin: 0 0 2.25rem;
+    max-width: 520px;
     text-wrap: balance;
   }
 
   .nf-error {
+    --frame-pad: 1.1rem 1.25rem 0.95rem;
     width: 100%;
-    max-width: 460px;
+    max-width: 480px;
     margin-bottom: 2.25rem;
     text-align: left;
   }
   .nf-error-body {
-    padding: 14px 18px;
     font-family: var(--font-mono);
     font-size: 0.8rem;
     line-height: 1.8;
-    color: var(--text-3);
+    color: var(--text-2);
+  }
+  .nf-line {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .nf-err { color: var(--accent); font-weight: 600; }
-  .nf-err-code { color: var(--text-2); }
+  .nf-err-code { color: var(--text); }
   .nf-dim { color: var(--text-3); }
-  .nf-path { color: var(--text-2); }
+  .nf-hint { color: var(--text); font-weight: 500; }
+  .nf-path { color: var(--text); }
   .nf-error-body a {
     color: var(--accent);
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    text-underline-offset: 3px;
+    padding: 0 0.2ch;
   }
-  .nf-error-body a:hover { text-decoration: underline; }
+  .nf-error-body a:hover,
+  .nf-error-body a:focus-visible { background: var(--accent); color: var(--on-red); text-decoration: none; }
 
+  .nf-cursor {
+    color: var(--red);
+    margin-left: 0.3ch;
+    animation: blink 1.06s steps(1, end) 3;
+  }
+
+  /* typed-out readout: each line is unclipped in one step per character */
+  .nf-typing .nf-line {
+    clip-path: inset(0 100% 0 0);
+    animation: nfType calc(var(--n, 20) * 12ms) steps(var(--n, 20), end) var(--ld, 0ms) forwards;
+  }
+  .nf-typing .nf-cursor { animation: none; visibility: hidden; }
+  @keyframes nfType { to { clip-path: inset(0 0 0 0); } }
+
+  .nf-actions :global(.ascii-btn--ghost) { --btn-bg: var(--bg); }
   .nf-actions {
     display: flex;
     align-items: center;
@@ -126,10 +155,112 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     gap: 0.85rem;
     flex-wrap: wrap;
   }
-  .nf-actions a { text-decoration: none; }
+
+  @media (max-width: 480px) {
+    .nf-error { --frame-pad: 1.05rem 0.9rem 0.85rem; }
+    .nf-error-body { font-size: 0.74rem; }
+  }
 </style>
 
 <script>
-  const el = document.getElementById('current-path');
-  if (el) el.textContent = window.location.pathname;
+  import { createField, rand1, noise2, type FieldFn } from '../lib/ascii/field';
+  import { stillPage, seenThisSession } from '../lib/ascii/motion';
+
+  /** Seconds until every column has collapsed into its heap. */
+  const SETTLE = 2.4;
+
+  /**
+   * "Collapse": each column drops a few accelerating glyph streaks, then
+   * piles rubble at the bottom (and a thinner ledge at the top). Stateless
+   * per cell; rubble glyphs are hashed per cell (no flicker once landed).
+   * Any t >= SETTLE renders the final, still heap.
+   */
+  const collapse: FieldFn = (x, y, t, _p, e) => {
+    const c = Math.floor(x / e.cellW);
+    const r = Math.floor(y / e.cellH);
+    const rows = e.rows;
+    const edge = Math.abs(x / e.w - 0.5) * 2; // 0 centre → 1 edges
+    const finalH = Math.max(1, Math.round(rows * (0.04 + 0.11 * noise2(c * 0.09, 4.2) + 0.09 * edge * edge) + rand1(c) * 2));
+    const t0 = rand1(c + 401) * 0.5;
+    const dur = 1.2 + rand1(c + 77) * 0.7;
+    const k = Math.min(1, Math.max(0, (t - t0) / dur));
+    const h = Math.round(finalH * (1 - (1 - k) * (1 - k))); // ease-out growth
+    const fromBottom = rows - 1 - r;
+
+    if (fromBottom < h) {
+      const depth = fromBottom / Math.max(1, finalH);
+      const grain = rand1(c * 131 + r * 7919);
+      // brighter crust at the surface, darker deep inside
+      const surface = fromBottom >= h - 1 ? 0.25 : 0;
+      return Math.min(0.98, 0.18 + grain * 0.42 * (0.5 + depth) + surface);
+    }
+    if (t >= SETTLE || k >= 1) return 0;
+
+    // falling streak: gravity from the top edge to the heap surface
+    const span = rows - h;
+    const period = 0.75 + rand1(c + 13) * 0.4;
+    const ph = rand1(c + 999);
+    const u = ((t + ph * period) % period) / period; // 0..1
+    const head = u * u * span; // accelerating
+    const d = head - r;
+    if (d < 0 || d > 5) return 0;
+    return (1 - d / 5) * (0.55 + rand1(c + 31) * 0.4);
+  };
+
+  function initNotFound() {
+    const root = document.getElementById('nf');
+    if (!root || root.dataset.init) return;
+    root.dataset.init = '1';
+
+    // path in the readout
+    const pathEl = document.getElementById('current-path');
+    if (pathEl) {
+      let p = window.location.pathname;
+      try { p = decodeURI(p); } catch (_) { /* keep raw */ }
+      pathEl.textContent = p;
+    }
+
+    const still = stillPage();
+    const repeat = seenThisSession('404:' + window.location.pathname);
+
+    // field: animate the collapse once, then hold the final frame
+    const host = document.getElementById('nf-field');
+    if (host) {
+      const animate = !still && !repeat;
+      const field = createField(host, {
+        fn: collapse,
+        size: 14,
+        fps: animate ? 24 : 0,
+        pointer: false,
+        stillTime: SETTLE + 1,
+      });
+      if (animate) {
+        field.start();
+        window.setTimeout(() => { field.stop(); field.renderOnce(SETTLE + 1); }, (SETTLE + 0.2) * 1000);
+      }
+    }
+
+    // readout: type each line out, one step per character
+    const body = document.getElementById('nf-error');
+    if (body && !still && !repeat) {
+      const lines = Array.from(body.querySelectorAll<HTMLElement>('.nf-line'));
+      let at = 280;
+      for (const line of lines) {
+        const n = Math.max(1, (line.textContent || '').replace('█', '').length);
+        line.style.setProperty('--n', String(n));
+        line.style.setProperty('--ld', at + 'ms');
+        at += n * 12 + 60;
+      }
+      body.classList.add('nf-typing');
+      const last = lines[lines.length - 1];
+      const finish = () => body.classList.remove('nf-typing');
+      last?.addEventListener('animationend', finish, { once: true });
+      window.setTimeout(finish, at + 400); // failsafe
+    }
+
+    // art: the rect lens (AsciiArt) is its one motion; no glitch burst on top
+  }
+
+  initNotFound();
+  document.addEventListener('astro:page-load', initNotFound);
 </script>

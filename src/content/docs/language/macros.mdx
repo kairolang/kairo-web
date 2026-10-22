@@ -10,7 +10,7 @@ Macros in Kairo are token-level substitutions they operate on raw tokens before 
 C/C++ `#define` but with scoping and balanced-delimiter requirements. Macros are identified by the `!`
 suffix on their name.
 
-For AST-level transformations with type awareness, see [Attributes](/docs/language/attributes).
+For AST-level transformations with type awareness, see [Attributes](/docs/language/attributes/).
 
 ---
 
@@ -287,11 +287,11 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 
 | Macro | Description | Details |
 |---|---|---|
-| `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow#jumps) |
-| `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow#jumps) |
-| `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe#forget) |
-| `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/variables#force-unwrap) |
-| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence) |
+| `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow/#jumps) |
+| `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow/#jumps) |
+| `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe/#forget) |
+| `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/variables/#force-unwrap) |
+| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence/) |
 
 These use macro syntax (`name!`) to make their usage explicit and searchable in a codebase, but
 they are not user-definable they are built into the compiler.
@@ -335,7 +335,7 @@ priv macro INTERNAL_FLAG! { true }     // file-scoped
 Use macros for simple substitutions, constants, and conditional compilation. Use attributes for
 code transformations that need type information or structural awareness.
 
-See [Attributes](/docs/language/attributes) for the AST-level transformation system.
+See [Attributes](/docs/language/attributes/) for the AST-level transformation system.
 
 ---
 

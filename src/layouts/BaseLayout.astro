@@ -1,6 +1,9 @@
 ---
 import '../styles/global.css';
+import { getCollection } from 'astro:content';
 import Seo from '../components/Seo.astro';
+import { absUrl, bareTitle, fitDescription, formatTitle, ogImageFor } from '../lib/seo';
+import { lastmodFor } from '../lib/lastmod.mjs';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 
@@ -23,8 +26,8 @@ interface Props {
 
 const {
   title,
-  description = 'Kairo is a modern systems programming language. The Language Beyond C++.',
-  ogImage = '/kairo-logo.svg',
+  description,
+  ogImage,
   canonical,
   type = 'page',
   ogType = 'website',
@@ -36,56 +39,92 @@ const {
   noindex = false,
 } = Astro.props;
 
-const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
+// ── SEO: pages pass a short title; the document title, description, OG card,
+// canonical and dateModified are derived here (conventions in lib/seo.ts).
+const pathname = Astro.url.pathname;
+let pageName = bareTitle(title);
+if (type === 'docs') {
+  // Overloaded API pages share a title ("Frame::Frame (Constructor)" ×4):
+  // disambiguate with the overload number from the URL so titles stay unique.
+  const docs = await getCollection('docs');
+  if (docs.filter(d => d.data.title === pageName).length > 1) {
+    const seg = decodeURIComponent(pathname.replace(/\/+$/, '').split('/').pop() ?? '');
+    const n = seg.match(/-(\d+)$/)?.[1];
+    pageName = n ? `${pageName} #${n}` : `${pageName} (${seg})`;
+  }
+}
+const fullTitle = formatTitle(pageName, type, pathname);
+const metaDescription = fitDescription(description, pageName, type);
+const canonicalURL = canonical ?? absUrl(pathname);
+const ogImageURL = ogImage ?? ogImageFor(pathname, type);
+const modified = modDate ?? lastmodFor(pathname);
+
+// RESTRAINT: docs + blog posts are "calm" pages: no scroll reveals, decodes,
+// typewriters, counters or fields (they resolve to their final state), no CRT
+// texture, and a plain quick crossfade between pages. See DESIGN.md.
+const calm = type === 'docs' || type === 'blog';
+// Docs are excluded from the two "playful" page behaviours: section scroll
+// detents (html[data-scroll-snap]) and drag-to-resize boxes (data-resize="off").
+const isDocs = type === 'docs' || /^\/docs(\/|$)/.test(pathname);
 ---
 <!DOCTYPE html>
-<html lang="en">
+<html
+  lang="en"
+  data-motion={calm ? 'calm' : undefined}
+  data-scroll-snap={isDocs ? undefined : ''}
+  data-resize={isDocs ? 'off' : undefined}
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <Seo
-      title={title}
-      description={description}
+      title={fullTitle}
+      headline={pageName}
+      description={metaDescription}
       canonicalURL={canonicalURL}
-      ogImage={ogImage}
+      ogImage={ogImageURL}
       ogType={ogType}
       type={type}
       pubDate={pubDate}
-      modDate={modDate}
+      modDate={modified}
       author={author}
       tags={tags}
       breadcrumbs={breadcrumbs}
       noindex={noindex}
     />
 
-    <link rel="icon" href="/kairo-file-icon.svg" type="image/svg+xml" />
-
     <!-- Self-hosted variable fonts -->
     <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin />
 
-    <title>{title}</title>
+    <title>{fullTitle}</title>
 
     <!-- Critical paint: correct background before the stylesheet arrives.
          Without this the browser may flash its default white (or unstyled
          dark) for a frame on navigation, depending on cache timing. -->
     <style is:inline>
-      html { background-color: #08080a; color-scheme: dark; }
-      html[data-theme="light"] { background-color: #fafafa; color-scheme: light; }
+      html { background-color: #08080a; color: #f5f5f7; color-scheme: dark; }
+      html[data-theme="light"] { background-color: #fafafa; color: #1d1d1f; color-scheme: light; }
     </style>
 
-    <!-- Theme detection - runs before render to avoid flash -->
+    <!-- Theme detection - runs before render to avoid flash.
+         Also flags JS (html.js) so reveal/scramble pre-states only apply
+         when scripts run; a failsafe drops the flag if the ASCII runtime
+         never boots (network error etc.) so content can't stay hidden. -->
     <script is:inline>
       (function () {
+        var d = document.documentElement;
         try {
           const stored = localStorage.getItem('theme');
           if (stored === 'light') {
-            document.documentElement.setAttribute('data-theme', 'light');
+            d.setAttribute('data-theme', 'light');
           } else {
-            document.documentElement.removeAttribute('data-theme');
+            d.removeAttribute('data-theme');
           }
         } catch (_) {}
+        d.classList.add('js');
+        setTimeout(function () { if (!window.__asciiReady) d.classList.remove('js'); }, 3500);
       })();
     </script>
   </head>
@@ -94,78 +133,32 @@ const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
     <Header />
     <slot />
     <Footer />
-    <script is:inline>
-      // Cursor-following red glow on every button
-      (function() {
-        var SEL = 'button, [role="button"], .btn-primary, .btn-outline, [class*="-btn"], .sidebar-link, .toc-link, .docs-nav-card, .breadcrumb-link, .docs-footer-link, .nav-link';
-        document.addEventListener('pointermove', function(e) {
-          var el = e.target.closest && e.target.closest(SEL);
-          if (!el) return;
-          var r = el.getBoundingClientRect();
-          el.style.setProperty('--glow-x', (e.clientX - r.left) + 'px');
-          el.style.setProperty('--glow-y', (e.clientY - r.top) + 'px');
-          el.classList.add('cursor-glow');
-        }, { passive: true });
-      })();
-    </script>
-    <script is:inline>
-      // Scroll progress bar: scales 0 → 1 across the page scroll
-      (function() {
-        var bar = document.getElementById('scroll-progress');
-        if (!bar) return;
-        var ticking = false;
-        function update() {
-          var max = document.documentElement.scrollHeight - window.innerHeight;
-          var p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
-          bar.style.transform = 'scaleX(' + p + ')';
-          ticking = false;
-        }
-        function request() {
-          if (!ticking) { ticking = true; requestAnimationFrame(update); }
-        }
-        window.addEventListener('scroll', request, { passive: true });
-        window.addEventListener('resize', request);
-        update();
-      })();
-    </script>
-    <script is:inline>
-      // Scroll reveal observer — handles single reveals and staggered groups
-      (function() {
-        var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    {!calm && <div class="crt-overlay" aria-hidden="true"></div>}
+    <script>
+      // KAIRO // ASCII runtime: print-reveals, scramble, typewriter,
+      // counters, glyph fields, scroll progress + ruler.
+      // (The cursor glyph trail is OFF site-wide per the restraint rules;
+      //  initCursorTrail() only runs on a <body data-trail> opt-in.)
+      import { initAscii } from '../lib/ascii';
+      import { initScrollProgress } from '../lib/ascii/chrome';
+      import { bindResizable } from '../lib/ascii/resize';
 
-        var observer = new IntersectionObserver(function(entries) {
-          entries.forEach(function(e) {
-            if (!e.isIntersecting) return;
-            var el = e.target;
+      // drag grips on every ASCII box (no-op on docs). Deferred to idle so
+      // it never competes with the entrance; components that bind their own
+      // boxes (hero, showcase) have run by then and are left alone.
+      function initResize() {
+        const run = () => { try { bindResizable(); } catch { /* resizing is a bonus */ } };
+        if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 900 });
+        else setTimeout(run, 300);
+      }
 
-            if (el.hasAttribute('data-reveal-stagger')) {
-              var step = +(el.dataset.staggerStep || 70);
-              Array.prototype.forEach.call(el.children, function(child, i) {
-                child.style.setProperty('--reveal-delay', (i * step) + 'ms');
-              });
-            }
-
-            var delay = el.dataset.revealDelay || 0;
-            if (delay) el.style.setProperty('--reveal-delay', delay + 'ms');
-
-            el.classList.add('revealed');
-            observer.unobserve(el);
-          });
-        }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
-
-        function scan() {
-          if (reduced) {
-            document.querySelectorAll('[data-reveal]:not(.revealed), [data-reveal-stagger]:not(.revealed)')
-              .forEach(function(el) { el.classList.add('revealed'); });
-            return;
-          }
-          document.querySelectorAll('[data-reveal]:not(.revealed), [data-reveal-stagger]:not(.revealed)')
-            .forEach(function(el) { observer.observe(el); });
-        }
-
-        scan();
-        document.addEventListener('astro:page-load', scan);
-      })();
+      function initBase() {
+        initAscii();
+        initScrollProgress();
+        initResize();
+      }
+      initBase();
+      document.addEventListener('astro:page-load', initBase);
     </script>
   </body>
 </html>

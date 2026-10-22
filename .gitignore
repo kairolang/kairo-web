@@ -73,3 +73,5 @@ pnpm-debug.log*
 bun.lock
 .private/
 .private
+
+.build-*

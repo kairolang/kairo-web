@@ -11,7 +11,7 @@ C++'s `static_cast`, `dynamic_cast`, `reinterpret_cast`, and `const_cast` `as` h
 categories, with safety determined by the source and target types.
 
 For implicit conversions (numeric widening, `T` to `T?`, derived-to-base pointers), see
-[Type System](/docs/language/type-system#implicit-conversions).
+[Type System](/docs/language/type-system/#implicit-conversions).
 
 ---
 
@@ -127,7 +127,7 @@ Casting to `unsafe *T` reinterprets the pointer with no type checking equivalent
 `reinterpret_cast`. The compiler performs no validation.
 
 Casting a safe pointer to a raw pointer `*T as unsafe *U` requires an
-[`unsafe` block](/docs/language/unsafe#unsafe-blocks). This is the point where Tether loses provenance:
+[`unsafe` block](/docs/language/unsafe/#unsafe-blocks). This is the point where Tether loses provenance:
 after the cast the compiler can no longer relate the pointer to the allocation it came from, so the
 loss is made visible at the source:
 
@@ -176,7 +176,7 @@ The second cast is an ordinary [numeric narrowing](#narrowing-truncation) and re
 
 Casting an integer to a pointer fabricates a pointer from a numeric address. The result must be an
 `unsafe` pointer safe pointers require provenance tracking that an integer cannot provide and the
-cast requires an [`unsafe` block](/docs/language/unsafe#unsafe-blocks). The integer carries no
+cast requires an [`unsafe` block](/docs/language/unsafe/#unsafe-blocks). The integer carries no
 provenance, so the cast invents one that Tether has no way to verify:
 
 ```kairo
@@ -214,8 +214,8 @@ The two error rows are deliberate refusals rather than warnings. `ptr as u8` has
 all a safe pointer's guarantees cannot be reconstructed from a number.
 
 `unsafe` blocks appear on exactly the rows where Tether stops being able to reason about the pointer.
-See [Unsafe](/docs/language/unsafe#the-safety-boundary) for the boundary model and
-[Tether](/docs/language/tether) for what provenance tracking buys.
+See [Unsafe](/docs/language/unsafe/#the-safety-boundary) for the boundary model and
+[Tether](/docs/language/tether/) for what provenance tracking buys.
 
 ---
 
@@ -300,7 +300,7 @@ var n = count ?? 0            // explicit: absent means zero
 var m = unwrap!(count)        // explicit: absent is a bug, panic
 ```
 
-See [Variables](/docs/language/variables#nullable-types) for the rest of the nullable operations
+See [Variables](/docs/language/variables/#nullable-types) for the rest of the nullable operations
 (`?.`, `??`, `unwrap!()`, null checking).
 
 ---
@@ -334,9 +334,9 @@ the target type in the `as` expression. `op as` must take only `self` as a param
 the target type.
 
 Marking an `op as` with `@implicit` lets it apply without `as` where its exact result type is wanted. See
-[Implicit `op as`](/docs/language/operators#implicit-op-as).
+[Implicit `op as`](/docs/language/operators/#implicit-op-as).
 
-See [Operators](/docs/language/operators#special-operators) for the full operator overloading
+See [Operators](/docs/language/operators/#special-operators) for the full operator overloading
 reference.
 
 ## Conversion Through a Constructor

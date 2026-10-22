@@ -1,4 +1,8 @@
 ---
+import AsciiField from '../ascii/AsciiField.astro';
+import AsciiFrame from '../ascii/AsciiFrame.astro';
+import { asciiBar } from '../../lib/ascii/counter';
+
 // Fetch live data from GitHub at build time
 let stars = 320;
 let contributors = 6;
@@ -28,121 +32,472 @@ try {
 }
 
 const stats = [
-  { value: stars,        suffix: '+', label: 'GitHub Stars' },
-  { value: 55,           suffix: '+', label: 'Weekly Downloads' },
-  { value: contributors, suffix: '',  label: 'Contributors' },
-  { value: forks,        suffix: '',  label: 'Forks' },
+  { value: stars,        suffix: '+', label: 'GitHub Stars',     key: 'stars' },
+  { value: 55,           suffix: '+', label: 'Weekly Downloads', key: 'dl/wk' },
+  { value: contributors, suffix: '',  label: 'Contributors',     key: 'contrib' },
+  { value: forks,        suffix: '',  label: 'Forks',            key: 'forks' },
 ];
+
+// Meter = log scale relative to the largest stat, so small numbers still read.
+// CELLS is the bar length at the default (equal) column width; the script
+// rescales it, in whole characters, to the column's width.
+const CELLS = 12;
+const maxLog = Math.log10(Math.max(...stats.map((s) => s.value)) + 1) || 1;
+const meters = stats.map((s) => Math.max(8, Math.round((Math.log10(s.value + 1) / maxLog) * 100)));
+const snapshot = new Date().toISOString().slice(0, 10);
 ---
 
-<section class="stats-section">
-  <div class="container">
-    <div class="stats-row" id="stats-grid" data-reveal-stagger data-stagger-step="90">
-      {stats.map(stat => (
-        <div class="stats-item">
-          <div class="stats-number tabular" data-target={stat.value} data-suffix={stat.suffix}>
-            0{stat.suffix}
-          </div>
-          <div class="stats-label">{stat.label}</div>
-        </div>
-      ))}
-    </div>
-    <p class="stats-footer" data-reveal>
-      Alpha stage · Compiler written in C++ · Self-hosting in progress
+<!-- Stats: a 4-column ASCII table (2×2 below 900px) over the slow drifting
+     field. Each cell is resizable like a table column: dragging a column edge
+     moves that separator (columns to its right share the rest), the last
+     column's edge resizes the whole table, and the bottom edge sets the
+     row's height. Columns never go below their longest line plus 1.5ch of
+     padding per side; content stays centred. -->
+<section class="stats-section" data-snap aria-labelledby="stats-title">
+  <AsciiField
+    preset="noise"
+    size={13}
+    fps={20}
+    radius={170}
+    strength={0.3}
+    t0={9.1}
+    opacity={0.24}
+    mask="linear-gradient(to bottom, transparent 0, #000 22%, #000 80%, transparent 100%)"
+  />
+
+  <div class="container stats-inner">
+    <h2 id="stats-title" class="sr-only">Project stats</h2>
+
+    <AsciiFrame
+      class="stats-frame"
+      id="stats-frame"
+      title="$ kairo stats --repo kairolang/kairo"
+      meta={`snapshot ${snapshot}`}
+      pad="0"
+      resizable={false}
+    >
+      <dl class="stats-grid" id="stats-grid">
+        {stats.map((stat, i) => {
+          const value = `${stat.value}${stat.suffix}`;
+          return (
+            <div class="stats-cell" data-name={stat.label}>
+              <dt class="stats-label" data-len={stat.label.length}>
+                <span class="stats-idx" aria-hidden="true">{String(i).padStart(2, '0')}</span>
+                {stat.label}
+              </dt>
+              <dd class="stats-number tabular">
+                <span
+                  class="stats-value"
+                  style={`--len:${value.length}`}
+                  data-len={value.length}
+                  data-count-to={stat.value}
+                  data-count-suffix={stat.suffix}
+                  data-count-duration="700"
+                >{value}</span>
+              </dd>
+              <dd class="stats-meter" aria-hidden="true">
+                <span class="stats-key">{stat.key}</span>
+                <span class="stats-bar" data-stats-bar={meters[i]}>{asciiBar(meters[i], { cells: CELLS, label: false })}</span>
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </AsciiFrame>
+
+    <p class="stats-footer">
+      <span class="stats-flag">[alpha]</span>
+      <span>Alpha stage</span><span class="stats-sep" aria-hidden="true">│</span>
+      <span>Compiler written in C++</span><span class="stats-sep" aria-hidden="true">│</span>
+      <span>Self-hosting in progress</span>
     </p>
   </div>
 </section>
 
 <style>
   .stats-section {
-    padding: clamp(5rem, 10vh, 8rem) 0 5rem;
+    padding: clamp(4rem, 9vh, 6.5rem) 0 clamp(3.5rem, 8vh, 5.5rem);
     position: relative;
+    overflow: hidden;
   }
 
-  .stats-row {
+  /* content sits above the field */
+  .stats-inner {
+    position: relative;
+    z-index: 1;
+  }
+
+  .stats-frame {
+    margin: 0.5rem auto 0;
+    max-width: 100%;
+    /* near-solid backing so the numbers stay crisp over the field */
+    --frame-bg: color-mix(in srgb, var(--bg) 94%, transparent);
+  }
+
+  /* ── table ──
+     Column tracks come from --stats-tpl-4 / --stats-tpl-2, written by the
+     script as minmax(<min>px, <weight>fr) per column, so a column can never
+     be narrower than its content. Without JS: equal columns. */
+  .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: var(--stats-tpl-4, repeat(4, minmax(0, 1fr)));
+    margin: 0;
   }
 
-  .stats-item {
-    text-align: center;
-    padding: 0.5rem 1rem;
+  /* every cell stretches to its row's height, so the separators always run
+     the full row, frame line to frame line */
+  .stats-cell {
     position: relative;
+    min-width: 0;
+    padding: clamp(1.5rem, 3vw, 2rem) 1.5ch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    text-align: center;
   }
-  .stats-item + .stats-item::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 15%;
-    bottom: 15%;
-    width: 1px;
-    background: var(--border);
-  }
-
-  .stats-number {
-    font-size: clamp(2.4rem, 4.6vw, 3.6rem);
-    font-weight: 550;
-    letter-spacing: -0.04em;
-    color: var(--text);
-    line-height: 1.05;
-    margin-bottom: 0.6rem;
+  .stats-cell + .stats-cell {
+    border-left: 1px solid var(--frame-line);
   }
 
   .stats-label {
-    font-family: var(--font-mono);
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1ch;
+    max-width: 100%;
     font-size: 0.7rem;
-    color: var(--text-3);
-    letter-spacing: 0.1em;
+    font-weight: 500;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .stats-idx {
+    color: var(--text-3);
+    letter-spacing: 0;
+  }
+
+  .stats-number {
+    margin: 0;
+    font-size: clamp(2.2rem, 4.4vw, 3.4rem);
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 1;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  /* reserve the final value's width; digits tick in from the right, so the
+     centred number doesn't shift while it counts up */
+  .stats-value {
+    display: inline-block;
+    min-width: calc(var(--len, 3) * (1ch - 0.05em));
+    text-align: right;
+  }
+
+  .stats-meter {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1ch;
+    max-width: 100%;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .stats-key {
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+  .stats-bar {
+    color: var(--red);
+    letter-spacing: 0;
   }
 
   .stats-footer {
-    text-align: center;
-    font-family: var(--font-mono);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0.4rem 1.2ch;
+    width: fit-content;
+    max-width: 100%;
+    margin: 1.75rem auto 0;
+    padding: 0.2rem 1ch;
     font-size: 0.7rem;
-    color: var(--text-3);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin-top: 3.5rem;
+    color: var(--text-2);
+    text-align: center;
+    background-color: color-mix(in srgb, var(--bg) 85%, transparent);
   }
+  .stats-flag { color: var(--accent); font-weight: 600; }
+  .stats-sep { color: var(--text-3); }
 
-  @media (max-width: 640px) {
-    .stats-row { grid-template-columns: repeat(2, 1fr); row-gap: 2.5rem; }
-    .stats-item:nth-child(3)::before { display: none; }
+  @media (max-width: 900px) {
+    .stats-grid { grid-template-columns: var(--stats-tpl-2, repeat(2, minmax(0, 1fr))); }
+    .stats-cell + .stats-cell:nth-child(2n + 1) { border-left: 0; }
+    .stats-cell:nth-child(n + 3) { border-top: 1px solid var(--frame-line); }
+    .stats-frame :global(.ascii-frame-meta) { display: none; }
+    .stats-frame :global(.ascii-frame-title) { max-width: calc(100% - 2rem); }
+  }
+  @media (max-width: 480px) {
+    .stats-footer { flex-direction: column; align-items: center; }
+    .stats-sep { display: none; }
+  }
+  @media (max-width: 420px) {
+    .stats-cell { padding-inline: 1ch; }
+    .stats-key { display: none; }
+    .stats-label { font-size: 0.64rem; letter-spacing: 0.08em; }
+    .stats-meter { font-size: 0.66rem; }
   }
 </style>
 
 <script>
+  import { asciiBar } from '../../lib/ascii/counter';
+  import { onceVisible, stillPage } from '../../lib/ascii/motion';
+  import { makeResizable } from '../../lib/ascii/resize';
+
+  /** bar length (cells) at the default equal column width, and its limits */
+  const BASE = 12, MIN_CELLS = 6, MAX_CELLS = 24;
+  /** Geist Mono advance: every glyph is 0.6em wide */
+  const ADV = 0.6;
+  /** px of slack on top of the computed minimum (sub-pixel rounding) */
+  const SLACK = 2;
+
+  interface Bar { el: HTMLElement; key: HTMLElement | null; pct: number; cells: number; p: number; text: string }
+  interface TableState { n: number; w: number[]; rows: number[]; frameW: number }
+
+  const num = (v: string | null | undefined) => parseFloat(v || '') || 0;
+  function advOf(el: Element): number {
+    const cs = getComputedStyle(el);
+    return num(cs.fontSize) * ADV + (cs.letterSpacing === 'normal' ? 0 : num(cs.letterSpacing));
+  }
+  function tracksOf(grid: HTMLElement): number[] {
+    const out: number[] = [];
+    for (const t of getComputedStyle(grid).gridTemplateColumns.split(/\s+/)) if (/^[\d.]+px$/.test(t)) out.push(parseFloat(t));
+    return out;
+  }
+
   function initStats() {
+    const frame = document.getElementById('stats-frame');
     const grid = document.getElementById('stats-grid');
-    if (!grid) return;
-    const numbers = grid.querySelectorAll('.stats-number');
-    let animated = false;
+    if (!frame || !grid || grid.dataset.init) return;
+    grid.dataset.init = '1';
 
-    function easeOut(t: number) { return 1 - Math.pow(1 - t, 4); }
+    const cells = Array.from(grid.querySelectorAll<HTMLElement>('.stats-cell'));
+    const mq = window.matchMedia('(max-width: 900px)');
+    const colsNow = () => (mq.matches ? 2 : 4);
+    const still = stillPage();
 
-    function animateCount(el: Element) {
-      const target = parseInt((el as HTMLElement).dataset.target || '0');
-      const suffix = (el as HTMLElement).dataset.suffix || '';
-      const duration = 1600;
-      const start = performance.now();
-      function step(now: number) {
-        const progress = Math.min((now - start) / duration, 1);
-        el.textContent = Math.floor(easeOut(progress) * target) + suffix;
-        if (progress < 1) requestAnimationFrame(step);
-      }
-      requestAnimationFrame(step);
+    /* ── meters: whole-character bars that follow the column width ── */
+    const bars: Bar[] = cells.map((c) => {
+      const el = c.querySelector<HTMLElement>('.stats-bar')!;
+      return { el, key: c.querySelector<HTMLElement>('.stats-key'), pct: num(el.dataset.statsBar), cells: BASE, p: still ? 1 : 0, text: el.textContent || '' };
+    });
+    const paint = (b: Bar) => {
+      const s = asciiBar(b.pct * b.p, { cells: b.cells, label: false });
+      if (s !== b.text) { b.text = s; b.el.textContent = s; }
+    };
+
+    /* ── column minimums, from the actual strings (monospace arithmetic) ── */
+    const mins = [0, 0, 0, 0];
+    const padX: number[] = [];
+    let barAdv = 7, meterGap = 7, charW = 9, lineH = 24, borderX = 2;
+    function measureMins(n: number) {
+      for (let c = 0; c < 4; c++) mins[c] = 0;
+      cells.forEach((cell, i) => {
+        const dt = cell.querySelector<HTMLElement>('.stats-label')!;
+        const idx = cell.querySelector<HTMLElement>('.stats-idx')!;
+        const val = cell.querySelector<HTMLElement>('.stats-value')!;
+        const meter = cell.querySelector<HTMLElement>('.stats-meter')!;
+        const b = bars[i];
+        const dtCs = getComputedStyle(dt);
+        const labelW = (idx.textContent || '').length * advOf(idx) + num(dtCs.columnGap) + num(dt.dataset.len) * advOf(dt);
+        const numW = num(val.dataset.len) * advOf(val);
+        barAdv = advOf(b.el);
+        meterGap = num(getComputedStyle(meter).columnGap);
+        const keyW = b.key && b.key.offsetWidth ? b.key.offsetWidth + meterGap : 0;
+        const meterW = keyW + (MIN_CELLS + 2) * barAdv;
+        const cs = getComputedStyle(cell);
+        padX[i] = num(cs.paddingLeft) + num(cs.paddingRight);
+        const w = Math.ceil(Math.max(labelW, numW, meterW) + padX[i] + num(cs.borderLeftWidth) + num(cs.borderRightWidth) + SLACK);
+        const col = i % n;
+        if (w > mins[col]) mins[col] = w;
+        if (i === 0) { charW = num(cs.fontSize) * ADV; lineH = num(cs.lineHeight) || num(cs.fontSize) * 1.6; }
+      });
+      const fcs = getComputedStyle(frame!);
+      borderX = num(fcs.borderLeftWidth) + num(fcs.borderRightWidth);
     }
 
-    new IntersectionObserver((entries, obs) => {
-      if (entries[0].isIntersecting && !animated) {
-        animated = true;
-        numbers.forEach((el, i) => {
-          setTimeout(() => animateCount(el), i * 110);
-        });
-        obs.disconnect();
+    /* ── table state → inline styles (writes only) ── */
+    const st: TableState = { n: colsNow(), w: [], rows: [], frameW: 0 };
+    function render() {
+      const n = st.n;
+      let tpl = '';
+      for (let c = 0; c < n; c++) tpl += `minmax(${mins[c]}px, ${st.w.length === n ? +st.w[c].toFixed(3) : 1}fr) `;
+      grid!.style.setProperty(n === 2 ? '--stats-tpl-2' : '--stats-tpl-4', tpl.trim());
+      grid!.style.removeProperty(n === 2 ? '--stats-tpl-4' : '--stats-tpl-2');
+      frame!.style.width = st.frameW ? st.frameW + 'px' : '';
+      cells.forEach((cell, i) => {
+        const h = st.rows[Math.floor(i / n)] || 0;
+        cell.style.minHeight = h ? h + 'px' : '';
+      });
+    }
+    function resetTable() { st.w = []; st.rows = []; st.frameW = 0; render(); }
+
+    /* share `R` px between columns [from, to) in proportion to their current
+       widths, never below a column's minimum (water-filling) */
+    const fixed = [false, false, false, false];
+    function share(R: number, from: number, to: number, cur: number[], out: number[]) {
+      let free = R, sumW = 0;
+      for (let j = from; j < to; j++) { fixed[j] = false; sumW += cur[j]; }
+      for (let iter = 0; iter < 4 && sumW > 0; iter++) {
+        let changed = false;
+        for (let j = from; j < to; j++) if (!fixed[j]) out[j] = (free * cur[j]) / sumW;
+        for (let j = from; j < to; j++) {
+          if (!fixed[j] && out[j] < mins[j]) {
+            fixed[j] = true; out[j] = mins[j]; free -= mins[j]; sumW -= cur[j]; changed = true;
+          }
+        }
+        if (!changed) break;
       }
-    }, { threshold: 0.3 }).observe(grid);
+    }
+
+    /* ── grips: one per cell, column + row semantics ── */
+    let disposers: Array<() => void> = [];
+    function bindGrips() {
+      disposers.forEach((d) => d());
+      disposers = [];
+      if (document.documentElement.dataset.resize === 'off') return;
+      const n = st.n;
+      cells.forEach((cell, i) => {
+        const col = i % n, row = Math.floor(i / n), last = col === n - 1;
+        const rowCells = cells.filter((_, k) => Math.floor(k / n) === row);
+        // per-gesture context, resolved at drag start (reads only)
+        let cur: number[] = [], next: number[] = [0, 0, 0, 0], T = 0, before = 0, room = 0, natH = 0;
+        let snap: TableState = { n, w: [], rows: [], frameW: 0 };
+        disposers.push(makeResizable(cell, {
+          label: `${cell.dataset.name || 'stats'} column`,
+          handles: ['e', 'se', 's'],
+          keyboard: ['se'],
+          // the last column's edge is the table's edge: the table grows on both sides
+          anchor: last ? 'center' : 'start',
+          measure() {
+            const r = cell.getBoundingClientRect();
+            cur = tracksOf(grid!);
+            if (cur.length !== n) cur = Array.from({ length: n }, () => grid!.clientWidth / n);
+            T = 0; before = 0;
+            for (let c = 0; c < n; c++) { T += cur[c]; if (c < col) before += cur[c]; }
+            const host = frame!.parentElement!;
+            const hcs = getComputedStyle(host);
+            room = host.clientWidth - num(hcs.paddingLeft) - num(hcs.paddingRight) - borderX;
+            snap = { n, w: st.w.slice(), rows: st.rows.slice(), frameW: st.frameW };
+            // natural row height: measured once without the row's pinned height
+            rowCells.forEach((c) => { c.style.minHeight = ''; });
+            natH = 0;
+            rowCells.forEach((c) => { natH = Math.max(natH, c.getBoundingClientRect().height); });
+            render();
+            return { width: r.width, height: r.height };
+          },
+          minWidth: () => mins[col],
+          maxWidth: () => {
+            if (last) return Math.max(mins[col], room - before);
+            let after = 0;
+            for (let c = col + 1; c < n; c++) after += mins[c];
+            return Math.max(mins[col], T - before - after);
+          },
+          minHeight: () => natH,
+          maxHeight: () => natH + Math.max(240, window.innerHeight * 0.6),
+          apply(w, h, dw, dh) {
+            if (dw) {
+              for (let c = 0; c < col; c++) next[c] = cur[c];
+              next[col] = w;
+              if (last) st.frameW = Math.round(before + w + borderX);
+              else share(T - before - w, col + 1, n, cur, next);
+              st.w = next.slice(0, n);
+            }
+            if (dh) {
+              const rows = st.rows;
+              rows[row] = h;
+              st.rows = rows;
+            }
+            if (dw || dh) render();
+          },
+          cancel() {
+            st.w = snap.w; st.rows = snap.rows; st.frameW = snap.frameW;
+            render();
+          },
+          reset: resetTable,
+          readout: (w, h) => `${Math.max(1, Math.round((w - padX[i]) / charW))}×${Math.max(1, Math.round(h / lineH))}`,
+        }));
+      });
+    }
+
+    /* ── bars follow the column width (read after layout, then write) ── */
+    const want = [BASE, BASE, BASE, BASE];
+    const fitBars = () => {
+      const n = st.n;
+      // reference = an equal share of the full available width, so narrowing
+      // the table (or one column) never lengthens the other bars
+      const host = frame!.parentElement!;
+      const hcs = getComputedStyle(host);
+      const eq = (host.clientWidth - num(hcs.paddingLeft) - num(hcs.paddingRight) - borderX) / n;
+      for (let i = 0; i < cells.length; i++) {
+        const cw = cells[i].clientWidth;
+        const b = bars[i];
+        const keyW = b.key && b.key.offsetWidth ? b.key.offsetWidth + meterGap : 0;
+        const fit = Math.floor((cw - padX[i] - keyW) / barAdv) - 2;
+        const target = Math.round((BASE * cw) / (eq || cw || 1));
+        want[i] = Math.max(MIN_CELLS, Math.min(MAX_CELLS, fit, target));
+      }
+      for (let i = 0; i < cells.length; i++) {
+        if (bars[i].cells !== want[i]) { bars[i].cells = want[i]; paint(bars[i]); }
+      }
+    };
+    const ro = new ResizeObserver(fitBars);
+    cells.forEach((c) => ro.observe(c));
+
+    // bar fill: once, when the table first comes into view (stepped by cell)
+    if (still) bars.forEach(paint);
+    else {
+      bars.forEach(paint);
+      onceVisible(grid, () => {
+        const t0 = performance.now(), D = 520;
+        const step = (now: number) => {
+          const k = Math.min(1, (now - t0) / D);
+          const e = 1 - Math.pow(1 - k, 3);
+          for (let i = 0; i < bars.length; i++) { bars[i].p = e; paint(bars[i]); }
+          if (k < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      });
+    }
+
+    measureMins(st.n);
+    render();
+    bindGrips();
+
+    // viewport width changes: re-measure (font sizes follow vw) and drop the pins
+    let lastVW = window.innerWidth, t = 0;
+    window.addEventListener('resize', () => {
+      if (t) clearTimeout(t);
+      t = window.setTimeout(() => {
+        t = 0;
+        if (Math.abs(window.innerWidth - lastVW) < 2) return;
+        lastVW = window.innerWidth;
+        const n = colsNow();
+        const changed = n !== st.n;
+        st.n = n;
+        st.w = []; st.rows = []; st.frameW = 0;
+        render();
+        measureMins(n);
+        render();
+        if (changed) bindGrips();
+      }, 150);
+    }, { passive: true });
   }
 
   initStats();

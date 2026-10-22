@@ -15,7 +15,7 @@ description: Variable declarations, constants, static, type inference, shadowing
 
 > Variables in Kairo are mutable by default. `const` bindings at local scope require an initializer, but
 > class-level `const` members can be left uninitialized at declaration and assigned exactly once in the
-> constructor body. See [Classes](/docs/language/classes#const-members-in-constructors) for details.
+> constructor body. See [Classes](/docs/language/classes/#const-members-in-constructors) for details.
 
 ```kairo
 var x = 42
@@ -52,7 +52,7 @@ var c: u8 = 42      // explicitly u8
 var d = "hello"     // inferred as string
 ```
 
-See [Primitives](/docs/language/primitives) for default type rules integer literals default to `i32`, float
+See [Primitives](/docs/language/primitives/) for default type rules integer literals default to `i32`, float
 literals default to `f64`.
 
 ---
@@ -137,7 +137,7 @@ eval PI = 3.14159
 eval MAX_SIZE = 1024 * 1024
 ```
 
-`eval` bindings are implicitly `const`. See [Eval](/docs/language/eval) for full details on compile-time
+`eval` bindings are implicitly `const`. See [Eval](/docs/language/eval/) for full details on compile-time
 evaluation, including `eval` functions and restrictions.
 
 ---
@@ -151,7 +151,7 @@ evaluation, including `eval` functions and restrictions.
 static counter: i32 = 0
 ```
 
-`static` can be combined with `const` for immutable static data. See [Modules](/docs/language/modules) for
+`static` can be combined with `const` for immutable static data. See [Modules](/docs/language/modules/) for
 `static` at module scope.
 
 ---
@@ -297,7 +297,7 @@ var x = unwrap!(maybe_value)   // panics if null
 ```
 
 `unwrap!()` desugars to a null check followed by a `panic` on the null path. The caller must be inside
-a `try` block or in a function with the `panic` specifier. See [Panic](/docs/language/panic) for the
+a `try` block or in a function with the `panic` specifier. See [Panic](/docs/language/panic/) for the
 panic model.
 
 ### Const interaction
@@ -351,8 +351,8 @@ if raw != &null {
 }
 ```
 
-See [Pointers](/docs/language/pointers) for the full pointer model and how
-[Tether](/docs/language/tether) tracks pointer provenance.
+See [Pointers](/docs/language/pointers/) for the full pointer model and how
+[Tether](/docs/language/tether/) tracks pointer provenance.
 
 ---
 
@@ -432,7 +432,7 @@ ptr = &ptr3    // compile error: ptr is const
 
 `*const T` answers "can I write through *this* pointer?". It does not answer "can anyone change
 this value?". Another pointer to the same value may still be writable. See
-[Ownership](/docs/language/ownership#pointer-aliasing).
+[Ownership](/docs/language/ownership/#pointer-aliasing).
 
 ### A practical example
 
@@ -497,7 +497,7 @@ Variables are block-scoped and destroyed at the end of their enclosing block.
 // x is no longer accessible
 ```
 
-[Tether](/docs/language/tether) performs full-program analysis to track lifetimes automatically no lifetime
+[Tether](/docs/language/tether/) performs full-program analysis to track lifetimes automatically no lifetime
 annotations are required. If Tether determines that a pointer outlives its referent and cannot automatically
 promote the pointer (to a shared, weak, or unique smart pointer), it emits a compile error.
 
@@ -510,7 +510,7 @@ var y = &x
 std::println(*y)      // Tether error: y's safety cannot be guaranteed at this point
 ```
 
-See [Tether](/docs/language/tether) and [Ownership](/docs/language/ownership) for the full lifetime and borrowing
+See [Tether](/docs/language/tether/) and [Ownership](/docs/language/ownership/) for the full lifetime and borrowing
 model.
 
 ---

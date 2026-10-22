@@ -6,115 +6,245 @@ interface Heading {
 }
 interface Props {
   headings: Heading[];
+  /** Two instances render (desktop column + mobile drawer); ids must differ. */
+  id?: string;
 }
-const { headings } = Astro.props;
+const { headings, id } = Astro.props;
 const toc = headings.filter(h => h.depth === 2 || h.depth === 3);
 ---
 
 {toc.length > 0 && (
-  <nav id="toc" aria-label="On this page">
-    <p class="toc-title">On this page</p>
-    <ul>
-      {toc.map(h => (
-        <li>
-          <a
-            href={`#${h.slug}`}
-            class={`toc-link toc-h${h.depth}`}
-          >{h.text}</a>
-        </li>
-      ))}
-    </ul>
+  <nav class="toc" id={id} aria-label="On this page">
+    <p class="toc-title"><span aria-hidden="true">// </span>On this page</p>
+    <div class="toc-body">
+      <span class="toc-marker" aria-hidden="true">&gt;</span>
+      <ul>
+        {toc.map(h => (
+          <li class={`toc-item toc-d${h.depth}`}>
+            <a href={`#${h.slug}`} class={`toc-link toc-h${h.depth}`}>{h.text}</a>
+          </li>
+        ))}
+      </ul>
+    </div>
+    <p class="toc-foot"><a href="#top" class="toc-top"><span aria-hidden="true">↑ </span>back to top</a></p>
   </nav>
 )}
 
 <style>
-  #toc {
-    padding: 0 0 2rem 1.25rem;
-    border-left: 1px solid var(--border);
+  .toc {
+    font-family: var(--font-mono);
+    padding: 0 0 2rem;
   }
   .toc-title {
-    font-family: var(--font-mono);
-    font-size: 0.64rem;
-    font-weight: 500;
-    letter-spacing: 0.12em;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-3);
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
+    color: var(--text-2);
+    margin: 0 0 0.6rem;
+  }
+  .toc-title span { color: var(--text-3); }
+
+  .toc-body {
+    position: relative;
+    font-size: 0.76rem;
+    /* the rail: "│" down the left edge */
+    border-left: 1px solid var(--border-hi);
   }
   ul {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
   }
+
   .toc-link {
+    position: relative;
     display: block;
-    font-family: var(--font-sans);
-    font-size: 0.8rem;
     font-weight: 450; /* constant weight: active state must not reflow/wrap */
-    color: var(--text-3);
+    line-height: 1.45;
+    color: var(--text-2);
     text-decoration: none;
-    padding: 5px 0 5px 11px;
-    border-left: 2px solid transparent;
-    margin-left: calc(-1.25rem - 1px);
-    padding-left: calc(1.25rem + 11px);
-    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-    line-height: 1.4;
+    padding: 3px 0 3px 2.2ch;
   }
-  .toc-link:hover {
-    color: var(--text);
-    border-left-color: var(--border-hi);
+  /* "├─" tick from the rail to the label */
+  .toc-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: calc(3px + 0.725em);
+    width: 1.2ch;
+    height: 1px;
+    background: var(--border-hi);
   }
-  .toc-link.active {
+  .toc-h3 { padding-left: 4.4ch; }
+  .toc-h3::before { left: 2.2ch; width: 1.2ch; }
+  /* h3 rows draw their own short "│" so the nesting reads as a tree */
+  .toc-d3 { position: relative; }
+  .toc-d3::before {
+    content: '';
+    position: absolute;
+    left: 2.2ch;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .toc-link:hover { color: var(--text); }
+  .toc-link:hover::before { background: var(--text-3); }
+  .toc-link.active { color: var(--accent); }
+  .toc-link.active::before { opacity: 0; }   /* the moving ">" takes the tick's place */
+
+  /* the moving ">" — one element per TOC, positioned with transform only */
+  .toc-marker {
+    position: absolute;
+    left: 0.1ch;
+    top: 0;
+    width: 1ch;
+    padding-top: 3px;
+    line-height: 1.45;
+    font-weight: 700;
     color: var(--accent);
-    border-left-color: var(--accent);
+    text-align: center;
+    opacity: 0;
+    transform: translate(var(--mx, 0), var(--my, 0));
+    transition: transform var(--dur-fast) steps(4, end), opacity var(--dur-instant) steps(1, end);
+    pointer-events: none;
   }
-  .toc-h3 {
-    padding-left: calc(1.25rem + 24px);
-    font-size: 0.76rem;
-  }
+  .toc-marker.on { opacity: 1; }
+
+  .toc-foot { margin: 0.9rem 0 0; font-size: 0.68rem; }
+  .toc-top { color: var(--text-3); text-decoration: none; }
+  .toc-top:hover { color: var(--accent); }
 </style>
 
 <script>
   function initTOC() {
-    const links = document.querySelectorAll<HTMLAnchorElement>('.toc-link');
-    if (!links.length) return;
+    const tocs = Array.from(document.querySelectorAll<HTMLElement>('nav.toc'));
+    if (!tocs.length) return;
+    const first = tocs[0];
+    if (first.dataset.init) return;
+    tocs.forEach(t => (t.dataset.init = '1'));
 
-    const ids = Array.from(links)
-      .map(l => l.getAttribute('href')?.slice(1))
-      .filter(Boolean) as string[];
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('nav.toc .toc-link'));
+    const ids = Array.from(new Set(links.map(l => decodeURIComponent(l.hash.slice(1))).filter(Boolean)));
+    const heads = ids.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+    if (!heads.length) return;
 
-    const els = ids
-      .map(id => document.getElementById(id))
-      .filter(Boolean) as HTMLElement[];
+    // Cache heading offsets; recompute on resize / content size change only,
+    // so the scroll handler never reads layout.
+    let tops: number[] = [];
+    // document-Y of the docs content end: the page rests there (DocsLayout's
+    // footer gate), so the tail headings may never reach the top line.
+    const main = document.querySelector<HTMLElement>('main.docs-content');
+    let contentBottom = 0;
+    const measure = () => {
+      const y = window.scrollY;
+      tops = heads.map(h => h.getBoundingClientRect().top + y);
+      contentBottom = main ? main.getBoundingClientRect().bottom + y : document.documentElement.scrollHeight;
+    };
 
-    // Add IDs to headings if missing
-    els.forEach(el => {
-      if (!el.id) {
-        const text = el.textContent ?? '';
-        el.id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+    let current = '';
+    const setActive = (id: string) => {
+      if (id === current) return;
+      current = id;
+      for (const l of links) {
+        const on = decodeURIComponent(l.hash.slice(1)) === id;
+        l.classList.toggle('active', on);
+        if (on) l.setAttribute('aria-current', 'true');
+        else l.removeAttribute('aria-current');
       }
+      placeMarkers();
+    };
+
+    // Move each TOC's ">" to its active link (read offsetTop only on change).
+    const placeMarkers = () => {
+      for (const toc of tocs) {
+        const marker = toc.querySelector<HTMLElement>('.toc-marker');
+        const link = toc.querySelector<HTMLElement>('.toc-link.active');
+        if (!marker) continue;
+        if (!link) { marker.classList.remove('on'); continue; }
+        const li = link.parentElement as HTMLElement;
+        const x = link.classList.contains('toc-h3') ? '2.2ch' : '0px';
+        marker.style.setProperty('--my', `${li.offsetTop}px`);
+        marker.style.setProperty('--mx', x);
+        marker.classList.add('on');
+      }
+    };
+
+    const OFFSET = 120; // header + docs bar + a little air
+    const FLOOR = 120;  // at the content end the line sits this far above the viewport bottom
+    // A heading jumped to (TOC / #link / #hash load) stays active until the
+    // reader scrolls themselves: a tail heading that can't reach the line
+    // must not hand the highlight to the one after it.
+    let pinned = '';
+    const unpin = () => { if (pinned) { pinned = ''; onScroll(); } };
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      if (pinned) { setActive(pinned); return; }
+      const sy = window.scrollY;
+      const vh = window.innerHeight;
+      // The activation line sits OFFSET below the top. Over the last half
+      // viewport of travel before the content end it sweeps down towards the
+      // bottom, so headings that can never reach the top still activate, in
+      // order, and the last one is active once the content end is in view.
+      let line = sy + OFFSET;
+      const gate = contentBottom - vh;
+      if (gate > 0) {
+        const r = Math.max(1, Math.min(vh * 0.5, gate));
+        const p = Math.min(1, Math.max(0, (sy - (gate - r)) / r));
+        line += p * Math.max(0, vh - OFFSET - FLOOR);
+      }
+      let idx = -1;
+      for (let i = 0; i < tops.length; i++) {
+        if (tops[i] <= line) idx = i; else break;
+      }
+      // resting at (or past) the content end: the last heading wins
+      if (gate > 0 && sy >= gate - 2) idx = heads.length - 1;
+      setActive(idx >= 0 ? heads[idx].id : '');
+    };
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    };
+
+    const idOf = (hash: string) => {
+      try { return decodeURIComponent(hash.slice(1)); } catch { return hash.slice(1); }
+    };
+    const pin = (id: string) => {
+      if (!id || !ids.includes(id)) return;
+      pinned = id;
+      setActive(id);
+    };
+    for (const l of links) l.addEventListener('click', () => pin(idOf(l.hash)));
+    window.addEventListener('hashchange', () => pin(idOf(location.hash)));
+    document.addEventListener('docs:anchor', (e) => pin((e as CustomEvent<{ id: string }>).detail?.id ?? ''));
+    // the reader taking over the scroll releases the pin
+    window.addEventListener('wheel', unpin, { passive: true });
+    window.addEventListener('touchstart', unpin, { passive: true });
+    window.addEventListener('pointerdown', (e) => {
+      const root = document.documentElement;
+      if (e.target === root || e.clientX >= root.clientWidth) unpin();
+    }, { passive: true });
+    document.addEventListener('keydown', (e) => {
+      if (/^(Page(Up|Down)|Arrow(Up|Down)|Home|End| )$/.test(e.key)) unpin();
     });
 
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            links.forEach(l => l.classList.remove('active'));
-            const link = document.querySelector<HTMLAnchorElement>(
-              `.toc-link[href="#${entry.target.id}"]`
-            );
-            link?.classList.add('active');
-          }
-        });
-      },
-      { rootMargin: '-64px 0px -65% 0px', threshold: 0 }
-    );
-
-    els.forEach(el => observer.observe(el));
+    measure();
+    if (location.hash) pin(idOf(location.hash));
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', () => { measure(); update(); placeMarkers(); }, { passive: true });
+    const article = document.querySelector('article.prose');
+    if (article && 'ResizeObserver' in window) {
+      const ro = new ResizeObserver(() => { measure(); onScroll(); });
+      ro.observe(article);
+      if (main) ro.observe(main);
+    }
+    // The drawer TOC is laid out lazily; re-place markers when it opens.
+    document.addEventListener('docs:toc-open', placeMarkers);
   }
 
   initTOC();

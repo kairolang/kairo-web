@@ -40,9 +40,8 @@ Allow: /
 User-agent: Diffbot
 Allow: /
 
-# Sitemaps
+# Sitemap (Astro generates sitemap-index.xml -> sitemap-0.xml)
 Sitemap: https://www.kairolang.org/sitemap-index.xml
-Sitemap: https://www.kairolang.org/sitemap.xml
 
-# AI agent index (llmstxt.org)
-llms.txt: https://www.kairolang.org/llms.txt
+# LLM context (llmstxt.org) lives at https://www.kairolang.org/llms.txt and is
+# advertised via <link rel="alternate" type="text/plain"> on every page.

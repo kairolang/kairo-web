@@ -1,202 +1,410 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import AsciiArt from '../../components/ascii/AsciiArt.astro';
+import AsciiFrame from '../../components/ascii/AsciiFrame.astro';
+import AsciiField from '../../components/ascii/AsciiField.astro';
 
 const posts = (await getCollection('blog', ({ data }) => !data.draft))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+// short, stable git-style hash for each post (decorative)
+const shortHash = (s: string) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0').slice(0, 7);
+};
+
+// ISO date in UTC (frontmatter dates are UTC midnight; local formatting can slip a day)
+const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+const longDate = (d: Date) =>
+  d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+const entries = posts.map((post) => {
+  const slug = post.id.replace(/\.mdx?$/, '');
+  return {
+    slug,
+    href: `/blog/${slug}/`,
+    hash: shortHash(slug),
+    iso: isoDate(post.data.pubDate),
+    long: longDate(post.data.pubDate),
+    author: post.data.author,
+    title: post.data.title,
+    description: post.data.description,
+    tags: post.data.tags ?? [],
+  };
+});
+const countLabel = `${entries.length} ${entries.length === 1 ? 'post' : 'posts'}`;
 ---
 <BaseLayout
-  title="Blog - Kairo"
-  description="Thoughts, updates, and design proposals from the Kairo language team."
+  title="Blog: Design Notes & Updates"
+  description="Design notes, proposals, and updates from the team building Kairo, the open-source systems programming language with native C++ interop."
 >
-  <!-- Header -->
-  <section class="blog-hero">
-    <div class="ambient blog-ambient" aria-hidden="true"></div>
+  <!-- Header. Background: the same slow drifting noise field as the home CTA
+       (shared field scheduler; pauses offscreen / hidden tab; one still frame
+       under reduced motion), low opacity and masked away from the copy, which
+       also sits on near-solid backings. The BLOG lens sweep is this page's one
+       title moment (no print-in / decode stacked on it). -->
+  <section class="blog-hero" data-snap>
+    <AsciiField
+      preset="noise"
+      size={13}
+      fps={20}
+      radius={170}
+      strength={0.3}
+      opacity={0.26}
+      class="blog-field"
+    />
     <div class="container blog-hero-inner">
-      <div class="section-label fade-up" style="--d: 0ms;">Blog</div>
-      <h1 class="display blog-hero-title">
-        <span class="mask-line"><span style="--d: 80ms;">Thoughts &amp; Updates</span></span>
+      <div class="section-label print-in" style="--d: 0ms;">Blog</div>
+      <h1 class="blog-h1">
+        <span class="sr-only">Kairo Blog: </span>
+        <AsciiArt as="span" text="BLOG" max={30} class="blog-h1-art" />
+        <span class="blog-h1-text print-in" style="--d: 120ms;">Thoughts &amp; Updates</span>
       </h1>
-      <p class="blog-hero-sub fade-up" style="--d: 240ms;">
+      <p class="blog-hero-sub sans print-in" style="--d: 200ms;">
         Design decisions, language proposals, and updates from the Kairo team
         and community contributors.
+      </p>
+      <p class="blog-hero-cmd print-in" style="--d: 260ms;" aria-hidden="true">
+        <span class="dim">$</span> git log --oneline ~/blog <span class="dim">│</span> <span class="accent">{countLabel}</span>
       </p>
     </div>
   </section>
 
   <!-- Post list -->
-  <section class="blog-list-section">
+  <section class="blog-list-section" data-snap>
     <div class="container blog-list-container">
-      {posts.length === 0 ? (
-        <div class="blog-empty">
-          <p class="blog-empty-title">No posts yet.</p>
+      {entries.length === 0 ? (
+        <AsciiFrame title="~/blog" meta="empty" class="blog-empty">
+          <p class="term-warn blog-empty-title">No posts yet.</p>
           <p class="blog-empty-sub">Check back soon.</p>
-        </div>
+        </AsciiFrame>
       ) : (
-        <div class="blog-list" data-reveal-stagger data-stagger-step="80">
-          {posts.map(post => {
-            const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            });
-            return (
-              <a href={`/blog/${post.id.replace(/\.mdx?$/, '')}`} class="blog-card">
-                <div class="blog-card-meta">
-                  <span class="blog-card-date">{formattedDate}</span>
-                  <span class="blog-card-author">By {post.data.author}</span>
-                </div>
-                <h2 class="blog-card-title">{post.data.title}</h2>
-                <p class="blog-card-desc">{post.data.description}</p>
-                <div class="blog-card-bottom">
-                  {post.data.tags && post.data.tags.length > 0 && (
-                    <div class="blog-card-tags">
-                      {post.data.tags.map(tag => (
-                        <span class="tag">{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                  <span class="blog-card-read">
-                    Read post
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </span>
-                </div>
-              </a>
-            );
-          })}
-        </div>
+        <AsciiFrame title="~/blog" meta={countLabel} pad="0" class="blog-log-frame">
+          <div class="log-head" aria-hidden="true">
+            <span class="c-hash">hash</span>
+            <span class="c-sep">│</span>
+            <span class="c-date">date</span>
+            <span class="c-sep">│</span>
+            <span class="c-author">author</span>
+            <span class="c-sep c-sep3">│</span>
+            <span class="c-title">title</span>
+          </div>
+          <ul class="blog-log" id="blog-log" data-reveal-stagger data-stagger-step="50">
+            {entries.map((e) => (
+              <li>
+                <a href={e.href} class="log-entry" data-resizable="y">
+                  <div class="log-line">
+                    <span class="c-hash" aria-hidden="true">{e.hash}</span>
+                    <span class="c-sep" aria-hidden="true">│</span>
+                    <time class="c-date" datetime={e.iso} title={e.long}>{e.iso}</time>
+                    <span class="c-sep c-sep2" aria-hidden="true">│</span>
+                    <span class="c-author"><span class="sr-only">by </span>{e.author}</span>
+                    <span class="c-sep c-sep3" aria-hidden="true">│</span>
+                    <h2 class="c-title" data-log-title>{e.title}</h2>
+                    <span class="c-arrow" aria-hidden="true">→</span>
+                  </div>
+                  <div class="log-body">
+                    <p class="log-desc">{e.description}</p>
+                    {e.tags.length > 0 && (
+                      <div class="log-tags">
+                        {e.tags.map((tag) => <span class="tag">{tag}</span>)}
+                      </div>
+                    )}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div class="log-foot" aria-hidden="true">
+            <span>(END)</span>
+            <span class="dim">exit 0</span>
+          </div>
+        </AsciiFrame>
       )}
     </div>
   </section>
 </BaseLayout>
 
 <style>
+  /* ── hero ─────────────────────────────────────────────────────── */
   .blog-hero {
-    padding: clamp(4rem, 10vh, 7rem) 0 3.5rem;
+    padding: clamp(3.5rem, 9vh, 6rem) 0 3rem;
     border-bottom: 1px solid var(--border);
     position: relative;
     overflow: hidden;
   }
-  .blog-ambient {
-    width: 560px;
-    height: 360px;
-    top: -180px;
-    left: 8%;
-    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
+  /* Field: strongest top-right, faded out over the left-hand copy column and
+     toward the bottom rule. Narrow screens (copy spans the full width) keep
+     it to a thin band along the top and right edges. */
+  .blog-hero :global(.blog-field) {
+    --blog-field-mask:
+      radial-gradient(ellipse 66% 82% at 22% 60%, transparent 40%, #000 95%);
+    -webkit-mask-image: var(--blog-field-mask);
+    mask-image: var(--blog-field-mask);
+  }
+  @media (max-width: 760px) {
+    .blog-hero :global(.blog-field) {
+      --blog-field-mask:
+        radial-gradient(ellipse 88% 70% at 40% 66%, transparent 42%, #000 96%);
+    }
   }
   .blog-hero-inner {
     position: relative;
     z-index: 1;
   }
-  .blog-hero-title {
-    font-size: clamp(2.2rem, 5vw, 3.6rem);
-    margin-bottom: 1.1rem;
+  .blog-h1 {
+    display: block;
+    margin: 1.25rem 0 1.1rem;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .blog-h1 :global(.blog-h1-art) {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+  }
+  /* near-solid backings for copy that may overlap the field's edge */
+  .blog-hero-inner .section-label,
+  .blog-h1-text,
+  .blog-hero-sub,
+  .blog-hero-cmd {
+    width: fit-content;
+    max-width: 100%;
+    background-color: color-mix(in srgb, var(--bg) 84%, transparent);
+  }
+  .blog-h1-text {
+    display: block;
+    margin-top: 1.1rem;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: clamp(1.35rem, 3.4vw, 2rem);
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--text);
   }
   .blog-hero-sub {
-    font-size: 1.05rem;
+    font-size: 1.02rem;
     color: var(--text-2);
-    max-width: 500px;
+    max-width: 520px;
     line-height: 1.65;
+    margin: 0 0 1.4rem;
   }
-
-  .blog-list-section {
-    padding: 4rem 0 6rem;
-  }
-  .blog-list-container {
-    max-width: 860px;
-  }
-
-  .blog-empty {
-    text-align: center;
-    padding: 5rem 2rem;
-    color: var(--text-3);
-  }
-  .blog-empty-title { font-size: 1.25rem; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-2); }
-  .blog-empty-sub { font-size: 0.875rem; }
-
-  .blog-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.1rem;
-  }
-
-  .blog-card {
-    display: block;
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: 1.75rem 2rem;
-    text-decoration: none;
-    transition:
-      transform var(--dur-med) var(--ease),
-      border-color var(--dur-med) var(--ease),
-      box-shadow var(--dur-med) var(--ease);
-  }
-  .blog-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--border-hi);
-    box-shadow: var(--shadow-md);
-  }
-
-  .blog-card-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.85rem;
-  }
-  .blog-card-date,
-  .blog-card-author {
+  .blog-hero-cmd {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--text-3);
-    letter-spacing: 0.04em;
-  }
-
-  .blog-card-title {
-    font-size: 1.3rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--text);
-    margin-bottom: 0.6rem;
-    line-height: 1.3;
-    transition: color var(--dur-fast) var(--ease);
-  }
-
-  .blog-card-desc {
-    font-size: 0.92rem;
+    font-size: 0.78rem;
     color: var(--text-2);
-    line-height: 1.65;
-    margin-bottom: 1.25rem;
+    margin: 0;
   }
 
-  .blog-card-bottom {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+  /* ── list ─────────────────────────────────────────────────────── */
+  .blog-list-section {
+    padding: 3.5rem 0 6rem;
   }
-  .blog-card-tags {
+
+  .blog-empty-title { font-size: 1rem; margin-bottom: 0.4rem; }
+  .blog-empty-sub { font-size: 0.85rem; color: var(--text-2); margin: 0; }
+
+  /* shared column template (desktop):  hash │ date │ author │ title → */
+  .blog-log-frame {
+    --log-fs: 0.82rem;
+    --log-cols: 7ch 1ch 10ch 1ch 10ch 1ch minmax(0, 1fr) 2ch;
+    --log-indent: 36ch; /* 7+1+10+1+10+1 + 6 gaps of 1ch */
+    font-size: var(--log-fs);
+    padding-top: 0.9rem;
+  }
+  .log-head,
+  .log-line {
+    display: grid;
+    grid-template-columns: var(--log-cols);
+    column-gap: 1ch;
+    align-items: baseline;
+  }
+  .log-head {
+    padding: 0.85rem 1.25rem 0.55rem;
+    border-bottom: 3px double var(--frame-line);
+    color: var(--text-2);
+  }
+  /* labels are smaller, but the grid keeps the row font so ch columns line up */
+  .log-head > span {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .log-head .c-sep { color: var(--text-3); }
+
+  .blog-log {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .blog-log > li + li { border-top: 1px dashed var(--frame-line); }
+
+  .log-entry {
+    display: block;
+    padding: 1rem 1.25rem 1.15rem;
+    text-decoration: none;
+    color: inherit;
+    --c-dim: var(--text-3);
+    --c-meta: var(--text-2);
+    --c-title: var(--text);
+    --c-arrow: var(--text-3);
+  }
+  .log-entry:focus-visible { outline-offset: -2px; }
+
+  /* the row: stepped inverse sweep on hover/focus */
+  .log-line {
+    margin: 0 -0.75ch;
+    padding: 3px 0.75ch;
+    background-image: linear-gradient(var(--red), var(--red));
+    background-repeat: no-repeat;
+    background-size: 0% 100%;
+    transition: background-size var(--dur-fast) steps(6, end);
+  }
+  .log-line > * {
+    transition: color 0s linear 70ms;
+  }
+  .log-entry:hover .log-line,
+  .log-entry:focus-visible .log-line {
+    background-size: 100% 100%;
+    --c-dim: var(--on-red);
+    --c-meta: var(--on-red);
+    --c-title: var(--on-red);
+    --c-arrow: var(--on-red);
+  }
+
+  .c-hash { color: var(--c-dim, var(--text-3)); }
+  .c-sep { color: var(--c-dim, var(--text-3)); text-align: center; }
+  .c-date,
+  .c-author {
+    color: var(--c-meta, var(--text-2));
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .c-title {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 1em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.45;
+    color: var(--c-title, var(--text));
+    text-wrap: pretty;
+  }
+  .log-head .c-title { font-weight: 400; color: var(--text-2); }
+  .c-arrow {
+    color: var(--c-arrow);
+    text-align: right;
+    transition: color 0s linear 70ms, transform var(--dur-instant) steps(2, end);
+  }
+  .log-entry:hover .c-arrow,
+  .log-entry:focus-visible .c-arrow { transform: translateX(0.5ch); }
+
+  .log-body {
+    padding-left: var(--log-indent);
+    margin-top: 0.45rem;
+    position: relative;
+  }
+  .log-body::before {
+    /* tree connector under the title column */
+    content: '└─';
+    content: '└─' / '';
+    position: absolute;
+    left: calc(var(--log-indent) - 3ch);
+    top: 0.1rem;
+    color: var(--text-3);
+  }
+  .log-desc {
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text-2);
+    margin: 0 0 0.6rem;
+    max-width: 64ch;
+  }
+  .log-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
   }
-  .blog-card-read {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: var(--text-3);
-    transition: color var(--dur-fast) var(--ease);
-  }
-  .blog-card-read svg { transition: transform var(--dur-fast) var(--ease); }
-  .blog-card:hover .blog-card-read { color: var(--accent); }
-  .blog-card:hover .blog-card-read svg { transform: translateX(3px); }
 
-  @media (max-width: 640px) {
-    .blog-card { padding: 1.4rem 1.4rem; }
+  .log-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 1.25rem 0.75rem;
+    border-top: 1px solid var(--frame-line);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: var(--text-2);
+  }
+
+  /* ── narrow: date │ author on top, title below ───────────────── */
+  @media (max-width: 760px) {
+    .log-head { display: none; }
+    .blog-log-frame { padding-top: 1.1rem; }
+    .log-line {
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        'date sep author author'
+        'title title title arrow';
+      row-gap: 0.25rem;
+      column-gap: 1ch;
+    }
+    .log-line .c-hash,
+    .log-line .c-sep:not(.c-sep2) { display: none; }
+    .log-line .c-date { grid-area: date; }
+    .log-line .c-sep2 { grid-area: sep; }
+    .log-line .c-author { grid-area: author; }
+    .log-line .c-title { grid-area: title; }
+    .log-line .c-arrow { grid-area: arrow; align-self: end; }
+    .c-date, .c-author { font-size: 0.72rem; }
+    .c-title { font-size: 0.95rem; }
+    .log-body { padding-left: 2.5ch; }
+    .log-body::before { left: 0; }
+  }
+  @media (max-width: 480px) {
+    .log-entry { padding: 0.9rem 1rem 1rem; }
+    .log-foot { padding-inline: 1rem; }
   }
 </style>
+
+<script>
+  import { scramble } from '../../lib/ascii/scramble';
+  import { reducedMotion } from '../../lib/ascii/motion';
+
+  // Hover / keyboard focus on a log row re-scrambles only its (mono) title.
+  function initBlogLog() {
+    const list = document.getElementById('blog-log');
+    if (!list || list.dataset.init) return;
+    list.dataset.init = '1';
+    const last = new WeakMap<Element, number>();
+    const run = (row: Element) => {
+      if (reducedMotion()) return;
+      const title = row.querySelector<HTMLElement>('[data-log-title]');
+      if (!title) return;
+      const now = performance.now();
+      if (now - (last.get(title) ?? -Infinity) < 900) return;
+      last.set(title, now);
+      void scramble(title, { duration: 220, fps: 24 });
+    };
+    list.addEventListener('pointerover', (e) => {
+      if (e.pointerType === 'touch') return;
+      const row = (e.target as Element | null)?.closest?.('.log-entry');
+      if (!row || !list.contains(row)) return;
+      const from = e.relatedTarget as Node | null;
+      if (from && row.contains(from)) return;
+      run(row);
+    }, { passive: true });
+    list.addEventListener('focusin', (e) => {
+      const row = (e.target as Element | null)?.closest?.('.log-entry');
+      if (row && row.matches(':focus-visible')) run(row);
+    });
+  }
+  initBlogLog();
+  document.addEventListener('astro:page-load', initBlogLog);
+</script>
