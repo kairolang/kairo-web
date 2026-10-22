@@ -18,7 +18,7 @@
  * and "sharpens" glyphs near it (ramp to ░▒▓█ blocks). Touch: lean only.
  *
  * Perf: runs through motion.loop() (paused offscreen + when document.hidden),
- * DPR ≤ 1.5, cell size grows if the grid exceeds the cell budget, the figure
+ * DPR <= 1.5, cell size grows if the grid exceeds the cell budget, the figure
  * is only cast inside its bbox, all hot-loop buffers are preallocated typed
  * arrays. Line strings are cached by cursor range. Reduced motion: one
  * composed still frame at the exact illusion (re-rendered on resize/theme
@@ -135,7 +135,7 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
   let segStr: string[] = [];
   let anchors: Cursor[] = [];
   let rowT = new Float32Array(0); // last commit time per row (s)
-  const ROW_SHRINK_S = 0.35, ROW_GROW_S = 0.4; // ≤ ~3 text swaps / s per row
+  const ROW_SHRINK_S = 0.35, ROW_GROW_S = 0.4; // <= ~3 text swaps / s per row
   let wallDirty = true;
   // drawn ink per cell (dead band against slow drift) + had-ink-last-frame flag
   let dsp = new Float32Array(0), cov = new Uint8Array(0);
@@ -238,7 +238,7 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
 
   /**
    * Size + place the tribar: on desktop its rest centre sits at 43% of the
-   * wall (stage to right edge) with a ≥ 11-cell text column beside its base
+   * wall (stage to right edge) with a >= 11-cell text column beside its base
    * at rest, and nothing the motion can reach (sway + lean roll, pointer
    * tilt; a few px past the rest bbox) touches the copy column, the right
    * edge or the stage's top/bottom. Two passes: the bar thickness follows
@@ -254,13 +254,13 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
       const reachL = rcx - any.x0, reachR = any.x1 - rcx;
       const reachV = Math.max(rcy - any.y0, any.y1 - rcy);
       kcx = sx + sr.width / 2; kcy = sy + sr.height / 2;
-      // base: rest width ≈ 0.9 × the stage's short side
+      // base: rest width ~0.9 x the stage's short side
       let k = (Math.min(sr.width, sr.height) * 0.9) / (2 * restHW);
       if (!mobile) {
         const KC_AT = 0.43;
         const wallL = sx, wallR = W - 8, wallW = wallR - wallL;
         kcx = wallL + wallW * KC_AT;
-        // ≥ 11 cells on its left: the triangle is only that wide on its
+        // >= 11 cells on its left: the triangle is only that wide on its
         // bottom rows (the wall widens up its slope)
         k = Math.min(k, (kcx - wallL - 11 * cellW) / restHW, (wallR - kcx - 4 * cellW) / reachR);
         if (copy) {
@@ -280,7 +280,7 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
       pox = kcx - rcx * ks; poy = kcy - rcy * ks;
       vr = (restHW * ks) / 1.5;
       // the logo's bars are slimmer, but a face needs ~2 text rows to read
-      // as a face: thickness follows the on-screen size (bottom bar faces ≈ 2.4 rows)
+      // as a face: thickness follows the on-screen size (bottom bar faces ~2.4 rows)
       if (pass === 0) bar = Math.min(0.15, Math.max(0.1, (2.4 * cellH) / (0.707 * ks)));
     }
   }
@@ -366,7 +366,7 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
 
   /* ─── text wall (pretext) ─────────────────────────────────────── */
   function computeIntervals(r: number, out: Int16Array): number {
-    // free = inside region and no figure cell within ±PADX columns on rows r-1..r+1
+    // free = inside region and no figure cell within +/-PADX columns on rows r-1..r+1
     const PADX = 3;
     const span = rc1 - rc0;
     if (span <= 0) return 0;
@@ -409,7 +409,7 @@ export function createHeroScene(o: HeroSceneOptions): HeroScene {
         let same = n === ivN[r];
         if (same) {
           for (let q = 0; q < n * 2; q++) {
-            // hysteresis: ignore ≤2-cell boundary drift
+            // hysteresis: ignore <=2-cell boundary drift
             if (Math.abs(tmpIv[q] - ivA[base + q]) > 2) { same = false; break; }
           }
         }

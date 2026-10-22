@@ -9,9 +9,9 @@
  * and reduced motion show everything immediately.
  *
  * Markup (CSS lives in global.css, guarded by html.js so no-JS shows all):
- *   <div data-reveal>…</div>                 print top -> bottom
- *   <div data-reveal="left">…</div>          print left -> right   ("right" = right -> left)
- *   <div data-reveal="none">…</div>          stepped opacity pop only ("scale" = same)
+ *   <div data-reveal>...</div>                 print top -> bottom
+ *   <div data-reveal="left">...</div>          print left -> right   ("right" = right -> left)
+ *   <div data-reveal="none">...</div>          stepped opacity pop only ("scale" = same)
  *   <div data-reveal data-reveal-delay="120">  extra delay (ms)
  *   <ul data-reveal-stagger data-stagger-step="40">  children print in sequence (max 60)
  *

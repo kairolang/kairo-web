@@ -45,7 +45,7 @@ const pct = (n: number) => (total ? ((n / total) * 100).toFixed(1) : '0.0') + '%
   </ol>
   <p class="lb-foot" aria-hidden="true">
     <span>── {top.length} of {contributors.length} shown</span>
-    <span>Σ {fmt.format(total)} ──</span>
+    <span>total {fmt.format(total)} ──</span>
   </p>
 </AsciiFrame>
 
@@ -102,7 +102,7 @@ const pct = (n: number) => (total ? ((n / total) * 100).toFixed(1) : '0.0') + '%
     color: var(--text-3);
   }
 
-  /* wide row ≈ 77.5ch at 0.8rem ≈ 595px; below that, stack the bar under the name */
+  /* wide row ~77.5ch at 0.8rem ~ 595px; below that, stack the bar under the name */
   @container lb (max-width: 600px) {
     .lb-row {
       grid-template-columns: 3.5ch minmax(0, 1fr) 7ch;

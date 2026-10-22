@@ -1,5 +1,5 @@
 /**
- * KAIRO // OG cards: 1200×630 PNG social images, rendered at build time.
+ * KAIRO // OG cards: 1200x630 PNG social images, rendered at build time.
  *
  * Everything is drawn as vector shapes in one SVG, then rasterized by sharp:
  *  - the "KAIRO" ANSI-Shadow block logo, one cell per renderFiglet character
@@ -72,7 +72,7 @@ function cellShapes(ch: string, x: number, y: number, w: number, h: number): { f
 }
 
 function logoSvg(text: string, ox: number, oy: number, cellW: number) {
-  const cellH = (cellW / 0.6) * 1.3; // terminal cell: 0.6em × 1.3em
+  const cellH = (cellW / 0.6) * 1.3; // terminal cell: 0.6em x 1.3em
   const rows = renderFiglet(text).split('\n');
   let face = '', shadow = '';
   rows.forEach((row, ri) =>
@@ -113,7 +113,7 @@ function clampLines(lines: string[], maxLines: number, maxCols: number): string[
   if (lines.length <= maxLines) return lines;
   const kept = lines.slice(0, maxLines);
   const last = [...kept[maxLines - 1]];
-  kept[maxLines - 1] = last.slice(0, Math.max(1, maxCols - 1)).join('').trimEnd() + '…';
+  kept[maxLines - 1] = last.slice(0, Math.max(1, maxCols - 3)).join('').trimEnd() + '...';
   return kept;
 }
 
@@ -170,7 +170,7 @@ export async function renderOgPng(card: OgCard): Promise<Buffer> {
   footer += seg('  //  ', C.text3, regular, fSize, fY);
   const tagline = card.subtitle ?? 'The Language Beyond C++';
   const maxTag = Math.floor((W - PAD - px) / regular.measure('M', fSize));
-  footer += seg([...tagline].length > maxTag ? [...tagline].slice(0, maxTag - 1).join('') + '…' : tagline, C.text2, regular, fSize, fY);
+  footer += seg([...tagline].length > maxTag ? [...tagline].slice(0, maxTag - 3).join('') + '...' : tagline, C.text2, regular, fSize, fY);
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>

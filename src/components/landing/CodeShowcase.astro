@@ -628,7 +628,7 @@ const TILDES = Array.from({ length: 30 }, () => '~').join('\n');
    * The code column is resizable from its bottom-right corner / right and
    * bottom edges: the grid's first track follows --sc-code (blurb column
    * reflows live), every pane's viewport follows --sc-pane-h, and the code
-   * soft-wraps once narrower than its longest line. ≤900px (single column):
+   * soft-wraps once narrower than its longest line. <=900px (single column):
    * height only.
    */
   function initPaneResize(root: HTMLElement) {
@@ -682,7 +682,7 @@ const TILDES = Array.from({ length: 30 }, () => '~').join('\n');
       readout: (w) => {
         const cols = Math.max(1, Math.floor((w - 2 - padX) / charW));
         const rows = Math.max(1, Math.floor(bodyH / lineH));
-        return `${cols}×${rows}`;
+        return `${cols}x${rows}`;
       },
     });
   }

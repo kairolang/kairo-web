@@ -1,5 +1,5 @@
 /**
- * /og/<page>.png: 1200×630 ASCII-styled social cards, one per docs page,
+ * /og/<page>.png: 1200x630 ASCII-styled social cards, one per docs page,
  * blog post and top-level page, rendered at build time (see lib/og-image.ts).
  * BaseLayout/Seo pick the matching card via ogImageFor() in lib/seo.ts.
  */
@@ -14,7 +14,7 @@ function kickerFor(key: string): string {
   const dir = key.split('/').slice(0, -1);
   if (!dir.length) return key;
   const k = dir.join('/');
-  return k.length <= 44 ? k : `docs/…/${dir.slice(-2).join('/')}`;
+  return k.length <= 44 ? k : `docs/.../${dir.slice(-2).join('/')}`;
 }
 
 export const getStaticPaths = (async () => {

@@ -14,7 +14,7 @@ export type PageType = 'home' | 'docs' | 'blog' | 'page';
 /** Suffixes earlier layouts appended themselves; stripped so they never double up. */
 const LEGACY_SUFFIX = /\s+[-·|—]\s+Kairo(?: (?:Docs|Blog|Programming Language))?$/;
 
-/** A title without any " · Kairo …" / " - Kairo …" suffix. */
+/** A title without any " · Kairo ..." / " - Kairo ..." suffix. */
 export function bareTitle(raw: string): string {
   return raw.replace(LEGACY_SUFFIX, '').trim();
 }
@@ -46,7 +46,7 @@ function fit(t: string, suffix: string): string {
 }
 
 /**
- * Meta descriptions should be ~50–160 chars. Long ones are cut at a word
+ * Meta descriptions should be ~50-160 chars. Long ones are cut at a word
  * boundary; short/missing ones get page context appended so every page has
  * a real, unique summary.
  */
@@ -67,7 +67,7 @@ export function fitDescription(desc: string | undefined, title: string, type: Pa
   if (d.length > 160) {
     const cut = d.slice(0, 157);
     const sp = cut.lastIndexOf(' ');
-    d = (sp > 100 ? cut.slice(0, sp) : cut).replace(/[\s,;:.—-]+$/, '') + '…';
+    d = (sp > 100 ? cut.slice(0, sp) : cut).replace(/[\s,;:.—-]+$/, '') + '...';
   }
   return d;
 }

@@ -30,7 +30,7 @@ export interface GutterWallOptions {
 export interface GutterWall {
   /** re-read wrap metrics (on wrap resize) */
   measure(): void;
-  /** paint for a frame of border-box size w × h */
+  /** paint for a frame of border-box size w x h */
   draw(w: number, h: number): void;
   destroy(): void;
 }

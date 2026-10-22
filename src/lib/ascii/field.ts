@@ -31,9 +31,9 @@
  *
  * RESTRAINT: looping fields are for the homepage only (hero + the slow
  * section bands); everywhere else use a still frame (data-field-still /
- * renderOnce). Keep fields behind content at opacity ~0.15–0.45 and give copy
+ * renderOnce). Keep fields behind content at opacity ~0.15-0.45 and give copy
  * a solid backing (.on-field). Presets are tuned slow and drift smoothly (no
- * per-frame re-rolls); 'static' re-rolls at ≤2.5 Hz so it can never strobe.
+ * per-frame re-rolls); 'static' re-rolls at <=2.5 Hz so it can never strobe.
  * Calm pages (docs/blog) and reduced motion: one still frame (a calm-page
  * field may opt back in with animateOnCalm; reduced motion always wins).
  *
@@ -72,7 +72,7 @@ export type FieldFn = (x: number, y: number, t: number, p: FieldPointer, env: Fi
 
 export interface FieldOptions {
   fn?: FieldFn | PresetName;
-  /** glyph font size in CSS px. Cell = 0.6*size × lineHeight*size. Default 14 */
+  /** glyph font size in CSS px. Cell = 0.6*size x lineHeight*size. Default 14 */
   size?: number;
   lineHeight?: number; // default 1.25
   ramp?: string;       // default GLYPHS.ramp
@@ -84,7 +84,7 @@ export interface FieldOptions {
   pointer?: boolean;   // track pointer, default true (ignored on touch-only / reduced motion)
   threshold?: number;  // below this nothing is drawn, default 0.06
   maxCells?: number;   // auto-grow cell size above this many cells, default 16000
-  /** narrow screens (≤640px): glyph size multiplier and cell budget. Defaults 1.2 / 6000 */
+  /** narrow screens (<=640px): glyph size multiplier and cell budget. Defaults 1.2 / 6000 */
   narrowScale?: number;
   narrowMaxCells?: number;
   /** seconds added to the animation clock, so frame 0 can match the still frame. Default 0 */

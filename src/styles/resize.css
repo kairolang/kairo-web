@@ -93,7 +93,7 @@
   .rz-edge { display: none; }
 }
 
-/* ── size readout: [ 80×24 ] under the active grip, fades after release ── */
+/* ── size readout: [ 80x24 ] under the active grip, fades after release ── */
 .rz-readout {
   position: absolute;
   top: calc(100% + 10px);

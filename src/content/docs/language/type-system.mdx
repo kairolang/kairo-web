@@ -123,7 +123,7 @@ fn grow(n: u32) {
 ```
 
 `u64` to `usize` still needs `as`, because it narrows on 32-bit targets; on 16-bit
-targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
+targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice section 4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
 
 ### `T` to `T?` - Non-nullable to Nullable
 

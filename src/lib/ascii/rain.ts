@@ -24,13 +24,13 @@ import { GLYPHS, onThemeChange, stillPage } from './motion';
 import { fieldLoop, noise2, rand1, resolveColor } from './field';
 
 export interface RainPoolOptions {
-  /** glyph font size in CSS px (cell = 0.6*size × lineHeight*size). Default 14 */
+  /** glyph font size in CSS px (cell = 0.6*size x lineHeight*size). Default 14 */
   size?: number;
   lineHeight?: number;   // default 1.25
   fps?: number;          // default 24
   dpr?: number;          // DPR cap, default 1.5
   maxCells?: number;     // default 16000
-  narrowScale?: number;  // ≤640px glyph size multiplier, default 1.2
+  narrowScale?: number;  // <=640px glyph size multiplier, default 1.2
   narrowMaxCells?: number; // default 6000
   /** seconds for the pool to fill. Default 2.4 */
   settle?: number;
@@ -59,7 +59,7 @@ const TAU = Math.PI * 2;
 const STREAK = 5;                    // rows of trail behind a drop head
 const SPLASH = 0.3;                  // s
 
-/** pool surface offset in rows: slow, small, travelling (max ≈ 0.72 rows). */
+/** pool surface offset in rows: slow, small, travelling (max ~0.72 rows). */
 function wave(x: number, t: number): number {
   return 0.36 * Math.sin(TAU * (x / 560 - t / 9.5))
     + 0.24 * Math.sin(TAU * (x / 330 - t / 6.8) + 1.9)
@@ -85,7 +85,7 @@ export function createRainPool(host: HTMLElement, opts: RainPoolOptions = {}): R
   const actx = atlas.getContext('2d')!;
 
   let cols = 0, rows = 0, cellW = 0, cwD = 1, chD = 1, dpr = 1, size = o.size;
-  // per-cell buffer (row from the bottom × col): glyph | shade << 4, 0 = empty
+  // per-cell buffer (row from the bottom x col): glyph | shade << 4, 0 = empty
   let cells = new Uint8Array(0);
   // per-column constants (set on resize) and per-frame scratch
   let finalH = new Float32Array(0), fillT0 = new Float32Array(0), fillDur = new Float32Array(0);

@@ -10,9 +10,9 @@
  * the default glyph set is ASCII so a Geist Mono line never changes width.
  *
  * Auto-binding (wired globally by BaseLayout via initAscii()):
- *   <h2 data-scramble>…</h2>                 decode once when first visible
+ *   <h2 data-scramble>...</h2>                 decode once when first visible
  *   <h2 data-scramble="700" data-scramble-delay="120">  custom duration/delay (ms)
- *   <a data-scramble-hover>…</a>             re-scramble on hover / keyboard focus
+ *   <a data-scramble-hover>...</a>             re-scramble on hover / keyboard focus
  *   .ascii-btn, .btn-primary, .btn-outline, .nav-link scramble on hover automatically
  *   data-scramble-hover="off"                opt an element out
  *

@@ -5086,7 +5086,7 @@ fn grow(n: u32) {
 ```
 
 `u64` to `usize` still needs `as`, because it narrows on 32-bit targets; on 16-bit
-targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice §4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
+targets `u32` to `usize` does too. The full rule is in the [Conversion Lattice section 4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
 
 #### `T` to `T?` - Non-nullable to Nullable
 
@@ -10536,7 +10536,7 @@ fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or
 `intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one,
 whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t`
 directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
-[Conversion Lattice §4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
+[Conversion Lattice section 4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
 
 ---
 
@@ -12323,10 +12323,10 @@ Every ordered pair `(S, T)` of primitive types falls into exactly one class:
 
 There is no "warn" class. A conversion is either sound-by-construction or it is not; a
 third state would force the checker to carry a severity through overload resolution, and
-severities do not compose. Lossy-cast detection on known-constant operands is a lint (§8),
+severities do not compose. Lossy-cast detection on known-constant operands is a lint (section 8),
 not part of the type relation.
 
-**`-fno-implicit-conv` demotes every W to E.** It changes nothing else. §7 proves this
+**`-fno-implicit-conv` demotes every W to E.** It changes nothing else. Section 7 proves this
 cannot alter which overload is selected.
 
 ---
@@ -12343,7 +12343,7 @@ unsigned range fits). `iN -> uM` is **never** W, for any `N`, `M`. Signed-to-uns
 loses negatives at every width; there is no widening that repairs it.
 
 **R3 - integer to float.** `S -> fM` is W iff every value of `S` is exactly representable
-in `fM`, i.e. `bits(S) ≤ mantissa(fM)` counting the implicit leading bit. This is an
+in `fM`, i.e. `bits(S) <= mantissa(fM)` counting the implicit leading bit. This is an
 *exactness* criterion, not a size criterion: `i32 -> f32` is same-size and lossy, while
 `i32 -> f64` is smaller-to-larger and exact.
 
@@ -12356,8 +12356,8 @@ in `fM`, i.e. `bits(S) ≤ mantissa(fM)` counting the implicit leading bit. This
 **R4 - float widening.** `f16 -> f32`, `f16 -> f64`, `f32 -> f64` are W. All other
 float-to-float pairs are E.
 
-**R5 - extended width is opaque.** No type wider than 64 bits (`u128`–`u512`,
-`i128`–`i512`, `f128`–`f512`) is ever the *target* of a W conversion, and no
+**R5 - extended width is opaque.** No type wider than 64 bits (`u128`-`u512`,
+`i128`-`i512`, `f128`-`f512`) is ever the *target* of a W conversion, and no
 extended-width type is ever the *source* of one. Rationale: on targets without wide
 register support these conversions emit multi-word or software-SIMD sequences. Making
 implicitness depend on the target would mean the same source compiles differently per
@@ -12365,15 +12365,15 @@ triple. Uniform E on all targets keeps the cost visible in the source text and k
 lattice target-independent.
 
 Everything else (`bool`, `char`, `byte`, `usize`, `isize`, `string`, `void`, pointers,
-aggregates) participates in **no** W conversion in either direction. Reasons in §4.
+aggregates) participates in **no** W conversion in either direction. Reasons in section 4.
 The single exception is an argument to an [imported C/C++ function](/docs/language/c-cpp-calling/#argument-conversions), where
-`usize`/`isize` widen by the boundary rule in §4.1.
+`usize`/`isize` widen by the boundary rule in section 4.1.
 
 ---
 
 ### 3. Core integer table
 
-Rows are source, columns are target. `≤64`-bit fixed-width integers only; wider widths
+Rows are source, columns are target. `<=64`-bit fixed-width integers only; wider widths
 are E by R5.
 
 | S \ T | `u8` | `u16` | `u32` | `u64` | `i8` | `i16` | `i32` | `i64` |
@@ -12395,10 +12395,10 @@ step is required, so `u32 -> i32` is E), and the signed-to-unsigned quadrant is 
 
 | S \ T | `f16` | `f32` | `f64` | `f128`+ | any int | `bool` | `char` | `byte` |
 |---|---|---|---|---|---|---|---|---|
-| `u8`/`i8`   | W | W | W | E | see §3 | E | E | E |
-| `u16`/`i16` | E | W | W | E | see §3 | E | E | E |
-| `u32`/`i32` | E | E | W | E | see §3 | E | E | E |
-| `u64`/`i64` | E | E | E | E | see §3 | E | E | E |
+| `u8`/`i8`   | W | W | W | E | see section 3 | E | E | E |
+| `u16`/`i16` | E | W | W | E | see section 3 | E | E | E |
+| `u32`/`i32` | E | E | W | E | see section 3 | E | E | E |
+| `u64`/`i64` | E | E | E | E | see section 3 | E | E | E |
 | `f16` | I | W | W | E | E | X | X | X |
 | `f32` | E | I | W | E | E | X | X | X |
 | `f64` | E | E | I | E | E | X | X | X |
@@ -12421,7 +12421,7 @@ out-of-range values; it is never undefined behavior. See
 direction, including `usize -> u64` on 64-bit targets. This is the one place where a
 tempting rule breaks portability outright: if `usize -> u64` were W on 64-bit, code would
 compile on `x86_64` and fail on `wasm32`. `usize` and `isize` also do not W-convert to
-each other. Literals still work: `var i: usize = 0` is literal inference (§5), not
+each other. Literals still work: `var i: usize = 0` is literal inference (section 5), not
 conversion.
 
 **`byte`.** No W conversion to or from `u8`. `byte` is restricted to bitwise operations
@@ -12450,13 +12450,13 @@ want element-wise conversion it is a library `map`, not a coercion.
 
 An argument to an **imported** C/C++ function may widen to or from `usize`/`isize`
 without `as`. Nothing else uses this rule: Kairo functions, assignments, `if`/`match`
-arms and operator operands keep §4 alone.
+arms and operator operands keep section 4 alone.
 
 The rule reads the target only below 32 bits. `usize` and `isize` are taken as
 [32, 64] bits wide, or [P, 64] on a target whose pointer width P is below 32; a
 fixed-width integer of N bits is [N, N]. `S -> D` is implicit iff:
 
-- same signedness: `max(S) ≤ min(D)`
+- same signedness: `max(S) <= min(D)`
 - unsigned to signed: `max(S) < min(D)`
 - signed to unsigned: never
 
@@ -12471,14 +12471,14 @@ fixed-width integer of N bits is [N, N]. `S -> D` is implicit iff:
 
 Because the rule judges against the narrowest and widest target at once, every 32- and
 64-bit target accepts the same set of programs; a 16-bit target accepts a subset. This
-keeps the property §4 protects. A conversion accepted by this rule is considered only
-when §3 would require `as`, and ranks like any other implicit conversion in overload
+keeps the property section 4 protects. A conversion accepted by this rule is considered only
+when section 3 would require `as`, and ranks like any other implicit conversion in overload
 resolution. Extended-width types (R5), floats and
 non-numeric types never take it, and `-fno-implicit-conv` turns it off like any other W.
 
 The importer reads `size_t`/`uintptr_t` as `usize`, and `ptrdiff_t`/`intptr_t`/`ssize_t`
 as `isize`. A plain `unsigned long` stays a fixed-width type (`u64` on LP64 targets) and
-is judged by §3.
+is judged by section 3.
 
 ---
 
@@ -12491,7 +12491,7 @@ Literal inference is covered in [Primitives](/docs/language/primitives/#5-litera
 No separate "usual arithmetic conversions." Operator operand unification is defined
 *in terms of* the W relation, so there is exactly one conversion concept in the language:
 
-Given operands of type `A` and `B`, `A ≠ B`:
+Given operands of type `A` and `B`, `A != B`:
 
 - If `W(A -> B)` and not `W(B -> A)`: result operand type is `B`.
 - If `W(B -> A)` and not `W(A -> B)`: result operand type is `A`.
@@ -12506,9 +12506,9 @@ Consequences:
 | `u32 + i64` | `i64` | R2 |
 | `i32 + f64` | `f64` | R3 |
 | `i64 + f64` | error | R3 exactness fails; force the cast |
-| `usize + i32` | error | §4 |
+| `usize + i32` | error | section 4 |
 | `i64 + i128` | error | R5: extended width never silent |
-| `byte & u8` | error | §4 |
+| `byte & u8` | error | section 4 |
 
 The `u32 + i32` error is deliberate. C's answer is `u32`, which silently converts every
 negative `i32` into a huge positive number; Kairo refuses rather than guess.
@@ -16146,7 +16146,7 @@ Whole-program analysis cannot re-walk every callee at every call site. Each tran
 
 A function's summary records four sections per pointer parameter and for the function's effect on reachable state:
 
-- **Requires** preconditions the caller must discharge before the call (e.g. *`ptr` in allocation, access ≤ 16 bytes*).
+- **Requires** preconditions the caller must discharge before the call (e.g. *`ptr` in allocation, access `<=` 16 bytes*).
 - **Guarantees** postconditions the caller may assume after the call (e.g. *`ptr` unchanged*).
 - **Preserves** arguments and state the function provably does not mutate. Hoisting reads this: the `loop_bound == allocation_count` proof requires that an intervening call **Preserves** the size variable.
 - **Escapes** what the function retains beyond its own frame (stores, returns, captures). Lifetime analysis reads this.
@@ -16394,13 +16394,13 @@ Every [safe-pointer](/docs/language/pointers/#safe-pointers-t) dereference `*p` 
 conjunction of independent clauses. The access is sound if and only if every clause holds:
 
 ```
-deref(p: *T) is sound  ⟺
-    epoch(prov(p)) = live_epoch(alloc(prov(p)))            (C1) provenance / use-after-free
-  ∧ 0 ≤ byte_offset(p)                                      (C2) no underflow
-  ∧ byte_offset(p) + sizeof T ≤ size(alloc(prov(p)))        (C3) no overflow / bounds
-  ∧ p ≠ null                                                (C4) nullability
-  ∧ (¬shared(alloc(prov(p))) ∨ readonly_extent ∨ synced)    (C5) data-race freedom
-  ∧ (¬tainted(prov(p)) ∨ laundered(p))                      (C6) provenance integrity
+deref(p: *T) is sound  iff
+    epoch(prov(p)) = live_epoch(alloc(prov(p)))             (C1) provenance / use-after-free
+ && 0 <= byte_offset(p)                                     (C2) no underflow
+ && byte_offset(p) + sizeof T <= size(alloc(prov(p)))       (C3) no overflow / bounds
+ && p != null                                               (C4) nullability
+ && (!shared(alloc(prov(p))) || readonly_extent || synced)  (C5) data-race freedom
+ && (!tainted(prov(p)) || laundered(p))                     (C6) provenance integrity
 ```
 
 Where:
@@ -16462,7 +16462,7 @@ and `DynamicResidual` are the weakest elements of their domains.
 The fact tuple for a pointer is an element of the product lattice
 
 ```
-    L  =  L_C1 × L_C2C3 × L_C4 × L_C5 × L_C6
+    L  =  L_C1 x L_C2C3 x L_C4 x L_C5 x L_C6
 ```
 
 ordered componentwise. The product of finite-height lattices is itself a finite-height lattice; the

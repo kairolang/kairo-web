@@ -18,7 +18,7 @@ const fmt = new Intl.NumberFormat('en-US');
 // neighbours keep theirs until the strip hits 100%, then share the squeeze).
 // CSS `min-width: max-content` is the hard floor (text never touches a
 // separator); data-resize-min is a slight under-estimate of it (label: 0.68rem
-// caps @ 0.12em ≈ 7.4px/char, value: 1.5rem ≈ 14.4px/char, padding 2×1.1rem +
+// caps @ 0.12em ~ 7.4px/char, value: 1.5rem ~ 14.4px/char, padding 2x1.1rem +
 // 1px separator) so the grip never jumps wider on grab.
 const ctStats = [
   { label: 'contributors', value: fmt.format(people.length) },
