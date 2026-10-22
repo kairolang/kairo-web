@@ -78,6 +78,11 @@ const LOGO = {
 const GITHUB_ORG = 'https://github.com/kairolang';
 const GITHUB_REPO = 'https://github.com/kairolang/kairo';
 const languageRef = { '@type': 'ComputerLanguage', '@id': ID.lang, name: 'Kairo' };
+// Brand entity: the bare token "Kairo" is the name everywhere. The aliases are
+// the forms people actually search; nothing here targets look-alike names.
+const BRAND_ALIASES = ['Kairo Programming Language', 'Kairo Lang', 'kairolang', 'Kairo language'];
+const BRAND_DESCRIPTION =
+  'Kairo is an open-source systems programming language with native, bidirectional C++ interop. The Language Beyond C++.';
 
 const graph: Record<string, unknown>[] = [];
 
@@ -86,9 +91,9 @@ graph.push({
   '@type': 'WebSite',
   '@id': ID.website,
   name: siteName,
-  alternateName: ['Kairo Programming Language', 'Kairo Lang', 'kairolang'],
+  alternateName: BRAND_ALIASES,
   url: `${siteURL}/`,
-  description: 'Kairo is an open-source systems programming language with native, bidirectional C++ interop. The Language Beyond C++.',
+  description: BRAND_DESCRIPTION,
   inLanguage: 'en',
   publisher: { '@id': ID.org },
   about: { '@id': ID.lang },
@@ -109,7 +114,7 @@ graph.push({
   logo: LOGO,
   image: { '@id': ID.logo },
   email: 'donations@kairolang.org',
-  sameAs: [GITHUB_ORG],
+  sameAs: [GITHUB_ORG, GITHUB_REPO],
 });
 
 // Language identity: full node on the home page, a typed reference elsewhere
@@ -118,9 +123,9 @@ if (type === 'home') {
     '@type': 'ComputerLanguage',
     '@id': ID.lang,
     name: 'Kairo',
-    alternateName: ['Kairo Programming Language', 'Kairo Lang', 'Kairo language', 'kairolang'],
+    alternateName: BRAND_ALIASES,
     url: `${siteURL}/`,
-    description,
+    description: BRAND_DESCRIPTION,
     image: ogImageAbs,
     logo: { '@id': ID.logo },
     sameAs: [GITHUB_REPO, GITHUB_ORG],
@@ -249,6 +254,8 @@ const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': grap
 
 <!-- Primary meta -->
 <meta name="description" content={description} />
+<meta name="application-name" content={siteName} />
+<meta name="apple-mobile-web-app-title" content={siteName} />
 {noindex
   ? <meta name="robots" content="noindex, follow" />
   : <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />

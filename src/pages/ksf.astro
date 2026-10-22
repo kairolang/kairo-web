@@ -54,6 +54,7 @@ const involve = [
   title="Kairo Software Foundation"
   description="The Kairo Software Foundation (KSF) is the nonprofit dedicated to the development and sustainability of the Kairo programming language ecosystem."
 >
+  <main id="main">
   <!-- ── Hero: the page's one moment (KSF art + title load in under one rect-lens sweep) ── -->
   <section class="ksf-hero" data-snap>
     <!-- slow drifting noise field, same tuning as the home CTA band (20fps, soft halo,
@@ -67,6 +68,7 @@ const involve = [
       strength={0.3}
       opacity={0.22}
       mask="linear-gradient(90deg, transparent 0 38%, #000 82%)"
+      skipX={[0, 0.4]}
       class="ksf-hero-field"
     />
     <div class="container ksf-hero-inner">
@@ -180,6 +182,7 @@ const involve = [
       <AsciiButton href="mailto:donations@kairolang.org" label="donations@kairolang.org" size="lg" class="ksf-cta-btn" />
     </div>
   </section>
+  </main>
 </BaseLayout>
 
 <style>

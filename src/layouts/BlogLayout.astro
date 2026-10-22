@@ -1,5 +1,6 @@
 ---
 import CodeBlockEnhancer from '../components/docs/CodeBlockEnhancer.astro';
+import TableOfContents from '../components/docs/TableOfContents.astro';
 import AsciiButton from '../components/ascii/AsciiButton.astro';
 import AsciiFrame from '../components/ascii/AsciiFrame.astro';
 import BaseLayout from './BaseLayout.astro';
@@ -46,16 +47,8 @@ const meta: Array<{ k: string; v: string; dt?: string }> = [
   { k: 'words', v: wordCount.toLocaleString('en-US') },
 ];
 
-// TOC as a tree: h2 at the root, h3 nested under the preceding h2.
-type Node = { slug: string; text: string; children: Node[] };
-const toc: Node[] = [];
-for (const h of headings) {
-  if (h.depth === 2) toc.push({ slug: h.slug, text: h.text, children: [] });
-  else if (h.depth === 3) {
-    const parent = toc[toc.length - 1];
-    (parent ? parent.children : toc).push({ slug: h.slug, text: h.text, children: [] });
-  }
-}
+// The TOC tree itself (shared with docs) lives in TableOfContents.
+const tocCount = headings.filter((h) => h.depth === 2 || h.depth === 3).length;
 ---
 <BaseLayout
   title={`${title} - Kairo Blog`}
@@ -76,7 +69,7 @@ for (const h of headings) {
 
     <div class="post-grid">
       <!-- Center: content -->
-      <main class="post-main">
+      <main id="main" class="post-main">
         <AsciiFrame as="header" title={`${slug}.mdx`} meta="post" variant="fill" class="post-head" id="post-head">
           <div class="section-label">Blog <span class="post-label-date">/ {isoDate}</span></div>
           <!-- Large title: hover rect lens only (calm page: no load-in sweep). -->
@@ -98,25 +91,10 @@ for (const h of headings) {
             )}
           </dl>
 
-          {toc.length > 0 && (
+          {tocCount > 0 && (
             <details class="post-toc-mobile">
-              <summary><span class="toc-sum-label">contents</span> <span class="dim">({headings.filter((h) => h.depth === 2 || h.depth === 3).length})</span></summary>
-              <nav aria-label="On this page" class="post-toc">
-                <ul class="toc-tree">
-                  {toc.map((n) => (
-                    <li>
-                      <a href={`#${n.slug}`} class="post-toc-link">{n.text}</a>
-                      {n.children.length > 0 && (
-                        <ul>
-                          {n.children.map((c) => (
-                            <li><a href={`#${c.slug}`} class="post-toc-link post-toc-h3">{c.text}</a></li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </nav>
+              <summary><span class="toc-sum-label">contents</span> <span class="dim">({tocCount})</span></summary>
+              <TableOfContents headings={headings} id="post-toc-inline" progress={false} label={false} class="post-toc-inline" />
             </details>
           )}
         </AsciiFrame>
@@ -137,37 +115,9 @@ for (const h of headings) {
         </div>
       </main>
 
-      <!-- Right rail: progress + TOC tree -->
+      <!-- Right rail: read bar + TOC tree + [ ↑ top ] [ cd .. ] (shared with docs) -->
       <aside class="post-rail" aria-label="Post navigation">
-        <div class="rail-block rail-progress" aria-hidden="true">
-          <div class="rail-label">read</div>
-          <div class="read-bar" data-read-bar>[<span class="rb-fill"></span><span class="rb-empty">░░░░░░░░░░░░░░░░</span>]<span class="rb-pct">   0%</span></div>
-        </div>
-
-        {toc.length > 0 && (
-          <nav aria-label="On this page" class="rail-block post-toc">
-            <div class="rail-label">$ tree --toc</div>
-            <div class="toc-root" aria-hidden="true">.</div>
-            <ul class="toc-tree">
-              {toc.map((n) => (
-                <li>
-                  <a href={`#${n.slug}`} class="post-toc-link">{n.text}</a>
-                  {n.children.length > 0 && (
-                    <ul>
-                      {n.children.map((c) => (
-                        <li><a href={`#${c.slug}`} class="post-toc-link post-toc-h3">{c.text}</a></li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-
-        <div class="rail-block">
-          <a href="/blog/" class="rail-back"><span aria-hidden="true">cd ../</span>blog</a>
-        </div>
+        <TableOfContents headings={headings} id="post-toc" />
       </aside>
     </div>
   </div>
@@ -263,124 +213,19 @@ for (const h of headings) {
   .kv-row:first-child dd { font-weight: 600; }
   .kv-tags { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
 
-  /* ── TOC tree (lines drawn as 1px rules so wrapped items stay connected) ─ */
-  .toc-tree,
-  .toc-tree ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .toc-tree {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.45;
-    --tree-line: var(--text-3);
-  }
-  .toc-tree li {
-    position: relative;
-    padding-left: 3.5ch;
-  }
-  .toc-tree li::before {
-    /* │ — runs the full height unless this is the last child */
-    content: '';
-    position: absolute;
-    left: 0.5ch;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--tree-line);
-  }
-  .toc-tree li:last-child::before { bottom: auto; height: calc(0.5lh + 0.3rem); }
-  .toc-tree li::after {
-    /* ── */
-    content: '';
-    position: absolute;
-    left: 0.5ch;
-    width: 2.4ch;
-    top: calc(0.5lh + 0.3rem);
-    height: 1px;
-    background: var(--tree-line);
-  }
-  .post-toc-link {
-    display: block;
-    padding: 0.3rem 0.5ch;
-    margin-left: -0.5ch;
-    color: var(--text-2);
-    text-decoration: none;
-    overflow-wrap: anywhere;
-    transition: color var(--dur-instant) steps(1, end), background-color var(--dur-instant) steps(1, end);
-  }
-  .post-toc-h3 { color: var(--text-2); font-size: 0.72rem; }
-  .post-toc-link:hover,
-  .post-toc-link:focus-visible {
-    color: var(--text);
-    background-color: var(--bg-3);
-  }
-  .post-toc-link.active {
-    color: var(--accent);
-  }
-  .post-toc-link.active::before {
-    content: '> ';
-    content: '> ' / '';
-  }
-
   /* ── right rail ─────────────────────────────────────────────── */
   .post-rail {
     position: sticky;
     top: 88px;
     max-height: calc(100vh - 110px);
     overflow-y: auto;
-    overscroll-behavior: contain;
+    /* no overscroll-behavior: contain here. When the rail's content fits, Chrome
+       would treat it as a scroll container that swallows the wheel, so the post
+       could not scroll with the pointer over the TOC. Chaining at the ends is fine. */
     scrollbar-width: thin;
     font-family: var(--font-mono);
     padding-bottom: 1rem;
   }
-  .rail-block + .rail-block {
-    margin-top: 1.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px dashed var(--frame-line);
-  }
-  .rail-label {
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-2);
-    margin-bottom: 0.5rem;
-  }
-  .rail-label::before {
-    content: '// ';
-    content: '// ' / '';
-    color: var(--text-3);
-  }
-  .read-bar {
-    font-size: 0.75rem;
-    white-space: pre;
-    color: var(--text-3);
-    font-variant-numeric: tabular-nums;
-    overflow: hidden;
-  }
-  .rb-fill { color: var(--red); }
-  .rb-empty { color: var(--text-3); }
-  .rb-pct { color: var(--text-2); }
-  .toc-root {
-    font-size: 0.75rem;
-    color: var(--text-3);
-    line-height: 1.2;
-    padding-left: 0.2ch;
-  }
-  .rail-back {
-    font-size: 0.78rem;
-    color: var(--accent);
-    text-decoration: none;
-    padding: 2px 0.5ch;
-    margin-left: -0.5ch;
-  }
-  .rail-back span { color: var(--text-2); }
-  .rail-back:hover,
-  .rail-back:focus-visible { background: var(--accent); color: var(--on-red); }
-  .rail-back:hover span,
-  .rail-back:focus-visible span { color: var(--on-red); }
-
   /* ── mobile TOC (inside the header block) ───────────────────── */
   .post-toc-mobile {
     display: none;
@@ -407,7 +252,7 @@ for (const h of headings) {
   .post-toc-mobile[open] summary::before { content: '[-] '; content: '[-] ' / ''; }
   .post-toc-mobile summary:hover { color: var(--text); }
   .toc-sum-label { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.7rem; }
-  .post-toc-mobile .post-toc { margin-top: 0.75rem; }
+  .post-toc-mobile :global(.post-toc-inline) { margin-top: 0.75rem; padding-bottom: 0; }
 
   /* ── end of post ────────────────────────────────────────────── */
   .post-eof { margin-top: 4rem; }
@@ -438,72 +283,6 @@ for (const h of headings) {
 <script>
   import { bindResizable } from '../lib/ascii/resize';
 
-  // Reading progress as an ASCII bar in the rail. Scroll-driven only (no
-  // ambient motion); geometry is cached and re-measured on resize.
-  function initReadProgress() {
-    const bar = document.querySelector<HTMLElement>('[data-read-bar]');
-    const body = document.getElementById('post-body');
-    const fill = bar?.querySelector<HTMLElement>('.rb-fill');
-    const empty = bar?.querySelector<HTMLElement>('.rb-empty');
-    const label = bar?.querySelector<HTMLElement>('.rb-pct');
-    if (!bar || !body || !fill || !empty || !label || bar.dataset.init) return;
-    bar.dataset.init = '1';
-    const CELLS = 16;
-    let top = 0, height = 1, vh = window.innerHeight, ticking = false, last = -1;
-    const measure = () => {
-      const r = body.getBoundingClientRect();
-      top = r.top + window.scrollY;
-      height = r.height;
-      vh = window.innerHeight;
-    };
-    const update = () => {
-      ticking = false;
-      const start = top - vh * 0.3;
-      const end = top + height - vh;
-      const p = end > start ? (window.scrollY - start) / (end - start) : 1;
-      const pct = Math.round(Math.max(0, Math.min(1, p)) * 100);
-      if (pct === last) return;
-      last = pct;
-      const n = Math.round((pct / 100) * CELLS);
-      fill.textContent = '█'.repeat(n);
-      empty.textContent = '░'.repeat(CELLS - n);
-      label.textContent = ' ' + String(pct).padStart(3, ' ') + '%';
-    };
-    const request = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
-    const remeasure = () => { measure(); request(); };
-    measure();
-    update();
-    window.addEventListener('scroll', request, { passive: true });
-    window.addEventListener('resize', remeasure, { passive: true });
-    if ('ResizeObserver' in window) {
-      const ro = new ResizeObserver(remeasure);
-      ro.observe(body);
-      const head = document.getElementById('post-head');
-      if (head) ro.observe(head);
-    }
-  }
-
-  // Scroll-spy for the TOC tree (rail + mobile copy).
-  function initPostToc() {
-    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.post-toc-link'));
-    const root = document.querySelector<HTMLElement>('.post-grid');
-    if (!links.length || !root || root.dataset.tocInit) return;
-    root.dataset.tocInit = '1';
-    const ids = Array.from(new Set(links.map((l) => decodeURIComponent(l.hash.slice(1))).filter(Boolean)));
-    const els = ids.map((id) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
-    if (!els.length) return;
-    const setActive = (id: string) => {
-      for (const l of links) l.classList.toggle('active', decodeURIComponent(l.hash.slice(1)) === id);
-    };
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) if (entry.isIntersecting) setActive(entry.target.id);
-      },
-      { rootMargin: '-64px 0px -65% 0px', threshold: 0 },
-    );
-    els.forEach((el) => io.observe(el));
-  }
-
   // Code blocks are framed client-side by CodeBlockEnhancer (.code-block-wrap,
   // shared with docs, so not edited here). BaseLayout's idle bindResizable()
   // normally runs after that; re-binding the post body is idempotent and
@@ -516,7 +295,7 @@ for (const h of headings) {
     else setTimeout(run, 400);
   }
 
-  function initPost() { initReadProgress(); initPostToc(); initPostResize(); }
+  function initPost() { initPostResize(); }
   initPost();
   document.addEventListener('astro:page-load', initPost);
 </script>

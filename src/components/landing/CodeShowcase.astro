@@ -251,6 +251,7 @@ const TILDES = Array.from({ length: 30 }, () => '~').join('\n');
     t0={7.4}
     opacity={0.24}
     mask="radial-gradient(ellipse 60% 64% at 50% 52%, transparent 40%, #000 90%)"
+    hole={[0.5, 0.52, 0.27, 0.288]}
   />
   <div class="container showcase-inner">
 
@@ -431,7 +432,8 @@ const TILDES = Array.from({ length: 30 }, () => '~').join('\n');
     height: var(--sc-pane-h, 540px);
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    /* x contained (no back-swipe on long lines); y chains to the page */
+    overscroll-behavior: contain auto;
     scrollbar-width: thin;
     scrollbar-color: var(--border-hi) transparent;
   }

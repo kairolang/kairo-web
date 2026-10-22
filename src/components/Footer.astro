@@ -47,6 +47,7 @@ const year = new Date().getFullYear();
                 target={link.external ? '_blank' : undefined}
                 rel={link.external ? 'noopener noreferrer' : undefined}
                 class={link.hidden ? 'sr-only-link' : 'footer-link'}
+                tabindex={link.hidden ? -1 : undefined}
               >
                 {link.label}
                 {link.external && !link.hidden && <span class="footer-ext" aria-hidden="true" data-scramble-skip>↗</span>}

@@ -210,6 +210,22 @@ button {
   white-space: nowrap;
   border: 0;
 }
+/* skip link: first tab stop on every page, jumps to <main id="main"> */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100px;
+  z-index: 1002; /* above the header (50) and scroll-progress (1000/1001) */
+  padding: 0.4rem 1ch;
+  font: 600 0.75rem var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  background-color: var(--red);
+  color: var(--on-red);
+  border-radius: 0;
+}
+.skip-link:focus-visible { top: 0.5rem; outline: 1px solid var(--on-red); outline-offset: -3px; }
 .mono  { font-family: var(--font-mono); }
 .sans  { font-family: var(--font-sans); }
 .dim   { color: var(--text-3); }
@@ -341,6 +357,8 @@ kbd {
   text-wrap: balance;
 }
 .display .dim { color: var(--text-3); }
+/* light: --text-3 is 2.75:1 on --bg; a readable heading part needs >= 3:1 (AA large) */
+[data-theme="light"] .display .dim { color: #7d7d84; }
 .display .accent { color: var(--red); }
 
 /* ─── Scroll progress: segmented block bar ───────────────────────────
@@ -800,6 +818,11 @@ html:not([data-theme="light"]) .astro-code span {
   font-style: var(--shiki-dark-font-style, inherit) !important;
   font-weight: var(--shiki-dark-font-weight, inherit) !important;
   text-decoration: var(--shiki-dark-text-decoration, inherit) !important;
+}
+/* github-dark comments (#6A737D) are ~4.0:1 on the code panel: lift them to
+   github-dark-default's comment grey (#8b949e, ~6.3:1, same as the homepage) */
+html:not([data-theme="light"]) .astro-code span[style*="--shiki-dark:#6a737d" i] {
+  color: #8b949e !important;
 }
 
 [data-theme="light"] .astro-code {
@@ -1419,7 +1442,16 @@ code {
    shows grips, not every frame around it. */
 .rz-auto:not([data-rz-anchor="center"]):not([data-rz-anchor="end"]) > .rz-handle--sw,
 .rz-auto:not([data-rz-anchor="center"]):not([data-rz-anchor="end"]) > .rz-handle--w { display: none; }
+/* last grid column ('end'): the right edge is pinned, so the right-side grips
+   only change height; width comes from sw/w, the edge that actually moves */
+.rz-auto[data-rz-anchor="end"] > .rz-handle--e { display: none; }
+.rz-auto[data-rz-anchor="end"] > .rz-handle--se { cursor: ns-resize; }
 .rz-auto:has(.rz-auto:hover):not(.is-resizing) > .rz-corner { opacity: 0; }
+/* nested boxes: a descendant's grips win over its ancestors' where they
+   overlap (ancestor grips are appended later, so they'd paint on top), and
+   an ancestor's hidden grips never take the pointer while a child is hovered */
+.rz-host .rz-host > .rz-handle { z-index: 5; }
+.rz-auto:has(.rz-auto:hover):not(.is-resizing) > .rz-handle { pointer-events: none; }
 
 /* boxes that clip (overflow:hidden): grips sit just inside the corner */
 .rz-host--inset > .rz-corner { bottom: 0; }
@@ -1434,6 +1466,38 @@ code {
 .rz-host--inset > .rz-handle--e { right: 0; width: 6px; }
 .rz-host--inset > .rz-handle--w { left: 0; width: 6px; }
 .rz-host--inset > .rz-handle--s { bottom: 0; height: 6px; }
+
+/* boxes that ARE links/buttons (CTA buttons, blog log rows, contributor
+   cards), mouse only: every grip sits fully OUTSIDE the box so no part of
+   the link is a dead zone. The corner grip hangs directly BELOW the corner
+   (never sideways, so it can't widen the page at 360px) with its glyph
+   still drawn on the corner (pseudo-elements don't hit-test); edge strips
+   run flush to the border box. Outside grips overlap the neighbouring box
+   (stacked log rows, a button row), so they only take the pointer while
+   their own box is hovered; every grip touches the box, so the pointer
+   never loses that :hover on the way. Offsets are from the padding box:
+   --rz-b* are the box's own borders (set by resize.ts). Touch keeps the
+   standard (visible) grips.                                             */
+@media (hover: hover) and (pointer: fine) {
+  .rz-host--outside > .rz-corner { bottom: calc(-22px - var(--rz-bb, 0px)); z-index: 6; }
+  .rz-host--outside > .rz-handle--se { right: calc(0px - var(--rz-br, 0px)); }
+  .rz-host--outside > .rz-handle--sw { left: calc(0px - var(--rz-bl, 0px)); }
+  .rz-host--outside > .rz-handle::before,
+  .rz-host--outside > .rz-handle::after { pointer-events: none; }
+  .rz-host--outside > .rz-corner::before { bottom: 100%; }
+  .rz-host--outside > .rz-handle--se::before { right: 0; }
+  .rz-host--outside > .rz-handle--sw::before { left: 0; }
+  .rz-host--outside > .rz-corner::after { bottom: calc(100% + 4px); }
+  .rz-host--outside > .rz-handle--se::after { right: 4px; }
+  .rz-host--outside > .rz-handle--sw::after { left: 4px; }
+  .rz-host--outside > .rz-handle--e { right: calc(-10px - var(--rz-br, 0px)); }
+  .rz-host--outside > .rz-handle--w { left: calc(-10px - var(--rz-bl, 0px)); }
+  .rz-host--outside > .rz-handle--s { bottom: calc(-10px - var(--rz-bb, 0px)); }
+  .rz-host--outside > .rz-handle--e::before { left: 0; }
+  .rz-host--outside > .rz-handle--w::before { left: 100%; }
+  .rz-host--outside > .rz-handle--s::before { top: 0; }
+  .rz-host--outside:not(:hover):not(.is-resizing) > .rz-handle { pointer-events: none; }
+}
 
 /* touch: bigger grips, faintly visible at rest, no edge strips */
 @media (hover: none), (pointer: coarse) {
@@ -1512,24 +1576,23 @@ html.rz-dragging * {
 }
 :where([data-reflow="grid"], [data-reflow="grid-span"]) > :where(*) { min-width: 0; }
 
-/* ─── Section detents: gentle scroll snap (non-docs pages) ───────────
+/* ─── Section detents (non-docs pages) ───────────────────────────────
    BaseLayout sets <html data-scroll-snap> on every page except /docs/.
-   `proximity` = a soft detent: a scroll that ends NEAR a section top
-   settles onto it; one that ends mid-section stays put, and sections
-   taller than the viewport scroll freely. Snap points: every top-level
-   <section> (body > section, or body > main > section), anything marked [data-snap], and, on pages
-   that have any of those, the page bottom (footer, end-aligned, so the end
-   of the page is always reachable). Pages with neither (blog posts) don't
-   snap at all: prose isn't paged.
-   Suspended while a box is being resized (html.rz-dragging) and until the
-   next user scroll after one (html.rz-snap-hold). Off under reduced motion
-   (a snap is an animated jump).                                        */
+   There is NO scroll-snap-type here on purpose: Chrome's `proximity`
+   range (~1/3 viewport) trapped small wheel/trackpad/touch gestures near
+   a section top. src/lib/ascii/detent.ts does the detent instead: when a
+   user scroll settles within ~72px BEFORE a target (in the direction the
+   user was scrolling) it eases onto it; never backwards, never from far.
+   The declarations below are the target DATA it reads (computed
+   scroll-snap-align): every top-level <section> (body > section, or
+   body > main > section), anything marked [data-snap] (="center" / "end"
+   variants), and, on pages that have any of those, the page bottom
+   (footer, end-aligned). [data-snap="off"] opts out. Without a snap-type
+   these are inert for the browser itself.
+   The detent is suspended while a box is being resized (html.rz-dragging),
+   until the next user scroll after one (html.rz-snap-hold), and under
+   reduced motion.                                                      */
 html[data-scroll-snap] { scroll-padding-top: var(--snap-offset, 53px); }
-@media (prefers-reduced-motion: no-preference) {
-  html[data-scroll-snap] { scroll-snap-type: y proximity; }
-}
-html[data-scroll-snap].rz-dragging,
-html[data-scroll-snap].rz-snap-hold { scroll-snap-type: none; }
 html[data-scroll-snap] body > section,
 html[data-scroll-snap] body > main > section,
 html[data-scroll-snap] [data-snap]:not([data-snap="off"], [data-snap="end"], [data-snap="center"]) { scroll-snap-align: start; }

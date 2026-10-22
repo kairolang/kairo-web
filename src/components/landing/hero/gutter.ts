@@ -94,6 +94,9 @@ export function createGutterWall(o: GutterWallOptions): GutterWall {
     canvas.width = Math.max(1, Math.round(wrapW * dpr));
     colors();
     ensurePrepared();
+    // setting canvas.width wiped the backing store; repaint from the new
+    // centre/default width (the pinned frame gets no RO entry of its own)
+    if (lastW) draw(lastW, lastH);
   }
 
   function sizeCanvas(h: number) {

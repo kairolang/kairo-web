@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
@@ -6,6 +7,27 @@ import remarkCallouts from './remark-callouts.mjs';
 import rehypeSeoHeadings from './rehype-seo-headings.mjs';
 import { BUILD_DATE, lastmodFor } from './src/lib/lastmod.mjs';
 import codeHints from './shiki-code-hints.mjs';
+
+// Build into an --outDir on another volume (e.g. a /tmp preview dir while the
+// repo lives on an external disk): Astro 6 stages prerender assets in
+// ./.astro/.prerender and fs.rename()s them into outDir, which fails with
+// EXDEV across devices. Fall back to copy + unlink for that one case only.
+{
+  const rename = fs.promises.rename;
+  if (!rename.__kairoExdev) {
+    const patched = async (from, to) => {
+      try {
+        return await rename(from, to);
+      } catch (e) {
+        if (e?.code !== 'EXDEV') throw e;
+        await fs.promises.cp(from, to, { recursive: true, force: true });
+        await fs.promises.rm(from, { recursive: true, force: true });
+      }
+    };
+    patched.__kairoExdev = true;
+    fs.promises.rename = patched;
+  }
+}
 
 // Fetch Kairo TextMate grammar at build time
 let kairoLang = null;

@@ -37,7 +37,7 @@ test "dot product of two vectors" {
     assert result == 130, f"expected 130, got {result}"
 }`;
 
-// The reflowing text wall around the knot (and under the resizable window):
+// The reflowing text wall around the figure (and under the resizable window):
 // the dot_product.k source flattened into one continuous line of text.
 const flowText = heroCode.replace(/\s+/g, ' ').trim() + '  // EOF dot_product.k  ';
 const codeLines = heroCode.split('\n').length;
@@ -129,7 +129,7 @@ const logoCols = artSize(logoArt).cols;
             <p class="bp-line"><span class="bp-prompt" aria-hidden="true">$</span> <span class="bp-tw">kairo --version</span></p>
             <p class="bp-line bp-out"><span class="bp-tw">kairo v0.1.0-alpha</span></p>
             <p class="bp-line bp-out"><span class="bp-tw">stage(0) · bootstrap compiler · C++</span></p>
-            <p class="bp-line bp-out"><span class="bp-tw">transpiles Kairo → C++ · no LLVM</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">written in C++ · builds without LLVM</span></p>
             <p class="bp-line bp-out"><span class="bp-tw">status: frozen, kept to build stage(1)</span></p>
             <p class="bp-line bp-exit"><span class="bp-tw">exit 0</span></p>
           </div>
@@ -148,9 +148,9 @@ const logoCols = artSize(logoArt).cols;
         </div>
       </div>
 
-      <!-- The knot lives here; the canvas spans the whole band -->
+      <!-- The Penrose triangle lives here; the canvas spans the whole band -->
       <div class="hero-stage" id="hero-stage" data-flow-text={flowText} aria-hidden="true">
-        <span class="hero-stage-cap">fig.01 &nbsp;torus_knot(2, 3)</span>
+        <span class="hero-stage-cap">fig.01 &nbsp;penrose_triangle()</span>
       </div>
     </div>
   </div>
@@ -400,7 +400,7 @@ const logoCols = artSize(logoArt).cols;
   .bp-line:first-child { color: var(--text); }
   .bp-exit { color: #3fb950; }
   :global([data-theme="light"]) .bp-exit { color: #1a7f37; }
-  .bp-dim, .bp-line.bp-dim { color: var(--text-3); }
+  .bp-dim, .bp-line.bp-dim { color: var(--text-2); }
   .bp-bar-line { display: flex; flex-wrap: wrap; column-gap: 1ch; white-space: pre; }
   .bp-bar { color: var(--accent); letter-spacing: 0; }
   .bp-bar-note { color: var(--text-2); }
@@ -424,11 +424,11 @@ const logoCols = artSize(logoArt).cols;
     display: block;
     width: 4ch;
     white-space: pre;
-    animation: hero-spin 1.3s steps(4, end) infinite;
+    animation: hero-spin 1.3s steps(4, end) 3;
   }
   @keyframes hero-spin { to { transform: translateX(-4ch); } }
 
-  /* ── Stage (the knot's slot) ── */
+  /* ── Stage (the figure's slot) ── */
   .hero-stage {
     position: relative;
     height: clamp(280px, 88vw, 440px);
@@ -474,7 +474,7 @@ const logoCols = artSize(logoArt).cols;
   }
   /* resized: an inline width wins over the resting max (never past the wrap) */
   .hero-code[style*="width"] { max-width: 100%; }
-  .hero-code-body[style*="height"] { overflow: auto; overscroll-behavior: contain; }
+  .hero-code-body[style*="height"] { overflow: auto; overscroll-behavior: contain auto; }
 
   /* soft wrap once the window has been resized: a no-op until it is narrower
      than the code; wrapped rows hang under the code, not the line number */
@@ -530,6 +530,8 @@ const logoCols = artSize(logoArt).cols;
     animation: hero-code-failsafe 0s linear 3s forwards;
   }
   @keyframes hero-code-failsafe { to { clip-path: none; } }
+  /* JS is up and will print it on sight: no failsafe un-clip before that */
+  .hero-code-body.is-armed:not(.is-printed) { animation: none; }
   .hero-code-body.is-printed {
     animation: hero-code-print 300ms steps(var(--lines, 24), end) both;
   }
@@ -812,7 +814,7 @@ const logoCols = artSize(logoArt).cols;
 
     try { initBoot(root); } catch { /* the boot log still reads fine */ }
 
-    // 2. The ASCII scene: knot + lattice + text wall flowing around it
+    // 2. The ASCII scene: Penrose triangle + lattice + text wall flowing around it
     const top = document.getElementById('hero-top');
     const stage = document.getElementById('hero-stage');
     if (top && stage && typeof ResizeObserver !== 'undefined') {
@@ -840,7 +842,10 @@ const logoCols = artSize(logoArt).cols;
       body.style.setProperty('--lines', String(lines));
       if (still) body.classList.add('is-printed');
       // observe the (unclipped) frame: IO treats the clipped body as zero-area
-      else onceVisible(root.querySelector('#hero-code') ?? body, () => body.classList.add('is-printed'), { threshold: 0.12 });
+      else {
+        body.classList.add('is-armed');
+        onceVisible(root.querySelector('#hero-code') ?? body, () => body.classList.add('is-printed'), { threshold: 0.12 });
+      }
     }
   }
 
