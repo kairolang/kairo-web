@@ -72,12 +72,12 @@ Whole-program analysis cannot re-walk every callee at every call site. Each tran
 
 A function's summary records four sections per pointer parameter and for the function's effect on reachable state:
 
-- **Requires** preconditions the caller must discharge before the call (e.g. *`ptr` in allocation, access `<=` 16 bytes*).
-- **Guarantees** postconditions the caller may assume after the call (e.g. *`ptr` unchanged*).
-- **Preserves** arguments and state the function provably does not mutate. Hoisting reads this: the `loop_bound == allocation_count` proof requires that an intervening call **Preserves** the size variable.
-- **Escapes** what the function retains beyond its own frame (stores, returns, captures). Lifetime analysis reads this.
+- **Requires**: preconditions the caller must discharge before the call (e.g. *`ptr` in allocation, access `<=` 16 bytes*).
+- **Guarantees**: postconditions the caller may assume after the call (e.g. *`ptr` unchanged*).
+- **Preserves**: arguments and state the function provably does not mutate. Hoisting reads this: the `loop_bound == allocation_count` proof requires that an intervening call **Preserves** the size variable.
+- **Escapes**: what the function retains beyond its own frame (stores, returns, captures). Lifetime analysis reads this.
 
-`Escapes` defaults to *everything* and `Preserves` to *nothing* when analysis is incomplete the summary fails **closed**. An incomplete summary costs precision (more residual, more checks or errors), never soundness.
+`Escapes` defaults to *everything* and `Preserves` to *nothing* when analysis is incomplete: the summary fails **closed**. An incomplete summary costs precision (more residual, more checks or errors), never soundness.
 
 The caller-discharges-obligation model: when a pointer flows into a function, Tether consumes the summary rather than the body. If the caller has already proven the `Requires`, the checks are skipped; if it cannot, Tether emits one assertion before the call to establish the precondition. Tether does not need to look inside the callee.
 

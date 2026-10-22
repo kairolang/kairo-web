@@ -80,7 +80,7 @@ var val = p ?? &fallback    // null coalescing
 var forced = unwrap!(p)     // panics if null
 ```
 
-Null pointer dereferences are impossible on `*T`: the type can'thold null, so there's nothing to check. On `*T?`, the compilerforces you to handle the null case before you can dereference. Nullbugs become compile errors.
+Null pointer dereferences are impossible on `*T`: the type can't hold null, so there's nothing to check. On `*T?`, the compiler forces you to handle the null case before you can dereference. Null bugs become compile errors.
 
 For raw C-style pointers with no safety and no tracking, there's `unsafe *T`:
 
