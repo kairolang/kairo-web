@@ -91,7 +91,7 @@ non-letter code points that UAX #31 excludes. This is an intentional extension
 beyond the standard identifier grammar. Concretely:
 
 - Letters and digits from any script: Latin, Arabic, Chinese, Cyrillic,
-  Devanagari, etc. all valid.
+  Devanagari, etc. are all valid.
 - Emoji: valid.
 - Combining marks: valid as continuation characters.
 - Whitespace, control characters: never valid in
@@ -243,7 +243,7 @@ Kairo does not emit its own intermediate object format for native targets. The
 output of a native compilation is a standard object file that any conformant
 linker for that platform can process.
 
-### klib — Kairo Library Format
+### klib: Kairo Library Format
 
 `.klib` is Kairo's platform-agnostic binary format for distributing libraries.
 It contains no object code. A `.klib` file contains:
@@ -253,7 +253,7 @@ It contains no object code. A `.klib` file contains:
 - Type information and symbol table
 - `.amt` module summary (ownership and lifetime metadata consumed by sema passes)
 
-`.klib` files are imported identically to source files — `import my_lib` resolves
+`.klib` files are imported identically to source files: `import my_lib` resolves
 whether `my_lib` is a `.k` source tree or a `.klib` package. ELF/Mach-O/PE
 output is still available for consumers that link against Kairo code from other
 languages; `.klib` is the distribution format for the Kairo package ecosystem

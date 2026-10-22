@@ -10,7 +10,7 @@ const links = [
   { href: '/contributors/', label: 'Contributors', active: pathname.startsWith('/contributors') },
 ];
 
-// Terminal prompt cwd: "/" → "~", "/docs/language/x" → "~/docs"
+// Terminal prompt cwd: "/" -> "~", "/docs/language/x" -> "~/docs"
 const seg = pathname.split('/').filter(Boolean)[0];
 const cwd = seg ? `~/${seg.toLowerCase()}` : '~';
 // Longest cwd any nav route produces. The prompt reserves this width on

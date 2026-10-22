@@ -90,7 +90,7 @@ it re-exports instead.
 | `type Name = T` inside a class | `using Name = T;` member, under the same access level |
 | `@no_unwind fn f()` | `void f() noexcept` |
 
-Extension methods are not C++ member functions. Kairo keeps a class's C++ definition identical everywhere it appears, so a method added by [`extend`](/docs/language/extends/) — even in the same file — is a free function taking the receiver as its first parameter. Call it as `geo::vec::len(&v)`.
+Extension methods are not C++ member functions. Kairo keeps a class's C++ definition identical everywhere it appears, so a method added by [`extend`](/docs/language/extends/), even in the same file, is a free function taking the receiver as its first parameter. Call it as `geo::vec::len(&v)`.
 
 Member [type aliases](/docs/language/type-aliases/) are visible to C++: a class's `type promise_type = ...` is the C++ member
 `promise_type`, so C++ code that looks a member type up by name finds it.
@@ -106,7 +106,7 @@ Kairo [generics](/docs/language/generics/) are C++ templates in the header, bodi
 
 ## Tuples Across the Boundary
 
-Kairo [tuples](/docs/language/collections/#tuples-t1-t2-) — `(i32, f32)` — are emitted as ordinary named structs in a reserved namespace, one per distinct
+Kairo [tuples](/docs/language/collections/#tuples-t1-t2-) such as `(i32, f32)` are emitted as ordinary named structs in a reserved namespace, one per distinct
 element-type list. Field order is source order, and `.0` lowers to a plain member access.
 
 This makes tuples first-class across the boundary: a C++ TU can name the type, take a reference to it, return it,

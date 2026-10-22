@@ -8,13 +8,13 @@ description: "Bidirectional C and C++ interop in Kairo: the kairo and kcc driver
 # C & C++ Interoperability
 
 Kairo provides zero-overhead, bidirectional interoperability with C and C++. There is no serialization layer, no
-binding generator, and no runtime bridge — Kairo emits ABI-compatible object code and consumes C/C++ headers
+binding generator, and no runtime bridge. Kairo emits ABI-compatible object code and consumes C/C++ headers
 directly.
 
 The guarantee that makes this work is not a clever calling convention. It is that **Kairo ships its own pinned
 Clang, and every translation unit on both sides of the boundary goes through it.** The failure mode that breaks
-C++ interop for most languages — header parsed by compiler A, code compiled by compiler B, ABI mismatch
-discovered at runtime — is designed out rather than mitigated.
+C++ interop for most languages (header parsed by compiler A, code compiled by compiler B, ABI mismatch
+discovered at runtime) is designed out rather than mitigated.
 
 This page covers the toolchain model, calling C/C++ from Kairo, exposing Kairo to C/C++, inline C++ and assembly,
 pointer and reference passing, templates and concepts, allocators and ownership, the exception model, and the ABI
@@ -50,10 +50,10 @@ The table below summarizes which C and C++ features Kairo can consume and expose
 | Pointers & References | Bidirectional | Requires `unsafe` on the Kairo side; see [below](/docs/language/c-cpp-calling/#pointers-and-references) |
 | Operator Overloading | Bidirectional | See [Operators on C++ types](/docs/language/c-cpp-calling/#operators-on-c-types) and [Operators](/docs/language/operators/) |
 | Lambdas | Bidirectional | |
-| Exceptions | C++ → Kairo only | Kairo never throws; its errors are values. See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) |
-| Macros | C++ → Kairo | Preprocessor macros are expanded before Kairo sees them |
-| Preprocessor Directives | C++ → Kairo | |
-| Inline Assembly | Kairo → C++ | Via `inline "asm"` blocks |
+| Exceptions | C++ to Kairo only | Kairo never throws; its errors are values. See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) |
+| Macros | C++ to Kairo | Preprocessor macros are expanded before Kairo sees them |
+| Preprocessor Directives | C++ to Kairo | |
+| Inline Assembly | Kairo to C++ | Via `inline "asm"` blocks |
 | Coroutines | Bidirectional | |
 | Heap ownership | Bidirectional | Via class-specific `operator new`/`delete`; see [Allocators and Ownership](/docs/language/c-cpp-memory/#allocators-and-ownership) |
 | Named Modules (`import std;`) | Not yet | See [Modules note](#a-note-on-c-modules) |
@@ -68,7 +68,7 @@ pre-compiled BMIs) is a future roadmap item.
 
 Exporting Kairo code as a C++ module interface unit (`.cppm`) is also planned but not yet implemented.
 
-**For now:** use header-based interop ([`ffi "c++"`](/docs/language/c-cpp-calling/#the-ffi-keyword) + [`kcc`](/docs/language/c-cpp-toolchain/#kcc--the-c-driver)) for all cross-language boundaries.
+**For now:** use header-based interop ([`ffi "c++"`](/docs/language/c-cpp-calling/#the-ffi-keyword) + [`kcc`](/docs/language/c-cpp-toolchain/#kcc-the-c-driver)) for all cross-language boundaries.
 
 ## See also
 

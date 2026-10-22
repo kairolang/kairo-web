@@ -240,7 +240,7 @@ fn <T impl ToString> print_value(value: T) requires sizeof T <= 64 {
 ```
 
 `requires` is a compile-time gate: the condition must hold at compile time or the program does not
-compile — no runtime fallback, no dispatch. See [Requires Clauses](/docs/language/requires/) for the
+compile. There is no runtime fallback and no dispatch. See [Requires Clauses](/docs/language/requires/) for the
 full constraint system and [Where Clauses](/docs/language/where/) for runtime-conditional overload
 dispatch.
 

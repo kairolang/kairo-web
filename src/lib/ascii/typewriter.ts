@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — typewriter with a blinking block cursor.
+ * KAIRO // ASCII - typewriter with a blinking block cursor.
  *
  *   import { typewrite, bindTypewriters } from '@/lib/ascii/typewriter';
  *   await typewrite(el, { text: '$ kairo --version', cps: 70 });
@@ -14,7 +14,7 @@
  *   data-typewriter-repeat       replay on every view (default: plays once per
  *                                tab session per page+text, then shows final)
  *
- * RESTRAINT: short lines only (install command, boot log) — never paragraphs.
+ * RESTRAINT: short lines only (install command, boot log), never paragraphs.
  * Calm pages (docs/blog) and reduced motion: final text immediately.
  *
  * Layout never shifts: the untyped remainder is rendered transparent, so the

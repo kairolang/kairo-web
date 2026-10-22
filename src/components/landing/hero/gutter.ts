@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — the text wall under dot_product.k.
+ * KAIRO // ASCII - the text wall under dot_product.k.
  *
  * When the code window is resized narrower than its default box, the space it
  * vacates fills with the same reflowing source text as the hero wall, laid

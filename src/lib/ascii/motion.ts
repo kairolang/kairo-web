@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — shared motion helpers (browser only).
+ * KAIRO // ASCII - shared motion helpers (browser only).
  *
  *   import { reducedMotion, onceVisible, loop } from '@/lib/ascii/motion';
  */

@@ -1,18 +1,18 @@
 ---
 /**
- * Bracketed terminal button:  [ GET STARTED → ]
+ * Bracketed terminal button:  [ GET STARTED -> ]
  * Hover: stepped inverse fill sweep + label scramble (auto-bound globally).
  *
  *   <AsciiButton href="/docs/" label="Get started" />
  *   <AsciiButton href="https://github.com/kairolang/kairo" label="GitHub" variant="ghost" external />
- *   <AsciiButton label="Copy" icon="none" size="sm" data-copy="…" />   (no href → <button type="button">)
+ *   <AsciiButton label="Copy" icon="none" size="sm" data-copy="…" />   (no href renders a <button type="button">)
  */
 interface Props {
   href?: string;
   label: string;
   variant?: 'primary' | 'ghost';
   external?: boolean;
-  /** trailing glyph: arrow "→" (default), external "↗", or none */
+  /** trailing glyph: arrow "->" (default), external "↗", or none */
   icon?: 'arrow' | 'external' | 'none';
   size?: 'sm' | 'md' | 'lg';
   class?: string;
@@ -21,7 +21,7 @@ interface Props {
 
 const { href, label, variant = 'primary', external = false, icon, size = 'md', class: cls, ...rest } = Astro.props;
 const glyph = (icon ?? (external ? 'external' : 'arrow'));
-const g = glyph === 'arrow' ? '→' : glyph === 'external' ? '↗' : '';
+const g = glyph === 'arrow' ? '->' : glyph === 'external' ? '↗' : '';
 const classes = ['ascii-btn', `ascii-btn--${variant}`, size !== 'md' && `ascii-btn--${size}`, cls];
 ---
 {href ? (

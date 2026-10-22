@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — drag-to-resize for terminal frames (browser only).
+ * KAIRO // ASCII - drag-to-resize for terminal frames (browser only).
  *
  * Two layers:
  *

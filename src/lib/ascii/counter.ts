@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — odometer counters and ASCII progress bars.
+ * KAIRO // ASCII - odometer counters and ASCII progress bars.
  *
  *   import { countTo, asciiBar, animateBar, bindCounters } from '@/lib/ascii/counter';
  *   asciiBar(62)                       // "[██████░░░░] 62%"

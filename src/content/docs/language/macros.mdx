@@ -85,7 +85,7 @@ A `...` parameter (named or bare) must be last, and cannot follow defaulted para
 ### Variadic macros and pack expansion
 
 The `...` prefix on the last parameter declares a token pack: it captures any number of
-comma-separated arguments. Inside the body, the pack expands with a **postfix** `...` — the same
+comma-separated arguments. Inside the body, the pack expands with a **postfix** `...`. This is the same
 declaration-prefix / expansion-postfix split used by [variadic functions](/docs/language/functions-parameters/#variadic-functions) and [pack expansion](/docs/language/functions-parameters/#pack-expansion-and-forwarding)
 expressions:
 
@@ -131,7 +131,7 @@ pairs!(id, 7, 8)   // [ (id, 7), (id, 8) ]
 Two rules keep macro expansion from colliding with expression-level pack expansion in the output:
 a postfix `...` after an identifier that is not the macro's pack, or after a parenthesized run
 that never mentions the pack, passes through verbatim as target-language code. Expansion is
-single-level — a nested `...` inside a pattern is emitted verbatim.
+single-level: a nested `...` inside a pattern is emitted verbatim.
 
 ### Macros as arguments
 

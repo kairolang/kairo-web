@@ -1,8 +1,8 @@
 /**
- * KAIRO // ASCII — hero logo entrance.
+ * KAIRO // ASCII - hero logo entrance.
  *
  * The FIGlet KAIRO loads in as dim shade glyphs (░▒, chosen per cell from the
- * final glyph's ink density + a stable hash — never re-rolled). A rectangular
+ * final glyph's ink density + a stable hash, never re-rolled). A rectangular
  * lens (full logo height, ~8 columns wide) sweeps across it once, left to
  * right: inside it the cells show dense shades (▓▒░) at full colour, behind it
  * the logo is final. Each cell changes at most twice and only gets brighter.

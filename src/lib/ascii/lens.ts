@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — rect lens for LARGE display text (FIGlet titles, big headings).
+ * KAIRO // ASCII - rect lens for LARGE display text (FIGlet titles, big headings).
  *
  *   import { lensReveal, bindLens } from '@/lib/ascii/lens';
  *   lensReveal(el);                                   // shade-in sweep on first view + cursor lens
@@ -11,10 +11,10 @@
  * LOAD-IN: every non-space glyph starts as a dim shade char (░/▒), chosen
  * DETERMINISTICALLY per cell from the final glyph's ink density + a stable
  * (row, col) hash. A rectangular window (full art height, ~8–14 columns)
- * sweeps across once, left → right (~900ms, eased, snapped to whole columns).
+ * sweeps across once, left to right (~900ms, eased, snapped to whole columns).
  * Inside the window cells show a denser shade (▓/▒/░) at full art colour;
  * behind it the art is final. Each cell changes at most twice and only ever
- * gets brighter: dim shade → dense shade → final glyph. Nothing re-rolls.
+ * gets brighter: dim shade, then dense shade, then the final glyph. Nothing re-rolls.
  *
  * HOVER (fine pointer only): the same rectangle follows the cursor
  * horizontally (eased) and renders the glyphs inside it in the dense-shade

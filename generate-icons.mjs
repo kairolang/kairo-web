@@ -1,5 +1,5 @@
 /**
- * generate-icons.mjs — rasterize the Kairo logo into the PNG/ICO icons that
+ * generate-icons.mjs - rasterize the Kairo logo into the PNG/ICO icons that
  * crawlers, iOS and the web app manifest need (they don't use SVG).
  *
  *   node generate-icons.mjs        (or: bun generate-icons.mjs)

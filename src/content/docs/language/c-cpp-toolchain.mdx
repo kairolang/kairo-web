@@ -12,7 +12,7 @@ parent: c-cpp
 
 Kairo ships two drivers. Both embed the **same pinned Clang**. Neither invokes a system compiler.
 
-### `kairo` — the Kairo compiler
+### `kairo`: the Kairo compiler
 
 ```sh
 kairo foo.k              # produces foo.out
@@ -23,7 +23,7 @@ extract declarations. At the interop boundary, Kairo hands **that same Clang ins
 exactly what it would emit if you requested a C++ header for `foo.k`. The compiler that read the header and the
 compiler that consumes Kairo's declarations are byte-identical, so there is no version skew to reconcile.
 
-### `kcc` — the C++ driver
+### `kcc`: the C++ driver
 
 `kcc` is a drop-in replacement for `clang++`, with two additions:
 
@@ -128,7 +128,7 @@ requires nothing from the user.
 ### 2. Single-language
 
 The flag exists on one side only. This is legal **as long as the translation unit stays in one language**. The
-moment the TU becomes mixed — a `.cc` that includes a `.k`, or a `.k` that `ffi`-imports a header — the flag is
+moment the TU becomes mixed (a `.cc` that includes a `.k`, or a `.k` that `ffi`-imports a header), the flag is
 an error:
 
 ```sh
@@ -146,7 +146,7 @@ years being rejected is only actionable if the reason is visible.
 
 ### 3. Layout-affecting
 
-Some flags change how C++ lays out types or shapes vtables — `-fno-rtti`, `-fshort-enums`, struct-packing flags.
+Some flags change how C++ lays out types or shapes vtables: `-fno-rtti`, `-fshort-enums`, struct-packing flags.
 Kairo's ABI is fixed and cannot follow them. These are rejected in any translation unit that touches Kairo types,
 and unlike category 2 there is no way to make them work:
 

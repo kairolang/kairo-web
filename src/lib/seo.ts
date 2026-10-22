@@ -5,7 +5,7 @@
 
 export const SITE_URL = 'https://www.kairolang.org';
 export const SITE_NAME = 'Kairo';
-export const HOME_TITLE = 'Kairo — The Systems Programming Language Beyond C++';
+export const HOME_TITLE = 'Kairo: The Systems Programming Language Beyond C++';
 export const DEFAULT_DESCRIPTION =
   'Kairo is an open-source systems programming language with native, bidirectional C++ interop: C++ performance with modern safety and ergonomics.';
 
@@ -21,10 +21,10 @@ export function bareTitle(raw: string): string {
 
 /**
  * Title convention:
- *   home → "Kairo Programming Language — The Language Beyond C++"
- *   docs → "<Page> · Kairo Docs"   (single-concept language pages read "Ownership in Kairo")
- *   blog → "<Post> · Kairo Blog"
- *   page → "<Page> · Kairo Programming Language"
+ *   home -> HOME_TITLE ("Kairo: The Systems Programming Language Beyond C++")
+ *   docs -> "<Page> · Kairo Docs"   (single-concept language pages read "Ownership in Kairo")
+ *   blog -> "<Post> · Kairo Blog"
+ *   page -> "<Page> · Kairo Programming Language"
  */
 export function formatTitle(raw: string, type: PageType, pathname = ''): string {
   if (type === 'home') return raw && /programming language/i.test(raw) ? raw : HOME_TITLE;
@@ -80,7 +80,7 @@ export const OG_PAGES: Record<string, { title: string; kicker: string; subtitle?
   contributors: { title: 'Contributors', kicker: 'contributors', subtitle: 'the people building Kairo' },
 };
 
-/** OG image key for a URL path: "/" → "index", "/docs/language/x/" → "docs/language/x". */
+/** OG image key for a URL path: "/" -> "index", "/docs/language/x/" -> "docs/language/x". */
 export function ogKey(pathname: string): string {
   let p = pathname;
   try {

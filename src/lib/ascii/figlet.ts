@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — hand-built "ANSI Shadow" style block font.
+ * KAIRO // ASCII - hand-built "ANSI Shadow" style block font.
  *
  * Pure string work: safe at build time (Astro frontmatter) and in the browser.
  *

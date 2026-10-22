@@ -1,5 +1,5 @@
 /**
- * /og/<page>.png — 1200×630 ASCII-styled social cards, one per docs page,
+ * /og/<page>.png: 1200×630 ASCII-styled social cards, one per docs page,
  * blog post and top-level page, rendered at build time (see lib/og-image.ts).
  * BaseLayout/Seo pick the matching card via ogImageFor() in lib/seo.ts.
  */

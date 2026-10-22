@@ -57,7 +57,7 @@ const path = new URL(canonicalURL).pathname;
 
 const ogImageAbs = ogImage.startsWith('http') ? ogImage : `${siteURL}${ogImage}`;
 const ogImageType = /\.png$/i.test(ogImage) ? 'image/png' : /\.jpe?g$/i.test(ogImage) ? 'image/jpeg' : undefined;
-const imageAlt = ogImageAlt ?? `${headline} — Kairo programming language`;
+const imageAlt = ogImageAlt ?? `${headline} - Kairo programming language`;
 
 // ── JSON-LD @graph ───────────────────────────────────────────────────────────
 const ID = {
@@ -89,7 +89,7 @@ const BRAND_DESCRIPTION =
 
 const graph: Record<string, unknown>[] = [];
 
-// WebSite (every page) — names the site so "Kairo" resolves to the language
+// WebSite (every page): names the site so "Kairo" resolves to the language
 graph.push({
   '@type': 'WebSite',
   '@id': ID.website,
@@ -181,7 +181,7 @@ if (type === 'home') {
   });
 }
 
-// Docs page — TechArticle
+// Docs page: TechArticle
 if (type === 'docs' && schema !== 'CollectionPage') {
   graph.push({
     '@type': 'TechArticle',
@@ -201,7 +201,7 @@ if (type === 'docs' && schema !== 'CollectionPage') {
   });
 }
 
-// Blog post — BlogPosting
+// Blog post: BlogPosting
 if (type === 'blog' && pubDate) {
   graph.push({
     '@type': 'BlogPosting',
@@ -223,7 +223,7 @@ if (type === 'blog' && pubDate) {
   });
 }
 
-// Listing pages — CollectionPage (blog index, contributors, docs hubs)
+// Listing pages: CollectionPage (blog index, contributors, docs hubs)
 if (schema === 'CollectionPage' || (type === 'page' && (path === '/blog/' || path === '/contributors/'))) {
   graph.push({
     '@type': 'CollectionPage',

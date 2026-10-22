@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — animated glyph field on <canvas>.
+ * KAIRO // ASCII - animated glyph field on <canvas>.
  *
  * A grid of monospace cells; each frame a luminance function returns 0..1
  * per cell, which picks a glyph from a ramp (" .:-=+*#%@") AND a red shade
@@ -26,8 +26,8 @@
  *   data-field-hole="cx cy rx ry" skip cells inside this ellipse (fractions of w/h; under a mask's clear centre)
  *   data-field-skip-x="x0 x1"     skip columns whose centre x/w is in [x0, x1) (a linear mask's clear side)
  *
- * The host must be positioned (the .ascii-field class does it: absolute, inset 0)
- * — the canvas is inserted as its first child, absolutely filling it.
+ * The host must be positioned (the .ascii-field class does it: absolute, inset 0).
+ * The canvas is inserted as its first child, absolutely filling it.
  *
  * RESTRAINT: looping fields are for the homepage only (hero + the slow
  * section bands); everywhere else use a still frame (data-field-still /
@@ -47,7 +47,7 @@ export interface FieldPointer {
   /** pointer in host CSS px (raw) */
   x: number;
   y: number;
-  /** eased pointer, follows x/y with ~80ms lag — use this for smooth halos */
+  /** eased pointer, follows x/y with ~80ms lag; use this for smooth halos */
   sx: number;
   sy: number;
   /** pointer is over/near the host */

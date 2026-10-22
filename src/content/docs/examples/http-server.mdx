@@ -154,9 +154,9 @@ pub fn parse_request(raw: string) panic -> Request {
 Key patterns:
 
 - `Method` is a plain enum with behavior added via `extend`
-- `Header` is a struct plain data, no constructor needed
+- `Header` is a struct: plain data, no constructor needed
 - `Request` is a class with private state (`query_params`) and public accessors
-- `parse_request` uses `panic` for error signaling callers must handle `ParseError`
+- `parse_request` uses `panic` for error signaling; callers must handle `ParseError`
 - `get_header` returns `string?` for safe nullable access
 
 ---
@@ -263,7 +263,7 @@ Key patterns:
 - `StatusCode` is an enum with an explicit `u16` underlying type
 - `Response` uses method chaining (each builder method returns `Self`)
 - Static factory methods (`Response::ok()`, `Response::not_found()`) for common responses
-- `serialize` is a `const` method it does not modify the response
+- `serialize` is a `const` method: it does not modify the response
 
 ---
 
@@ -335,9 +335,9 @@ pub class Router {
 Key patterns:
 
 - `Handler` is a type alias for a function pointer that takes a request and may panic
-- `Route` is a struct plain data with aggregate init
+- `Route` is a struct: plain data with aggregate init
 - `Router` uses method chaining for registration
-- `resolve` is `const` routing does not mutate the router
+- `resolve` is `const`: routing does not mutate the router
 
 ---
 
@@ -421,12 +421,12 @@ pub class Server {
 
 Key patterns:
 
-- `ffi "c++" import` brings in socket operations no unsafe block needed because `tcp_listen`,
+- `ffi "c++" import` brings in socket operations; no unsafe block is needed because `tcp_listen`,
   `tcp_accept`, etc. take and return value types (`i32`, `string`), not raw pointers
 - `finally` blocks ensure sockets are closed on all exit paths (normal, panic, early return)
 - `try`/`catch` is used in expression form to produce a `Response` on both success and failure
-- Nested `try`/`catch` the outer one handles parse errors, the inner one handles handler panics
-- `handle_client` is `priv` internal implementation detail
+- Nested `try`/`catch`: the outer one handles parse errors, the inner one handles handler panics
+- `handle_client` is `priv` (an internal implementation detail)
 
 ---
 
@@ -487,7 +487,7 @@ Key patterns:
 
 - Handlers are plain functions passed as function pointers
 - The fallback handler is an inline closure
-- `main` handles all panics from `srv.start()` no unhandled errors escape
+- `main` handles all panics from `srv.start()`, so no unhandled errors escape
 
 ---
 

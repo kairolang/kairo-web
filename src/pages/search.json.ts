@@ -18,7 +18,7 @@ function toPlainText(raw: string): string {
   return raw
     // imports / exports
     .replace(/^(import|export)\s.+$/gm, ' ')
-    // code fence markers (keep the code itself — API names are searchable)
+    // code fence markers (keep the code itself; API names are searchable)
     .replace(/^```[^\n]*$/gm, ' ')
     // JSX/HTML tags
     .replace(/<[^>]+>/g, ' ')

@@ -16,16 +16,16 @@ it. Each entry is removed when the gap closes.
 | Feature | Status | Meanwhile |
 |---|---|---|
 | Vector literals (`var v: [i32] = [1, 2, 3]`) | Type-check and compile, but do not link: the built-in vector constructors are not implemented yet | Use an array `[T; N]` or a slice `[T;]` |
-| Set literals `{a, b}` | Not compiled | — |
-| Map literals `{k: v}` | Not compiled | — |
+| Set literals `{a, b}` | Not compiled | - |
+| Map literals `{k: v}` | Not compiled | - |
 | File-scope `var` | Not compiled | Move the variable into a function, or use `eval` for constants |
-| Initializing a `const` field in a constructor | Not supported | — |
+| Initializing a `const` field in a constructor | Not supported | - |
 | Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
-| Associated types (`type Node` in an interface) | Not parsed yet | — |
+| Associated types (`type Node` in an interface) | Not parsed yet | - |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
-| Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | — |
+| Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | - |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
-| A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | — |
+| A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | - |
 | Static fields (`static count: i32` in a class) | Type-check, but do not link: no definition is emitted yet | Use a file-scope `static` variable |
 | An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |

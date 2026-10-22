@@ -1,5 +1,5 @@
 /**
- * Minimal TrueType (glyf) outline reader → SVG path data.
+ * Minimal TrueType (glyf) outline reader that outputs SVG path data.
  *
  * Used by the OG card renderer so text is drawn as vector paths from the
  * bundled Geist Mono TTF instead of going through Pango/fontconfig (which

@@ -1,4 +1,4 @@
-/* KAIRO // ASCII — resizable frame grips (src/lib/ascii/resize.ts).
+/* KAIRO // ASCII - resizable frame grips (src/lib/ascii/resize.ts).
    Corners draw a heavy ┛ / ┗ over the frame's own corner bracket; edges are
    thin invisible strips that light the border on hover. Quiet at rest:
    visible on host hover / focus, faint on touch devices. */

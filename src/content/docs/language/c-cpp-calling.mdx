@@ -11,7 +11,7 @@ parent: c-cpp
 ## Calling C/C++ from Kairo
 
 Import a C or C++ header with the [`ffi` directive](/docs/language/imports/#ffi-header-imports). The compiler parses the header, extracts declarations, and
-makes them available as native Kairo symbols — no wrapper code required.
+makes them available as native Kairo symbols. No wrapper code is required.
 
 ```kairo
 // main.k
@@ -57,8 +57,8 @@ Hello from C++! x = 42
 ```
 
 > [!NOTE]
-> `ffi "c++"` invokes the pinned Clang's frontend internally to parse the header. All exported declarations —
-> functions, classes, enums, templates — become available in Kairo's scope with their original names and
+> `ffi "c++"` invokes the pinned Clang's frontend internally to parse the header. All exported declarations
+> (functions, classes, enums, templates) become available in Kairo's scope with their original names and
 > signatures. No code generation or binding step is visible to the user.
 
 An imported function's default arguments are applied by C++, which can only leave out trailing arguments.
@@ -99,14 +99,14 @@ directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
 `ffi` controls linkage and name mangling. It can be applied to individual declarations or to blocks.
 
 ```kairo
-// C++ linkage — name mangling, overloading, classes, templates all permitted
+// C++ linkage: name mangling, overloading, classes, templates all permitted
 ffi "c++" {
     fn compute(x: i32) -> i32 {
         return x + 1;
     }
 }
 
-// C linkage — no name mangling, same restrictions as extern "C" in C++
+// C linkage: no name mangling, same restrictions as extern "C" in C++
 ffi "c" fn add(x: i32, y: i32) -> i32 {
     return x + y;
 }
@@ -127,8 +127,8 @@ Name mangling is covered in [ABI Contract & Verification](/docs/language/c-cpp-a
 | Spelling | On the Kairo side | On the C++ side |
 |---|---|---|
 | `std::` | Kairo's standard library | C++'s standard library |
-| `cxx::std::` | C++'s standard library | — |
-| `kairo::` | — | Kairo's own namespace, including its standard library |
+| `cxx::std::` | C++'s standard library | - |
+| `kairo::` | - | Kairo's own namespace, including its standard library |
 
 From Kairo, the C++ standard library is always reached through `cxx::std::`:
 
@@ -246,13 +246,13 @@ fn main() {
     }
 
     // for calling c++ with pointers and back, you must use unsafe blocks;
-    // shorthand syntax is not allowed — `unsafe add_one(unsafe &x)` is a compile error
+    // shorthand syntax is not allowed: `unsafe add_one(unsafe &x)` is a compile error
 
     std::println(f"x = {x}")  // x = 42
 }
 ```
 
-`unsafe &` creates a [raw pointer](/docs/language/pointers/#creating-raw-pointers) from a safe binding. The compiler relinquishes tracking for that pointer — the
+`unsafe &` creates a [raw pointer](/docs/language/pointers/#creating-raw-pointers) from a safe binding. The compiler relinquishes tracking for that pointer, and the
 caller is responsible for lifetime and aliasing correctness.
 
 ### Raw pointer from the start
@@ -264,13 +264,13 @@ ffi "c++" import "my_code.hh";
 
 fn main() {
     var x: unsafe *i32 = @create i32(41)
-    add_one(x)  // already unsafe — no block needed
+    add_one(x)  // already unsafe, no block needed
     std::println(f"x = {*x}")  // x = 42
 }
 ```
 
 > [!WARNING]
-> `unsafe *T` pointers can be null. Dereferencing a null `unsafe *T` is undefined behavior — the compiler will
+> `unsafe *T` pointers can be null. Dereferencing a null `unsafe *T` is undefined behavior. The compiler will
 > not insert a null check.
 
 ### Strings and `const char*`
@@ -334,7 +334,7 @@ int main() {
 }
 ```
 
-`T impl Addable` in Kairo maps directly to `Addable T` in the generated C++ — the constraint is preserved across
+`T impl Addable` in Kairo maps directly to `Addable T` in the generated C++. The constraint is preserved across
 the boundary, not erased.
 
 ## See also

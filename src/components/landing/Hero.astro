@@ -71,7 +71,7 @@ const logoCols = artSize(logoArt).cols;
         ><span class="ascii-art" style={`--cols:${logoCols};`} set:html={toneArt(logoArt)} /></div>
 
         <h1 class="hero-title" id="hero-title">
-          <span class="sr-only">Kairo — </span>
+          <span class="sr-only">Kairo: </span>
           <span class="hero-tagline type-in" style="--d: 260ms;">The Language <span class="hero-tagline-accent">Beyond C++</span></span>
         </h1>
 
@@ -83,7 +83,7 @@ const logoCols = artSize(logoArt).cols;
         <div class="hero-actions pop-in" style="--d: 480ms;">
           <a href="/docs/" class="ascii-btn ascii-btn--primary ascii-btn--lg">
             <span class="ascii-btn-label">Get started</span>
-            <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>→</span>
+            <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>-&gt;</span>
           </a>
           <a
             href="https://github.com/kairolang/kairo"
@@ -110,7 +110,7 @@ const logoCols = artSize(logoArt).cols;
               aria-expanded="false"
               aria-controls="hero-boot-ok"
             >[ok]<span class="sr-only"> stage(0) details</span></button>
-            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="560">stage(0) compiler — C++</span>
+            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="560">stage(0) compiler: C++</span>
           </p>
           <p class="hero-boot-line">
             <button
@@ -121,7 +121,7 @@ const logoCols = artSize(logoArt).cols;
               aria-expanded="false"
               aria-controls="hero-boot-wip"
             >[..]<span class="sr-only"> stage(1) details</span></button>
-            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="680">stage(1) self-hosting — in progress</span>
+            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="680">stage(1) self-hosting: in progress</span>
             <span class="hero-spin pop-in" style="--d: 900ms;" aria-hidden="true"><span>|/-\</span></span>
           </p>
 
@@ -129,7 +129,7 @@ const logoCols = artSize(logoArt).cols;
             <p class="bp-line"><span class="bp-prompt" aria-hidden="true">$</span> <span class="bp-tw">kairo --version</span></p>
             <p class="bp-line bp-out"><span class="bp-tw">kairo v0.1.0-alpha</span></p>
             <p class="bp-line bp-out"><span class="bp-tw">stage(0) · bootstrap compiler · C++</span></p>
-            <p class="bp-line bp-out"><span class="bp-tw">transpiles Kairo → C++ · no LLVM</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">transpiles Kairo -&gt; C++ · no LLVM</span></p>
             <p class="bp-line bp-out"><span class="bp-tw">status: frozen, kept to build stage(1)</span></p>
             <p class="bp-line bp-exit"><span class="bp-tw">exit 0</span></p>
           </div>
@@ -142,8 +142,8 @@ const logoCols = artSize(logoArt).cols;
               <span class="bp-bar-note">in progress</span>
             </p>
             <p class="bp-line bp-dim">bar is illustrative, not a measurement</p>
-            <p class="bp-line bp-out bp-late"><span class="bp-tw">next: stage(1.5) → stage(2) · Tether</span></p>
-            <p class="bp-line bp-late"><a class="bp-link" href="/docs/status/">→ /docs/status/</a> <span class="bp-dim">what isn't compiled yet</span></p>
+            <p class="bp-line bp-out bp-late"><span class="bp-tw">next: stage(1.5) -&gt; stage(2) · Tether</span></p>
+            <p class="bp-line bp-late"><a class="bp-link" href="/docs/status/">-&gt; /docs/status/</a> <span class="bp-dim">what isn't compiled yet</span></p>
           </div>
         </div>
       </div>
@@ -661,7 +661,7 @@ const logoCols = artSize(logoArt).cols;
   }
 
   /**
-   * Boot log tags → tiny terminal readouts. [ok] types a short stage(0)
+   * Boot log tags open tiny terminal readouts. [ok] types a short stage(0)
    * version log; [..] fills an (explicitly illustrative) stage(1) bar that
    * stalls, then links to /docs/status/. One open at a time; a second click,
    * Escape or a click elsewhere closes it. Opens instantly (one 160ms stepped

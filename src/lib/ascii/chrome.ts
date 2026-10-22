@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — global page chrome behaviours (wired by BaseLayout).
+ * KAIRO // ASCII - global page chrome behaviours (wired by BaseLayout).
  *
  *  - initScrollProgress(): segmented red bar at the top of the viewport
  *    (#scroll-progress) + vim-style ruler text ("TOP" / "42%" / "BOT" / "ALL")
@@ -7,7 +7,7 @@
  *  - initCursorTrail(): tiny trailing glyphs behind the mouse. Only when
  *    <body data-trail> is present, the pointer is fine/hovering, and motion
  *    is allowed. 14 pooled spans, WAAPI transform/opacity only.
- *    RESTRAINT: OFF site-wide — BaseLayout neither sets data-trail nor calls
+ *    RESTRAINT: OFF site-wide. BaseLayout neither sets data-trail nor calls
  *    this. Kept for API compatibility; do not re-enable.
  */
 import { finePointer, pick, reducedMotion } from './motion';

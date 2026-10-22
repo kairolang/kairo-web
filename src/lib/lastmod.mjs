@@ -124,7 +124,7 @@ const latest = ds => {
 /** @type {Map<string, Date> | null} */
 let cache = null;
 
-/** Route path ("/docs/language/ownership/") → last-modified date. */
+/** Route path ("/docs/language/ownership/") -> last-modified date. */
 export function lastmodMap() {
   if (cache) return cache;
   const git = gitInfo();

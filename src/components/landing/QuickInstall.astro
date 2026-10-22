@@ -40,7 +40,7 @@ const platforms = [
 
       <!-- Left: Text -->
       <div class="install-copy" data-reveal-stagger>
-        <div class="section-label">02 — Install</div>
+        <div class="section-label">02 - Install</div>
         <h2 class="display install-title" id="install-title">
           Install Kairo
         </h2>
@@ -58,7 +58,7 @@ const platforms = [
       <!-- Right: Terminal -->
       <div class="install-term-col">
         <div class="ascii-frame ascii-frame--fill install-term" id="install-term" data-resizable data-resize-min="400">
-          <span class="ascii-frame-title" id="install-term-title">~/kairo — {platforms[0].shell}</span>
+          <span class="ascii-frame-title" id="install-term-title">~/kairo - {platforms[0].shell}</span>
           <span class="ascii-frame-meta">tty1</span>
 
           <div class="term-bar">
@@ -344,7 +344,7 @@ const platforms = [
       const c = tabsContainer!;
       c.scrollTo({ left: Math.max(0, btn.offsetLeft - (c.clientWidth - btn.offsetWidth) / 2), behavior: 'auto' });
       moveThumb(btn, animate);
-      if (title) title.textContent = `~/kairo — ${btn.dataset.shell || 'sh'}`;
+      if (title) title.textContent = `~/kairo - ${btn.dataset.shell || 'sh'}`;
       panels.forEach((p) => {
         if (p.dataset.panel === target) {
           p.hidden = false;

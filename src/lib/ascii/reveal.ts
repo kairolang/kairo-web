@@ -1,5 +1,5 @@
 /**
- * KAIRO // ASCII — scroll "print" reveal.
+ * KAIRO // ASCII - scroll "print" reveal.
  *
  * Elements are revealed top-to-bottom by a STEPPED clip-path (like lines
  * arriving on a terminal), never blurred or floated. The step count is
@@ -61,7 +61,7 @@ function handle(entries: IntersectionObserverEntry[]) {
   for (const e of entries) {
     // A target whose top is already above the reveal line never "intersects"
     // (its clip keeps only a sliver at its TOP), e.g. after scroll restoration
-    // or a #hash landing — IO's initial entry still reports it, so print it.
+    // or a #hash landing. IO's initial entry still reports it, so print it.
     const passed = e.isIntersecting || e.boundingClientRect.top < (e.rootBounds?.bottom ?? window.innerHeight);
     if (!passed) continue;
     const el = e.target as HTMLElement;
