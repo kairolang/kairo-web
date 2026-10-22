@@ -47,7 +47,7 @@ const meters = stats.map((s) => Math.max(8, Math.round((Math.log10(s.value + 1) 
 const snapshot = new Date().toISOString().slice(0, 10);
 ---
 
-<!-- Stats: a 4-column ASCII table (2×2 below 900px) over the slow drifting
+<!-- Stats: a 4-column ASCII table (2x2 below 900px) over the slow drifting
      field. Each cell is resizable like a table column: dragging a column edge
      moves that separator (columns to its right share the rest), the last
      column's edge resizes the whole table, and the bottom edge sets the
@@ -431,7 +431,7 @@ const snapshot = new Date().toISOString().slice(0, 10);
             render();
           },
           reset: resetTable,
-          readout: (w, h) => `${Math.max(1, Math.round((w - padX[i]) / charW))}×${Math.max(1, Math.round(h / lineH))}`,
+          readout: (w, h) => `${Math.max(1, Math.round((w - padX[i]) / charW))}x${Math.max(1, Math.round(h / lineH))}`,
         }));
       });
     }

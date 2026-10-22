@@ -4,13 +4,13 @@
  *   import { lensReveal, bindLens } from '@/lib/ascii/lens';
  *   lensReveal(el);                                   // shade-in sweep on first view + cursor lens
  *   lensReveal(el, { hover: false, delay: 120 });     // sweep only (DOM is restored afterwards)
- *   <div data-lens>…art…</div>                         // auto (bindLens / AsciiArt / AsciiTitle)
+ *   <div data-lens>...art...</div>                         // auto (bindLens / AsciiArt / AsciiTitle)
  *
  * The "blurish" look is the ASCII shade vocabulary (░ ▒ ▓), NOT a CSS blur:
  *
  * LOAD-IN: every non-space glyph starts as a dim shade char (░/▒), chosen
  * DETERMINISTICALLY per cell from the final glyph's ink density + a stable
- * (row, col) hash. A rectangular window (full art height, ~8–14 columns)
+ * (row, col) hash. A rectangular window (full art height, ~8-14 columns)
  * sweeps across once, left to right (~900ms, eased, snapped to whole columns).
  * Inside the window cells show a denser shade (▓/▒/░) at full art colour;
  * behind it the art is final. Each cell changes at most twice and only ever
@@ -34,9 +34,9 @@
  * page's one deliberate title moment (the docs landing page) opts back in
  * with data-lens-calm / { calm: true }; reduced motion still skips it.
  *
- * data-lens values: "" | "on" (sweep + hover) · "reveal" (sweep only) ·
- * "hover" (hover only, no sweep) · "off". Extras: data-lens-delay="120",
- * data-lens-duration="900" (clamped 700–1100), data-lens-cols="10",
+ * data-lens values: "" | "on" (sweep + hover), "reveal" (sweep only),
+ * "hover" (hover only, no sweep) or "off". Extras: data-lens-delay="120",
+ * data-lens-duration="900" (clamped 700-1100), data-lens-cols="10",
  * data-lens-calm (sweep on calm pages too).
  */
 import { finePointer, onceVisible, reducedMotion, stillPage } from './motion';
@@ -46,13 +46,13 @@ export interface LensOptions {
   reveal?: boolean;
   /** rect lens follows the cursor (fine pointers only). Default true */
   hover?: boolean;
-  /** sweep duration in ms (clamped 700–1100). Default 900 */
+  /** sweep duration in ms (clamped 700-1100). Default 900 */
   duration?: number;
   /** wait before the sweep starts, ms. Default 60 */
   delay?: number;
   /** start the sweep when the element first scrolls into view. Default true */
   whenVisible?: boolean;
-  /** window width in columns. Default auto: ~20% of the art, clamped to 8–14 cols */
+  /** window width in columns. Default auto: ~20% of the art, clamped to 8-14 cols */
   cols?: number;
   /** sweep on calm pages too (still skipped under reduced motion). Default false */
   calm?: boolean;

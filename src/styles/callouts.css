@@ -91,7 +91,7 @@
 .callout-tip       { --c: #3fb950; --glyph: '+'; }
 .callout-important { --c: #a371f7; --glyph: '*'; }
 .callout-warning   { --c: #d29922; --glyph: '!'; }
-.callout-caution   { --c: var(--red); --c-text: var(--accent); --glyph: '×'; }
+.callout-caution   { --c: var(--red); --c-text: var(--accent); --glyph: 'x'; }
 
 [data-theme="light"] .callout-note      { --c: #0969da; }
 [data-theme="light"] .callout-tip       { --c: #1a7f37; }

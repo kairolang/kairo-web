@@ -9,7 +9,7 @@
  * isn't about the view axis pulls C3 off C0 and gives the trick away, so
  * the figure only ever rolls about that axis (plus a hair of pointer tilt).
  *
- * Rendering is exact per cell, not point-sampled: every cell casts 2×2
+ * Rendering is exact per cell, not point-sampled: every cell casts 2x2
  * orthographic rays against the three boxes in object space. Each face is
  * flat-lit, so the three visible face families read as three distinct
  * tones, plus the logo's crossed gradients: every face family is brightest
@@ -21,7 +21,7 @@
  * Motion (driven by scene.ts's loop time): it always holds the illusion
  * view, with a slow roll sway about the view axis (which never breaks the
  * illusion); there is no reveal turn. Pointer: a small in-plane lean plus
- * ≤ 0.6° of out-of-plane tilt, too little to pull the seam apart. Still:
+ * <= 0.6 degrees of out-of-plane tilt, too little to pull the seam apart. Still:
  * the exact illusion.
  *
  * No per-frame allocations: the pose, rays and boxes live in preallocated
@@ -33,7 +33,7 @@ export interface PenroseGrid {
   rows: number;
   cellW: number;
   cellH: number;
-  /** 0 free · 1 lattice/particle · 2 figure ink · 3 reserved (the hole: no ink, no text) */
+  /** 0 free, 1 lattice/particle, 2 figure ink, 3 reserved (the hole: no ink, no text) */
   kind: Uint8Array;
   lbuf: Float32Array;
   lens: Uint8Array;
@@ -46,25 +46,25 @@ const SWAY = 2.2 * Math.PI / 180;  // resting roll sway amplitude
 const SWAY_T = 13;                 // sway period (s)
 const LEAN = 2.4 * Math.PI / 180;  // pointer: max in-plane lean
 // pointer: max out-of-plane tilt. Any yaw/pitch slides the seam end (C3)
-// off C0 by ≈ √3·sin(angle) of a side; 0.6° keeps that under ~1 cell
+// off C0 by about sqrt(3)*sin(angle) of a side; 0.6 degrees keeps that under ~1 cell
 const TILT = 0.6 * Math.PI / 180;
 /** mirror the image so the face/gradient layout follows the logo */
 const MIRROR = true;
 
 /* light (surface -> light) in camera space: left-front. At the illusion view
-   the three face families light at ≈ .05 / .94 / .34: dark, bright, mid */
+   the three face families light at about .05 / .94 / .34: dark, bright, mid */
 const LX0 = -0.6, LY0 = -0.2, LZ0 = -0.75;
 
 export function createPenrose() {
   /* geometry */
   let w = 0.12;                              // bar thickness (L = 1)
-  const box = new Float64Array(18);          // 3 boxes × [x0,y0,z0,x1,y1,z1]
+  const box = new Float64Array(18);          // 3 boxes x [x0,y0,z0,x1,y1,z1]
   const piv = new Float64Array(3);
   /* base orientation: camera axes in object coordinates (rows) */
   const B = new Float64Array(9);
   /* current pose: rows = camera x, y, z axes in object coords */
   const M = new Float64Array(9);
-  const face = new Float64Array(6);          // lit value per face normal (±x, ±y, ±z)
+  const face = new Float64Array(6);          // lit value per face normal (+/-x, +/-y, +/-z)
 
   function setBar(nw: number) {
     w = nw;
@@ -80,17 +80,17 @@ export function createPenrose() {
 
   function buildBase() {
     const r3 = 1 / Math.sqrt(3);
-    // camera z (away from the viewer) = −(1,1,1)/√3
+    // camera z (away from the viewer) = -(1,1,1)/sqrt(3)
     const zx = -r3, zy = -r3, zz = -r3;
-    // any x ⟂ view, then y = z × x (x right, y down, z in: right-handed)
+    // any x perpendicular to view, then y = z cross x (x right, y down, z in: right-handed)
     let xx = 1 / Math.SQRT2, xy = -1 / Math.SQRT2, xz = 0;
     let yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
-    // roll in-plane so the seam corner (C0 ≡ C3) is the apex, pointing up
+    // roll in-plane so the seam corner (C0 = C3) is the apex, pointing up
     const c = w / 2;
     const gx = (0 + 1 + 1) / 3 + c, gy = (0 + 0 + 1) / 3 + c, gz = c; // centroid of C0, C1, C2
     const vx = c - gx, vy = c - gy, vz = c - gz;                        // centroid -> C0
     const sx = vx * xx + vy * xy + vz * xz, sy = vx * yx + vy * yy + vz * yz;
-    // want (sx, sy) -> (0, −|s|): rotate the basis by φ
+    // want (sx, sy) -> (0, -|s|): rotate the basis by phi
     const phi = Math.atan2(sx, -sy);
     const cp = Math.cos(phi), sp = Math.sin(phi);
     const nxx = cp * xx + sp * yx, nxy = cp * xy + sp * yy, nxz = cp * xz + sp * yz;
@@ -114,12 +114,12 @@ export function createPenrose() {
     );
   }
 
-  /** M = Rz(roll) · Rx(pitch) · Ry(yaw) · B, applied to B's rows as camera-space mixes */
+  /** M = Rz(roll) * Rx(pitch) * Ry(yaw) * B, applied to B's rows as camera-space mixes */
   function poseRaw(yaw: number, pitch: number, roll: number) {
     const cy = Math.cos(yaw), sy = Math.sin(yaw);
     const cx = Math.cos(pitch), sx = Math.sin(pitch);
     const cz = Math.cos(roll), sz = Math.sin(roll);
-    // R = Rz·Rx·Ry (camera-space rotation), rows r0..r2
+    // R = Rz*Rx*Ry (camera-space rotation), rows r0..r2
     const r00 = cz * cy + sz * sx * sy, r01 = -sz * cx, r02 = -cz * sy + sz * sx * cy;
     const r10 = sz * cy - cz * sx * sy, r11 = cz * cx, r12 = -sz * sy - cz * sx * cy;
     const r20 = cx * sy, r21 = sx, r22 = cx * cy;
@@ -129,7 +129,7 @@ export function createPenrose() {
       M[3 + k] = r10 * b0 + r11 * b1 + r12 * b2;
       M[6 + k] = r20 * b0 + r21 * b1 + r22 * b2;
     }
-    // flat light per face normal: n_cam = ± column k of M
+    // flat light per face normal: n_cam = +/- column k of M
     const lx = MIRROR ? -LX0 : LX0;
     const ll = Math.hypot(lx, LY0, LZ0);
     for (let k = 0; k < 3; k++) {
@@ -256,8 +256,8 @@ export function createPenrose() {
     return true;
   }
 
-  /* the base's rows for this frame (px): seam y = bSy0 + bK·x, the top edge
-     of its upper face y = bTy0 + bK·x, and the seam's row line bS (one for
+  /* the base's rows for this frame (px): seam y = bSy0 + bK*x, the top edge
+     of its upper face y = bTy0 + bK*x, and the seam's row line bS (one for
      the whole base, held with a little hysteresis so it never dithers) */
   let bK = 0, bSy0 = 0, bTy0 = 0, bS = NaN, bCellH = 0;
   let rOx = 0, rOy = 0, rInv = 1;

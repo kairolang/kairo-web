@@ -5,7 +5,7 @@
  *
  *   <section style="position:relative">
  *     <AsciiField preset="noise" size={14} opacity={0.55} />
- *     …content (give it position:relative; z-index:1)…
+ *     ...content (give it position:relative; z-index:1)...
  *   </section>
  *
  * All fields share one rAF scheduler; each ticks only while on screen and the
@@ -14,7 +14,7 @@
  *
  * RESTRAINT: animated fields are for the homepage only (hero + slow section
  * bands, ~20fps, low halo strength). Anywhere else pass `still` (one frame,
- * no loop). Default opacity is 0.35; stay within ~0.15–0.45 and put copy on
+ * no loop). Default opacity is 0.35; stay within ~0.15-0.45 and put copy on
  * a solid backing (.on-field).
  */
 interface Props {
@@ -29,13 +29,13 @@ interface Props {
   pointer?: boolean;
   /** halo radius px (default 150) */
   radius?: number;
-  /** halo strength 0..1 (default 0.6; use ~0.25–0.35 for section bands) */
+  /** halo strength 0..1 (default 0.6; use ~0.25-0.35 for section bands) */
   strength?: number;
   /** animation clock offset in seconds (default 3.2 = the still frame, so motion starts from it) */
   t0?: number;
   /** glyph ramp, dark to bright (default " .:-=+*#%@") */
   ramp?: string;
-  /** default 0.35 (restraint range ~0.15–0.45) */
+  /** default 0.35 (restraint range ~0.15-0.45) */
   opacity?: number;
   /** CSS mask, e.g. 'linear-gradient(#000 60%, transparent)' to fade an edge */
   mask?: string;

@@ -474,7 +474,7 @@ export function renderFiglet(text: string, opts: FigletOptions = {}): string {
   return rows.join('\n');
 }
 
-/** Columns × rows of a rendered string (use for --cols on .ascii-art). */
+/** Columns x rows of a rendered string (use for --cols on .ascii-art). */
 export function artSize(art: string): { cols: number; rows: number } {
   const lines = art.split('\n');
   return { cols: Math.max(...lines.map((l) => [...l].length)), rows: lines.length };

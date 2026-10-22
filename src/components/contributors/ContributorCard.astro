@@ -3,7 +3,7 @@
  * One contributor as an ASCII frame:
  *
  *   ┌─[ @login ]────────────< #01 >─┐
- *   │   <24×11 ascii avatar>        │
+ *   │   <24x11 ascii avatar>        │
  *   │   1,234 commits               │
  *   │   repos: kairo, kairo-lsp     │
  *   └───────────────────────────────┘
@@ -76,7 +76,7 @@ const rankLabel = `#${String(rank).padStart(2, '0')}`;
     position: relative;
     display: block;
     align-self: flex-start;
-    /* 24 cols × 0.6em by 11 rows × 1.3em at 9px ≈ 130 × 129 px */
+    /* 24 cols x 0.6em by 11 rows x 1.3em at 9px ~ 130 x 129 px */
     --art-size: 9px;
     width: calc(24 * 0.6 * var(--art-size));
     height: calc(11 * 1.3 * var(--art-size));

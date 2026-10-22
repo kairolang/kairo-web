@@ -389,7 +389,7 @@ const logoCols = artSize(logoArt).cols;
     color: var(--text-3);
     background-color: var(--bg);
   }
-  /* open: one stepped top-to-bottom print (≤160ms), then still */
+  /* open: one stepped top-to-bottom print (<=160ms), then still */
   .hero-boot-pop.is-opening { animation: boot-print 160ms steps(6, end) both; }
   @keyframes boot-print {
     from { clip-path: inset(0 0 100% 0); }
@@ -635,11 +635,11 @@ const logoCols = artSize(logoArt).cols;
         delete frame.dataset.rzH;
         frame.classList.remove('is-wrapped');
       },
-      // terminal-style cols×rows of the code viewport
+      // terminal-style cols x rows of the code viewport
       readout: (w) => {
         const cols = Math.max(1, Math.floor((w - 2 - padX) / charW) - 5);
         const rows = Math.max(1, Math.round((bodyH || 0) / lineH));
-        return `${cols}×${rows}`;
+        return `${cols}x${rows}`;
       },
     });
 

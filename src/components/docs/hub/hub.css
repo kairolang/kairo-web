@@ -201,7 +201,7 @@
   min-width: 0;
   scroll-margin-top: 96px;
 }
-/* the notch: [ title ] … < meta > */
+/* the notch: [ title ] ... < meta > */
 .hub-card > .hub-card-title {
   margin: 0;
   font-size: 0.76rem;
@@ -303,7 +303,7 @@
 .hub-tree li > ul { margin: var(--row-pt) 0 0 -0.75ch; }
 
 .hub-tree a { color: var(--text); }
-/* "- [name](…) gloss": name and gloss in two aligned columns */
+/* "- [name](...) gloss": name and gloss in two aligned columns */
 .hub-tree li:has(> .hub-gloss) {
   display: grid;
   grid-template-columns: var(--hub-name, max-content) minmax(0, 1fr);
@@ -312,7 +312,7 @@
 }
 .hub-gloss { color: var(--text-2); min-width: 0; }
 
-/* ── path steps: [1] … [4] (the hero's clickable tag look) and ↓ jumps ── */
+/* ── path steps: [1] ... [4] (the hero's clickable tag look) and ↓ jumps ── */
 .hub-path-steps ol { counter-reset: hub-step; }
 .hub-path-steps li {
   padding: 0.42rem 0.75ch 0.42rem 5.25ch;
@@ -403,7 +403,7 @@
 .lang-sub[hidden] { display: none; }
 .lang-sub .lang-row-line > a { color: var(--text-2); }
 
-/* "[+5]" / "[−5]": unfolds the sub-pages in place */
+/* "[+5]" / "[-5]": unfolds the sub-pages in place */
 .lang-more {
   position: relative;   /* above the row's stretched link */
   z-index: 1;
@@ -439,7 +439,7 @@
   .lang-more-sign::after { width: max(100%, 44px); height: max(100%, 32px); }
 }
 .lang-more[aria-expanded="true"] { color: var(--accent); }
-.lang-more[aria-expanded="true"] .lang-more-sign::before { content: '−'; }
+.lang-more[aria-expanded="true"] .lang-more-sign::before { content: '-'; }
 .lang-more:hover { background-color: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
 .lang-more:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 .lang-row-line:is(:has(> a:hover), :has(> a:focus-visible)) > .lang-more::before,
@@ -476,13 +476,13 @@
 .module-more { flex: none; color: var(--text-2); }
 /* last column even on a row without members */
 .module-count { grid-column: -2; color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
-/* narrow card (under ~3 members' room): name … count, no members */
+/* narrow card (under ~3 members' room): name ... count, no members */
 @container module-index (max-width: 28rem) {
   .hub-tree .module-index li { grid-template-columns: minmax(0, 1fr) auto; }
   .module-index .hub-gloss { display: none; }
 }
 
-/* ── recently updated: title … right-aligned age ───────────────────── */
+/* ── recently updated: title ... right-aligned age ───────────────────── */
 /* long titles wrap; the age stays on their first line */
 .hub-tree .recent-list li {
   display: grid;

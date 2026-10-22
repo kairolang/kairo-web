@@ -61,7 +61,7 @@ const tocCount = headings.filter((h) => h.depth === 2 || h.depth === 3).length;
   breadcrumbs={breadcrumbs}
 >
   <div class="post-container">
-    <!-- Scroll detents (DESIGN §11): only the header block (top) and the footer
+    <!-- Scroll detents (DESIGN section 11): only the header block (top) and the footer
          block (end) are marked. The article body never snaps. -->
     <nav class="post-crumbs" aria-label="Breadcrumb" data-snap>
       <a href="/">~</a><span class="dim" aria-hidden="true">/</span><a href="/blog/">blog</a><span class="dim" aria-hidden="true">/</span><span class="post-crumb-cur" aria-current="page">{slug}</span>
@@ -108,7 +108,7 @@ const tocCount = headings.filter((h) => h.depth === 2 || h.depth === 3).length;
 
         <div class="post-footer" data-snap="end">
           <a href="/blog/" class="ascii-btn ascii-btn--ghost post-btn-back">
-            <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>←</span>
+            <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>&lt;-</span>
             <span class="ascii-btn-label">All posts</span>
           </a>
           <AsciiButton href="/docs/" label="Read the Docs" />

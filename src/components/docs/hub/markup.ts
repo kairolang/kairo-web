@@ -35,7 +35,7 @@ export function wrapGlosses(html: string): string {
 
 /**
  * Width, in characters, of the widest link that starts a top-level list item
- * ("<li><a>kbld</a> …"). Cards set it as --hub-name (in ch) so the glosses
+ * ("<li><a>kbld</a> ..."). Cards set it as --hub-name (in ch) so the glosses
  * after the links line up in one column, monospace-grid style. 0 when no
  * item has a gloss (nothing to align).
  */

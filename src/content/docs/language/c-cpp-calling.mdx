@@ -90,7 +90,7 @@ fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or
 `intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one,
 whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t`
 directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the
-[Conversion Lattice §4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
+[Conversion Lattice section 4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
 
 ---
 

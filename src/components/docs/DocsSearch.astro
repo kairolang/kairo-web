@@ -966,9 +966,9 @@
 			const start = Math.max(0, at - 48);
 			const end = Math.min(entry.body.length, at + probe.length + 72);
 			snippet =
-				(start > 0 ? "…" : "") +
+				(start > 0 ? "..." : "") +
 				entry.body.slice(start, end).trim() +
-				(end < entry.body.length ? "…" : "");
+				(end < entry.body.length ? "..." : "");
 		}
 
 		return { entry, score, heading: bestHeading, snippet };

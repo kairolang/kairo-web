@@ -85,9 +85,9 @@ export interface ResizableOptions {
   cancel?: () => void;
   /** called after each apply / reset */
   onChange?: (w: number, h: number, phase: ResizePhase) => void;
-  /** text for the size readout ("80×24"); omit for no readout */
+  /** text for the size readout ("80x24"); omit for no readout */
   readout?: (w: number, h: number) => string;
-  /** keyboard step in px (default 8; Shift = 6×) */
+  /** keyboard step in px (default 8; Shift = 6x) */
   step?: number;
   /** corners that are keyboard-focusable <button>s (default: every corner). Others are pointer-only. */
   keyboard?: ResizeHandle[];
@@ -715,7 +715,7 @@ function bindAuto(el: HTMLElement, inLink: boolean, live: HTMLElement, label: st
     reset,
     readout: el.dataset.resizeReadout === 'off'
       ? undefined
-      : (w, h) => `${Math.max(1, Math.round((w - padX) / charW))}×${Math.max(1, Math.round((h - padY) / lineH))}`,
+      : (w, h) => `${Math.max(1, Math.round((w - padX) / charW))}x${Math.max(1, Math.round((h - padY) / lineH))}`,
   });
 
   // keep the left grips (sw/w) in sync with the anchor before they're needed

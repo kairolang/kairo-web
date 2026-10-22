@@ -146,7 +146,7 @@ export function getContributors(): Promise<ContributorsData> {
 
 /* ─── ASCII avatars ──────────────────────────────────────────────────── */
 
-/** Cells: Geist Mono is 0.6em × 1.3em per cell (aspect ≈ 2.17), so 24×11 is ~square. */
+/** Cells: Geist Mono is 0.6em x 1.3em per cell (aspect ~2.17), so 24x11 is ~square. */
 export const AVATAR_COLS = 24;
 export const AVATAR_ROWS = 11;
 const RAMP = ' .:-=+*#%@';
@@ -163,7 +163,7 @@ export interface AvatarArt {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** Luminance grid (0..1, rows × cols) -> toned HTML. Low-density glyphs render dim. */
+/** Luminance grid (0..1, rows x cols) -> toned HTML. Low-density glyphs render dim. */
 function gridToHtml(lum: number[], invert: boolean): string {
   const lines: string[] = [];
   const last = RAMP.length - 1;
@@ -199,7 +199,7 @@ function normalize(px: ArrayLike<number>): number[] {
   return Array.from(px, (p) => Math.max(0, Math.min(1, (p - lo) / span)));
 }
 
-/** Deterministic GitHub-style 5×5 mirrored identicon, upscaled into the cell grid. */
+/** Deterministic GitHub-style 5x5 mirrored identicon, upscaled into the cell grid. */
 function identiconGrid(login: string): number[] {
   const h = createHash('sha1').update(login.toLowerCase()).digest();
   const cells: number[] = [];
@@ -208,7 +208,7 @@ function identiconGrid(login: string): number[] {
   const lum: number[] = [];
   for (let y = 0; y < AVATAR_ROWS; y++) {
     for (let x = 0; x < AVATAR_COLS; x++) {
-      // 1-cell margin each side; map remaining area onto the 5×5 grid
+      // 1-cell margin each side; map remaining area onto the 5x5 grid
       const gx = Math.floor(((x - 2) / (AVATAR_COLS - 4)) * 5);
       const gy = Math.floor(((y - 1) / (AVATAR_ROWS - 2)) * 5);
       const inside = gx >= 0 && gx < 5 && gy >= 0 && gy < 5;

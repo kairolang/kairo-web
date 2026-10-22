@@ -10,7 +10,7 @@
  * container query units on the .ascii-fit wrapper. No JS, no overflow.
  *
  * Lens (default on, lib/ascii/lens.ts): the art loads in as dim shade glyphs
- * (░▒, deterministic per cell) and a rectangular lens (full art height, ~8–14
+ * (░▒, deterministic per cell) and a rectangular lens (full art height, ~8-14
  * columns) sweeps across it once when it first scrolls into view, resolving
  * each column to the final glyphs. On fine pointers the rect lens then
  * follows the cursor, showing the glyphs inside it as dense shades (▓▒░).
@@ -40,7 +40,7 @@ interface Props {
   as?: 'div' | 'span';
   /** rect lens: true = shade-in sweep + hover lens (default) | 'reveal' | 'hover' | false */
   lens?: boolean | 'reveal' | 'hover';
-  /** sweep delay / duration in ms (duration clamped 700–1100) */
+  /** sweep delay / duration in ms (duration clamped 700-1100) */
   lensDelay?: number;
   lensDuration?: number;
   /** play the sweep on calm pages too (default false) */
