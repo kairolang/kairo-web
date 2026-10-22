@@ -51,6 +51,17 @@ const LANGUAGE_ORDER = [
 
 // ── Helpers ────────────────────────────────────────────────────
 
+// Hub pages (frontmatter `template: hub`, e.g. the /docs/ home) are component
+// layouts that only link to other pages: skip them.
+async function withoutHubs(files) {
+  const out = [];
+  for (const f of files) {
+    const fm = (await readFile(f, 'utf-8')).match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
+    if (!/^template:\s*["']?hub["']?\s*$/m.test(fm)) out.push(f);
+  }
+  return out;
+}
+
 async function walk(dir) {
   const entries = [];
   let items;
@@ -157,7 +168,7 @@ function sortLanguage(files) {
 // ── Main ───────────────────────────────────────────────────────
 
 async function main() {
-  const files = await walk(CONTENT_DIR);
+  const files = await withoutHubs(await walk(CONTENT_DIR));
   if (files.length === 0) {
     console.error(`[lang-ref] No files found in ${CONTENT_DIR}`);
     process.exit(1);
@@ -188,7 +199,7 @@ async function main() {
   parts.push('> Kairo is a statically typed, compiled systems language with native');
   parts.push('> bidirectional C++ interoperability.');
   parts.push('>');
-  parts.push(`> Source: ${SITE_URL}/docs/  ·  Generated: ${new Date().toISOString().slice(0, 10)}`);
+  parts.push(`> Source: ${SITE_URL}/docs/language/  ·  Generated: ${new Date().toISOString().slice(0, 10)}`);
   parts.push('');
 
   // Table of contents

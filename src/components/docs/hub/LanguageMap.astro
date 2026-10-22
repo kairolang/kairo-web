@@ -1,0 +1,195 @@
+---
+/**
+ * <LanguageMap>: one card per topic group of a docs folder, generated from
+ * the docs collection, so it never goes stale. Groups come from frontmatter
+ * `group:` (display order and labels from the section's group definitions in
+ * lib/docs-tree.ts), pages are ordered by `order:`, and pages that other
+ * pages name as their `parent:` get a "+n" toggle that unfolds their
+ * sub-pages in place (nested to any depth; rows: LanguageMapRows.astro).
+ * Same tree the sidebar draws.
+ *
+ * Props
+ *   section       string   Folder below the docs root (default "language").
+ *   expanded      boolean  Sub-pages start unfolded (default false).
+ *   descriptions  boolean  Show each page's frontmatter `description` under
+ *                          its link (default false); `code` spans render as <code>.
+ *   level         2 | 3 | 4  Heading level of the group titles (default 3,
+ *                          i.e. inside a HubSection; 2 on a page of its own).
+ *   idPrefix      string   Prefix for the group card ids (default
+ *                          "<section>-"), e.g. #language-types.
+ *   cols          number   Most columns of cards (default 3). Fewer when the
+ *                          column is narrow: a column is never under `minCol`.
+ *   minCol        string   Narrowest card column, a CSS length (default
+ *                          "17rem").
+ *
+ * Pages without a group go in a last card labelled "more". Sub-page lists
+ * are in the HTML either way (no-JS readers get them unfolded); a small
+ * inline script folds them before first paint and wires the toggles
+ * (<button aria-expanded aria-controls>).
+ *
+ * Packing: cards keep reading order, top to bottom, column by column (CSS
+ * multi-column without JS). The script then splits them into fixed column
+ * stacks of balanced height (estimated from row counts, so it does not
+ * depend on font loading), so unfolding one card never re-flows the
+ * others into different columns. Re-split only when the column count
+ * changes on resize.
+ *
+ * Usage (MDX)
+ *   <LanguageMap />
+ *   <LanguageMap expanded descriptions level={2} />
+ */
+import { getCollection } from 'astro:content';
+import { buildDocTree, findSection, type TreePage } from '../../../lib/docs-tree';
+import LanguageMapRows from './LanguageMapRows.astro';
+import { pad2 } from './markup';
+
+interface Props {
+  section?: string;
+  expanded?: boolean;
+  descriptions?: boolean;
+  level?: 2 | 3 | 4;
+  idPrefix?: string;
+  cols?: number;
+  minCol?: string;
+}
+
+const {
+  section = 'language',
+  expanded = false,
+  descriptions = false,
+  level = 3,
+  idPrefix = `${section.replace(/\//g, '-')}-`,
+  cols = 3,
+  minCol = '17rem',
+} = Astro.props;
+const H = `h${level}` as 'h2' | 'h3' | 'h4';
+
+const docs = await getCollection('docs');
+const desc = new Map(docs.map(d => [d.id, d.data.description ?? '']));
+const dir = findSection(buildDocTree(docs), section);
+
+type Card = { id: string; label: string; pages: TreePage[] };
+const cards: Card[] = [];
+if (dir) {
+  const pagesOnly = (nodes: typeof dir.children) => nodes.filter((n): n is TreePage => n.kind === 'page');
+  if (dir.groups) {
+    for (const g of dir.groups) cards.push({ id: g.id, label: g.label, pages: pagesOnly(g.children) });
+    const rest = pagesOnly(dir.ungrouped ?? []);
+    if (rest.length) cards.push({ id: 'more', label: 'more', pages: rest });
+  } else {
+    cards.push({ id: 'pages', label: section, pages: pagesOnly(dir.children) });
+  }
+}
+const total = (p: TreePage): number => 1 + (p.children ?? []).reduce((s, c) => s + total(c), 0);
+const mapId = `lm-${section.replace(/[^a-z0-9]+/gi, '-')}`;
+
+// Height estimate of a card as first shown, in row units (frame + rows, plus
+// unfolded sub-pages and wrapped description lines): only used to balance
+// the column stacks.
+const DESC_CHARS = 52;
+const rowWeight = (p: TreePage, open: boolean): number => {
+  const d = descriptions ? Math.ceil((desc.get(p.id)?.length ?? 0) / DESC_CHARS) * 0.85 : 0;
+  return 1 + d + (open ? (p.children ?? []).reduce((s, c) => s + rowWeight(c, true), 0) : 0);
+};
+const weight = (c: Card) => 2.4 + c.pages.reduce((s, p) => s + rowWeight(p, expanded), 0);
+---
+<div class="lang-map" id={mapId} data-lang-map data-expanded={String(expanded)} data-descriptions={String(descriptions)} style={`--lm-cols: ${cols}; --lm-min: ${minCol}`}>
+  {cards.map((card, ci) => {
+    const headId = `${idPrefix}${card.id}-title`;
+    const count = card.pages.reduce((s, p) => s + total(p), 0);
+    const countLabel = `${count} ${count === 1 ? 'page' : 'pages'}`;
+    return (
+      <section class="ascii-frame ascii-frame--fill hub-card lang-card" id={`${idPrefix}${card.id}`} data-weight={weight(card).toFixed(2)}>
+        <H class="ascii-frame-title hub-card-title lang-card-title" id={headId}>
+          <span class="lang-card-n">{pad2(ci + 1)}</span> <span class="lang-card-label">{card.label}</span>
+        </H>
+        <span class="ascii-frame-meta hub-card-meta lang-card-count">{countLabel}</span>
+        <ul class="hub-card-body lang-tree">
+          <LanguageMapRows pages={card.pages} desc={descriptions ? desc : undefined} idPrefix={idPrefix} />
+        </ul>
+      </section>
+    );
+  })}
+</div>
+<!-- Fold the sub-page lists before first paint (unless expanded), wire the
+     +n toggles, and split the cards into balanced column stacks. Inline +
+     synchronous: no flash of unfolded lists or of the multi-column layout. -->
+<script is:inline define:vars={{ mapId }}>
+  (function () {
+    var root = document.getElementById(mapId);
+    if (!root || root.dataset.init) return;
+    root.dataset.init = '1';
+    var open = root.dataset.expanded === 'true';
+    var btns = root.querySelectorAll('[data-lang-toggle]');
+    var set = function (b, on) {
+      b.setAttribute('aria-expanded', String(on));
+      var list = document.getElementById(b.getAttribute('aria-controls'));
+      if (list) list.hidden = !on;
+    };
+    for (var i = 0; i < btns.length; i++) set(btns[i], open);
+    root.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-lang-toggle]');
+      if (b && root.contains(b)) set(b, b.getAttribute('aria-expanded') !== 'true');
+    });
+
+    // ── column stacks: same count rule as CSS `columns: N <min>` ──
+    var cards = [].slice.call(root.querySelectorAll(':scope > .lang-card'));
+    var w = cards.map(function (c) { return parseFloat(c.dataset.weight) || 1; });
+    var cs = getComputedStyle(root);
+    var max = parseInt(cs.getPropertyValue('--lm-cols'), 10) || 3;
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;width:var(--lm-min)';
+    root.appendChild(probe);
+    var minW = probe.getBoundingClientRect().width || 272;
+    probe.remove();
+    var count = function () {
+      var gap = parseFloat(cs.columnGap) || 20;
+      return Math.max(1, Math.min(max, cards.length, Math.floor((root.clientWidth + gap) / (minW + gap))));
+    };
+    // contiguous split of w[] into k runs minimising the tallest run
+    var split = function (k) {
+      var n = w.length, best = null;
+      var walk = function (from, left, cuts, tallest) {
+        if (best && tallest >= best.t) return;
+        if (left === 1) {
+          var s = 0; for (var j = from; j < n; j++) s += w[j];
+          var t = Math.max(tallest, s);
+          if (!best || t < best.t) best = { t: t, cuts: cuts.slice() };
+          return;
+        }
+        var run = 0;
+        for (var e = from; e <= n - left; e++) {
+          run += w[e];
+          cuts.push(e + 1); walk(e + 1, left - 1, cuts, Math.max(tallest, run)); cuts.pop();
+        }
+      };
+      walk(0, k, [], 0);
+      return best ? best.cuts : [];
+    };
+    var current = 0;
+    var layout = function () {
+      var k = count();
+      if (k === current) return;
+      current = k;
+      var focus = root.contains(document.activeElement) ? document.activeElement : null;
+      [].slice.call(root.querySelectorAll(':scope > .lang-col')).forEach(function (c) { c.remove(); });
+      if (k === 1) {
+        cards.forEach(function (c) { root.appendChild(c); });
+      } else {
+        var cuts = split(k).concat(cards.length), from = 0;
+        cuts.forEach(function (to) {
+          var col = document.createElement('div');
+          col.className = 'lang-col';
+          for (var j = from; j < to; j++) col.appendChild(cards[j]);
+          root.appendChild(col);
+          from = to;
+        });
+      }
+      root.classList.add('is-stacked');
+      root.style.setProperty('--lm-k', String(k));
+      if (focus && focus !== document.activeElement) focus.focus({ preventScroll: true });
+    };
+    layout();
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(layout).observe(root);
+  })();
+</script>

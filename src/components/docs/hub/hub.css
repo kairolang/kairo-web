@@ -1,0 +1,511 @@
+/* ─── Docs hub components (components/docs/hub/) ───────────────────────
+   The KSF / blog vocabulary on a docs page: ascii-frame cards with the
+   title in the top edge, "── 01 · TITLE ──" section rules, file-tree rows
+   (├── / └── guides as 1px lines, like the sidebar) and the blog log's
+   stepped red row sweep on hover / keyboard focus. No ambient motion: the
+   only entrance is the hero art's one lens sweep (HubHero).
+
+   Global (not scoped) because card bodies are Markdown from the page,
+   which scoped styles cannot reach. Every selector is under .docs-hub or a
+   hub-* / lang-* / module-* / recent-* class, so nothing leaks into prose.
+   Column counts follow the hub column's width (container "hub"), not the
+   viewport, so they behave the same beside the sidebar or without it.     */
+
+.docs-hub {
+  --hub-tg: 3ch;                                                   /* tree guide column */
+  --hub-line: color-mix(in srgb, var(--text-3) 75%, transparent);  /* sidebar's guide colour */
+  --row-pt: 3px;
+  --row-pb: 3px;
+  container: hub / inline-size;
+  max-width: 1180px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.docs-hub a { color: inherit; text-decoration: none; }
+.docs-hub ul,
+.docs-hub ol { list-style: none; margin: 0; padding: 0; }
+.docs-hub kbd { font: inherit; }
+
+/* plain Markdown paragraphs between blocks (intro lines) */
+.docs-hub > p {
+  max-width: 72ch;
+  margin: 0 0 2.5rem;
+  font-family: var(--font-prose);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+.docs-hub > p a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--red) 55%, transparent);
+  text-underline-offset: 3px;
+}
+.docs-hub > p a:hover { background: var(--accent); color: var(--on-red); text-decoration-color: transparent; }
+
+/* external links get an arrow (overlay links below use ::before, so ::after is free) */
+.docs-hub a[href^="http"]::after { content: ' ↗'; content: ' ↗' / ''; color: var(--text-3); }
+
+/* ── hero ─────────────────────────────────────────────────────────── */
+.hub-hero { margin: 0.25rem 0 0; }
+.docs-hub > .hub-hero + p { margin-top: 1.75rem; }
+.hub-hero-prompt {
+  margin: 0 0 1.4rem;
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+.hub-hero-path { color: var(--accent); }
+.hub-hero-dollar { color: var(--text-3); }
+.hub-hero-cmd { color: var(--text); }
+.hub-hero-art {
+  width: 100%;
+  max-width: 540px;
+  margin-bottom: 1.5rem;
+}
+.hub-hero-art .ascii-fit { display: block; width: 100%; }
+.hub-hero-title h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 4.2cqi, 2.55rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  color: var(--text);
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.hub-hero-sub {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
+/* ── search bar: the sidebar's "> search docs_" at hero size ─────── */
+.hub-search-wrap { margin: 1.75rem 0 1.1rem; }
+.hub-search {
+  --frame-bg: var(--bg-2);
+  --frame-pad: 0.95rem 1.1rem 0.95rem 1.25ch;
+  display: flex;
+  align-items: center;
+  gap: 1.25ch;
+  width: min(100%, 62ch);
+  font: inherit;
+  font-size: 0.98rem;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.hub-search:hover,
+.hub-search:focus-visible {
+  --c: var(--red);
+  border-color: color-mix(in srgb, var(--red) 55%, var(--frame-line));
+  color: var(--text);
+}
+.hub-search-prompt { color: var(--accent); font-weight: 700; }
+.hub-search-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub-search-count { color: var(--text); font-variant-numeric: tabular-nums; }
+.hub-search-cursor { color: var(--accent); margin-left: 1px; }
+/* static at rest (calm page); blinks only while hovered / focused, like the sidebar's */
+.hub-search:hover .hub-search-cursor,
+.hub-search:focus-visible .hub-search-cursor { animation: hub-blink 1.06s steps(1, end) infinite; }
+@keyframes hub-blink { 50% { opacity: 0; } }
+.hub-search .hub-search-kbd {
+  flex-shrink: 0;
+  padding: 1px 0.7ch;
+  border: 1px solid var(--frame-line);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+}
+/* no keyboard shortcut to hint at on touch screens */
+@media (hover: none) and (pointer: coarse) {
+  .hub-search .hub-search-kbd { display: none; }
+}
+
+/* ── notice strip: one compact line (KSF's [!!] note, minus the box) ── */
+.hub-notice {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25ch;
+  margin: 0 0 3.5rem;
+  padding: 0.5rem 0;
+  border-block: 1px dashed var(--frame-line);
+  font-size: 0.76rem;
+  color: var(--text-2);
+}
+.hub-notice-tag { flex-shrink: 0; font-weight: 600; color: var(--accent); }
+.hub-notice[data-level="warn"] .hub-notice-tag { color: #d29922; }
+[data-theme="light"] .hub-notice[data-level="warn"] .hub-notice-tag { color: #8a5a00; }
+.hub-notice-body { min-width: 0; }
+.hub-notice-body p { margin: 0; }
+.hub-notice-body a { color: var(--accent); white-space: nowrap; }
+.hub-notice-body a::after { content: ' →'; content: ' →' / ''; }
+.hub-notice-body a:hover { background: var(--accent); color: var(--on-red); }
+
+/* ── sections: "── 01 · PICK A PATH ──────────── more →" ───────────── */
+.hub-section { margin: 0 0 3.75rem; scroll-margin-top: 96px; }
+.hub-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5ch;
+  margin-bottom: 1.9rem;
+}
+.hub-section-rule { flex: 1 1 0; min-width: 2ch; height: 1px; background: var(--border-hi); }
+.hub-section-rule--lead { flex: 0 0 2ch; }
+.hub-section-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text);
+}
+.hub-section-n { color: var(--accent); }
+.hub-section-dot { color: var(--text-3); }
+.hub-section-more {
+  flex-shrink: 0;
+  margin-left: auto;
+  white-space: nowrap;
+  padding: 0 0.5ch;
+  font-size: 0.72rem;
+  color: var(--text-2);
+}
+.hub-section-more:hover,
+.hub-section-more:focus-visible { background: var(--text); color: var(--bg); }
+
+/* ── grids (columns follow the hub column, not the viewport) ─────── */
+.hub-grid {
+  --hub-k: 3;
+  display: grid;
+  grid-template-columns: repeat(var(--hub-k), minmax(0, 1fr));
+  gap: 1.9rem 1.25rem;   /* rows leave room for the next row's title notch */
+}
+.hub-grid[data-cols="2"] { --hub-k: 2; }
+.hub-grid[data-align="start"] { align-items: start; }
+@container hub (max-width: 56rem) {
+  .hub-grid[data-cols="3"] { --hub-k: 2; }
+  /* three cards on two columns: the odd one out spans the row */
+  .hub-grid[data-cols="3"] > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@container hub (max-width: 48rem) { .hub-grid[data-cols="2"] { --hub-k: 1; } }
+@container hub (max-width: 36rem) { .hub-grid[data-cols] { --hub-k: 1; } }
+
+/* ── cards: ascii-frame with the title in the top edge ─────────────── */
+.hub-card {
+  --frame-pad: 1.4rem 1.15rem 1.05rem;
+  min-width: 0;
+  scroll-margin-top: 96px;
+}
+/* the notch: [ title ] … < meta > */
+.hub-card > .hub-card-title {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  /* both corners' insets, the meta label (metaReserve) and a gap */
+  max-width: calc(100% - 2 * (var(--corner-len) + 0.25rem) - var(--hub-meta-w, 0rem) - 0.75rem);
+}
+.hub-card > .hub-card-title a:hover { background: var(--text); color: var(--bg); }
+.hub-card > .hub-card-meta { font-size: 0.62rem; max-width: 50%; }
+.hub-card-body p { margin: 0 0 0.5rem; }
+
+/* ── rows: shared by tree lists, path steps, the language map ─────────
+   One link per row; its ::before stretches over the whole row, so the
+   gloss / date / count are part of the target. Hover or keyboard focus
+   runs the blog log's stepped inverse sweep left -> right.             */
+.hub-tree li:not(:has(li)),
+.hub-path-steps li,
+.lang-row-line {
+  --sweep-x: 0px;
+  position: relative;
+  background-image: linear-gradient(var(--red), var(--red));
+  background-repeat: no-repeat;
+  background-position: var(--sweep-x) 0;
+  background-size: 0% 100%;
+  transition: background-size var(--dur-fast) steps(6, end);
+}
+.hub-tree li:not(:has(li)) > a::before,
+.hub-path-steps li > a::before,
+.hub-path-steps li > .hub-search-inline::before,
+.lang-row-line > a::before { content: ''; position: absolute; inset: 0; }
+.hub-tree li:not(:has(li)) > a:focus-visible,
+.hub-path-steps li > a:focus-visible,
+.hub-path-steps li > .hub-search-inline:focus-visible,
+.lang-row-line > a:focus-visible { outline: none; }
+/* forced colours drop the sweep (a background-image): outline the row instead */
+@media (forced-colors: active) {
+  .hub-tree li:not(:has(li)) > a:focus-visible::before,
+  .hub-path-steps li > a:focus-visible::before,
+  .hub-path-steps li > .hub-search-inline:focus-visible::before,
+  .lang-row-line > a:focus-visible::before { outline: 2px solid Highlight; outline-offset: -2px; }
+}
+/* text flips to on-red a beat after the bar passes (as on the blog) */
+.hub-tree li :is(a, span, time, kbd),
+.hub-path-steps li :is(a, span, kbd),
+.hub-path-steps li::before,
+.lang-row-line > :is(a, button) { transition: color 0s linear 70ms; }
+
+.hub-tree li:not(:has(li)):is(:has(> a:hover), :has(> a:focus-visible)),
+.hub-path-steps li:is(:has(> a:hover), :has(> a:focus-visible), :has(> .hub-search-inline:hover), :has(> .hub-search-inline:focus-visible)),
+.lang-row-line:is(:has(> a:hover), :has(> a:focus-visible)) {
+  background-size: calc(100% - var(--sweep-x)) 100%;
+}
+.hub-tree li:not(:has(li)):is(:has(> a:hover), :has(> a:focus-visible)) :is(a, span, time),
+.hub-tree li:not(:has(li)):is(:has(> a:hover), :has(> a:focus-visible)) > a::after,
+.hub-path-steps li:is(:has(> a:hover), :has(> a:focus-visible), :has(> .hub-search-inline:hover), :has(> .hub-search-inline:focus-visible)) :is(a, span, kbd),
+.hub-path-steps li:is(:has(> a:hover), :has(> a:focus-visible), :has(> .hub-search-inline:hover), :has(> .hub-search-inline:focus-visible))::before,
+.lang-row-line:is(:has(> a:hover), :has(> a:focus-visible)) > :is(a, button) { color: var(--on-red); }
+/* the ⌘K chip would keep its own fill (blank on the bar): outline it like the [n] tags */
+.hub-path-steps li:has(> .hub-search-inline:is(:hover, :focus-visible)) .hub-search-kbd {
+  background: transparent;
+  border-color: currentColor;
+}
+
+/* keyboard focus lands clear of the sticky header (WCAG 2.4.11): column
+   stacks send forward Tab back up the page, and 96px (the headings' margin)
+   also keeps a card's title notch in view above its first row             */
+:is(.docs-hub, .hub-hero, .hub-notice, .hub-section) :is(a, button, summary) {
+  scroll-margin-top: var(--hub-focus-top, 96px);
+  scroll-margin-bottom: 1.5rem;
+}
+
+/* ── file tree: ├── / └── guides as 1px lines (sidebar geometry) ────── */
+.hub-tree li,
+.lang-row {
+  --tick-y: calc(var(--row-pt) + 0.75em);   /* middle of the first line */
+  position: relative;
+}
+.hub-tree li { padding: var(--row-pt) 0.75ch var(--row-pb) calc(var(--hub-tg) + 0.75ch); }
+.hub-tree li:not(:has(li)) { --sweep-x: var(--hub-tg); }
+.lang-row { padding-left: var(--hub-tg); }
+.hub-tree li::before,
+.hub-tree li::after,
+.lang-row::before,
+.lang-row::after { content: ''; position: absolute; left: 0.5ch; background: var(--hub-line); }
+/* │ rail (stops at the tick on the last row: └) */
+.hub-tree li::before,
+.lang-row::before { top: 0; bottom: 0; width: 1px; }
+.hub-tree li:last-child::before,
+.lang-row:last-child::before { bottom: auto; height: calc(var(--tick-y) + 1px); }
+/* ── tick */
+.hub-tree li::after,
+.lang-row::after { top: var(--tick-y); width: calc(var(--hub-tg) - 0.85ch); height: 1px; }
+/* the hovered row's tick takes the sweep colour, so the bar grows out of the tree */
+.hub-tree li:not(:has(li)):is(:has(> a:hover), :has(> a:focus-visible))::after,
+.lang-row:has(> .lang-row-line > a:is(:hover, :focus-visible))::after { background: var(--red); }
+/* nested Markdown lists hang under their parent's text */
+.hub-tree li > ul { margin: var(--row-pt) 0 0 -0.75ch; }
+
+.hub-tree a { color: var(--text); }
+/* "- [name](…) gloss": name and gloss in two aligned columns */
+.hub-tree li:has(> .hub-gloss) {
+  display: grid;
+  grid-template-columns: var(--hub-name, max-content) minmax(0, 1fr);
+  column-gap: 2.5ch;
+  align-items: baseline;
+}
+.hub-gloss { color: var(--text-2); min-width: 0; }
+
+/* ── path steps: [1] … [4] (the hero's clickable tag look) and ↓ jumps ── */
+.hub-path-steps ol { counter-reset: hub-step; }
+.hub-path-steps li {
+  padding: 0.42rem 0.75ch 0.42rem 5.25ch;
+  color: var(--text);
+}
+.hub-path-steps li + li { border-top: 1px dashed var(--frame-line); }
+.hub-path-steps ol > li { counter-increment: hub-step; }
+.hub-path-steps li::before {
+  position: absolute;
+  left: 0.75ch;
+  width: 3.5ch;
+  font-weight: 600;
+  white-space: pre;
+}
+.hub-path-steps ol > li::before { content: '[' counter(hub-step) ']'; content: '[' counter(hub-step) ']' / ''; color: var(--accent); }
+.hub-path-steps ul > li::before { content: ' ↓'; content: ' ↓' / ''; color: var(--text-3); }
+.hub-path-steps ul > li:has(> .hub-search-inline)::before { content: none; }
+.hub-path-steps .hub-gloss { margin-left: 1ch; }
+
+/* inline search trigger (a list row or a word in text) */
+.hub-search-inline {
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.hub-search-inline .hub-search-kbd { color: var(--text-2); font-weight: 600; }
+.hub-path-steps .hub-search-inline .hub-search-kbd {
+  position: absolute;
+  left: 0.75ch;
+  top: 0.42rem;
+  width: 3.5ch;
+  text-align: center;
+  font-size: 0.92em;
+}
+:not(li) > .hub-search-inline:hover,
+:not(li) > .hub-search-inline:focus-visible { background: var(--text); color: var(--bg); }
+/* touch screens: no ⌘K chip; in a path card the row gets the search
+   prompt as its marker instead */
+@media (hover: none) and (pointer: coarse) {
+  .hub-search-inline .hub-search-kbd { display: none; }
+  .hub-path-steps ul > li:has(> .hub-search-inline)::before { content: ' >'; content: ' >' / ''; color: var(--text-3); }
+}
+
+/* ── language map: topic cards in balanced column stacks ───────────── */
+.lang-map {
+  columns: var(--lm-cols, 3) var(--lm-min, 17rem);   /* no-JS fallback, same count rule */
+  column-gap: 1.25rem;
+  padding-top: 0.5rem;
+}
+.lang-map > .lang-card { break-inside: avoid; margin-bottom: 1.9rem; }
+.lang-map.is-stacked {
+  columns: auto;
+  display: grid;
+  grid-template-columns: repeat(var(--lm-k, 1), minmax(0, 1fr));
+  gap: 1.9rem 1.25rem;
+  align-items: start;
+}
+.lang-map.is-stacked > .lang-card { margin: 0; }
+.lang-col { display: flex; flex-direction: column; gap: 1.9rem; min-width: 0; }
+
+.lang-card-n { color: var(--accent); }
+/* page count on the bottom edge ("└──< 9 pages >─┘"), so the top edge is
+   all title; the mask flips: frame fill above the line, page below */
+.lang-card > .lang-card-count {
+  top: auto;
+  bottom: 0;
+  transform: translateY(50%);
+  background: linear-gradient(var(--frame-bg) calc(50% - 1px), var(--frame-outer, var(--bg)) 0);
+}
+.lang-row-line {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5ch;
+  padding: var(--row-pt) 0.75ch var(--row-pb);
+}
+.lang-row-line > a { flex: 1 1 auto; min-width: 0; color: var(--text); overflow-wrap: anywhere; }
+.lang-sub { margin-left: 0.75ch; }
+.lang-sub[hidden] { display: none; }
+.lang-sub .lang-row-line > a { color: var(--text-2); }
+
+/* "[+5]" / "[−5]": unfolds the sub-pages in place */
+.lang-more {
+  position: relative;   /* above the row's stretched link */
+  z-index: 1;
+  flex: none;
+  margin: -1px -0.4ch;
+  padding: 1px 0.4ch;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color var(--dur-instant) steps(1, end), background-color var(--dur-instant) steps(1, end);
+}
+.lang-more::before { content: '['; content: '[' / ''; color: var(--text-3); }
+.lang-more::after  { content: ']'; content: ']' / ''; color: var(--text-3); }
+.lang-more-sign::before { content: '+'; }
+/* hit area: the brackets use the button's own ::before / ::after, so the
+   sign's ::after (positioned on the button) pads the target out to 24px
+   square (WCAG 2.5.8), and to a thumb-sized 44 x 32 on touch screens */
+.lang-more-sign::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 24px);
+  height: max(100%, 24px);
+  translate: -50% -50%;
+}
+@media (pointer: coarse) {
+  .lang-more-sign::after { width: max(100%, 44px); height: max(100%, 32px); }
+}
+.lang-more[aria-expanded="true"] { color: var(--accent); }
+.lang-more[aria-expanded="true"] .lang-more-sign::before { content: '−'; }
+.lang-more:hover { background-color: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
+.lang-more:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.lang-row-line:is(:has(> a:hover), :has(> a:focus-visible)) > .lang-more::before,
+.lang-row-line:is(:has(> a:hover), :has(> a:focus-visible)) > .lang-more::after { color: inherit; }
+
+/* with descriptions (the full language reference). Spacing is padding
+   inside the rows, never margin between them, so the rails stay unbroken */
+.lang-row > .lang-desc {   /* beats .hub-card-body p */
+  margin: 0;
+  padding: 0 0.75ch 0.5rem;
+  font-family: var(--font-prose);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+.lang-desc code { font-family: var(--font-mono); font-size: 0.9em; color: var(--text); }
+[data-descriptions="true"] .lang-tree > .lang-row > .lang-row-line > a { font-weight: 600; }
+[data-descriptions="true"] .lang-tree > .lang-row + .lang-row {
+  --tick-y: calc(var(--row-pt) + 0.15rem + 0.75em);
+  padding-top: 0.15rem;
+}
+
+/* ── module index: name │ members +n │ count ─────────────────────────── */
+.module-index { container: module-index / inline-size; }
+.hub-tree .module-index li {
+  display: grid;
+  grid-template-columns: var(--hub-name, max-content) minmax(0, 1fr) auto;
+  column-gap: 2.5ch;
+}
+/* the members are cut to one line; "+n" never is (it does not shrink) */
+.module-index .hub-gloss { display: flex; min-width: 0; white-space: nowrap; }
+.module-members { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.module-more { flex: none; color: var(--text-2); }
+/* last column even on a row without members */
+.module-count { grid-column: -2; color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
+/* narrow card (under ~3 members' room): name … count, no members */
+@container module-index (max-width: 28rem) {
+  .hub-tree .module-index li { grid-template-columns: minmax(0, 1fr) auto; }
+  .module-index .hub-gloss { display: none; }
+}
+
+/* ── recently updated: title … right-aligned age ───────────────────── */
+/* long titles wrap; the age stays on their first line */
+.hub-tree .recent-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 2ch;
+  align-items: baseline;
+}
+.recent-list a { overflow-wrap: anywhere; }
+.recent-dir { color: var(--text-2); }
+.recent-age { color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* ── status rows: a boot log ([ok] green, [..] red) ─────────────────── */
+.hub-status-list {
+  margin: 0 0 0.85rem !important;
+  padding-left: 1.1ch !important;
+  border-left: 1px solid var(--frame-line);
+  line-height: 1.75;
+}
+.hub-status-list li { display: flex; align-items: baseline; gap: 1ch; color: var(--text-2); }
+.hub-status-tag { --tag: var(--accent); flex-shrink: 0; font-weight: 600; white-space: pre; color: var(--tag); }
+.hub-status-list li[data-state="ok"] .hub-status-tag { --tag: #3fb950; }
+[data-theme="light"] .hub-status-list li[data-state="ok"] .hub-status-tag { --tag: #1a7f37; }
+.hub-status-list li[data-state="todo"] .hub-status-tag { --tag: var(--text-3); }
+.hub-status-list a { color: var(--text); }
+.hub-status-list a:hover { background: var(--text); color: var(--bg); }
+
+/* ── narrow ─────────────────────────────────────────────────────────── */
+@container hub (max-width: 36rem) {
+  .hub-section { margin-bottom: 3rem; }
+  .hub-search { font-size: 0.88rem; }
+  .hub-card { --frame-pad: 1.35rem 0.85rem 0.95rem; }
+}

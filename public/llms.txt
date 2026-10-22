@@ -6,13 +6,15 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 
 ## Docs
 
-- [Welcome to Kairo](https://www.kairolang.org/docs/): Overview of Kairo's core features, including bidirectional C++ interop, zero-cost abstractions, and automatic memory tracking.
+- [Kairo Documentation](https://www.kairolang.org/docs/): Docs home: reading paths, the language reference by topic, the standard library, the toolchain and recently updated pages.
+- [Welcome to Kairo](https://www.kairolang.org/docs/welcome/): Overview of Kairo's core features, including bidirectional C++ interop, zero-cost abstractions, and automatic memory tracking.
 - [Philosophy](https://www.kairolang.org/docs/philosophy/): The design principles behind Kairo, focusing on mechanical keyword consistency, C++-first interop, and pragmatic memory safety.
 - [Compiler Compliance](https://www.kairolang.org/docs/compilence/): Standards and specifications Kairo targets, including IEEE 754-2019, Unicode 15.1, platform psABIs, and DWARF 5 debug info.
 - [Installation](https://www.kairolang.org/docs/install/): How to install the Kairo compiler, toolchain, LSP, and package manager.
 
 ## Language Reference
 
+- [Kairo Language Reference](https://www.kairolang.org/docs/language/): Every page of the Kairo language reference, grouped by topic in reading order: basics, types, memory, errors, compile time, modules and C/C++ interop.
 - [Primitives](https://www.kairolang.org/docs/language/primitives/): Built-in data types including integers, floats, booleans, characters, strings, pointers, collections, and their hardware-mapped semantics.
 - [Variables & Bindings](https://www.kairolang.org/docs/language/variables/): Variable declarations, constants, static, type inference, shadowing, destructuring, and the strict left-to-right `const` binding rule.
 - [Operators](https://www.kairolang.org/docs/language/operators/): Arithmetic, comparison, logical, bitwise, assignment, range, null-safe access, operator overloading, and C-style precedence rules.

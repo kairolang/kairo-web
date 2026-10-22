@@ -1,5 +1,7 @@
 export interface DocEntry {
   id: string;
+  /** Source path (content-layer entries carry it); used to spot folder index files. */
+  filePath?: string;
   data: {
     title: string;
     order?: number;
@@ -7,6 +9,7 @@ export interface DocEntry {
     collapsed?: boolean;
     group?: string;
     parent?: string;
+    sidebarLabel?: string;
   };
 }
 
@@ -14,6 +17,8 @@ export interface TreePage {
   kind: 'page';
   id: string;
   title: string;
+  /** Sidebar row text: frontmatter `sidebarLabel`, else `title`. */
+  label: string;
   order?: number;
   href: string;
   /** Sidebar group id (frontmatter `group`). */
@@ -86,8 +91,19 @@ function fileStem(id: string): string {
 export function buildDocTree(docs: DocEntry[]): TreeSection {
   const root: TreeSection = { kind: 'section', name: '', defaultCollapsed: false, children: [] };
 
+  // The glob loader drops "/index" from ids ("language/index.mdx" -> id
+  // "language"), so a folder's index file is recognised by its source path.
+  // It becomes that folder's index page (the directory label links to it)
+  // when the folder holds other pages; a lone index file stays a page.
+  const ids = docs.map(d => d.id.replace(/\.mdx?$/, ''));
+  const isFolderIndex = (doc: DocEntry, slug: string) =>
+    slug !== 'index' &&
+    /(^|\/)index\.mdx?$/.test(doc.filePath ?? '') &&
+    ids.some(other => other.startsWith(slug + '/'));
+
   for (const doc of docs) {
-    const slug = doc.id.replace(/\.mdx?$/, '');
+    let slug = doc.id.replace(/\.mdx?$/, '');
+    if (isFolderIndex(doc, slug)) slug += '/index';
     const parts = slug.split('/');
     const fileName = parts[parts.length - 1];
     const dirParts = parts.slice(0, -1);
@@ -108,6 +124,7 @@ export function buildDocTree(docs: DocEntry[]): TreeSection {
       kind: 'page',
       id: doc.id,
       title: doc.data.title,
+      label: doc.data.sidebarLabel ?? doc.data.title,
       order: doc.data.order,
       href: docHref(doc.id),
       group: doc.data.group,
@@ -232,7 +249,30 @@ export function flattenPages(section: TreeSection): TreePage[] {
   return pages;
 }
 
-/** Top-level section name for a doc id used in search. */
+/**
+ * The directory node at a slash-separated path below the root ("language",
+ * "library/core"), or undefined. Segments are doc-id segments (lowercase).
+ */
+export function findSection(root: TreeSection, path: string): TreeSection | undefined {
+  let node: TreeSection | undefined = root;
+  for (const seg of path.split('/').filter(Boolean)) {
+    node = node.children.find((c): c is TreeSection => c.kind === 'section' && c.name === seg);
+    if (!node) return undefined;
+  }
+  return node;
+}
+
+/**
+ * Source file of a doc below the docs root ("language/index.mdx",
+ * "library/Core/std/range/index.mdx"), or undefined without a filePath.
+ * Unlike the id it keeps folder index files apart: the glob loader gives
+ * "language/index.mdx" the id "language".
+ */
+export function docSourcePath(doc: Pick<DocEntry, 'filePath'>): string | undefined {
+  return doc.filePath?.replace(/^.*?src\/content\/docs\//, '');
+}
+
+/** Top-level section name for a doc id or source path (search, llms.txt). */
 export function sectionFromId(id: string): string {
   const parts = id.replace(/\.mdx?$/, '').split('/');
   if (parts.length <= 1) return 'Docs';

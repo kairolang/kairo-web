@@ -29,8 +29,11 @@ jobs:
           # Clear existing wiki pages, preserve sidebar/footer/home
           find wiki -maxdepth 1 -name '*.md' ! -name '_*.md' ! -name 'Home.md' -delete
 
-          # Copy each .mdx, strip frontmatter
+          # Copy each .mdx, strip frontmatter. Hub pages (frontmatter
+          # `template: hub`, e.g. language/index.mdx) are site components,
+          # not reference text: skip them
           for src in src/content/docs/language/*.mdx; do
+            awk 'NR==1{if(!/^---$/)exit;next} /^---$/{exit} /^template:[^a-z]*hub/{f=1;exit} END{exit !f}' "$src" && continue
             base=$(basename "${src%.mdx}")
             name=$(echo "$base" | sed 's/^./\U&/')
             sed '1{/^---$/!q;};1,/^---$/d' "$src" > "wiki/${name}.md"

@@ -1,0 +1,52 @@
+---
+/**
+ * <LanguageMapRows>: the rows of a <LanguageMap> card (internal, not in the
+ * hub component map). One <li class="lang-row"> per page, its sub-pages in
+ * a nested <ul class="lang-sub">, recursively to any depth, so every page
+ * the card's count includes has a row. Only top-level rows get the "+n"
+ * toggle; deeper lists fold and unfold with their top-level ancestor.
+ *
+ * Props
+ *   pages     TreePage[]           Rows at this depth, in display order.
+ *   desc      Map<id, string>?     Descriptions shown under each link (all
+ *                                  depths); omitted: none.
+ *   idPrefix  string               Prefix of the sub-list ids (the toggles'
+ *                                  aria-controls targets).
+ *   depth     number               0 for a card's own rows (default 0).
+ */
+import type { TreePage } from '../../../lib/docs-tree';
+import { inlineCode } from './markup';
+
+interface Props {
+  pages: TreePage[];
+  desc?: Map<string, string>;
+  idPrefix: string;
+  depth?: number;
+}
+
+const { pages, desc, idPrefix, depth = 0 } = Astro.props;
+const below = (p: TreePage): number => (p.children ?? []).reduce((s, c) => s + 1 + below(c), 0);
+---
+{pages.map(page => {
+  const kids = page.children ?? [];
+  const toggle = depth === 0 && kids.length > 0;
+  const subId = toggle ? `${idPrefix}sub-${page.id.replace(/\.mdx?$/, '').split('/').pop()}` : undefined;
+  const n = below(page);
+  const text = desc?.get(page.id);
+  return (
+    <li class="lang-row">
+      <span class="lang-row-line">
+        <a href={page.href}>{page.title}</a>
+        {toggle && (
+          <button type="button" class="lang-more" aria-expanded="true" aria-controls={subId} data-lang-toggle><span class="lang-more-sign" aria-hidden="true"></span>{n}<span class="sr-only">{` ${n === 1 ? 'page' : 'pages'} under ${page.title}`}</span></button>
+        )}
+      </span>
+      {text && <p class="lang-desc" set:html={inlineCode(text)} />}
+      {kids.length > 0 && (
+        <ul class="lang-sub" id={subId}>
+          <Astro.self pages={kids} desc={desc} idPrefix={idPrefix} depth={depth + 1} />
+        </ul>
+      )}
+    </li>
+  );
+})}

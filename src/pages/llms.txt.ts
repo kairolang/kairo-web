@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { buildDocTree, flattenPages, sectionFromId } from '../lib/docs-tree';
+import { buildDocTree, docSourcePath, flattenPages, sectionFromId } from '../lib/docs-tree';
 
 export const GET: APIRoute = async ({ site }) => {
   const siteURL = (site ?? new URL('https://www.kairolang.org')).toString().replace(/\/$/, '');
@@ -13,10 +13,11 @@ export const GET: APIRoute = async ({ site }) => {
   const treeRank = new Map(flattenPages(buildDocTree(docs)).map((p, i) => [p.id, i]));
   const sortedDocs = [...docs].sort((a, b) => (treeRank.get(a.id) ?? Infinity) - (treeRank.get(b.id) ?? Infinity));
 
-  // Group docs by section
+  // Group docs by section (by source path: folder index pages have ids
+  // without "/index", "language", and belong to their folder's section)
   const sections = new Map<string, typeof sortedDocs>();
   for (const doc of sortedDocs) {
-    const section = sectionFromId(doc.id);
+    const section = sectionFromId(docSourcePath(doc) ?? doc.id);
     if (!sections.has(section)) sections.set(section, []);
     sections.get(section)!.push(doc);
   }

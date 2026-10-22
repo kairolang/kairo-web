@@ -9,6 +9,8 @@ import Footer from '../components/Footer.astro';
 
 interface Props {
   title: string;
+  /** Full document <title>, used verbatim instead of formatTitle(title). */
+  documentTitle?: string;
   description?: string;
   ogImage?: string;
   canonical?: string;
@@ -22,10 +24,13 @@ interface Props {
   tags?: string[];
   breadcrumbs?: Array<{ name: string; url: string }>;
   noindex?: boolean;
+  /** Override the page's main JSON-LD node (docs hubs: 'CollectionPage'). */
+  schema?: 'CollectionPage';
 }
 
 const {
   title,
+  documentTitle,
   description,
   ogImage,
   canonical,
@@ -37,6 +42,7 @@ const {
   tags = [],
   breadcrumbs = [],
   noindex = false,
+  schema,
 } = Astro.props;
 
 // ── SEO: pages pass a short title; the document title, description, OG card,
@@ -53,7 +59,7 @@ if (type === 'docs') {
     pageName = n ? `${pageName} #${n}` : `${pageName} (${seg})`;
   }
 }
-const fullTitle = formatTitle(pageName, type, pathname);
+const fullTitle = documentTitle ?? formatTitle(pageName, type, pathname);
 const metaDescription = fitDescription(description, pageName, type);
 const canonicalURL = canonical ?? absUrl(pathname);
 const ogImageURL = ogImage ?? ogImageFor(pathname, type);
@@ -92,6 +98,7 @@ const isDocs = type === 'docs' || /^\/docs(\/|$)/.test(pathname);
       tags={tags}
       breadcrumbs={breadcrumbs}
       noindex={noindex}
+      schema={schema}
     />
 
     <!-- Self-hosted variable fonts -->

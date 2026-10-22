@@ -1,0 +1,33 @@
+---
+/**
+ * <AnchorForward to anchors />: forwards #fragments that used to live on
+ * this page to the page they moved to. Static hosts have no redirects, so
+ * an old deep link like /docs/#why-kairo would otherwise land at the top of
+ * a page with no such section. Renders nothing visible; one inline script.
+ *
+ * Props
+ *   to       string    URL the anchors moved to, e.g. "/docs/welcome/".
+ *   anchors  string[]  Fragment ids (without "#") to forward. Make sure the
+ *                      current page has no element with any of these ids.
+ *
+ * Usage (MDX)
+ *   <AnchorForward to="/docs/welcome/" anchors={['why-kairo', 'status']} />
+ */
+interface Props {
+  to: string;
+  anchors: string[];
+}
+
+const { to, anchors } = Astro.props;
+---
+<script is:inline define:vars={{ to, anchors }}>
+  (function () {
+    var go = function () {
+      var h = location.hash.slice(1);
+      try { h = decodeURIComponent(h); } catch (_) {}
+      if (h && anchors.indexOf(h) !== -1) location.replace(to + '#' + encodeURIComponent(h));
+    };
+    go();
+    window.addEventListener('hashchange', go);
+  })();
+</script>

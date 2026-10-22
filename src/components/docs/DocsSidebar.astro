@@ -45,7 +45,7 @@ function guides(trail: boolean[], last: boolean): string {
 // which are always visible one level deeper.
 function pageRow(page: TreePage, trail: boolean[], last: boolean): string {
   const active = isActive(page.id);
-  let html = `<a href="${page.href}" class="sidebar-link tree-row${active ? ' active' : ''}"${active ? ' aria-current="page"' : ''}>${guides(trail, last)}<span class="tree-label">${esc(page.title)}</span></a>`;
+  let html = `<a href="${page.href}" class="sidebar-link tree-row${active ? ' active' : ''}"${active ? ' aria-current="page"' : ''}>${guides(trail, last)}<span class="tree-label">${esc(page.label)}</span></a>`;
   const kids = page.children ?? [];
   kids.forEach((kid, i) => {
     html += pageRow(kid, [...trail, !last], i === kids.length - 1);

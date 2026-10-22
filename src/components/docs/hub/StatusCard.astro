@@ -1,0 +1,64 @@
+---
+/**
+ * <StatusCard>: a framed card of status lines drawn like a boot log
+ * ("[ok] stage 0 stable", "[..] stage 1 in progress"), optionally followed
+ * by a Markdown link tree.
+ *
+ * Props
+ *   title  string    Card title, set in the frame's top edge.
+ *   items  Array<{ state: 'ok' | 'wip' | 'todo' | 'fail'; label: string; href?: string }>
+ *                    One row each. The state renders as a bracketed tag
+ *                    ([ok] [..] [  ] [!!]) with a spoken equivalent for
+ *                    screen readers ("done", "in progress", "planned",
+ *                    "failing"); `href` makes the label a link.
+ *   kicker string?   Small label on the right of the top edge.
+ *   id     string?   Anchor id.
+ *   level  3 | 4     Heading level (default 3).
+ *
+ * Slot (default)
+ *   Optional Markdown list of related links, drawn after the status rows.
+ *
+ * Usage (MDX)
+ *   <StatusCard title="status" items={[{ state: 'ok', label: 'stage 0 stable' }]}>
+ *
+ *   - [what's compiled](/docs/status/)
+ *
+ *   </StatusCard>
+ */
+import { metaReserve, wrapGlosses } from './markup';
+
+type State = 'ok' | 'wip' | 'todo' | 'fail';
+interface Props {
+  title: string;
+  items: Array<{ state: State; label: string; href?: string }>;
+  kicker?: string;
+  id?: string;
+  level?: 3 | 4;
+}
+
+const { title, items, kicker, id, level = 3 } = Astro.props;
+const H = level === 4 ? 'h4' : 'h3';
+const TAG: Record<State, { glyph: string; spoken: string }> = {
+  ok: { glyph: '[ok]', spoken: 'done' },
+  wip: { glyph: '[..]', spoken: 'in progress' },
+  todo: { glyph: '[  ]', spoken: 'planned' },
+  fail: { glyph: '[!!]', spoken: 'failing' },
+};
+const extra = Astro.slots.has('default') ? wrapGlosses(await Astro.slots.render('default')) : '';
+---
+<section class="ascii-frame ascii-frame--fill hub-card hub-status" id={id} style={metaReserve(kicker)}>
+  <H class="ascii-frame-title hub-card-title">{title}</H>
+  {kicker && <span class="ascii-frame-meta hub-card-meta">{kicker}</span>}
+  <div class="hub-card-body">
+    <ul class="hub-status-list">
+      {items.map(it => (
+        <li data-state={it.state}>
+          <span class="hub-status-tag" aria-hidden="true">{TAG[it.state].glyph}</span>
+          <span class="sr-only">{TAG[it.state].spoken}: </span>
+          {it.href ? <a href={it.href}>{it.label}</a> : <span class="hub-status-label">{it.label}</span>}
+        </li>
+      ))}
+    </ul>
+    {extra && <div class="hub-tree"><Fragment set:html={extra} /></div>}
+  </div>
+</section>

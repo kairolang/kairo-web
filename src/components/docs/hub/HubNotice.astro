@@ -1,0 +1,33 @@
+---
+/**
+ * <HubNotice>: a compact one-line notice strip (a short status or warning
+ * that a full callout would make too loud on a landing page).
+ *
+ * Props
+ *   tag    string?  Short bracketed label before the text (default "!!" for
+ *                   warn, "i" for info), e.g. "!!" -> "[!!]". Decorative.
+ *   level  'info' | 'warn'  Styling hook (data-level), default 'warn'.
+ *   label  string?  Screen-reader prefix announced before the text
+ *                   (default "Note:" for info, "Warning:" for warn).
+ *
+ * Slot (default)
+ *   One line of Markdown, links allowed.
+ *
+ * Usage (MDX)
+ *   <HubNotice>
+ *   stage 1 is still in development. [implementation status](/docs/status/)
+ *   </HubNotice>
+ */
+
+interface Props {
+  tag?: string;
+  level?: 'info' | 'warn';
+  label?: string;
+}
+
+const { level = 'warn', tag = level === 'warn' ? '!!' : 'i', label = level === 'warn' ? 'Warning:' : 'Note:' } = Astro.props;
+---
+<aside class="hub-notice" data-level={level} aria-label={label.replace(/:$/, '')}>
+  <span class="hub-notice-tag" aria-hidden="true">[{tag}]</span>
+  <div class="hub-notice-body"><span class="sr-only">{label} </span><slot /></div>
+</aside>
