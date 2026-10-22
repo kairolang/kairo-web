@@ -32,7 +32,9 @@
  * stacks of balanced height (estimated from row counts, so it does not
  * depend on font loading), so unfolding one card never re-flows the
  * others into different columns. Re-split only when the column count
- * changes on resize.
+ * changes on resize. The stacks then stretch to one height and their
+ * cards grow to fill it (CSS flex in hub.css, no measuring), so all
+ * columns end on the same line, through unfolds, resizes and font loads.
  *
  * Usage (MDX)
  *   <LanguageMap />

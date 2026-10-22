@@ -140,10 +140,10 @@
 .hub-notice-body { min-width: 0; }
 .hub-notice-body p { margin: 0; }
 .hub-notice-body a { color: var(--accent); white-space: nowrap; }
-.hub-notice-body a::after { content: ' →'; content: ' →' / ''; }
+.hub-notice-body a::after { content: ' ->'; content: ' ->' / ''; }
 .hub-notice-body a:hover { background: var(--accent); color: var(--on-red); }
 
-/* ── sections: "── 01 · PICK A PATH ──────────── more →" ───────────── */
+/* ── sections: "── 01 · PICK A PATH ──────────── more ->" ───────────── */
 .hub-section { margin: 0 0 3.75rem; scroll-margin-top: 96px; }
 .hub-section-head {
   display: flex;
@@ -184,9 +184,9 @@
   display: grid;
   grid-template-columns: repeat(var(--hub-k), minmax(0, 1fr));
   gap: 1.9rem 1.25rem;   /* rows leave room for the next row's title notch */
+  align-items: stretch;  /* one bento box: every card in a row shares its top and bottom edge */
 }
 .hub-grid[data-cols="2"] { --hub-k: 2; }
-.hub-grid[data-align="start"] { align-items: start; }
 @container hub (max-width: 56rem) {
   .hub-grid[data-cols="3"] { --hub-k: 2; }
   /* three cards on two columns: the odd one out spans the row */
@@ -360,7 +360,12 @@
   .hub-path-steps ul > li:has(> .hub-search-inline)::before { content: ' >'; content: ' >' / ''; color: var(--text-3); }
 }
 
-/* ── language map: topic cards in balanced column stacks ───────────── */
+/* ── language map: topic cards in balanced column stacks ─────────────
+   With JS the stacks are grid cells of one row, so they stretch to the
+   tallest stack, and each stack's cards share the shortfall (flex-grow):
+   every column ends on the same line and the map is one rectangle. Pure
+   layout, so it follows [+n] unfolds, resizes and font loads by itself.
+   Without JS (CSS columns) cards keep their natural heights.          */
 .lang-map {
   columns: var(--lm-cols, 3) var(--lm-min, 17rem);   /* no-JS fallback, same count rule */
   column-gap: 1.25rem;
@@ -372,10 +377,11 @@
   display: grid;
   grid-template-columns: repeat(var(--lm-k, 1), minmax(0, 1fr));
   gap: 1.9rem 1.25rem;
-  align-items: start;
+  align-items: stretch;
 }
 .lang-map.is-stacked > .lang-card { margin: 0; }
 .lang-col { display: flex; flex-direction: column; gap: 1.9rem; min-width: 0; }
+.lang-col > .lang-card { flex: 1 0 auto; }
 
 .lang-card-n { color: var(--accent); }
 /* page count on the bottom edge ("└──< 9 pages >─┘"), so the top edge is
