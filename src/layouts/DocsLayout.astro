@@ -18,6 +18,7 @@ import DocsSidebar from '../components/docs/DocsSidebar.astro';
 import DocsSearch from '../components/docs/DocsSearch.astro';
 import TableOfContents from '../components/docs/TableOfContents.astro';
 import CodeBlockEnhancer from '../components/docs/CodeBlockEnhancer.astro';
+import DocsPrefetch from '../components/docs/DocsPrefetch.astro';
 import { docHref } from '../lib/docs-tree';
 // Hub component styles ship as their own file, linked only on hub pages
 // (imported by the components, they would land in the CSS chunk every
@@ -97,12 +98,21 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
 
   <!-- DOCS_FIELD trial: fixed viewport-sized ASCII field behind the layout -->
   {DOCS_FIELD && <div id="docs-field" class="docs-field" aria-hidden="true"></div>}
+  <!-- Frosted glass over the field: fixed panes behind the sidebar, reading
+       column and TOC (no TOC pane on hubs). Static: nothing here animates. -->
+  {DOCS_FIELD && (
+    <div class:list={['docs-glass', hub && 'docs-glass--hub']} aria-hidden="true">
+      <div class="glass-pane glass-pane--side"></div>
+      <div class="glass-pane glass-pane--main"></div>
+      {!hub && <div class="glass-pane glass-pane--toc"></div>}
+    </div>
+  )}
 
   <!-- In the body, so it comes after the head's bundled CSS (hub.css
        overrides .ascii-frame details) and still blocks the hub's first paint. -->
   {hub && <link rel="stylesheet" href={hubCssUrl} />}
 
-  <div class:list={['docs-layout', hub && 'docs-layout--hub']} data-resize-scope="off" data-snap="off">
+  <div class:list={['docs-layout', hub && 'docs-layout--hub', DOCS_FIELD && 'docs-layout--glass']} data-resize-scope="off" data-snap="off">
     <!-- static dithered strip: the old red wash, as ░▒▓ halftone -->
     <div class="docs-dither" aria-hidden="true"></div>
 
@@ -120,14 +130,41 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
       </div>
     </aside>
     <!-- Restore sidebar scroll synchronously, before first paint, so the
-         sidebar never visibly jumps when navigating between docs pages. -->
+         sidebar never visibly jumps when navigating between docs pages.
+         No saved position (first docs page this session): centre the active
+         link. Active link out of the restored view (a search jump, a page
+         opened from the content): centre it. A link the reader just clicked
+         in the tree is in view, so the tree stays exactly where it was.
+         Re-run (collapse states first) when a prerendered or back/forward-
+         cached page is shown: it still holds the tree as it was loaded. The
+         scroll listener that saves the position lives in initDocs below. -->
     <script is:inline>
       (function () {
-        try {
-          var col = document.getElementById('docs-sidebar-col');
-          var saved = sessionStorage.getItem('docs-sidebar-scroll');
-          if (col && saved !== null) col.scrollTop = parseInt(saved, 10);
-        } catch (_) {}
+        var col = document.getElementById('docs-sidebar-col');
+        if (!col) return;
+        function sync() {
+          try { if (window.__docsSidebarCollapse) window.__docsSidebarCollapse(); } catch (_) {}
+          var saved = null;
+          try { saved = sessionStorage.getItem('docs-sidebar-scroll'); } catch (_) {}
+          if (saved !== null) col.scrollTop = parseInt(saved, 10) || 0;
+          var a = col.querySelector('.sidebar-link.active, .sidebar-grouplabel-link.active');
+          if (a) {
+            var lr = a.getBoundingClientRect(), cr = col.getBoundingClientRect();
+            var mid = (lr.top + lr.bottom) / 2;
+            if (saved === null || mid < cr.top || mid > cr.bottom) {
+              col.scrollTop += lr.top - cr.top - col.clientHeight / 2;
+            }
+          }
+          // record where the tree is now (centring may not fire a scroll
+          // event), so the next page starts from exactly this position.
+          // Not while prerendering: that page is not on screen yet.
+          if (!document.prerendering) {
+            try { sessionStorage.setItem('docs-sidebar-scroll', String(col.scrollTop)); } catch (_) {}
+          }
+        }
+        sync();
+        document.addEventListener('prerenderingchange', sync);
+        addEventListener('pageshow', function (e) { if (e.persisted) sync(); });
       })();
     </script>
 
@@ -231,11 +268,13 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
   </script>
 
   <CodeBlockEnhancer />
+  <DocsPrefetch />
 </BaseLayout>
 
 <style>
   /* header is 52px + 1px rule (Header.astro) */
   .docs-mobile-bar,
+  .docs-glass,
   .docs-layout { --docs-top: 53px; }
 
   /* ── DOCS_FIELD trial: one fixed, viewport-sized field behind everything.
@@ -243,10 +282,11 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
      (body's --bg propagates there), below all in-flow content. The header,
      footer, mobile bar and drawers keep their own solid backgrounds; the
      sidebar, reading column and TOC are transparent, so it shows under all
-     three. Same red ramp as the KSF hero field. A soft blur sits over it
-     (--docs-field-blur): the glyphs read as a haze behind the text instead
-     of competing with it. ── */
-  :global(:root) { --docs-field-blur: 2px; }
+     three. Same red ramp as the KSF hero field. Only a slight softening on
+     the canvas itself (--docs-field-blur): the frost over the reading
+     surfaces comes from the glass panes below, so the seams between them
+     show the glyphs crisp. ── */
+  :global(:root) { --docs-field-blur: 0.6px; }
   .docs-field {
     position: fixed;
     inset: 0;
@@ -265,6 +305,88 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
   @media (prefers-reduced-motion: reduce) { .docs-field { transition: none; } }
   @media print { .docs-field { display: none; } }
   .docs-field :global(canvas) { filter: blur(var(--docs-field-blur)); }
+
+  /* ── Frosted glass over the field ──
+     The field stays (nearly) sharp; the frost is a real layer: fixed panes,
+     one per column (sidebar, reading column, TOC), z-index -1 after the field
+     so they sit above it and below all in-flow content. Each pane blurs what
+     is behind it (backdrop-filter), takes a faint tint of the theme surface,
+     a hairline rim with a lit leading edge, and a static grain so it reads
+     as frosted, not just out of focus. Thin seams between the panes (and the
+     page margins past 1600px) show the field unfrosted, which is where the
+     glass edge reads. The panes never move: text scrolls over them, the field
+     drifts under them. No opacity/filter/mask on .docs-glass itself: any of
+     those would make it a backdrop root and the panes would blur nothing.
+     Fallbacks: no backdrop-filter -> denser tint over the old canvas blur;
+     reduced transparency -> opaque panes; forced colors -> no glass. */
+  :global(:root) {
+    --glass-blur: 7px;
+    --glass-sat: 1.4;
+    --glass-seam: 5px;   /* half a seam: each pane gives this much */
+    --glass-tint: color-mix(in srgb, var(--bg) 68%, transparent);   /* smoked: deepens, never lifts, the dark ground */
+    --glass-sheen: none;   /* dark: any lift costs prose contrast; the lit rim carries it */
+    --glass-edge: rgba(255, 255, 255, 0.075);
+    --glass-lit: rgba(255, 255, 255, 0.05);
+    --glass-shade: 0 0 16px rgba(0, 0, 0, 0.16);
+    /* static grain: sparse white specks (mean alpha <1%) */
+    --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .16 0 0 0 -.084'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+  :global([data-theme="light"]) {
+    --glass-tint: color-mix(in srgb, var(--bg-2) 66%, transparent);
+    --glass-sat: 1.1;
+    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 30%);
+    --glass-edge: rgba(0, 0, 0, 0.07);
+    --glass-lit: rgba(255, 255, 255, 0.9);
+    --glass-shade: 0 0 16px rgba(0, 0, 0, 0.035);
+    /* dark specks on light glass */
+    --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .16 0 0 0 -.084'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+  .docs-glass {
+    position: fixed;
+    top: var(--docs-top);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: -1;
+    pointer-events: none;
+    display: grid;
+    grid-template-columns: 276px minmax(0, 1fr) 224px;   /* = .docs-layout */
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  .docs-glass--hub { grid-template-columns: 276px minmax(0, 1fr); }
+  .glass-pane {
+    background: var(--glass-grain) 0 0 / 160px 160px, var(--glass-sheen), var(--glass-tint);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    border-inline: 1px solid var(--glass-edge);
+    box-shadow: inset 1px 0 0 var(--glass-lit), var(--glass-shade);
+  }
+  .glass-pane--side { margin-right: var(--glass-seam); }
+  .glass-pane--main { margin-inline: var(--glass-seam); }
+  .glass-pane--toc  { margin-left: var(--glass-seam); }
+  .docs-glass--hub .glass-pane--main { margin-right: 0; }
+  /* With the glass on, the seam is the column divider and the TOC text keeps
+     clear of its pane's rim. */
+  .docs-layout--glass .docs-sidebar-col { border-right-color: transparent; }
+  .docs-layout--glass .docs-toc-inner { padding-inline: 0.85rem 1rem; }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    :global(:root) { --docs-field-blur: 2px; }
+    .glass-pane { background: var(--glass-sheen), color-mix(in srgb, var(--bg-2) 72%, transparent); }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .glass-pane {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: var(--bg-2);
+      box-shadow: none;
+    }
+  }
+  @media (forced-colors: active) {
+    .docs-glass { display: none; }
+    .docs-layout--glass .docs-sidebar-col { border-right-color: CanvasText; }
+  }
+  @media print { .docs-glass { display: none; } }
 
   /* ── "[menu]" style buttons (mobile bar + drawers) ── */
   .docs-bar-btn {
@@ -538,6 +660,9 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     .docs-toc-col { display: none; }
     .toc-drawer { display: block; }
     #toc-toggle { display: inline-flex !important; }
+    .docs-glass { grid-template-columns: 276px minmax(0, 1fr); }
+    .glass-pane--toc { display: none; }
+    .glass-pane--main { margin-right: 0; }
   }
 
   /* ── Mobile: single column ── */
@@ -568,6 +693,45 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     }
     .docs-sidebar-inner { padding-top: 1rem; }
     .sidebar-drawer-bar { display: flex; }
+
+    /* one full-bleed pane; the sidebar is a drawer over it */
+    .docs-glass { grid-template-columns: minmax(0, 1fr); }
+    .glass-pane--side { display: none; }
+    .glass-pane--main { margin: 0; border-inline: 0; box-shadow: none; }
+  }
+
+  /* Drawers (sidebar <=1024px, TOC <=1280px) sit over page text, not just
+     the field: dense frost so nothing behind them reads through. */
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    @media (max-width: 1024px) {
+      .docs-sidebar-col {
+        background: var(--glass-grain) 0 0 / 160px 160px, var(--glass-sheen), color-mix(in srgb, var(--bg-2) 86%, transparent);
+        -webkit-backdrop-filter: blur(20px) saturate(1.2);
+        backdrop-filter: blur(20px) saturate(1.2);
+        box-shadow: inset -1px 0 0 var(--glass-lit);
+      }
+    }
+    @media (max-width: 1280px) {
+      .toc-drawer {
+        background: var(--glass-grain) 0 0 / 160px 160px, var(--glass-sheen), color-mix(in srgb, var(--bg-2) 86%, transparent);
+        -webkit-backdrop-filter: blur(20px) saturate(1.2);
+        backdrop-filter: blur(20px) saturate(1.2);
+        box-shadow: inset 0 1px 0 var(--glass-lit);
+      }
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .docs-sidebar-col,
+    .toc-drawer { -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .docs-sidebar-col.open,
+    .toc-drawer { background: var(--bg-2); }
+  }
+  /* Forced colours keep a background colour's alpha: without the blur an 86%
+     drawer would let the page text behind it read through, so make it solid
+     (and drop the grain / sheen images). */
+  @media (forced-colors: active) {
+    .docs-sidebar-col,
+    .toc-drawer { -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; }
   }
 
   @media (max-width: 640px) {
@@ -677,9 +841,25 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
       else if (tocDrawer?.classList.contains('open')) closeToc(true);
     });
 
-    // Close sidebar on link click (mobile navigation)
+    // Drawer link clicks (mobile): close the drawer only for a link into
+    // this same page. A link to another page leaves it open, so the view
+    // transition dissolves drawer + backdrop straight into the new page;
+    // closing it here first slid it shut and dropped the dim backdrop in
+    // one frame on the old page. A drawer still open on a page restored
+    // by Back (back/forward cache) is shut at once, without the slide.
     sidebarCol.querySelectorAll('a').forEach(a => {
-      a.addEventListener('click', () => closeSidebar());
+      a.addEventListener('click', () => {
+        let url: URL;
+        try { url = new URL(a.href, location.href); } catch { closeSidebar(); return; }
+        if (url.origin === location.origin && url.pathname === location.pathname && url.search === location.search) closeSidebar();
+      });
+    });
+    addEventListener('pageshow', (e) => {
+      if (!e.persisted || !sidebarCol.classList.contains('open')) return;
+      sidebarCol.style.transition = 'none';
+      closeSidebar();
+      void sidebarCol.offsetWidth;
+      sidebarCol.style.transition = '';
     });
     // Opening search from inside the drawer: get the drawer out of the way
     sidebarCol.querySelector('[data-search-open]')?.addEventListener('click', () => closeSidebar());
@@ -694,32 +874,10 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     mq.addEventListener?.('change', (ev) => { if (ev.matches) closeSidebar(); });
 
     // ── Sidebar scroll persistence ──
-    // Restore the sidebar's own scroll position across page navigations so it
-    // doesn't jump back to the top. Only the sidebar container is scrolled —
-    // never the page. If there's no saved position, center the active link.
+    // Save the sidebar's own scroll position (only the sidebar container,
+    // never the page); the inline script after the sidebar restores it
+    // before first paint, and centres the active link when it is out of view.
     const KEY = 'docs-sidebar-scroll';
-    let saved: string | null = null;
-    try { saved = sessionStorage.getItem(KEY); } catch (_) {}
-    if (saved !== null) {
-      sidebarCol.scrollTop = parseInt(saved, 10);
-    } else {
-      const activeLink = sidebarCol.querySelector<HTMLElement>('.sidebar-link.active, .sidebar-grouplabel-link.active');
-      if (activeLink) {
-        const linkRect = activeLink.getBoundingClientRect();
-        const colRect = sidebarCol.getBoundingClientRect();
-        sidebarCol.scrollTop += linkRect.top - colRect.top - sidebarCol.clientHeight / 2;
-      }
-    }
-    // If the active link ended up outside the restored view (e.g. user
-    // searched and jumped somewhere far away), bring it into view gently.
-    const activeLink = sidebarCol.querySelector<HTMLElement>('.sidebar-link.active');
-    if (activeLink) {
-      const linkRect = activeLink.getBoundingClientRect();
-      const colRect = sidebarCol.getBoundingClientRect();
-      if (linkRect.top < colRect.top + 40 || linkRect.bottom > colRect.bottom - 40) {
-        sidebarCol.scrollTop += linkRect.top - colRect.top - sidebarCol.clientHeight / 2;
-      }
-    }
     sidebarCol.addEventListener('scroll', () => {
       try { sessionStorage.setItem(KEY, String(sidebarCol.scrollTop)); } catch (_) {}
     }, { passive: true });
@@ -978,6 +1136,14 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     });
 
     field.start();
+    // A prerendered (speculation rules) or back/forward-cached page still
+    // holds the frame it painted back then: paint the current one before it
+    // is shown, so the drift continues across the swap without a jump.
+    if (!still) {
+      const paintNow = () => field.renderOnce((Date.now() / 1000) % 86400);
+      document.addEventListener('prerenderingchange', paintNow);
+      addEventListener('pageshow', (e) => { if (e.persisted) paintNow(); });
+    }
     // Every docs click is a fresh document (cross-document view transition,
     // no client router). If we came from another docs page the field was
     // already showing, and its wall clock makes this frame continue that

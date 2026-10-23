@@ -122,14 +122,37 @@ const isDocs = type === 'docs' || /^\/docs(\/|$)/.test(pathname);
     <script is:inline>
       (function () {
         var d = document.documentElement;
-        try {
-          const stored = localStorage.getItem('theme');
-          if (stored === 'light') {
-            d.setAttribute('data-theme', 'light');
-          } else {
-            d.removeAttribute('data-theme');
-          }
-        } catch (_) {}
+        function theme() {
+          try {
+            const stored = localStorage.getItem('theme');
+            if (stored === 'light') {
+              d.setAttribute('data-theme', 'light');
+            } else {
+              d.removeAttribute('data-theme');
+            }
+          } catch (_) {}
+        }
+        theme();
+        // A prerendered page (docs speculation rules) or a back/forward-cached
+        // one still carries the theme it was loaded with: re-read it before
+        // that page is first shown, or a toggle in between flashes the page.
+        document.addEventListener('prerenderingchange', theme);
+        addEventListener('pageshow', function (e) { if (e.persisted) theme(); });
+        // ThemeToggle announces every change here. Open pages follow it; a
+        // page frozen in the back/forward cache is evicted by the message
+        // (Chromium), so Back reloads it in the right theme instead of
+        // showing its stale frame for an instant.
+        try { new BroadcastChannel('kairo-theme').onmessage = theme; } catch (_) {}
+        // Arriving on page/#anchor (a search result, a cross-page link):
+        // land on the anchor at once. The site-wide smooth scroll-behavior
+        // would otherwise animate the browser's own fragment scroll from the
+        // top of the new page. Smooth again once the page has loaded.
+        if (location.hash) {
+          d.style.scrollBehavior = 'auto';
+          addEventListener('load', function () {
+            requestAnimationFrame(function () { setTimeout(function () { d.style.scrollBehavior = ''; }, 0); });
+          }, { once: true });
+        }
         d.classList.add('js');
         setTimeout(function () { if (!window.__asciiReady) d.classList.remove('js'); }, 3500);
       })();

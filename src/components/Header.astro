@@ -113,6 +113,11 @@ const LONGEST_CWD = links
     view-transition-name: site-header;
     font-family: var(--font-mono);
   }
+  /* Calm pages (docs/blog) dissolve the whole page as one layer, the old
+     page held under the new one, so an unchanged header already stays put.
+     A separate header layer would sit on top and snap in one frame where
+     the old page covered it (the open docs drawer on phones). */
+  :global(:root[data-motion="calm"]) .site-header { view-transition-name: none; }
   .site-header.scrolled { border-bottom-color: var(--border-hi); }
 
   /* prompt | nav (centered in the leftover gap) | right cluster */

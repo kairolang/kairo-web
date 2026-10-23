@@ -1,0 +1,85 @@
+---
+/**
+ * Instant docs → docs clicks, static-host friendly (GitHub Pages).
+ *
+ * Chromium (Chrome, Arc, Edge): speculation rules prerender a docs link once
+ * the reader shows intent: "moderate" = ~200ms of hover, or pointerdown /
+ * touch. Chrome keeps at most 2 of these and drops the oldest, so sweeping the
+ * pointer down the tree never piles up prerenders. The page is then already
+ * laid out, scripted and painted (field, TOC, sidebar) when the click lands.
+ * The next page in reading order (rel="next") is also prefetched (HTML only,
+ * no rendering) as soon as the page loads: it is the likeliest next click,
+ * and on touch screens hover never happens.
+ * A prerendered page keeps the state from when it was started; the theme,
+ * sidebar collapse states, sidebar scroll and field frame are re-applied on
+ * `prerenderingchange` (BaseLayout, DocsSidebar, DocsLayout).
+ *
+ * Safari / Firefox (no speculation rules): a small hover / focus / pointerdown
+ * listener warms the HTTP cache instead: <link rel=prefetch> where supported
+ * (Firefox), a low-priority fetch() otherwise (Safari). GitHub Pages serves
+ * HTML with max-age=600, so the navigation reuses the response.
+ *
+ * Nothing is fetched eagerly beyond the one rel="next" page, and nothing at
+ * all under Save-Data (Chrome skips speculation rules there on its own).
+ */
+const skip = '[target], [download], [rel~="nofollow"], [aria-current="page"], [href^="#"], [data-no-prefetch]';
+const docsLinks = { and: [{ href_matches: '/docs/*' }, { not: { selector_matches: skip } }] };
+const rules = {
+  prerender: [{ where: docsLinks, eagerness: 'moderate' }],
+  prefetch: [
+    { where: docsLinks, eagerness: 'moderate' },
+    { where: { and: [docsLinks, { selector_matches: 'a[rel~="next"]' }] }, eagerness: 'immediate' },
+  ],
+};
+---
+<script type="speculationrules" is:inline set:html={JSON.stringify(rules)} />
+
+<script>
+  // Fallback for browsers without speculation rules (Safari, Firefox).
+  function initDocsPrefetch() {
+    if (typeof HTMLScriptElement !== 'undefined' && HTMLScriptElement.supports?.('speculationrules')) return;
+    if ((navigator as any).connection?.saveData) return;
+    if ((window as any).__docsPrefetch) return;
+    (window as any).__docsPrefetch = true;
+
+    const done = new Set<string>([location.pathname + location.search]);
+    const useLink = !!document.createElement('link').relList?.supports?.('prefetch');
+    const SKIP = '[target]:not([target="_self"]), [download], [rel~="nofollow"], [data-no-prefetch]';
+
+    const warm = (a: HTMLAnchorElement | null) => {
+      if (!a || a.matches(SKIP)) return;
+      let url: URL;
+      try { url = new URL(a.href, location.href); } catch { return; }
+      if (url.origin !== location.origin || !/^\/docs(\/|$)/.test(url.pathname)) return;
+      const key = url.pathname + url.search;
+      if (done.has(key)) return;
+      done.add(key);
+      if (useLink) {
+        const l = document.createElement('link');
+        l.rel = 'prefetch';
+        l.href = key;
+        document.head.append(l);
+      } else {
+        fetch(key, { credentials: 'same-origin', priority: 'low' } as RequestInit).catch(() => done.delete(key));
+      }
+    };
+    const linkOf = (t: EventTarget | null) =>
+      (t instanceof Element ? t.closest('a[href]') : null) as HTMLAnchorElement | null;
+
+    let timer = 0;
+    document.addEventListener('mouseover', (e) => {
+      clearTimeout(timer);
+      const a = linkOf(e.target);
+      if (a) timer = window.setTimeout(() => warm(a), 80);
+    }, { passive: true });
+    document.addEventListener('pointerdown', (e) => warm(linkOf(e.target)), { passive: true, capture: true });
+    document.addEventListener('focusin', (e) => warm(linkOf(e.target)));
+    const next = document.querySelector<HTMLAnchorElement>('a[rel~="next"][href^="/docs/"]');
+    if (next) {
+      const go = () => warm(next);
+      if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 3000 });
+      else setTimeout(go, 1500);
+    }
+  }
+  initDocsPrefetch();
+</script>

@@ -1298,9 +1298,15 @@ code {
 @view-transition { navigation: auto; }
 ::view-transition-old(root) { animation: vtOut 110ms steps(3, end) both; }
 ::view-transition-new(root) { animation: vtIn 180ms steps(5, end) both; }
-/* calm pages (docs/blog): plain quick crossfade, no wipe */
-:root[data-motion="calm"]::view-transition-old(root) { animation: vtOut 80ms linear both; }
-:root[data-motion="calm"]::view-transition-new(root) { animation: fadeIn 100ms linear both; }
+/* calm pages (docs/blog): no wipe, a short dissolve. The old page is held
+   at full opacity and the new one fades in OVER it, so every pixel goes
+   straight from its old value to its new one: what both pages share
+   (sidebar, field, glass, TOC frame) stays put, only what changed blends.
+   (Fading the old out while the new fades in sums to <100% mid-way: the
+   whole page dimmed, or washed out in light, on every click.) */
+:root[data-motion="calm"]::view-transition-old(root) { animation: none; }
+:root[data-motion="calm"]::view-transition-new(root) { animation: fadeIn 120ms linear both; }
+:root[data-motion="calm"]::view-transition-group(root) { animation-duration: 120ms; }
 ::view-transition-group(site-header),
 ::view-transition-old(site-header),
 ::view-transition-new(site-header) { animation: none; }
