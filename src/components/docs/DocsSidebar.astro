@@ -150,9 +150,12 @@ rootList.forEach((node, i) => {
 
 <!-- Apply saved collapse states synchronously, before first paint and before
      the layout's sidebar scroll restore runs, so nothing jumps. A section that
-     contains the active page is always open. -->
+     contains the active page is always open. Exposed as
+     window.__docsSidebarCollapse so DocsLayout can re-apply it when a
+     prerendered or back/forward-cached page is shown (its DOM still holds
+     the states from when it was loaded). -->
 <script is:inline>
-  (function () {
+  (window.__docsSidebarCollapse = function () {
     var root = document.getElementById('sidebar-tree');
     if (!root) return;
     var secs = root.querySelectorAll('.sidebar-collapsible');

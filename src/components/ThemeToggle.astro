@@ -65,6 +65,9 @@
     }
 
     render();
+    // the theme can also change under us (re-read when a prerendered or
+    // back/forward-cached page is shown, see BaseLayout): keep the label true
+    new MutationObserver(render).observe(html, { attributes: true, attributeFilter: ['data-theme'] });
 
     btn.addEventListener('click', () => {
       const isLight = html.getAttribute('data-theme') === 'light';
@@ -79,6 +82,7 @@
       } catch (_) {
         if (isLight) html.removeAttribute('data-theme'); else html.setAttribute('data-theme', 'light');
       }
+      try { const bc = new BroadcastChannel('kairo-theme'); bc.postMessage(1); bc.close(); } catch (_) {}
       render();
       btn.classList.remove('flip');
       void btn.offsetWidth;
