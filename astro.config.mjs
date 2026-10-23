@@ -3,10 +3,37 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
+import rehypeKatex from 'rehype-katex';
+import remarkMath from 'remark-math';
 import remarkCallouts from './remark-callouts.mjs';
 import rehypeSeoHeadings from './rehype-seo-headings.mjs';
 import { BUILD_DATE, lastmodFor } from './src/lib/lastmod.mjs';
 import codeHints from './shiki-code-hints.mjs';
+
+// Runs after rehype-katex:
+// - a display formula scrolls sideways inside its frame when it is wider than
+//   the column (phones), so its scroller gets tabindex="0" (like Shiki's <pre>)
+//   and a group role + name for keyboard and screen-reader users;
+// - rehype-katex only warns on a formula it cannot parse and renders red error
+//   text, so fail the build instead of shipping that.
+function rehypeMathBlocks() {
+  const has = (node, cls) => node.type === 'element' && [].concat(node.properties?.className ?? []).includes(cls);
+  return (tree, file) => {
+    const walk = node => {
+      for (const child of node.children ?? []) {
+        if (has(child, 'katex-error')) {
+          throw new Error(`KaTeX could not parse a formula in ${file.path}: ${child.properties?.title ?? ''}`);
+        }
+        if (has(child, 'katex-display')) {
+          const scroller = child.children.find(c => has(c, 'katex'));
+          if (scroller) Object.assign(scroller.properties, { tabIndex: 0, role: 'group', ariaLabel: 'Formula' });
+        }
+        walk(child);
+      }
+    };
+    walk(tree);
+  };
+}
 
 // Build into an --outDir on another volume (e.g. a /tmp preview dir while the
 // repo lives on an external disk): Astro 6 stages prerender assets in
@@ -115,8 +142,23 @@ export default defineConfig({
     },
   },
   markdown: {
-    remarkPlugins: [remarkCallouts],
-    rehypePlugins: [rehypeSeoHeadings],
+    // keep text exactly as typed: no curly quotes, en/em dashes or ellipses
+    smartypants: false,
+    // Math ($$...$$, inline or display) is rendered to HTML + MathML at build
+    // time by KaTeX; no client JS. Single "$" stays plain text so a stray "$5"
+    // or "$PATH" in prose never turns into math. A page that uses math imports
+    // src/styles/math.css itself, so no other page loads the KaTeX CSS/fonts.
+    remarkPlugins: [remarkCallouts, [remarkMath, { singleDollarTextMath: false }]],
+    rehypePlugins: [
+      [rehypeKatex, {
+        output: 'htmlAndMathml',
+        strict: 'error',
+        // \htmlClass only (for muted clause labels); no other trusted commands.
+        trust: ctx => ctx.command === '\\htmlClass',
+      }],
+      rehypeMathBlocks,
+      rehypeSeoHeadings,
+    ],
     shikiConfig: {
       themes: {
         dark: 'github-dark',

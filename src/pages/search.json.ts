@@ -13,9 +13,32 @@ function slugify(text: string): string {
     .replace(/\s+/g, '-');
 }
 
+/**
+ * $$...$$ math (KaTeX) -> its words: \operatorname{prov}(p) -> "prov(p)",
+ * \text{no underflow} -> "no underflow"; other commands and TeX punctuation drop.
+ */
+function mathToText(tex: string): string {
+  let s = tex
+    .replace(/\\def\\\w+\{[^{}]*\}/g, ' ')
+    .replace(/\\(?:begin|end)\{[^{}]*\}(?:\{[^{}]*\})?/g, ' ') // environments + column specs
+    .replace(/\\htmlClass\{[^{}]*\}/g, ' ') // class name only; its content group stays
+    .replace(/\\_/g, '_');
+  // unwrap \cmd{...} (innermost first) until none are left
+  for (let prev = ''; prev !== s; ) {
+    prev = s;
+    s = s.replace(/\\[a-zA-Z]+\{([^{}]*)\}/g, ' $1');
+  }
+  return s
+    .replace(/\\[a-zA-Z]+/g, ' ')
+    .replace(/\\./g, ' ') // \\ row breaks, "\ " spaces, \, etc.
+    .replace(/[_^](?=\s)|[{}&]/g, ' ');
+}
+
 /** Strip MDX/Markdown syntax down to searchable plain text. */
 function toPlainText(raw: string): string {
   return raw
+    // math: keep the words, drop the TeX
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_, tex: string) => ` ${mathToText(tex)} `)
     // imports / exports
     .replace(/^(import|export)\s.+$/gm, ' ')
     // code fence markers (keep the code itself; API names are searchable)

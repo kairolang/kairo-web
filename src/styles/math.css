@@ -1,0 +1,90 @@
+/* ─── Math (KaTeX) ───────────────────────────────────────────────────
+   Pages with $$...$$ math import this file from their .mdx:
+
+     import '../../../styles/math.css';
+
+   so the KaTeX stylesheet and its fonts (bundled from node_modules, no CDN)
+   load only on those pages. Math is rendered at build time by rehype-katex
+   (HTML + MathML for screen readers); there is no client JS.
+
+   Display math gets the same frame as a code block:
+     ┌─[ math ]──────────────────────────────┐
+     │  formula (scrolls sideways if wide)   │
+     └───────────────────────────────────────┘                        */
+@import 'katex/dist/katex.min.css';
+
+/* Inline math: a touch larger than body copy (KaTeX's 1.21em is too big
+   next to Geist), ink follows the theme. */
+.prose .katex {
+  font-size: 1.08em;
+  color: var(--text);
+}
+
+/* Display math frame */
+.prose .katex-display {
+  --c: var(--frame-corner);
+  margin: 1.5rem 0;
+  border: 1px solid var(--frame-line);
+  background-color: var(--bg-2);
+  background-image:
+    linear-gradient(var(--c), var(--c)), linear-gradient(var(--c), var(--c)),
+    linear-gradient(var(--c), var(--c)), linear-gradient(var(--c), var(--c));
+  background-size: var(--corner-len) 1px, 1px var(--corner-len), var(--corner-len) 1px, 1px var(--corner-len);
+  background-position: 0 100%, 0 100%, 100% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  text-align: left;
+  overflow: hidden;
+}
+/* "─[ math ]────" header bar, decoration only (hidden from screen readers) */
+.prose .katex-display::before {
+  content: '─[ math ]';
+  content: '─[ math ]' / '';
+  display: block;
+  height: 2.15rem;
+  padding-left: 1ch;
+  background:
+    linear-gradient(var(--frame-line), var(--frame-line)) no-repeat right 0 center / calc(100% - 11ch) 1px,
+    var(--bg-3);
+  border-bottom: 1px solid var(--frame-line);
+  font: 600 0.7rem/2.15rem var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+/* The formula itself is the scroller, so the header stays put and a wide
+   equation scrolls inside the frame instead of widening the page. */
+.prose .katex-display > .katex {
+  display: block;
+  font-size: 1.05em;
+  text-align: left;
+  padding: 1.1rem 1.4rem 1.2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+.prose .katex-display > .katex > .katex-html { display: inline-block; }
+/* The scroller is focusable (tabindex="0", set at build time) so a keyboard
+   can scroll a wide formula; the frame clips overflow, so draw the ring inside. */
+.prose .katex-display > .katex:focus-visible { outline-offset: -2px; }
+
+/* \texttt{...} names (lattice states, Kairo types) use the site's code font,
+   matching the same names written as inline code in the prose. */
+.prose .katex .texttt { font-family: var(--font-mono); }
+
+/* Clause labels and explanations next to a formula: \htmlClass{k-tag}{...}
+   for the "C1" tag, \htmlClass{k-note}{...} for the plain-English note. */
+.prose .katex .k-tag { color: var(--accent); }
+.prose .katex .k-tag .texttt { font-weight: 600; }
+.prose .katex .k-note,
+.prose .katex .k-note * {
+  font-family: var(--font-prose);
+  font-style: normal;
+  color: var(--text-2);
+}
+
+@media (max-width: 480px) {
+  .prose .katex-display > .katex {
+    font-size: 1em;
+    padding: 0.9rem 1rem 1rem;
+  }
+}
