@@ -1,6 +1,6 @@
 ---
 /**
- * DOCS_FIELD — TRIAL: one slow, very dim ASCII noise field behind every docs
+ * DOCS_FIELD (TRIAL): one slow, very dim ASCII noise field behind every docs
  * page, sidebar, reading column and TOC alike (same motion as the home
  * CTA/Stats bands, same red ramp as the KSF hero field). It is ONE
  * viewport-sized canvas (position: fixed, z-index -1, so it never scales
@@ -123,7 +123,7 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
         <div class="sidebar-drawer-bar">
           <span class="sidebar-drawer-name" aria-hidden="true">docs</span>
           <span class="sidebar-drawer-rule" aria-hidden="true"></span>
-          <button id="sidebar-close" class="docs-bar-btn" type="button" aria-label="Close navigation">× close</button>
+          <button id="sidebar-close" class="docs-bar-btn" type="button" aria-label="Close navigation">x close</button>
         </div>
         <DocsSearch />
         <DocsSidebar currentPath={currentPath} />
@@ -192,13 +192,13 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
         <slot />
       </article>
 
-      <!-- Prev / Next: [← prev] / [next →] frames -->
+      <!-- Prev / Next: [<- prev] / [next ->] frames -->
       {(prev || next) && (
         <nav class="docs-nav-grid" aria-label="Page navigation">
           <div>
             {prev && (
               <a href={prev.href} class="ascii-frame docs-nav-card" rel="prev">
-                <span class="nav-card-label"><span aria-hidden="true">← </span>prev</span>
+                <span class="nav-card-label"><span aria-hidden="true">&lt;- </span>prev</span>
                 <span class="nav-card-title">{prev.title}</span>
               </a>
             )}
@@ -206,7 +206,7 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
           <div>
             {next && (
               <a href={next.href} class="ascii-frame docs-nav-card nav-card-next" rel="next">
-                <span class="nav-card-label">next<span aria-hidden="true"> →</span></span>
+                <span class="nav-card-label">next<span aria-hidden="true"> -&gt;</span></span>
                 <span class="nav-card-title">{next.title}</span>
               </a>
             )}
@@ -243,7 +243,7 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
       <div class="toc-drawer-bar">
         <span class="sidebar-drawer-name" aria-hidden="true">toc</span>
         <span class="sidebar-drawer-rule" aria-hidden="true"></span>
-        <button id="toc-close" class="docs-bar-btn" type="button" aria-label="Close table of contents">× close</button>
+        <button id="toc-close" class="docs-bar-btn" type="button" aria-label="Close table of contents">x close</button>
       </div>
       <TableOfContents headings={headings} id="toc-mobile" />
     </div>
@@ -276,6 +276,40 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
   .docs-mobile-bar,
   .docs-glass,
   .docs-layout { --docs-top: 53px; }
+
+  /* ── Column tracks, shared by the content grid (.docs-layout) and the
+     glass layer (.docs-glass). They are separate elements, so both read
+     the same custom properties here and can never drift apart.
+     The reading column is sized to its content: the measure plus the
+     pane's inner padding (--docs-pad-x, also the .docs-content padding).
+     The whole group (sidebar | reading | TOC) is centred, with the field
+     showing on both sides. When the viewport is narrower than the group,
+     the reading column gives way first (minmax(0, ...)), so a pane never
+     holds empty space; <=1280px drops the TOC, <=1024px the sidebar.
+     Hubs (no TOC) give their main column the reading column + TOC width,
+     so a hub and a doc page are one frame of the same total width: the
+     sidebar sits at the same x on both, and a hub <-> doc click does not
+     shift it (the page switch keeps the old view still under the new one,
+     so a moved sidebar would show twice). ── */
+  .docs-glass,
+  .docs-layout {
+    --docs-side-w: 276px;
+    --docs-toc-w: 224px;
+    --docs-pad-x: 3.5rem;
+    --docs-measure: 46.5rem;   /* the prose measure (~72ch of body copy) */
+    --docs-read-w: calc(var(--docs-measure) + 2 * var(--docs-pad-x));
+    --docs-main-w: var(--docs-read-w);
+    --docs-cols: var(--docs-side-w) minmax(0, var(--docs-main-w)) var(--docs-toc-w);
+    display: grid;
+    grid-template-columns: var(--docs-cols);
+    justify-content: center;
+  }
+  /* hubs: tree + a wider main column (reading + TOC tracks), no TOC */
+  .docs-glass--hub,
+  .docs-layout--hub {
+    --docs-main-w: calc(var(--docs-read-w) + var(--docs-toc-w));
+    --docs-cols: var(--docs-side-w) minmax(0, var(--docs-main-w));
+  }
 
   /* ── DOCS_FIELD trial: one fixed, viewport-sized field behind everything.
      z-index -1 in the root stacking context: above the canvas background
@@ -313,8 +347,8 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
      is behind it (backdrop-filter), takes a faint tint of the theme surface,
      a hairline rim with a lit leading edge, and a static grain so it reads
      as frosted, not just out of focus. Thin seams between the panes (and the
-     page margins past 1600px) show the field unfrosted, which is where the
-     glass edge reads. The panes never move: text scrolls over them, the field
+     margins either side of the centred group) show the field unfrosted,
+     which is where the glass edge reads. The panes never move: text scrolls over them, the field
      drifts under them. No opacity/filter/mask on .docs-glass itself: any of
      those would make it a backdrop root and the panes would blur nothing.
      Fallbacks: no backdrop-filter -> denser tint over the old canvas blur;
@@ -349,12 +383,8 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     right: 0;
     z-index: -1;
     pointer-events: none;
-    display: grid;
-    grid-template-columns: 276px minmax(0, 1fr) 224px;   /* = .docs-layout */
-    max-width: 1600px;
-    margin: 0 auto;
+    /* grid tracks: see "Column tracks" above */
   }
-  .docs-glass--hub { grid-template-columns: 276px minmax(0, 1fr); }
   .glass-pane {
     background: var(--glass-grain) 0 0 / 160px 160px, var(--glass-sheen), var(--glass-tint);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
@@ -457,15 +487,12 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
   /* ── Layout grid ── */
   .docs-layout {
     position: relative;
-    display: grid;
-    grid-template-columns: 276px minmax(0, 1fr) 224px;
+    /* grid tracks: see "Column tracks" above */
     min-height: calc(100vh - var(--docs-top));
     align-items: start;
     /* rows stay content-sized: the 6px dither row must not stretch to fill
        min-height (short pages, and at <=1024px where the sidebar is fixed) */
     align-content: start;
-    max-width: 1600px;
-    margin: 0 auto;
   }
 
   /* static ░▒▓ strip: a red ramp under a 2px checker dither (no motion) */
@@ -507,16 +534,14 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
   .sidebar-drawer-name::after  { content: ' ]'; content: ' ]' / ''; color: var(--text-3); }
   .sidebar-drawer-rule { flex: 1; height: 1px; background: var(--border-hi); }
 
-  /* ── Main content ── */
+  /* ── Main content ──
+     The column is already the reading width, so the prose, breadcrumb,
+     prev/next and footer all fill it and share its left and right edges. */
   .docs-content {
-    padding: 1.75rem 3.5rem 5rem;
+    padding: 1.75rem var(--docs-pad-x) 5rem;
     min-width: 0;
   }
-
-  /* ── Hub pages: two columns (tree + a wider main column), no TOC ── */
-  .docs-layout--hub { grid-template-columns: 276px minmax(0, 1fr); }
-  .docs-layout--hub .docs-breadcrumb,
-  .docs-layout--hub .docs-footer { max-width: 1180px; }   /* = .docs-hub (hub.css) */
+  .docs-content > .prose { max-width: none; }
 
   /* ── Right TOC ── */
   .docs-toc-col {
@@ -536,7 +561,6 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     font-size: 0.76rem;
     line-height: 1.5;
     margin-bottom: 1.75rem;
-    max-width: 72ch;
   }
   .docs-breadcrumb ol {
     list-style: none;
@@ -569,7 +593,6 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-top: 4rem;
-    max-width: 72ch;
   }
   .docs-nav-card {
     --frame-pad: 0.9rem 1.1rem 1rem;
@@ -609,7 +632,6 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
   /* ── Docs footer ── */
   .docs-footer {
     margin-top: 2.5rem;
-    max-width: 72ch;
     font-family: var(--font-mono);
   }
   .docs-eof { margin-bottom: 1rem; }
@@ -654,23 +676,29 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
 
   /* ── Hide TOC column on medium screens ── */
   @media (max-width: 1280px) {
-    .docs-layout {
-      grid-template-columns: 276px minmax(0, 1fr);
-    }
+    .docs-glass,
+    .docs-layout { --docs-cols: var(--docs-side-w) minmax(0, var(--docs-main-w)); }
+    /* no TOC track on doc pages now: hubs match the reading column */
+    .docs-glass--hub,
+    .docs-layout--hub { --docs-main-w: var(--docs-read-w); }
     .docs-toc-col { display: none; }
     .toc-drawer { display: block; }
     #toc-toggle { display: inline-flex !important; }
-    .docs-glass { grid-template-columns: 276px minmax(0, 1fr); }
     .glass-pane--toc { display: none; }
     .glass-pane--main { margin-right: 0; }
   }
 
   /* ── Mobile: single column ── */
   @media (max-width: 1024px) {
+    .docs-glass,
+    .docs-layout { --docs-pad-x: 1.25rem; --docs-cols: minmax(0, var(--docs-main-w)); }
+    /* one column, no sidebar to keep still: a hub runs full width
+       (1180px = .docs-hub max-width, hub.css) */
+    .docs-glass--hub,
+    .docs-layout--hub { --docs-main-w: calc(1180px + 2 * var(--docs-pad-x)); }
     .docs-mobile-bar { display: flex; }
-    .docs-layout { grid-template-columns: minmax(0, 1fr); }
     .docs-nav-grid { grid-template-columns: 1fr; }
-    .docs-content { padding: 1.25rem 1.25rem 4rem; }
+    .docs-content { padding-block: 1.25rem 4rem; }
 
     /* Sidebar slides in from the left */
     .docs-sidebar-col {
@@ -694,10 +722,16 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
     .docs-sidebar-inner { padding-top: 1rem; }
     .sidebar-drawer-bar { display: flex; }
 
-    /* one full-bleed pane; the sidebar is a drawer over it */
-    .docs-glass { grid-template-columns: minmax(0, 1fr); }
+    /* one pane, the reading column (the sidebar is a drawer over it);
+       centred with the field either side while there is room, full-bleed
+       below that: no rim against the screen edge */
     .glass-pane--side { display: none; }
-    .glass-pane--main { margin: 0; border-inline: 0; box-shadow: none; }
+    .glass-pane--main { margin: 0; }
+    .docs-glass--hub .glass-pane--main { border-inline: 0; box-shadow: none; }
+  }
+  /* 49rem = the one-pane --docs-main-w (46.5rem + 2 x 1.25rem) */
+  @media (max-width: 49rem) {
+    .glass-pane--main { border-inline: 0; box-shadow: none; }
   }
 
   /* Drawers (sidebar <=1024px, TOC <=1280px) sit over page text, not just
@@ -735,7 +769,9 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
   }
 
   @media (max-width: 640px) {
-    .docs-content { padding: 1rem 1rem 4rem; }
+    .docs-glass,
+    .docs-layout { --docs-pad-x: 1rem; }
+    .docs-content { padding-block: 1rem 4rem; }
     .docs-nav-grid { margin-top: 3rem; }
   }
 </style>
