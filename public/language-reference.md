@@ -4,7 +4,7 @@
 > Kairo is a statically typed, compiled systems language with native
 > bidirectional C++ interoperability.
 >
-> Source: https://www.kairolang.org/docs/language/  ·  Generated: 2026-10-22
+> Source: https://www.kairolang.org/docs/language/  ·  Generated: 2026-10-23
 
 ## Contents
 
@@ -3819,8 +3819,8 @@ var r = Rect {
 
 ## Enums
 
-Enums define a closed set of named variants. In their simplest form, each variant is an integer discriminant
--- equivalent to a C++ `enum class`. Variants can also carry structured data ([ADT enums](/docs/language/enums-adt/)), making them
+Enums define a closed set of named variants. In their simplest form, each variant is an integer discriminant,
+equivalent to a C++ `enum class`. Variants can also carry structured data ([ADT enums](/docs/language/enums-adt/)), making them
 Kairo's mechanism for type-safe tagged unions. Dispatch on variants with `match`. See
 [Control Flow](/docs/language/pattern-matching/) for the complete `match` syntax.
 
@@ -4161,8 +4161,8 @@ reinterpretation. This is legal but the result depends entirely on the underlyin
 
 Union fields must be trivially copyable. The following types are permitted:
 
-- Integers (`i8`--`i512`, `u8`--`u512`, `isize`, `usize`)
-- Floats (`f16`--`f512`)
+- Integers (`i8`-`i512`, `u8`-`u512`, `isize`, `usize`)
+- Floats (`f16`-`f512`)
 - Booleans (`bool`)
 - Characters (`char`)
 - Bytes (`byte`)
@@ -5547,8 +5547,8 @@ For implicit conversions (numeric widening, `T` to `T?`, derived-to-base pointer
 
 ### In this section
 
-- [Implicit Conversions](/docs/language/casting-implicit/) numeric widening and derived-to-base upcasts that need no `as`
-- [Conversion Lattice](/docs/language/conversion-lattice/) the normative rules for primitive conversions
+- [Implicit Conversions](/docs/language/casting-implicit/): numeric widening and derived-to-base upcasts that need no `as`
+- [Conversion Lattice](/docs/language/conversion-lattice/): the normative rules for primitive conversions
 
 ---
 
@@ -11331,7 +11331,7 @@ Some conversions need no `as`. Explicit conversions are covered in [Casting](/do
 
 ### Widening
 
-[Integer and float widening](/docs/language/conversion-lattice/#2-the-rule-set) is implicit no `as` required:
+[Integer and float widening](/docs/language/conversion-lattice/#2-the-rule-set) is implicit; no `as` required:
 
 ```kairo
 var a: i32 = 42
@@ -11342,7 +11342,7 @@ var b: i64 = a       // implicit
 
 ### Upcasting (derived to base)
 
-[Derived-to-base pointer conversion](/docs/language/classes-inheritance/#inheritance) is implicit no `as` required:
+[Derived-to-base pointer conversion](/docs/language/classes-inheritance/#inheritance) is implicit; no `as` required:
 
 ```kairo
 class Animal { ... }
@@ -16146,12 +16146,12 @@ Whole-program analysis cannot re-walk every callee at every call site. Each tran
 
 A function's summary records four sections per pointer parameter and for the function's effect on reachable state:
 
-- **Requires** preconditions the caller must discharge before the call (e.g. *`ptr` in allocation, access `<=` 16 bytes*).
-- **Guarantees** postconditions the caller may assume after the call (e.g. *`ptr` unchanged*).
-- **Preserves** arguments and state the function provably does not mutate. Hoisting reads this: the `loop_bound == allocation_count` proof requires that an intervening call **Preserves** the size variable.
-- **Escapes** what the function retains beyond its own frame (stores, returns, captures). Lifetime analysis reads this.
+- **Requires**: preconditions the caller must discharge before the call (e.g. *`ptr` in allocation, access `<=` 16 bytes*).
+- **Guarantees**: postconditions the caller may assume after the call (e.g. *`ptr` unchanged*).
+- **Preserves**: arguments and state the function provably does not mutate. Hoisting reads this: the `loop_bound == allocation_count` proof requires that an intervening call **Preserves** the size variable.
+- **Escapes**: what the function retains beyond its own frame (stores, returns, captures). Lifetime analysis reads this.
 
-`Escapes` defaults to *everything* and `Preserves` to *nothing* when analysis is incomplete the summary fails **closed**. An incomplete summary costs precision (more residual, more checks or errors), never soundness.
+`Escapes` defaults to *everything* and `Preserves` to *nothing* when analysis is incomplete: the summary fails **closed**. An incomplete summary costs precision (more residual, more checks or errors), never soundness.
 
 The caller-discharges-obligation model: when a pointer flows into a function, Tether consumes the summary rather than the body. If the caller has already proven the `Requires`, the checks are skipped; if it cannot, Tether emits one assertion before the call to establish the precondition. Tether does not need to look inside the callee.
 
@@ -16393,28 +16393,39 @@ fn also_bad() {
 Every [safe-pointer](/docs/language/pointers/#safe-pointers-t) dereference `*p` where `p: *T` carries a single safety obligation, stated as a
 conjunction of independent clauses. The access is sound if and only if every clause holds:
 
-```
-deref(p: *T) is sound  iff
-    epoch(prov(p)) = live_epoch(alloc(prov(p)))             (C1) provenance / use-after-free
- && 0 <= byte_offset(p)                                     (C2) no underflow
- && byte_offset(p) + sizeof T <= size(alloc(prov(p)))       (C3) no overflow / bounds
- && p != null                                               (C4) nullability
- && (!shared(alloc(prov(p))) || readonly_extent || synced)  (C5) data-race freedom
- && (!tainted(prov(p)) || laundered(p))                     (C6) provenance integrity
-```
+$$
+\def\arraystretch{1.5}
+\begin{array}{l}
+\operatorname{deref}(p : {*}T) \ \text{is sound} \iff \\
+\begin{array}{lrll}
+\htmlClass{k-tag}{\texttt{C1}} & & \operatorname{epoch}(\operatorname{prov}(p)) = \operatorname{live\_epoch}(\operatorname{alloc}(\operatorname{prov}(p)))
+  & \enspace \htmlClass{k-note}{\small\text{provenance / use-after-free}} \\
+\htmlClass{k-tag}{\texttt{C2}} & \land & 0 \le \operatorname{byte\_offset}(p)
+  & \enspace \htmlClass{k-note}{\small\text{no underflow}} \\
+\htmlClass{k-tag}{\texttt{C3}} & \land & \operatorname{byte\_offset}(p) + \operatorname{sizeof} T \le \operatorname{size}(\operatorname{alloc}(\operatorname{prov}(p)))
+  & \enspace \htmlClass{k-note}{\small\text{no overflow / bounds}} \\
+\htmlClass{k-tag}{\texttt{C4}} & \land & p \ne \text{null}
+  & \enspace \htmlClass{k-note}{\small\text{nullability}} \\
+\htmlClass{k-tag}{\texttt{C5}} & \land & \bigl(\neg \operatorname{shared}(\operatorname{alloc}(\operatorname{prov}(p))) \lor \text{readonly\_extent} \lor \text{synced}\bigr)
+  & \enspace \htmlClass{k-note}{\small\text{data-race freedom}} \\
+\htmlClass{k-tag}{\texttt{C6}} & \land & \bigl(\neg \operatorname{tainted}(\operatorname{prov}(p)) \lor \operatorname{laundered}(p)\bigr)
+  & \enspace \htmlClass{k-note}{\small\text{provenance integrity}}
+\end{array}
+\end{array}
+$$
 
 Where:
 
-- `prov(p)` is the **provenance** of `p`: which allocation it points into and the epoch at which
+- $$\operatorname{prov}(p)$$ is the **provenance** of `p`: which allocation it points into and the epoch at which
   that pointer value was derived.
-- `alloc(prov(p))` is the originating allocation; `size(...)` is its byte size; `live_epoch(...)`
+- $$\operatorname{alloc}(\operatorname{prov}(p))$$ is the originating allocation; $$\operatorname{size}(\dots)$$ is its byte size; $$\operatorname{live\_epoch}(\dots)$$
   is its current generation (see [Provenance and Epochs](/docs/language/tether-bounds/#provenance-and-epochs)).
-- `byte_offset(p)` is the offset of `p` from the allocation base, in bytes. Stated in bytes so the
-  `sizeof T` scaling in C3 is explicit and the element-count-times-size multiply cannot silently
+- $$\operatorname{byte\_offset}(p)$$ is the offset of `p` from the allocation base, in bytes. Stated in bytes so the
+  $$\operatorname{sizeof} T$$ scaling in C3 is explicit and the element-count-times-size multiply cannot silently
   overflow.
 
 Each clause is a distinct **proof domain** with its own analysis. Tether discharges as many clauses as
-it can statically. The clauses that remain the **residual** determine what is generated. The
+it can statically. The clauses that remain (the **residual**) determine what is generated. The
 mapping from a residual clause to a code-generation response is the entire specification of Tether's
 behavior, and it is given in [The Residual Table](#the-residual-table).
 
@@ -16422,7 +16433,7 @@ The critical design point: the obligation is checked at the **dereference**, nev
 arithmetic. Forming a pointer value (`var q = p + i`) computes a new provenance fact and emits no
 code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic
 offset information through arbitrarily many SSA transformations and discharge or eliminate the
-obligation as late as possible see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic).
+obligation as late as possible (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
 
 ---
 
@@ -16437,37 +16448,43 @@ clause is currently proven.
 Each clause domain has a small lattice of proof states. For the structural clauses (C1, C4, C6) the
 lattice is height-2:
 
-```
-        Proven           (the clause is statically discharged here)
-          ⊏
-        Residual         (the clause must be discharged at runtime, or is a hard error)
-```
+$$
+\def\arraystretch{1.4}
+\begin{array}{cl}
+\texttt{Proven} & \qquad \htmlClass{k-note}{\small\text{(the clause is statically discharged here)}} \\
+\sqsubset & \\
+\texttt{Residual} & \qquad \htmlClass{k-note}{\small\text{(the clause must be discharged at runtime, or is a hard error)}}
+\end{array}
+$$
 
 For the bounds clause (C2/C3) the lattice is height-3, because bounds admits an intermediate state
 where the property is provable over a region rather than at a single point:
 
-```
-        Proven                  (offset statically known in range, no code)
-          ⊏
-        HoistableResidual       (provable over a loop/region, one check at region entry)
-          ⊏
-        DynamicResidual         (must check at this specific dereference)
-```
+$$
+\def\arraystretch{1.4}
+\begin{array}{cl}
+\texttt{Proven} & \qquad \htmlClass{k-note}{\small\text{(offset statically known in range, no code)}} \\
+\sqsubset & \\
+\texttt{HoistableResidual} & \qquad \htmlClass{k-note}{\small\text{(provable over a loop/region, one check at region entry)}} \\
+\sqsubset & \\
+\texttt{DynamicResidual} & \qquad \htmlClass{k-note}{\small\text{(must check at this specific dereference)}}
+\end{array}
+$$
 
-`Proven` is the strongest (least) element. The order `⊑` means "no more proven than." `Residual`
+`Proven` is the strongest (least) element. The order $$\sqsubseteq$$ means "at least as proven as." `Residual`
 and `DynamicResidual` are the weakest elements of their domains.
 
 #### The product lattice
 
 The fact tuple for a pointer is an element of the product lattice
 
-```
-    L  =  L_C1 x L_C2C3 x L_C4 x L_C5 x L_C6
-```
+$$
+L = L_{\text{C1}} \times L_{\text{C2C3}} \times L_{\text{C4}} \times L_{\text{C5}} \times L_{\text{C6}}
+$$
 
 ordered componentwise. The product of finite-height lattices is itself a finite-height lattice; the
-height of `L` is the sum of the component heights, which is a small constant (independent of program
-size). The transfer functions for each IR operation are **monotone** with respect to `⊑`: an
+height of $$L$$ is the sum of the component heights, which is a small constant (independent of program
+size). The transfer functions for each IR operation are **monotone** with respect to $$\sqsubseteq$$: an
 operation never increases the proof strength of a clause it has no evidence for, and joining facts
 at control-flow merge points takes the weaker (less proven) state.
 
@@ -16475,13 +16492,13 @@ Monotone transfer functions over a finite-height lattice means the Kleene iterat
 point in a bounded number of passes (bounded by the lattice height times the number of program
 points). **The analysis always terminates.** This is the only termination argument Tether needs;
 there is no widening, no heuristic iteration cap required for soundness. (A pass ceiling exists for
-*interprocedural* recursion, see [Summaries](/docs/language/tether-internals/#amt-summaries) but it degrades precision, never
-soundness: hitting it demotes clauses to Residual, which is always safe.)
+*interprocedural* recursion, but it degrades precision, never soundness: hitting it demotes clauses
+to Residual, which is always safe. See [Summaries](/docs/language/tether-internals/#amt-summaries).)
 
 #### Classifying a dereference
 
-The four named proof states from Tether's vocabulary `PROVEN_STATIC`, `PROVEN_RANGE`,
-`REQUIRES_DYNAMIC`, `UNSAFE` are not elements of the lattice. They are a **classification of the
+The four named proof states from Tether's vocabulary (`PROVEN_STATIC`, `PROVEN_RANGE`,
+`REQUIRES_DYNAMIC`, `UNSAFE`) are not elements of the lattice. They are a **classification of the
 residual set** at a dereference site, derived from the fact tuple:
 
 | Residual set at `*p`                                  | Classification     | Emitted                          |
@@ -16548,7 +16565,7 @@ Both are access-safety clauses. They differ in the *nature of the fallback*.
 A bounds check (`assert(off < count)`) does not change the meaning of the program. `buf[i]` still
 means `buf[i]`; the access either proceeds or panics on exactly the inputs that would have been UB.
 Emitting it in release costs one predictable branch and is the price of permitting safe pointer
-arithmetic with runtime indices. That is the entire point of Kairo's pointer model see
+arithmetic with runtime indices. That is the entire point of Kairo's pointer model; see
 [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic).
 
 A null fallback (`if (p == null) panic()`) *introduces a control-flow edge that is not visible in

@@ -6,6 +6,8 @@ order: 31
 parent: tether
 ---
 
+import '../../../styles/math.css';
+
 # Proof Model
 
 ## The Dereference Obligation
@@ -13,28 +15,39 @@ parent: tether
 Every [safe-pointer](/docs/language/pointers/#safe-pointers-t) dereference `*p` where `p: *T` carries a single safety obligation, stated as a
 conjunction of independent clauses. The access is sound if and only if every clause holds:
 
-```
-deref(p: *T) is sound  ⟺
-    epoch(prov(p)) = live_epoch(alloc(prov(p)))            (C1) provenance / use-after-free
-  ∧ 0 ≤ byte_offset(p)                                      (C2) no underflow
-  ∧ byte_offset(p) + sizeof T ≤ size(alloc(prov(p)))        (C3) no overflow / bounds
-  ∧ p ≠ null                                                (C4) nullability
-  ∧ (¬shared(alloc(prov(p))) ∨ readonly_extent ∨ synced)    (C5) data-race freedom
-  ∧ (¬tainted(prov(p)) ∨ laundered(p))                      (C6) provenance integrity
-```
+$$
+\def\arraystretch{1.5}
+\begin{array}{l}
+\operatorname{deref}(p : {*}T) \ \text{is sound} \iff \\
+\begin{array}{lrll}
+\htmlClass{k-tag}{\texttt{C1}} & & \operatorname{epoch}(\operatorname{prov}(p)) = \operatorname{live\_epoch}(\operatorname{alloc}(\operatorname{prov}(p)))
+  & \enspace \htmlClass{k-note}{\small\text{provenance / use-after-free}} \\
+\htmlClass{k-tag}{\texttt{C2}} & \land & 0 \le \operatorname{byte\_offset}(p)
+  & \enspace \htmlClass{k-note}{\small\text{no underflow}} \\
+\htmlClass{k-tag}{\texttt{C3}} & \land & \operatorname{byte\_offset}(p) + \operatorname{sizeof} T \le \operatorname{size}(\operatorname{alloc}(\operatorname{prov}(p)))
+  & \enspace \htmlClass{k-note}{\small\text{no overflow / bounds}} \\
+\htmlClass{k-tag}{\texttt{C4}} & \land & p \ne \text{null}
+  & \enspace \htmlClass{k-note}{\small\text{nullability}} \\
+\htmlClass{k-tag}{\texttt{C5}} & \land & \bigl(\neg \operatorname{shared}(\operatorname{alloc}(\operatorname{prov}(p))) \lor \text{readonly\_extent} \lor \text{synced}\bigr)
+  & \enspace \htmlClass{k-note}{\small\text{data-race freedom}} \\
+\htmlClass{k-tag}{\texttt{C6}} & \land & \bigl(\neg \operatorname{tainted}(\operatorname{prov}(p)) \lor \operatorname{laundered}(p)\bigr)
+  & \enspace \htmlClass{k-note}{\small\text{provenance integrity}}
+\end{array}
+\end{array}
+$$
 
 Where:
 
-- `prov(p)` is the **provenance** of `p`: which allocation it points into and the epoch at which
+- $$\operatorname{prov}(p)$$ is the **provenance** of `p`: which allocation it points into and the epoch at which
   that pointer value was derived.
-- `alloc(prov(p))` is the originating allocation; `size(...)` is its byte size; `live_epoch(...)`
+- $$\operatorname{alloc}(\operatorname{prov}(p))$$ is the originating allocation; $$\operatorname{size}(\dots)$$ is its byte size; $$\operatorname{live\_epoch}(\dots)$$
   is its current generation (see [Provenance and Epochs](/docs/language/tether-bounds/#provenance-and-epochs)).
-- `byte_offset(p)` is the offset of `p` from the allocation base, in bytes. Stated in bytes so the
-  `sizeof T` scaling in C3 is explicit and the element-count-times-size multiply cannot silently
+- $$\operatorname{byte\_offset}(p)$$ is the offset of `p` from the allocation base, in bytes. Stated in bytes so the
+  $$\operatorname{sizeof} T$$ scaling in C3 is explicit and the element-count-times-size multiply cannot silently
   overflow.
 
 Each clause is a distinct **proof domain** with its own analysis. Tether discharges as many clauses as
-it can statically. The clauses that remain the **residual** determine what is generated. The
+it can statically. The clauses that remain (the **residual**) determine what is generated. The
 mapping from a residual clause to a code-generation response is the entire specification of Tether's
 behavior, and it is given in [The Residual Table](#the-residual-table).
 
@@ -42,7 +55,7 @@ The critical design point: the obligation is checked at the **dereference**, nev
 arithmetic. Forming a pointer value (`var q = p + i`) computes a new provenance fact and emits no
 code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic
 offset information through arbitrarily many SSA transformations and discharge or eliminate the
-obligation as late as possible see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic).
+obligation as late as possible (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
 
 ---
 
@@ -57,37 +70,43 @@ clause is currently proven.
 Each clause domain has a small lattice of proof states. For the structural clauses (C1, C4, C6) the
 lattice is height-2:
 
-```
-        Proven           (the clause is statically discharged here)
-          ⊏
-        Residual         (the clause must be discharged at runtime, or is a hard error)
-```
+$$
+\def\arraystretch{1.4}
+\begin{array}{cl}
+\texttt{Proven} & \qquad \htmlClass{k-note}{\small\text{(the clause is statically discharged here)}} \\
+\sqsubset & \\
+\texttt{Residual} & \qquad \htmlClass{k-note}{\small\text{(the clause must be discharged at runtime, or is a hard error)}}
+\end{array}
+$$
 
 For the bounds clause (C2/C3) the lattice is height-3, because bounds admits an intermediate state
 where the property is provable over a region rather than at a single point:
 
-```
-        Proven                  (offset statically known in range, no code)
-          ⊏
-        HoistableResidual       (provable over a loop/region, one check at region entry)
-          ⊏
-        DynamicResidual         (must check at this specific dereference)
-```
+$$
+\def\arraystretch{1.4}
+\begin{array}{cl}
+\texttt{Proven} & \qquad \htmlClass{k-note}{\small\text{(offset statically known in range, no code)}} \\
+\sqsubset & \\
+\texttt{HoistableResidual} & \qquad \htmlClass{k-note}{\small\text{(provable over a loop/region, one check at region entry)}} \\
+\sqsubset & \\
+\texttt{DynamicResidual} & \qquad \htmlClass{k-note}{\small\text{(must check at this specific dereference)}}
+\end{array}
+$$
 
-`Proven` is the strongest (least) element. The order `⊑` means "no more proven than." `Residual`
+`Proven` is the strongest (least) element. The order $$\sqsubseteq$$ means "at least as proven as." `Residual`
 and `DynamicResidual` are the weakest elements of their domains.
 
 ### The product lattice
 
 The fact tuple for a pointer is an element of the product lattice
 
-```
-    L  =  L_C1 × L_C2C3 × L_C4 × L_C5 × L_C6
-```
+$$
+L = L_{\text{C1}} \times L_{\text{C2C3}} \times L_{\text{C4}} \times L_{\text{C5}} \times L_{\text{C6}}
+$$
 
 ordered componentwise. The product of finite-height lattices is itself a finite-height lattice; the
-height of `L` is the sum of the component heights, which is a small constant (independent of program
-size). The transfer functions for each IR operation are **monotone** with respect to `⊑`: an
+height of $$L$$ is the sum of the component heights, which is a small constant (independent of program
+size). The transfer functions for each IR operation are **monotone** with respect to $$\sqsubseteq$$: an
 operation never increases the proof strength of a clause it has no evidence for, and joining facts
 at control-flow merge points takes the weaker (less proven) state.
 
@@ -95,13 +114,13 @@ Monotone transfer functions over a finite-height lattice means the Kleene iterat
 point in a bounded number of passes (bounded by the lattice height times the number of program
 points). **The analysis always terminates.** This is the only termination argument Tether needs;
 there is no widening, no heuristic iteration cap required for soundness. (A pass ceiling exists for
-*interprocedural* recursion, see [Summaries](/docs/language/tether-internals/#amt-summaries) but it degrades precision, never
-soundness: hitting it demotes clauses to Residual, which is always safe.)
+*interprocedural* recursion, but it degrades precision, never soundness: hitting it demotes clauses
+to Residual, which is always safe. See [Summaries](/docs/language/tether-internals/#amt-summaries).)
 
 ### Classifying a dereference
 
-The four named proof states from Tether's vocabulary `PROVEN_STATIC`, `PROVEN_RANGE`,
-`REQUIRES_DYNAMIC`, `UNSAFE` are not elements of the lattice. They are a **classification of the
+The four named proof states from Tether's vocabulary (`PROVEN_STATIC`, `PROVEN_RANGE`,
+`REQUIRES_DYNAMIC`, `UNSAFE`) are not elements of the lattice. They are a **classification of the
 residual set** at a dereference site, derived from the fact tuple:
 
 | Residual set at `*p`                                  | Classification     | Emitted                          |
@@ -168,7 +187,7 @@ Both are access-safety clauses. They differ in the *nature of the fallback*.
 A bounds check (`assert(off < count)`) does not change the meaning of the program. `buf[i]` still
 means `buf[i]`; the access either proceeds or panics on exactly the inputs that would have been UB.
 Emitting it in release costs one predictable branch and is the price of permitting safe pointer
-arithmetic with runtime indices. That is the entire point of Kairo's pointer model see
+arithmetic with runtime indices. That is the entire point of Kairo's pointer model; see
 [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic).
 
 A null fallback (`if (p == null) panic()`) *introduces a control-flow edge that is not visible in
