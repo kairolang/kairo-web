@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-23T00:17:02.982Z
+> Generated: 2026-10-23T01:19:03.929Z
 
 ---
 
@@ -1032,8 +1032,11 @@ URL: https://www.kairolang.org/docs/status/
 
 # Implementation Status
 
-The language reference describes Kairo as designed. This page lists where the current compiler falls short of
-it. Each entry is removed when the gap closes.
+The language reference describes Kairo as designed. This page lists where the Stage 1 compiler, the first
+alpha, falls short of it. Each entry is removed when the gap closes.
+
+Stage 1 is built from source for now; prebuilt downloads come with the first release. See
+[Installation](/docs/install/).
 
 ---
 
@@ -1044,17 +1047,22 @@ it. Each entry is removed when the gap closes.
 | Vector literals (`var v: [i32] = [1, 2, 3]`) | Type-check and compile, but do not link: the built-in vector constructors are not implemented yet | Use an array `[T; N]` or a slice `[T;]` |
 | Set literals `{a, b}` | Not compiled | - |
 | Map literals `{k: v}` | Not compiled | - |
-| File-scope `var` | Not compiled | Move the variable into a function, or use `eval` for constants |
 | Initializing a `const` field in a constructor | Not supported | - |
 | Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
 | Associated types (`type Node` in an interface) | Not parsed yet | - |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
-| Binding a MOVE-category value to a new name (`var b = a`) | Not compiled yet: it fails in the C++ step today | - |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | - |
 | Static fields (`static count: i32` in a class) | Type-check, but do not link: no definition is emitted yet | Use a file-scope `static` variable |
-| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array) or use a file-scope `eval` (static/eval) |
+| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array), or use a file-scope `static` or an `eval` inside a `module` (static/eval) |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
+| Struct destructuring (`var {a, b} = s`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Read the fields one by one: `var a = s.a` |
+| Functions, classes and enums declared inside a function body | Not compiled yet (a local `struct` works) | Declare them at file scope |
+| `for ... in` over Kairo vectors, sets, maps and strings | Not supported yet | Loop over a slice, an array or a range |
+| `for ... in` over a generator | Rejected with SC095E | Call the generator's methods directly |
+| Yielding a literal from a generator (`yield 7`) | Fails in the C++ step | Yield a variable: `var v = 7` then `yield v` |
+| `eval` at file scope, or an `eval` constant used as an array length | Not compiled yet | Put `eval` constants and `eval fn` inside a `module`; use a literal for array lengths |
+| `await`, `spawn` and `thread` | Can be declared as operators, but do nothing yet | - |
 
 ---
 
@@ -1091,6 +1099,17 @@ A [generator](/docs/language/functions-generators/#generator-lifetimes) that out
 an `@inout` argument it was given, is not caught; it dangles. This becomes an error when
 [Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object
 it came from.
+
+---
+
+## Not in This Release
+
+- [Tether](/docs/language/tether/), Kairo's memory-safety system, is not part of the alpha. Using a moved-from
+  value is already a compile error; the rest of Tether's checks come later.
+- Some generic code is checked less strictly than it will be in 1.0.
+- The standard library is minimal: printing goes through `std::io::println`.
+- Objective-C headers cannot be imported with `ffi` yet; C and C++ headers can. Plain C and Objective-C files
+  cannot `#include` a `.k` file yet; C++ and Objective-C++ files can.
 
 ---
 

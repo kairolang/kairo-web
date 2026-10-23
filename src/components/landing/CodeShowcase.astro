@@ -71,7 +71,7 @@ std::println(f"Ran {count} times.")`,
     filename: 'kairo_ffi.cpp',
     code: `// Call Kairo functions directly from C++ with full ABI compatibility.
 // KCC (Kairo C++ Compiler) is the tool that allows you to include Kairo modules directly in C++.
-//   \`kcc kairo_ffi.cpp\` - kcc is a clang++ driver that supports including Kairo files.
+//   \`kcc kairo_ffi.cpp\` - kcc is a drop-in clang-compatible driver that can include Kairo files.
 // Without -cc, use \`kairo kairo_ffi.k -c -o kairo_ffi -xc++ -header kairo_ffi.hh\` to generate C++ or C headers
 // for shipping a Kairo library to C++ consumers.
 //
