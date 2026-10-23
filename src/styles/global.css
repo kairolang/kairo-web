@@ -2,7 +2,7 @@
 @import './callouts.css';
 
 /* ═══════════════════════════════════════════════════════════════════
-   KAIRO // ASCII — global design system
+   KAIRO // ASCII: global design system
    Spec: DESIGN.md (scratchpad). Monospace-first, radius 0, box-drawing
    geometry, stepped (terminal) motion. Colours are unchanged.
    ═══════════════════════════════════════════════════════════════════ */
@@ -54,7 +54,7 @@
   --red:       #e8102a;            /* fills, large display, ascii art */
   --red-hi:    #ff3b50;
   --red-lo:    #8a0615;
-  --accent:    #ff4d61;            /* small text on dark — contrast-safe */
+  --accent:    #ff4d61;            /* small text on dark: contrast-safe */
   --red-glow:  rgba(232, 16, 42, 0.28);
   --red-glow2: rgba(232, 16, 42, 0.10);
   --on-red:    #000;               /* text on a --red fill (4.5:1 dark theme) */
@@ -64,21 +64,21 @@
   --frame-corner: var(--text-3);      /* corner brackets ┌ ┐ └ ┘ */
   --corner-len:   10px;
 
-  /* Geometry — everything is square */
+  /* Geometry: everything is square */
   --r-sm:   0px;
   --r-md:   0px;
   --r-lg:   0px;
   --r-xl:   0px;
   --r-pill: 0px;
 
-  /* Depth — no soft shadows. Hard offset "terminal window" shadow only. */
+  /* Depth: no soft shadows. Hard offset "terminal window" shadow only. */
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-lg: none;
   --shadow-window: none;
   --shadow-hard: 6px 6px 0 0 color-mix(in srgb, var(--red-lo) 55%, transparent);
 
-  /* Motion — fast + stepped. Nothing floats. */
+  /* Motion: fast + stepped. Nothing floats. */
   --ease:        cubic-bezier(0.2, 0.9, 0.1, 1);   /* snappy out */
   --ease-out:    cubic-bezier(0.2, 0.9, 0.1, 1);
   --ease-spring: cubic-bezier(0.2, 0.9, 0.1, 1);   /* legacy name: no overshoot any more */
@@ -473,7 +473,7 @@ kbd {
 .js [data-scramble]:not([data-scrambled]) { visibility: hidden; }
 
 /* ─── Glitch (hover / focus / .is-glitching) ─────────────────────────
-   RESTRAINT: one ≤200ms burst in response to hover/focus/click. Never
+   RESTRAINT: one <=200ms burst in response to hover/focus/click. Never
    ambient, never on a timer, never looped.                             */
 @keyframes glitch {
   0%   { text-shadow: 2px 0 var(--red-hi), -2px 0 color-mix(in srgb, var(--text) 55%, transparent); transform: translate(0, 0); }
@@ -488,7 +488,7 @@ kbd {
 
 /* ─── ASCII art blocks ───────────────────────────────────────────────
    Any <pre>/<span> holding art. Never overflows the page: overflow is
-   clipped and size comes from --art-size, or — inside .ascii-fit — is
+   clipped and size comes from --art-size, or (inside .ascii-fit) is
    computed so --cols columns exactly fill the container width
    (Geist Mono advance = 0.6em; 0.612 leaves a 2% safety margin).      */
 .ascii-art,
@@ -551,7 +551,7 @@ kbd {
   background-color: color-mix(in srgb, var(--bg) 90%, transparent);
 }
 
-/* ─── Buttons: "[ GET STARTED → ]" ───────────────────────────────────
+/* ─── Buttons: "[ GET STARTED -> ]" ──────────────────────────────────
    Bracketed mono label; hover = stepped inverse fill sweep (background-
    size, 6 steps / 140ms) + label scramble (scramble.ts binds these).   */
 .ascii-btn,
@@ -636,7 +636,7 @@ kbd {
 .ascii-btn .ascii-btn-icon { transition: transform var(--dur-instant) steps(2, end); }
 .ascii-btn:hover .ascii-btn-icon { transform: translateX(0.5ch); }
 
-/* Text link with arrow — inverse on hover */
+/* Text link with arrow: inverse on hover */
 .link-arrow {
   display: inline-flex;
   align-items: center;
@@ -752,7 +752,7 @@ a.ascii-frame:hover {
 .tag::before { content: '#'; content: '#' / ''; color: var(--accent); margin-right: 0.2ch; }
 .tag:hover { border-color: var(--red); color: var(--text); }
 
-/* ─── Code Window → terminal frame ───────────────────────────────── */
+/* ─── Code Window -> terminal frame ──────────────────────────────── */
 .code-window {
   position: relative;
   background: var(--bg-2);
@@ -770,7 +770,7 @@ a.ascii-frame:hover {
   border-bottom: 1px solid var(--frame-line);
   font-family: var(--font-mono);
 }
-/* [■][■][■] — square glyph "controls", first one hot */
+/* [#][#][#]: three square "controls", first one hot */
 .window-dots { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
 .window-dots span {
   width: 7px; height: 7px;
@@ -914,7 +914,7 @@ code {
 .prose h4 { font-size: 0.9rem; margin: 1.5rem 0 0.5rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
 .prose h2::before { content: '## ';  content: '## ' / '';  color: var(--red); }
 .prose h3::before { content: '### '; content: '### ' / ''; color: var(--text-3); }
-.prose h4::before { content: '» ';   content: '» ' / '';   color: var(--text-3); }
+.prose h4::before { content: '>> ';  content: '>> ' / '';   color: var(--text-3); }
 .prose p  { margin-bottom: 1.25rem; color: var(--text-2); }
 .prose a  {
   color: var(--accent);
@@ -933,8 +933,8 @@ code {
 .prose ul { list-style: none; }
 .prose ul > li { position: relative; padding-left: 1.6ch; }
 .prose ul > li::before {
-  content: '›';
-  content: '›' / '';
+  content: '>';
+  content: '>' / '';
   position: absolute;
   left: 0;
   font-family: var(--font-mono);
@@ -1022,10 +1022,13 @@ code {
 
 /* ─── Sidebar Nav (docs): ASCII file tree ────────────────────────────
      ├── Install
-     ├── [-] language/
-     │   ├── Variables
-     │   └── Ownership          <- active row = inverse red block
-     └── [+] toolchain/
+     └── Status
+
+     [-] language/            <- top-level dir: its own flush-left root
+     ├── Variables
+     └── Ownership            <- active row = inverse red block
+
+     [+] toolchain/
    Guide columns (.tg p|b|t|e, emitted by DocsSidebar.astro) are 1px
    CSS lines so they stay continuous at any row height and when a long
    title wraps. Rows carry no vertical margins (margins would break the
@@ -1132,13 +1135,15 @@ code {
 .tree-dir:hover .sidebar-section-btn.tree-toggle { color: var(--accent); }
 .sidebar-collapsible[data-collapsed="true"] > .sidebar-collapsible-body { display: none; }
 
-/* top-level directories get breathing room ABOVE them (inside the row,
-   so the rails run straight through the gap). The gap is margin on the
-   toggle / label, not padding, so an active or hovered label's block hugs
-   its line like a page row's instead of filling the gap too. */
-.sidebar-group > .tree-dir { --row-pt: 0.85rem; }
+/* top-level directories are flush-left roots (no guides): "[" sits in
+   column 0 under the "$" of "$ tree ~/docs", and their trunk starts under
+   it. A blank line of breathing room above each one. The gap is margin on
+   the toggle / label, not padding, so an active or hovered label's block
+   hugs its line like a page row's instead of filling the gap too. */
+.sidebar-group > .tree-dir { --row-pt: 1.1rem; }
 .sidebar-group > .tree-dir > .sidebar-section-btn.tree-toggle,
 .sidebar-group > .tree-dir > .tree-label { margin-top: calc(var(--row-pt) - 3px); padding-top: 3px; }
+.tree-dir--root > .sidebar-section-btn.tree-toggle { padding-left: 0; }
 .sidebar-subgroup > .tree-dir { --row-pt: 3px; }
 
 /* ─── Mobile Menu link: "> docs" ─────────────────────────────────── */
@@ -1162,9 +1167,9 @@ code {
 .mobile-nav-link.active::before { color: var(--accent); }
 .mobile-nav-link:last-child { border-bottom: none; }
 
-/* ─── Segmented Control → ASCII tab bar ──────────────────────────────
-   JS positions .segmented-thumb (translateX(offsetLeft - 3px), width)
-   — keep the 3px padding. Thumb = red block, jumps in 4 steps.        */
+/* ─── Segmented Control -> ASCII tab bar ─────────────────────────────
+   JS positions .segmented-thumb (translateX(offsetLeft - 3px), width):
+   keep the 3px padding. Thumb = red block, jumps in 4 steps.        */
 .segmented {
   position: relative;
   display: inline-flex;
@@ -1220,7 +1225,7 @@ code {
 .segmented-btn.active { color: var(--on-red); }
 .segmented-btn.active::before { opacity: 1; }
 
-/* ─── Ambient glow → dithered halftone (no blur) ─────────────────── */
+/* ─── Ambient glow -> dithered halftone (no blur) ────────────────── */
 .ambient {
   position: absolute;
   pointer-events: none;
@@ -1234,7 +1239,7 @@ code {
 }
 [data-theme="light"] .ambient { opacity: 0.6; }
 
-/* ─── Grid texture → "+" dot lattice ─────────────────────────────── */
+/* ─── Grid texture -> "+" dot lattice ────────────────────────────── */
 .grid-texture {
   position: absolute;
   inset: 0;
@@ -1519,7 +1524,7 @@ code {
   .rz-host--inset > .rz-handle--sw { left: 0; }
 }
 
-/* size readout: [ 48×12 ] under the active grip, fades after release */
+/* size readout: [ 48x12 ] under the active grip, fades after release */
 .rz-readout {
   position: absolute;
   top: calc(100% + 10px);

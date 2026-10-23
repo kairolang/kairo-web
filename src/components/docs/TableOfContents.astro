@@ -13,7 +13,7 @@
  *   │   └── h3
  *   └── Last heading
  *   - - - - - - - - - - - - -
- *   [ ↑ top ]  [ cd .. ]
+ *   [ ^ top ]  [ cd .. ]
  *
  * Tree lines are 1px rules (not glyphs) so wrapped labels stay connected.
  * Scroll-spy, progress and markers are scroll-driven only: no ambient motion.
@@ -119,7 +119,7 @@ const CELLS = 16;
 
   <div class="toc-block toc-actions">
     <a href="#top" class="toc-act" data-toc-top>
-      <span class="toc-act-glyph" aria-hidden="true">↑</span> top<span class="sr-only"> of the page</span>
+      <span class="toc-act-glyph" aria-hidden="true">^</span> top<span class="sr-only"> of the page</span>
     </a>
     <a href={up.href} class="toc-act" title={`cd ${upPath}`} rel="up">
       cd <span class="toc-act-glyph" aria-hidden="true">..</span><span class="sr-only"> (up to {up.name})</span>
@@ -254,7 +254,7 @@ const CELLS = 16;
     transition: transform var(--dur-fast) steps(4, end), opacity var(--dur-instant) steps(1, end);
   }
 
-  /* ── actions: [ ↑ top ]  [ cd .. ] ── */
+  /* ── actions: [ ^ top ]  [ cd .. ] ── */
   .toc-actions {
     display: flex;
     flex-wrap: wrap;
@@ -464,7 +464,7 @@ const CELLS = 16;
       if (/^(Page(Up|Down)|Arrow(Up|Down)|Home|End| )$/.test(e.key)) unpin();
     });
 
-    // ── [ ↑ top ]: scroll home, drop the #hash, hand focus to the page title
+    // ── [ ^ top ]: scroll home, drop the #hash, hand focus to the page title
     for (const top of document.querySelectorAll<HTMLAnchorElement>('nav[data-toc] [data-toc-top]')) {
       top.addEventListener('click', (e) => {
         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

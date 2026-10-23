@@ -26,6 +26,19 @@ function esc(str: string): string {
 }
 
 /* ── ASCII file tree ──────────────────────────────────────────────────
+     $ tree ~/docs
+     ├── Docs Home
+     └── Implementation Status
+
+     [-] language/
+     ├── # basics
+     │   └── Primitives
+     └── # interop
+         └── C++ Interop
+   The root pages hang from "$ tree ~/docs". Each top-level directory is
+   its own flush-left tree root ("[-] language/", no connector) and its
+   contents hang from their own trunk at column 0, closing with a └──.
+   Deeper directories keep the indented "├── [-] name/" rows.
    Every row carries its own guide columns, one per depth level:
      p = "│   "  (an ancestor still has siblings below)
      b = "    "  (ancestor was the last child)
@@ -69,7 +82,8 @@ function renderGroup(group: TreeGroup, sectionPath: string, trail: boolean[], la
   return `<div class="sidebar-pagegroup" role="group" aria-labelledby="${labelId}">${header}${body}</div>`;
 }
 
-// A collapsible directory: "├── [-] language/"
+// A collapsible directory: "├── [-] std/", or at the top level a flush-left
+// root "[-] language/" whose contents start a fresh trunk at column 0.
 function renderSection(section: TreeSection, sectionPath: string, trail: boolean[], last: boolean, top: boolean): string {
   const collapsed = section.defaultCollapsed;
   const pretty = formatSectionName(section.name);
@@ -86,8 +100,10 @@ function renderSection(section: TreeSection, sectionPath: string, trail: boolean
     label = `<button type="button" class="sidebar-group-label sidebar-section-btn tree-label tree-label-btn" aria-expanded="${!collapsed}" aria-controls="${bodyId}" title="${esc(pretty)}">${dirName}</button>`;
   }
 
-  const header = `<div class="sidebar-collapsible-header tree-row tree-dir">${guides(trail, last)}${toggle}${label}</div>`;
-  const body = `<div class="sidebar-collapsible-body" id="${bodyId}">${renderChildren(section, sectionPath, [...trail, !last])}</div>`;
+  const header = top
+    ? `<div class="sidebar-collapsible-header tree-row tree-dir tree-dir--root">${toggle}${label}</div>`
+    : `<div class="sidebar-collapsible-header tree-row tree-dir">${guides(trail, last)}${toggle}${label}</div>`;
+  const body = `<div class="sidebar-collapsible-body" id="${bodyId}">${renderChildren(section, sectionPath, top ? [] : [...trail, !last])}</div>`;
   const cls = top ? 'sidebar-group sidebar-collapsible' : 'sidebar-subgroup sidebar-collapsible';
   return `<div class="${cls}" data-section="${esc(sectionPath)}" data-collapsed="${collapsed}">${header}${body}</div>`;
 }
@@ -114,21 +130,20 @@ function renderChildren(section: TreeSection, parentPath: string, trail: boolean
   return html;
 }
 
-// Root: index + root pages first (flat), then the top-level directories.
-const rootPages = tree.children.filter((c): c is TreePage => c.kind === 'page');
-const rootSections = tree.children.filter((c): c is TreeSection => c.kind === 'section');
-const rootList: Array<TreePage | TreeSection> = [
+// Root: index + root pages first (one trunk under "$ tree ~/docs"), then
+// each top-level directory as its own flush-left tree.
+const rootPages = [
   ...(tree.indexPage ? [tree.indexPage] : []),
-  ...rootPages,
-  ...rootSections,
+  ...tree.children.filter((c): c is TreePage => c.kind === 'page'),
 ];
+const rootSections = tree.children.filter((c): c is TreeSection => c.kind === 'section');
 
 let treeHtml = '';
-rootList.forEach((node, i) => {
-  const last = i === rootList.length - 1;
-  treeHtml += node.kind === 'section'
-    ? renderSection(node, node.name, [], last, true)
-    : pageRow(node, [], last);
+rootPages.forEach((page, i) => {
+  treeHtml += pageRow(page, [], i === rootPages.length - 1);
+});
+rootSections.forEach((section) => {
+  treeHtml += renderSection(section, section.name, [], true, true);
 });
 ---
 

@@ -50,7 +50,7 @@ const {
 const pathname = Astro.url.pathname;
 let pageName = bareTitle(title);
 if (type === 'docs') {
-  // Overloaded API pages share a title ("Frame::Frame (Constructor)" ×4):
+  // Overloaded API pages share a title ("Frame::Frame (Constructor)" x4):
   // disambiguate with the overload number from the URL so titles stay unique.
   const docs = await getCollection('docs');
   if (docs.filter(d => d.data.title === pageName).length > 1) {
