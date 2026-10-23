@@ -354,19 +354,20 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
      Fallbacks: no backdrop-filter -> denser tint over the old canvas blur;
      reduced transparency -> opaque panes; forced colors -> no glass. */
   :global(:root) {
-    --glass-blur: 7px;
+    --glass-blur: 4px;
     --glass-sat: 1.4;
     --glass-seam: 5px;   /* half a seam: each pane gives this much */
-    --glass-tint: color-mix(in srgb, var(--bg) 68%, transparent);   /* smoked: deepens, never lifts, the dark ground */
-    --glass-sheen: none;   /* dark: any lift costs prose contrast; the lit rim carries it */
-    --glass-edge: rgba(255, 255, 255, 0.075);
-    --glass-lit: rgba(255, 255, 255, 0.05);
+    --glass-tint: color-mix(in srgb, var(--bg) 50%, transparent);   /* thin smoke: the field reads through, never lifts the ground */
+    --glass-sheen: none;   /* dark: a white lift reads as milky */
+    --glass-edge: var(--border-hi);   /* grey rim, same as the site's frames */
+    --glass-lit: var(--border);
     --glass-shade: 0 0 16px rgba(0, 0, 0, 0.16);
     /* static grain: sparse white specks (mean alpha <1%) */
     --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .16 0 0 0 -.084'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
   }
   :global([data-theme="light"]) {
     --glass-tint: color-mix(in srgb, var(--bg-2) 66%, transparent);
+    --glass-blur: 7px;
     --glass-sat: 1.1;
     --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 30%);
     --glass-edge: rgba(0, 0, 0, 0.07);
