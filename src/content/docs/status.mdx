@@ -6,11 +6,9 @@ order: 3
 
 # Implementation Status
 
-The language reference describes Kairo as designed. This page lists where the Stage 1 compiler, the first
-alpha, falls short of it. Each entry is removed when the gap closes.
+The language reference describes Kairo as designed. This page lists where the Stage 1 compiler, the first alpha, falls short of it. Each entry is removed when the gap closes.
 
-Stage 1 is built from source for now; prebuilt downloads come with the first release. See
-[Installation](/docs/install/).
+Stage 1 is built from source for now; prebuilt downloads come with the first release. See [Installation](/docs/install/).
 
 ---
 
@@ -42,55 +40,38 @@ Stage 1 is built from source for now; prebuilt downloads come with the first rel
 
 ## Checked by C++, Not by Kairo
 
-Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo
-diagnostic. This covers `priv` constructors and writes to `const` fields.
+Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo diagnostic. This covers `priv` constructors and writes to `const` fields.
 
 ---
 
 ## Not Diagnosed
 
-Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with
-the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether/) lands; until
-then, pass a `var` or a `[T]` to any function that keeps what it is given. See
-[Primitives](/docs/language/collections/#how-long-a-slice-literals-storage-lives).
+Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether/) lands; until then, pass a `var` or a `[T]` to any function that keeps what it is given. See [Primitives](/docs/language/collections/#how-long-a-slice-literals-storage-lives).
 
-Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not
-reported. See [Enums](/docs/language/enums-adt/#destructuring-with-match).
+Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not reported. See [Enums](/docs/language/enums-adt/#destructuring-with-match).
 
-Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a
-default constructor. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
+Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a default constructor. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
 
 Three [`extend`](/docs/language/extends/) rules are not diagnosed yet:
 
-- A plain `extend` outside the type's file, or an `extend ... impl` in neither the type's nor the interface's
-  file, is accepted. See [Same-File Restriction](/docs/language/extends/#same-file-restriction).
-- Calling an extension member whose bounds the type arguments do not satisfy is not reported at the call site.
-  See [Generic Extends](/docs/language/extends/#generic-extends).
-- An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See
-  [Interface Conformance](/docs/language/extends/#interface-conformance).
+- A plain `extend` outside the type's file, or an `extend ... impl` in neither the type's nor the interface's file, is accepted. See [Same-File Restriction](/docs/language/extends/#same-file-restriction).
+- Calling an extension member whose bounds the type arguments do not satisfy is not reported at the call site. See [Generic Extends](/docs/language/extends/#generic-extends).
+- An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See [Interface Conformance](/docs/language/extends/#interface-conformance).
 
-A [generator](/docs/language/functions-generators/#generator-lifetimes) that outlives the object it was created from, or
-an `@inout` argument it was given, is not caught; it dangles. This becomes an error when
-[Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object
-it came from.
+A [generator](/docs/language/functions-generators/#generator-lifetimes) that outlives the object it was created from, or an `@inout` argument it was given, is not caught; it dangles. This becomes an error when [Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object it came from.
 
 ---
 
 ## Not in This Release
 
-- [Tether](/docs/language/tether/), Kairo's memory-safety system, is not part of the alpha. Using a moved-from
-  value is already a compile error; the rest of Tether's checks come later.
+- [Tether](/docs/language/tether/), Kairo's memory-safety system, is not part of the alpha. Using a moved-from value is already a compile error; the rest of Tether's checks come later.
 - Some generic code is checked less strictly than it will be in 1.0.
 - The standard library is minimal: printing goes through `std::io::println`.
-- Objective-C headers cannot be imported with `ffi` yet; C and C++ headers can. Plain C and Objective-C files
-  cannot `#include` a `.k` file yet; C++ and Objective-C++ files can.
+- Objective-C headers cannot be imported with `ffi` yet; C and C++ headers can. Plain C and Objective-C files cannot `#include` a `.k` file yet; C++ and Objective-C++ files can.
 
 ---
 
 ## Language Gaps
 
-- A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See
-  [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
-- Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object
-  and for primitive operators whose two operands both have side effects. See
-  [Operators](/docs/language/operators/#evaluation-order).
+- A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
+- Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object and for primitive operators whose two operands both have side effects. See [Operators](/docs/language/operators/#evaluation-order).

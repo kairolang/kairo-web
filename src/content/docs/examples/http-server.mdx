@@ -6,9 +6,7 @@ description: A complete HTTP server built in Kairo, demonstrating classes, enums
 
 # Example: HTTP Server
 
-This example builds a minimal HTTP server from scratch, demonstrating how Kairo's features compose
-in a real application. The server parses requests, routes them to handlers, and sends responses,
-all with type-safe error handling and automatic memory management via Tether.
+This example builds a minimal HTTP server from scratch, demonstrating how Kairo's features compose in a real application. The server parses requests, routes them to handlers, and sends responses, all with type-safe error handling and automatic memory management via Tether.
 
 ---
 
@@ -28,8 +26,7 @@ http-server/
 
 ## Request Parsing
 
-`request.k` defines the HTTP request model and a parser that converts raw bytes into a typed
-request object.
+`request.k` defines the HTTP request model and a parser that converts raw bytes into a typed request object.
 
 ```kairo
 // request.k
@@ -343,8 +340,7 @@ Key patterns:
 
 ## Server
 
-`server.k` ties everything together with a TCP accept loop. It uses C++ interop for socket
-operations.
+`server.k` ties everything together with a TCP accept loop. It uses C++ interop for socket operations.
 
 ```kairo
 // server.k
@@ -421,8 +417,7 @@ pub class Server {
 
 Key patterns:
 
-- `ffi "c++" import` brings in socket operations; no unsafe block is needed because `tcp_listen`,
-  `tcp_accept`, etc. take and return value types (`i32`, `string`), not raw pointers
+- `ffi "c++" import` brings in socket operations; no unsafe block is needed because `tcp_listen`, `tcp_accept`, etc. take and return value types (`i32`, `string`), not raw pointers
 - `finally` blocks ensure sockets are closed on all exit paths (normal, panic, early return)
 - `try`/`catch` is used in expression form to produce a `Response` on both success and failure
 - Nested `try`/`catch`: the outer one handles parse errors, the inner one handles handler panics
