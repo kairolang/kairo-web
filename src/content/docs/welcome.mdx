@@ -11,9 +11,7 @@ section: Getting Started
 
 # Kairo
 
-Kairo is an open-source, statically typed, compiled systems programming language with native bidirectional C++ interoperability.
-C++ projects can `#include` Kairo files directly. Kairo code calls C++ libraries without a binding
-layer. The compiler emits ABI-compatible object code that links with GCC, Clang, or MSVC output.
+Kairo is an open-source, statically typed, compiled systems programming language with native bidirectional C++ interoperability. C++ projects can `#include` Kairo files directly. Kairo code calls C++ libraries without a binding layer. The compiler emits ABI-compatible object code that links with GCC, Clang, or MSVC output.
 
 ```kairo
 import std
@@ -35,18 +33,11 @@ fn main() {
 
 ## Why Kairo
 
-**Full control, less friction.** Kairo gives you manual memory management, raw pointer access,
-struct layout control, and zero-cost abstractions, with a compiler that tracks lifetimes, promotes
-smart pointers, and catches null dereferences at compile time. You opt into safety by default and
-opt out explicitly when you need to.
+**Full control, less friction.** Kairo gives you manual memory management, raw pointer access, struct layout control, and zero-cost abstractions, with a compiler that tracks lifetimes, promotes smart pointers, and catches null dereferences at compile time. You opt into safety by default and opt out explicitly when you need to.
 
-**C++ interop that works both ways.** `ffi "c++"` imports C++ headers and makes every declaration
-available as a native Kairo symbol. The `kcc` driver lets C++ code `#include "file.k"` with no
-code generation step. Templates, concepts, classes, and smart pointers cross the boundary cleanly.
+**C++ interop that works both ways.** `ffi "c++"` imports C++ headers and makes every declaration available as a native Kairo symbol. The `kcc` driver lets C++ code `#include "file.k"` with no code generation step. Templates, concepts, classes, and smart pointers cross the boundary cleanly.
 
-**Zero-cost abstractions.** Interfaces are structural and carry no vtable. Generics are
-monomorphized. Panic handling compiles to tagged returns and branches: no unwinding tables, no
-runtime. Virtual dispatch exists only when you write `virtual`.
+**Zero-cost abstractions.** Interfaces are structural and carry no vtable. Generics are monomorphized. Panic handling compiles to tagged returns and branches: no unwinding tables, no runtime. Virtual dispatch exists only when you write `virtual`.
 
 ---
 
@@ -127,13 +118,9 @@ std::println(f"origin: ({origin.x}, {origin.y})")
 
 ## Status
 
-Kairo is in active development. The **Stage 1** compiler, written in Kairo, is the in-progress
-alpha compiler, and it cross-compiles to every curated sysroot target. See [Implementation Status](/docs/status/) for the
-gaps. **Stage 0**, the original C++ implementation that transpiled Kairo to C++, is frozen and
-only kept to bootstrap Stage 1.
+Kairo is in active development. The **Stage 1** compiler, written in Kairo, is the in-progress alpha compiler, and it cross-compiles to every curated sysroot target. See [Implementation Status](/docs/status/) for the gaps. **Stage 0**, the original C++ implementation that transpiled Kairo to C++, is frozen and only kept to bootstrap Stage 1.
 
-Language syntax and standard library APIs may change before 1.0. The documentation on this site
-reflects the current language design.
+Language syntax and standard library APIs may change before 1.0. The documentation on this site reflects the current language design.
 
 ---
 
