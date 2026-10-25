@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-24T07:32:07.561Z
+> Generated: 2026-10-25T05:12:06.592Z
 
 ---
 
@@ -573,22 +573,24 @@ Kairo targets **IEEE 754-2019** (the 2019 revision of IEEE 754-2008) for all bin
 What this means concretely:
 
 - All four basic arithmetic operations (`+`, `-`, `*`, `/`), `sqrt`, and `fma` produce correctly rounded results in round-to-nearest-even mode (the IEEE default). The result is the representable value closest to the infinitely precise result, with ties going to even.
-- Intermediate results within a single expression may be fused into FMA operations by the compiler (FP contraction is `on` by default, not `fast`). This can produce results that differ from performing the operations separately with two roundings. If you need strict per-operation rounding, use `--fp-contract=off`.
+- Every operation is rounded on its own. The compiler never fuses a multiply and an add into one FMA by default (FP contraction is `off`), so `a * b + c` rounds twice, exactly as written. Opt in with `--fp-contract=on` (fuse within an expression) or `--fp-contract=fast`; results can then differ in the last bit from the unfused form. Call `fma` explicitly when you want one rounding.
+- Math functions never set `errno`. A Kairo call to `sqrt`, `pow`, and the rest reports a domain or range error through its result (`NaN`, `inf`) only, so the compiler is free to use the hardware instruction.
 - Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754; no crash, no trap. Check for `NaN` explicitly with `std::is_nan()` when needed.
 - NaN payload bits are not guaranteed to be preserved across arithmetic operations and are not guaranteed to be portable across architectures. Inspecting NaN bit patterns is explicitly unsupported behavior. If you need NaN payloads, use `f32::from_bits` / `f64::from_bits` and document why.
 - The 2019 standard deprecated the non-associative `minNum`/`maxNum` operations from 2008 and replaced them with `minimum`/`maximum` which have well-defined NaN handling. Kairo's `min`/`max` builtins follow the 2019 semantics.
-- Subnormal (denormal) numbers are handled per IEEE spec by default. Flush-to- zero mode is not enabled unless you explicitly opt in with `--fp-model=fast` or the `@float_mode(fast)` block annotation.
+- Subnormal (denormal) numbers are handled per IEEE spec by default. Flush-to-zero mode is not enabled unless you explicitly opt in with `--fp-model=fast` or the `@float_mode(fast)` block annotation.
+- These rules cover Kairo code only. C and C++ keep C++'s floating-point rules: C/C++ files compiled alongside Kairo, and the code in headers imported with `ffi "c"` / `ffi "c++"`, even though a header is compiled in the same unit as the Kairo that imports it. On that code contraction is `on`, and `errno` follows the target's C++ default (set on glibc Linux, not on musl or Apple platforms), as with `clang++`. An explicit `--fp-contract`, `--fp-model` or `-ffast-math` applies to both alike.
 
 **What Kairo does not guarantee:**
 
-- Reproducibility of floating-point results across different optimization levels, different target architectures, or different LLVM versions. If you need bitwise-reproducible results, use `-fp-contract=off -fp-model=strict` and target a specific CPU with `--mcpu`.
+- Reproducibility of floating-point results across different optimization levels, different target architectures, or different LLVM versions. If you need bitwise-reproducible results, keep the default `--fp-contract=off`, add `--fp-model=strict`, and target a specific CPU with `--mcpu`.
 - Strict exception observability by default. FP exceptions (divide-by-zero, overflow, underflow, inexact, invalid) are not observable through `fenv.h` equivalents unless you compile with `--fp-model=strict`. The default (`precise`) treats exceptions as ignorable, which is what lets the optimizer e.g. hoist FP computations out of loops.
 
 **FP mode quick reference:**
 
 | Mode | What it does | When to use |
 |---|---|---|
-| `precise` (default) | IEEE arithmetic, no unsafe rewrites, FMA on | General use |
+| `precise` (default) | IEEE arithmetic, no unsafe rewrites, no FMA contraction, no `errno` | General use |
 | `strict` | IEEE + observable exceptions + no FMA | Scientific code, reproducibility audits |
 | `fast` | Everything unsafe on (`-ffast-math`) | SIMD kernels, numerical code you've already validated |
 | `@float_mode(fast)` | Block-scoped fast-math | Hot inner loops only |
@@ -830,7 +832,7 @@ Stage 1 is built from source for now; prebuilt downloads come with the first rel
 | Map literals `{k: v}` | Not compiled | - |
 | Initializing a `const` field in a constructor | Not supported | - |
 | Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
-| Associated types (`type Node` in an interface) | Not parsed yet | - |
+| Associated types (`type Node` in an interface) | Parsed, with bounds and defaults; not compiled yet (`Self::Node` and `T::Node` don't resolve, and conformers don't supply them) | - |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | - |
@@ -1248,6 +1250,7 @@ URL: https://www.kairolang.org/docs/language/variables/
 | `var` | Yes | Automatic | Optional (default-initialized) | Optional (inferred) |
 | `const` | No | Automatic | Required | Optional (inferred) |
 | `static` | Yes | Static | Optional | Required |
+| `thread` | Yes | Thread-local (one instance per thread) | Optional | Required |
 | `eval` | No | Compile-time | Required | Optional (inferred) |
 
 > Variables in Kairo are mutable by default. `const` bindings at local scope require an initializer, but class-level `const` members can be left uninitialized at declaration and assigned exactly once in the constructor body. See [Classes](/docs/language/classes/#const-members-in-constructors) for details.
@@ -1376,6 +1379,29 @@ static counter: i32 = 0
 ```
 
 `static` can be combined with `const` for immutable static data. See [Modules](/docs/language/modules/) for `static` at module scope.
+
+---
+
+## Thread-Local Variables
+
+`thread` declares a binding with thread storage duration: every thread gets its own instance, initialized when the thread first touches it and destroyed when that thread exits. Like `static`, it requires an explicit type annotation and may appear at file scope, class scope, or inside a function body. A function-local `thread` keeps its value across calls on the same thread, like a static local, and is independent per thread.
+
+```kairo
+thread counter: i32 = 0
+thread const WORKER_NAME: string = "worker"
+
+class Pool {
+    thread current: *Pool?
+}
+
+fn next_id() -> u64 {
+    thread counter: u64 = 0
+    counter += 1
+    return counter
+}
+```
+
+`thread` combines with `const` the way `static` does. A `thread` binding without an initializer is default-initialized per thread under the rules in [Default Initialization](#default-initialization). Access is `name` at file scope and `Self::name` / `Type::name` at class scope, the same as `static`. Seen from C++, a `thread` binding is a `thread_local` variable.
 
 ---
 
@@ -1592,7 +1618,7 @@ See [Tether](/docs/language/tether/) and [Ownership](/docs/language/ownership/) 
 
 ---
 
-All four declaration keywords `var`, `const`, `static`, `eval` work in both local and class/struct scope.
+All five declaration keywords `var`, `const`, `static`, `eval`, `thread` work in both local and class/struct scope.
 
 ## See also
 
@@ -3331,7 +3357,7 @@ var obj = Foo(10, 3.14)
 obj.sum()   // 13.14
 ```
 
-Members are declared with `var`, `const`, `static`, or `eval` inside the class body. Methods are declared with `fn` and take `self` as the first parameter for instance methods. Omitting `self` requires the `static` modifier. If `self` is present, it is an instance method; if not, it must be `static`.
+Members are declared with `var`, `const`, `static`, `eval`, or `thread` inside the class body. Methods are declared with `fn` and take `self` as the first parameter for instance methods. Omitting `self` requires the `static` modifier. If `self` is present, it is an instance method; if not, it must be `static`.
 
 ---
 
@@ -3419,7 +3445,7 @@ Modifiers are applied per-declaration. There are no visibility blocks (`public:`
 
 | Member kind | Default |
 |---|---|
-| Instance / static / const / eval variables | `priv` |
+| Instance / static / const / eval / thread variables | `priv` |
 | Methods, constructors, destructors | `pub` |
 | Operator overloads | `pub` |
 | Static methods | `pub` |
@@ -4885,6 +4911,8 @@ interface Serializable {
 
 An interface body contains method signatures (including generic methods), static function signatures, operator signatures, constructor requirements, and [associated types](#associated-types). It has no method bodies, variables, constants, or nested classes, structs, enums or interfaces. Every member is implicitly `pub` the `priv` and `prot` modifiers are compile errors on interface members. Explicit `pub` is permitted but has no effect.
 
+An interface must have at least one requirement, declared or derived. An empty interface is a compile error: conformance is structural, so every type would satisfy it, and it would constrain nothing.
+
 ---
 
 ## Conformance
@@ -5079,6 +5107,18 @@ interface Store {
 
 A generic body names a generic associated type with its arguments: `T::Map<K>`.
 
+A bound on an associated type is written with `impl`, and several are separated by commas. The type a conformer supplies must satisfy each of them:
+
+```kairo
+interface Catalog {
+    type Item impl Display
+    type Key impl Hashable, Comparable
+    fn lookup(const self, k: Self::Key) -> Self::Item
+}
+```
+
+Associated types are declared only inside an interface. Outside one, a `type` declaration is an alias and needs `=`.
+
 ### Defaults
 
 An associated type may have a default:
@@ -5192,6 +5232,43 @@ interface Loggable derives Serializable, Printable {
 }
 ```
 
+### Composing interfaces
+
+A `derives` clause is an expression over interfaces. It combines their requirements as sets:
+
+| Operator | The derived interface requires |
+|---|---|
+| `X + Y` | everything `X` or `Y` requires (union) |
+| `X - Y` | what `X` requires, minus anything `Y` also requires (difference) |
+| `X & Y` | only what both require (intersection) |
+
+`derives A, B` is the same as `derives A + B`. Parentheses group, and `+` and `-` bind tighter than `&`: `A + B & C` is `(A + B) & C`. Writing `&` next to `+` or `-` without parentheses is a warning.
+
+```kairo
+interface Readable { fn read(self) -> i32 }
+interface Seekable { fn seek(self, at: i64) }
+interface Closable { fn close(self) }
+
+interface Cursor derives (Readable + Seekable + Closable) - Closable { }   // read and seek
+interface Shared derives Readable & Stream { }                            // read: in both
+```
+
+More requirements make an interface harder to satisfy, so `X + Y` is the stricter interface and `X & Y` the looser one. There is no `|`, no `^`, and no complement: a requirement set has nothing to take a complement against. A single member can't be removed by name; declare an interface with that member and subtract it.
+
+Two requirements are the same requirement when they have the same name, the same receiver (none, `self` or `const self`), the same generic parameters with the same bounds, and the same parameter types. The return type is not part of that identity:
+
+- In a union, the same requirement from two sides is one requirement. Two with the same name and different parameters are both kept, as overloads. The same requirement with two different return types is a compile error.
+- `-` and `&` match requirements by that identity alone, whatever they return.
+- Generic bounds count: `fn <T> process(self, v: T)` and `fn <T impl Serializable> process(self, v: T)` are different requirements, so subtracting the second from an interface that has the first keeps it.
+
+[Associated types](#associated-types) are matched by name:
+
+- In a union, two `type Item`s are one associated type whose bounds are the bounds of both. If both give a default and the defaults differ, that's a compile error.
+- `-` removes the associated type by name. If the result keeps a method whose signature names it (`Self::Item`), that's a compile error: nothing would supply the type.
+- `&` keeps it when both sides declare it, with only the bounds both state.
+
+A composed interface is an ordinary interface: a type conforms to it structurally, by having every requirement in the result, and a requirement that was subtracted is not required. If the result has no requirements, the interface is a compile error.
+
 ---
 
 ## Using Interfaces as Bounds
@@ -5234,6 +5311,7 @@ Inside `fn <T impl Foo>`, a value of type `T` supports exactly what `Foo` (and e
 
 - `x.method()` resolves against `Foo`'s methods.
 - A generic method requirement is called with explicit arguments, `x.liz<i32>()`, or with deduced ones.
+- `T(args)` constructs a `T`; it requires a constructor requirement taking those arguments in some bound (see [Constructors in Interfaces](/docs/language/interfaces-requirements/#constructors-in-interfaces)).
 - `var x: T` with no initializer requires a constructor requirement `fn Foo(self)` in some bound.
 - `T::Name` names an [associated type](#associated-types).
 
@@ -5261,28 +5339,28 @@ See [Generic Classes](/docs/language/generics/#type-parameter-constraints) for t
 
 ## Virtual Interfaces
 
-An interface declared `virtual interface` can also be used for runtime dispatch. A pointer to it, `*Allocator`, can point at a value of any conforming type; calls through the pointer go through a witness table built for each conforming type, so the caller doesn't need to know at compile time which type it holds:
+An interface declared `virtual interface` can also be used for runtime dispatch. A pointer to it, `*Heap`, can point at a value of any conforming type; calls through the pointer go through a witness table built for each conforming type, so the caller doesn't need to know at compile time which type it holds:
 
 > [!NOTE]
 > Virtual interfaces are not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 ```kairo
-virtual interface Allocator {
+virtual interface Heap {
     fn alloc(self, size: usize, align: usize) -> unsafe *u8
     fn free(self, ptr: unsafe *u8, size: usize)
 }
 
-class LibcAllocator impl Allocator {
+class LibcHeap impl Heap {
     fn alloc(self, size: usize, align: usize) -> unsafe *u8 { return &null }
     fn free(self, ptr: unsafe *u8, size: usize) { }
 }
 
-fn release(alloc: *Allocator, ptr: unsafe *u8, size: usize) {
-    alloc->free(ptr, size)   // dispatched through LibcAllocator's (or any conformer's) witness table
+fn release(heap: *Heap, ptr: unsafe *u8, size: usize) {
+    heap->free(ptr, size)   // dispatched through LibcHeap's (or any conformer's) witness table
 }
 ```
 
-A virtual interface is still an ordinary interface when used as a bound: `fn <T impl Allocator>` is checked at compile time and costs nothing. The witness table is paid for only where the interface is used for runtime dispatch.
+A virtual interface is still an ordinary interface when used as a bound: `fn <T impl Heap>` is checked at compile time and costs nothing. The witness table is paid for only where the interface is used for runtime dispatch.
 
 ---
 
@@ -7716,35 +7794,7 @@ Tether operates on [safe pointers](/docs/language/pointers/#safe-pointers-t) (`*
 - [Ownership and Promotion](/docs/language/tether-promotion/): smart-pointer promotion and stack-pointer escapes.
 - [Threading](/docs/language/tether-threading/): strict mode and the race-freedom rule set.
 - [Tether Internals](/docs/language/tether-internals/): C/C++ interop, generic code, `.amt` summaries, soundness and testing.
-
----
-
-## Allocators
-
-### Global allocator
-
-The default for [`@create T()`](/docs/language/pointers/#heap-allocation) and all standard-library heap operations. Overridable with `@mem::set_allocator(MyAllocator)` at the top of a file.
-
-**Intentional friction**: the override must appear at the top of *every file in the dependency graph* it affects. A library that sets a global allocator forces the annotation onto every transitive dependent. This keeps global-allocator changes visible and pushes library authors toward scoped allocators.
-
-### Scoped allocator
-
-An allocator with RAII semantics it frees everything it allocated when it leaves scope. Set with `@mem::set_scoped_allocator(MyAllocator)` on a function or block.
-
-```kairo
-@mem::set_scoped_allocator(ArenaAllocator)
-fn process_frame() {
-    var a = @create Mesh(vertices)
-    var b = @create Texture(pixels)
-    // freed wholesale when process_frame returns
-}
-```
-
-A pointer allocated through a scoped allocator that escapes the allocator's scope is **Tier N** a hard error in both modes. The arena frees the memory at scope end; no smart pointer and no runtime check rescues a pointer to freed arena memory (and across threads, the free races the access). The escape increments the allocation's epoch at the scope close, so the escaping pointer fails C1 by the same machinery as any other dangling pointer. The only fix is restructuring: allocate through the global allocator, or move the scoped boundary outward.
-
-### Freestanding allocator
-
-A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. Tether treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
+- [Allocators](/docs/language/allocators/): global, scoped and freestanding allocators and the allocator interface.
 
 ---
 
@@ -7776,38 +7826,7 @@ This is the "predictable from source" guarantee: any observable destructor side 
 
 **Shared objects** separate two events. The **refcount decrement** happens at each `Shared` binding's own scope boundary, in reverse declaration order. The **object destructor and deallocation** happen once, when the last live `Shared` reference's scope ends and the count reaches zero which is not necessarily the last-declared binding in any single scope. Reason about shared destruction as "when the final owner goes away," not "reverse declaration order of the binding in front of me." `Weak` scope exit does not touch the count; a `Weak` simply becomes invalid once the target is freed.
 
-## Delete Operation
-
-`delete` in kairo does not free memory. It is a **destruction operation** that runs the [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) and any side effects, but does not reclaim the allocation. Meaning if the class can be re-constructed with a separate function call, the memory is still valid and can be reused. The `delete` operation is used to explicitly clean up resources without deallocating the memory, which is useful in certain scenarios where you want to manage memory manually or reuse it.
-
-```kairo
-class MyClass {
-    var data: unsafe *i32 = &null
-
-    fn MyClass(self) = default
-
-    fn init(self) {
-        data = unsafe std::alloc<i32>(sizeof i32 * 10) // 10 i32's allocated
-    }
-
-    fn op delete(self) {
-        if data != &null {
-            unsafe std::free(data)
-            data = &null
-        }
-    }
-}
-
-var obj = MyClass() // stack allocated the object itself
-obj.init() // allocate the buffer data points to
-// do something with obj.data
-delete obj // runs obj's destructor, which frees the buffer; obj's own storage is not freed
-obj.init() // obj is still valid storage and can be re-initialized
-```
-
-What `delete` frees is whatever the destructor frees: here the buffer owned by the `data` member. The object `delete` is applied to is not freed; its storage stays valid.
-
-`delete` is supposed to be designed in a idempotent way, meaning that it can be called multiple times on the same object without causing undefined behavior. The first call to `delete` runs the destructor, which releases the resources the members own, while subsequent calls will have no effect since the object is already destroyed. This allows for safe cleanup of resources without worrying about double deletion or dangling pointers.
+Arena memory is freed wholesale at scope end; see [Scoped allocator](/docs/language/allocators/#scoped-allocator).
 
 ---
 
@@ -7857,7 +7876,7 @@ The whole system, in one table maps each clause's residual to its response:
 | Plain *T (stack) | Yes      | Heap-lift in debug only   | Promotable: debug-lift / release-err; else hard error |
 | Plain *T (heap)  | Yes      | Debug: yes / Release: no  | Release: hard error (annotate)                        |
 | unsafe *T        | No       | Never                     | Programmer's problem                                  |
-| Scoped-alloc ptr | Yes      | Never                     | Always hard error                                     |
+| [Scoped-alloc ptr](/docs/language/allocators/#scoped-allocator) | Yes      | Never                     | Always hard error                                     |
 | Shared (thread)  | Yes      | n/a                       | One writer, or many `const` readers                   |
 | FFI smart ptr    | Yes      | Mapped 1:1                | Type mismatch = error                                 |
 | FFI raw ptr      | No       | Never                     | Tainted; requires unsafe/launder                      |
@@ -8635,7 +8654,7 @@ Eval bodies must be deterministic and free of side effects. The following are no
 | Pointer operations (`*T`, `unsafe *T`) | No addressable memory at compile time |
 | `async` / `await` / `spawn` | No runtime scheduler at compile time |
 | `panic` | No runtime error handler at compile time |
-| Mutable global / static variables | Side effects across evaluations |
+| Mutable global, static, or thread variables | Side effects across evaluations |
 | Calls to non-`eval` functions | Cannot guarantee compile-time evaluation |
 
 ### What is allowed
@@ -8939,7 +8958,7 @@ This holds for the files you compile, too. A `.k` named on the command line, or 
 
 `main` is the exception: a file-scope `fn main` is the program's global `int main` in whatever file it is declared, never in a namespace. A `main` inside a `module foo { }` block is the ordinary function `foo::main`.
 
-A file outside every [search directory](#search-directories-and-library-names) has no module path. Its declarations are emitted in a namespace named after the file's stem (`/tmp/scratch.k` becomes `namespace scratch`), its `priv` and `internal` declarations sit in an unnamed namespace and cannot be reached from any other translation unit, and it has no header. A file-scope declaration with no visibility written is `pub`.
+A file outside every [search directory](#search-directories-and-library-names) and every [library](#naming-a-library) has no module path. Its declarations are emitted in a namespace named after the file's stem (`/tmp/scratch.k` becomes `namespace scratch`), its `priv` and `internal` declarations sit in an unnamed namespace and cannot be reached from any other translation unit, and it has no header. A file-scope declaration with no visibility written is `pub`.
 
 Two files under one root that both open `module codec` reopen one namespace, as in C++. Reopening never crosses a root.
 
@@ -8990,23 +9009,28 @@ pub import shapes
 
 ```
 
-Every file under the directory is `geo::<directories>::<file>`, whether it is imported, compiled on its own (from any directory, including the library's own), or included from C++. A name can have several segments (`module acme::tools`). The standard library is named this way: `Lib/std/module.k` says `module kairo::std`, and source writes `std` to reach it.
+Every file under the directory is `geo::<directories>::<file>`, whether it is imported, compiled on its own (from any directory, including the library's own or one inside it), or included from C++: the compiler finds a file's library by walking up from the file to the nearest `module.k` that names one, past the working directory and any `-I` directory. So `kcc -c inner/x.k` run in `vendor/geometry`, `kcc -c x.k` run in `vendor/geometry/inner`, and an importer anywhere all agree that the file is `geo::inner::x`. A name can have several segments (`module acme::tools`).
 
-The bare `module name` declaration is only allowed in a `module.k`. In any other file it is an error that points at the block form, `module name { ... }`, which declares a [namespace](#module-namespaces) inside the file.
+The standard library's name comes from the compiler, which registers `Lib/std` as `kairo::std` and lets source write `std` to reach it. `Lib/std/module.k` says `module kairo::std` as well, and the compiler checks that the two agree.
 
-The compiler looks for named libraries in each search directory and in its immediate subdirectories. It does not search deeper, because a search directory can be a whole repository. A `module.k` deeper in the tree still names the files under it, but its library cannot be imported by name from outside it.
+The bare `module name` declaration is only allowed in a `module.k`, and only as its first declaration, which is the one the compiler reads the name from. Anywhere later in a `module.k`, or a second time, it is an error. In any other file it is an error that points at the block form, `module name { ... }`, which declares a [namespace](#module-namespaces) inside the file.
+
+The compiler looks for named libraries in each search directory and in its immediate subdirectories. It does not search deeper, because a search directory can be a whole repository. A `module.k` deeper in the tree still names the files under it, but its library cannot be imported by name from outside it. Inside it, its files import each other by the library's name (`import geo::shapes`) or by their path in it (`import shapes`), as in any library.
 
 Import a library by its name. A file in a library never falls back to the search directories: a library does not depend on what one build's command line contains.
 
 > [!NOTE]
-> Older compilers named a directory after its folder (`-I ~/foo` was library `foo`) or with `-I name=dir`. Both are gone. `-I name=dir` is now an error that says where the name goes: put `module name` as the first line of that directory's `module.k`.
+> Older compilers named a directory after its folder (`-I ~/foo` was library `foo`) or with `-I name=dir`. Both are gone. An `-I` with an `=` that is not an existing directory is now an error that says where the name goes: put `module name` as the first line of that directory's `module.k`.
 
 ### Collisions
 
 One module path must mean one file, so the compiler never chooses between two files that claim the same path:
 
 - Two libraries with the same name are an error (R018E) before anything is compiled. Rename one library's `module` declaration.
-- The same path in two search directories is an error (R017E) at the import that reaches them. With `./a.k` and `inc/a.k` under `-I inc`, both files are module `a`, so `import a` reports both. Remove or rename one, or give one directory a `module.k` that names it as a library. Giving the same directory twice (`-I inc -I inc`) is not a collision.
+- The same path in two search directories is an error (R017E) at the import that reaches them. With `./a.k` and `inc/a.k` under `-I inc`, both files are module `a`, so `import a` reports both. Remove or rename one, or give one directory a `module.k` that names it as a library.
+- Two files that end up with one module path any other way are an error (R018E) that names both: a deeper `module.k` claiming a name another library already has, or two files given on one command line from two search directories (`kairo a.k inc/a.k -I inc`, rejected before either is compiled, since both would be module `a` and write one object).
+
+Giving the same directory twice (`-I inc -I inc`, or a symlink and the directory it points to) is not a collision, and neither is an `-I` naming the standard library's own directory.
 
 Because a search directory has no name, several `-I .../include` directories do not collide with each other.
 
@@ -9202,6 +9226,7 @@ priv class ConnectionPool { ... }
 
 pub eval MAX_CONNECTIONS = 1024
 priv static request_count: i32 = 0
+priv thread request_id: u64 = 0
 ```
 
 See [Imports](/docs/language/imports/#visibility-on-imports) for how visibility affects what is re-exported via `pub import`.
@@ -10219,9 +10244,9 @@ Launching concurrent work. Syntax and runtime model (green threads, OS threads, 
 
 Thread-safe wrapper type for lock-free operations. Referenced in [Functions](/docs/language/functions-generators/#special-return-types).
 
-### Thread-Local Storage (`thread T`)
+### Thread-Local Variables
 
-Per-thread storage modifier. Referenced in [Functions](/docs/language/functions-generators/#special-return-types).
+See [Thread-Local Variables](/docs/language/variables/#thread-local-variables).
 
 ### Synchronization Primitives
 
@@ -10249,7 +10274,6 @@ fn get_tokens() -> yield string {
 - `yield some_value` coroutine syntax, function must have `-> yield T` return type
 - `fn op await (self) -> T` overloadable for custom async types
 - `atomic T` thread-safe wrapper type
-- `thread T` thread-local storage type
 
 ## See also
 
@@ -10326,6 +10350,75 @@ Exporting Kairo code as a C++ module interface unit (`.cppm`) is also planned bu
 - [Modules](/docs/language/modules/)
 - [Imports](/docs/language/imports/)
 - [Pointers](/docs/language/pointers/)
+- [Unsafe](/docs/language/unsafe/)
+
+---
+
+## Allocators
+URL: https://www.kairolang.org/docs/language/allocators/
+
+# Allocators
+
+Allocation goes through [`@create T()`](/docs/language/pointers/#heap-allocation) and `@destroy`; both route to the allocator in effect at that point. Three kinds exist, chosen by scope: **global**, **scoped** and **freestanding**.
+
+### Global allocator
+
+The default for [`@create T()`](/docs/language/pointers/#heap-allocation) and all standard-library heap operations. Overridable with `@mem::set_allocator(MyAllocator)` at the top of a file.
+
+**Intentional friction**: the override must appear at the top of *every file in the dependency graph* it affects. A library that sets a global allocator forces the annotation onto every transitive dependent. This keeps global-allocator changes visible and pushes library authors toward scoped allocators.
+
+### Scoped allocator
+
+An allocator with RAII semantics it frees everything it allocated when it leaves scope. Set with `@mem::set_scoped_allocator(MyAllocator)` on a function or block.
+
+```kairo
+@mem::set_scoped_allocator(ArenaAllocator)
+fn process_frame() {
+    var a = @create Mesh(vertices)
+    var b = @create Texture(pixels)
+    // freed wholesale when process_frame returns
+}
+```
+
+A pointer allocated through a scoped allocator that escapes the allocator's scope is [**Tier N**](/docs/language/tether-proof-model/#the-residual-table). The arena frees the memory at scope end; no smart pointer and no runtime check rescues a pointer to freed arena memory (and across threads, the free races the access). The escape increments the allocation's epoch at the scope close, so the escaping pointer fails C1 by the same machinery as any other dangling pointer. The only fix is restructuring: allocate through the global allocator, or move the scoped boundary outward.
+
+### Freestanding allocator
+
+A scoped-allocator variant for embedded and bare-metal targets, conforming through `static` functions only no indirection, no vtable. The compiler replaces `@create T()` with a direct static call plus placement construction. Tether treats freestanding allocators identically to scoped allocators for lifetime tracking; the difference is a codegen concern.
+
+---
+
+## The Allocator Interface
+
+A type passed to `@mem::set_allocator` or `@mem::set_scoped_allocator`, or used as a freestanding allocator, must satisfy `Allocator`. Conformance is [structural](/docs/language/interfaces/#structural-conformance) and goes through static functions only, so an allocator carries no instance state and no vtable:
+
+```kairo
+interface Allocator {
+    static fn alloc(size: usize, align: usize) -> unsafe *u8
+    static fn free(ptr: unsafe *u8, size: usize, align: usize)
+}
+```
+
+`realloc` is optional. An allocator that defines it with this signature has it used for growth; one that does not gets the default of `alloc` + copy + `free`:
+
+```kairo
+static fn realloc(ptr: unsafe *u8, old_size: usize, new_size: usize, align: usize) -> unsafe *u8
+```
+
+This is not the same thing as the `Heap` example on the Interfaces page. That is a [virtual interface](/docs/language/interfaces/#virtual-interfaces): instance-based, called through a pointer with dynamic dispatch. `Allocator` is static and resolved at compile time.
+
+---
+
+## Allocators and C++
+
+Exported Kairo classes carry class-specific `operator new` and `operator delete` that always bind to the global allocator, so C++ code can `new` and `delete` Kairo objects directly and a C++ global `operator new` override does not affect them. To route Kairo's own allocations through C++'s allocation path instead, set `core::CxxNewAllocator` as the global allocator. See [Allocators & Ownership](/docs/language/c-cpp-memory/) for the details.
+
+## See also
+
+- [Tether](/docs/language/tether/)
+- [Pointers](/docs/language/pointers/)
+- [Ownership](/docs/language/ownership/)
+- [Allocators & Ownership (C++)](/docs/language/c-cpp-memory/)
 - [Unsafe](/docs/language/unsafe/)
 
 ---
@@ -10893,7 +10986,7 @@ How `kcc` processes `#include "file.k"`, separate compilation, and the manual wo
 
 ### Headers
 
-Every module can emit a C++ header, the files given on the command line included; only a file outside every search directory has none. `--emit-headers <dir>` writes one per module at a path mirroring the [module path](/docs/language/modules/#module-paths-are-c-namespaces): `geo::vec` becomes `<dir>/geo/vec.hh`. A C++ file includes it the way Kairo would import it:
+Every module can emit a C++ header, the files given on the command line included; only a file outside every search directory and every library has none. `--emit-headers <dir>` writes one per module at a path mirroring the [module path](/docs/language/modules/#module-paths-are-c-namespaces): `geo::vec` becomes `<dir>/geo/vec.hh`. A C++ file includes it the way Kairo would import it:
 
 ```cpp
 #include "geo/vec.hh"      // Kairo: import geo::vec
@@ -10968,7 +11061,7 @@ Heap ownership crosses the boundary in both directions, using the mechanism C++ 
 
 ### Class-specific `operator new` and `operator delete`
 
-Every exported Kairo class carries its own allocation operators, bound to Kairo's [global allocator](/docs/language/tether/#global-allocator):
+Every exported Kairo class carries its own allocation operators, bound to Kairo's [global allocator](/docs/language/allocators/#global-allocator):
 
 ```cpp
 class MyKairoClass {
@@ -10988,7 +11081,7 @@ MyKairoClass *p = new MyKairoClass("hi");
 delete p;   // runs Kairo's destructor, then returns memory to Kairo's global allocator
 ```
 
-This works because Kairo emits the class, and therefore emits the [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators). `~MyKairoClass` performs Kairo's destruction semantics; C++'s `delete` merely sequences destructor-then-deallocate, which is the same pair of operations Kairo spells as [`delete obj`](/docs/language/tether/#delete-operation) followed by `@free`.
+This works because Kairo emits the class, and therefore emits the [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators). `~MyKairoClass` performs Kairo's destruction semantics; C++'s `delete` merely sequences destructor-then-deallocate, which is the same pair of operations Kairo spells as [`delete obj`](/docs/language/classes-lifecycle/#delete-does-not-free) followed by `@free`.
 
 Pointer parameters and return values stay raw `*T`. There is no wrapper type, no ABI change, and no cost at the call boundary.
 
@@ -10998,7 +11091,7 @@ A class-specific `operator new` takes precedence over a global replacement. A C+
 
 ### The operators bind to the *global* allocator, always
 
-Kairo's [scoped allocator](/docs/language/tether/#scoped-allocator) mechanism works by swapping the allocator the process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that indirection and address the global allocator directly.
+Kairo's [scoped allocator](/docs/language/allocators/#scoped-allocator) mechanism works by swapping the allocator the process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that indirection and address the global allocator directly.
 
 This matters. Consider a C++ `delete` that happens while a Kairo scoped allocator is active:
 
@@ -11031,7 +11124,7 @@ For code that wants Kairo's *own* allocations to follow C++'s allocation path, s
 @mem::set_allocator(core::CxxNewAllocator)
 ```
 
-This is the unusual case, not the default. The [intentional friction](/docs/language/tether/#global-allocator) rule applies: the annotation must appear at the top of every file in the affected dependency graph.
+This is the unusual case, not the default. The [intentional friction](/docs/language/allocators/#global-allocator) rule applies: the annotation must appear at the top of every file in the affected dependency graph.
 
 ### Ownership annotations in generated headers
 
@@ -11550,7 +11643,7 @@ fn op delete(self) = default   // compiler-generated, memberwise destroy in reve
 fn op delete(self) = delete    // prevent destruction (and therefore stack allocation)
 ```
 
-Destructors automatically run at the end of the enclosing scope in reverse declaration order. The delete operator can also be called explicitly to clean up a resource before the end of the scope - the recommended design pattern is to make the delete operator idempotent and safe to call multiple times:
+Destructors automatically run at the end of the enclosing scope in reverse declaration order. The delete operator can also be called explicitly to clean up a resource before the end of the scope. The recommended design is to make the delete operator idempotent: the first call runs the destructor and releases the resources the members own, and later calls have no effect, so an object can be deleted more than once without double deletion or dangling pointers:
 
 ```kairo
 class Resource {
@@ -11577,6 +11670,37 @@ delete r   // explicit cleanup
 r.set_new_handle(open_handle())   // safe: previous handle was released
 delete r   // safe: idempotent delete operator
 ```
+
+### `delete` does not free
+
+`delete` in kairo does not free memory. It is a **destruction operation** that runs the [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) and any side effects, but does not reclaim the allocation. Meaning if the class can be re-constructed with a separate function call, the memory is still valid and can be reused. The `delete` operation is used to explicitly clean up resources without deallocating the memory, which is useful in certain scenarios where you want to manage memory manually or reuse it.
+
+```kairo
+class MyClass {
+    var data: unsafe *i32 = &null
+
+    fn MyClass(self) = default
+
+    fn init(self) {
+        data = unsafe std::alloc<i32>(sizeof i32 * 10) // 10 i32's allocated
+    }
+
+    fn op delete(self) {
+        if data != &null {
+            unsafe std::free(data)
+            data = &null
+        }
+    }
+}
+
+var obj = MyClass() // stack allocated the object itself
+obj.init() // allocate the buffer data points to
+// do something with obj.data
+delete obj // runs obj's destructor, which frees the buffer; obj's own storage is not freed
+obj.init() // obj is still valid storage and can be re-initialized
+```
+
+What `delete` frees is whatever the destructor frees: here the buffer owned by the `data` member. The object `delete` is applied to is not freed; its storage stays valid.
 
 ---
 
@@ -13584,7 +13708,6 @@ These return type modifiers interact with Kairo's concurrency and type system. E
 |---|---|---|
 | `yield T` | Generator: produces a sequence of `T` values | [Generators](#generators) |
 | `atomic T` | Atomic wrapper thread-safe operations | [Concurrency](/docs/language/concurrency/) |
-| `thread T` | Thread-local storage | [Concurrency](/docs/language/concurrency/) |
 
 ## See also
 
@@ -14426,6 +14549,16 @@ class Config impl Defaultable {
 }
 ```
 
+Only the conforming type's own constructors count; a base class's constructors do not. A type that declares no constructor at all has the implicit one, so it satisfies a requirement with no parameters (`fn Defaultable(self)`) and nothing else. Built-in types such as `i32` and `bool` satisfy no constructor requirement, because `i32()` is not a call in Kairo; use `x as i32` to convert.
+
+Inside a generic body, `T(args)` constructs a `T` when one of `T`'s bounds has a constructor requirement taking that many arguments:
+
+```kairo
+fn <T impl Defaultable> fresh() -> T {
+    return T()
+}
+```
+
 ### Lifecycle attributes on constructor requirements
 
 Constructor requirements can carry `@copy` or `@move` attributes to require a specific lifecycle category. This is how you express "T must be copyable" or "T must be movable" as an interface bound:
@@ -15112,7 +15245,7 @@ class FileHandle {
 }
 ```
 
-See [Tether](/docs/language/tether/) for details on destruction order and allocator interaction.
+See [Tether](/docs/language/tether/#destruction-timing) for destruction timing and [Allocators](/docs/language/allocators/) for allocator interaction.
 
 ---
 
@@ -15484,7 +15617,7 @@ Every allocation carries a **generation** (an epoch) in its provenance fact. Any
 - scope exit of the owning binding
 - [ownership transfer](/docs/language/ownership/#transfer-semantics) (move) out of the owning binding
 - reallocation (e.g. a `Vec` growing its backing buffer)
-- the close of a [scoped allocator](/docs/language/tether/#scoped-allocator) that owns the allocation
+- the close of a [scoped allocator](/docs/language/allocators/#scoped-allocator) that owns the allocation
 
 A pointer value derived at epoch *e* records *e* in its provenance. Clause C1 requires `epoch(prov(p)) == live_epoch(alloc(prov(p)))` at the dereference. Statically, most epochs are provably equal there is no intervening freeing operation between derivation and use so C1 is `Proven` and emits nothing. When Tether cannot prove the epochs equal (a free *might* have happened on some path), C1 is residual:
 
@@ -15957,7 +16090,7 @@ The one exception: if a shared allocation is provably **read-only** for the enti
 
 4. **Captured-stack escape from a task Tier N always.** A pointer to the spawning frame's stack, captured into a task that can outlive the frame (detached, or awaited after the frame returns), is a hard error. Heap-lifting the value does not fix a cross-thread lifetime, so this is never promotable. The fix is capture-by-transfer (the task owns its copy) or an explicit heap allocation moved into the task.
 
-5. **What may cross the boundary.** A value captured by transfer has its ownership *fully* transferred the parent cannot touch it after the spawn. A value captured by address makes its allocation shared, subject to rules 1-3. A pointer into a [**scoped allocator**](/docs/language/tether/#scoped-allocator) cannot be captured into a task that outlives the allocator scope (Tier N the arena frees it, and the free also races the task). A [`NON_TRANSFER`](/docs/language/ownership/#non_transfer-types) type cannot be transfer-captured into a task at all (nothing to transfer); it may only be shared read-only by address.
+5. **What may cross the boundary.** A value captured by transfer has its ownership *fully* transferred the parent cannot touch it after the spawn. A value captured by address makes its allocation shared, subject to rules 1-3. A pointer into a [**scoped allocator**](/docs/language/allocators/#scoped-allocator) cannot be captured into a task that outlives the allocator scope (Tier N the arena frees it, and the free also races the task). A [`NON_TRANSFER`](/docs/language/ownership/#non_transfer-types) type cannot be transfer-captured into a task at all (nothing to transfer); it may only be shared read-only by address.
 
 6. **`await` re-establishes facts.** `await` is a happens-before edge. After it, the joined task's writes are visible and ordered, its captured pointers are released, and the allocations it touched return to single-threaded analysis. An allocation that was demoted to "shared, read-only" inside the extent may be a normal mutable `*T` again after the `await` that joins its only other accessor. Strict mode is scoped to the extent, not sticky for the rest of the program.
 
