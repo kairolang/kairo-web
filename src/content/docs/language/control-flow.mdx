@@ -585,7 +585,7 @@ See [Functions](/docs/language/functions/) for return type syntax and [Type Syst
 
 ```kairo
 if ptr != null && *ptr == 42 {
-    // safe: *ptr is only evaluated if ptr is non-null
+    // safe: *ptr is only evaluated if ptr (a *i32?) is non-null, so ptr is narrowed there
 }
 ```
 

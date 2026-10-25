@@ -88,7 +88,7 @@ fn process(animal: *Animal) panic {
 }
 ```
 
-**Checked downcast** returns a [nullable pointer](/docs/language/nullables/#pointers-and-nullability) `*Derived?`, which is null if the runtime type does not match:
+**Checked downcast** returns a [nullable pointer](/docs/language/nullables/#pointers-and-nullability) `*Derived?` (a nullable pointer, `(*Derived)?`), which is null if the runtime type does not match:
 
 ```kairo
 fn process(animal: *Animal) {
