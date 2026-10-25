@@ -249,7 +249,7 @@ See [Primitives](/docs/language/primitives/#void) for details.
 
 ## Nullable Types in the Type System
 
-`T?` is syntactic sugar for the compiler-intrinsic `Nullable<T>` tagged union. `Nullable` is not directly usable as a type name use the `?` suffix:
+`T?` is syntactic sugar for the built-in `Nullable<T>`, which holds a `T` or `null` (the one value of the empty type `null_t`). It is constructed only from a `T` or from `null`, which is what the implicit conversions `T` to `T?` and `null` to `T?` do. `Nullable` is not directly usable as a type name use the `?` suffix:
 
 ```kairo
 var x: i32? = 42

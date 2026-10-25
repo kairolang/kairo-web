@@ -35,6 +35,7 @@ Stage 1 is built from source for now; prebuilt downloads come with the first rel
 | Yielding a literal from a generator (`yield 7`) | Fails in the C++ step | Yield a variable: `var v = 7` then `yield v` |
 | `eval` at file scope, or an `eval` constant used as an array length | Not compiled yet | Put `eval` constants and `eval fn` inside a `module`; use a literal for array lengths |
 | `await`, `spawn` and `thread` | Can be declared as operators, but do nothing yet | - |
+| [Nullables](/docs/language/nullables/) (`T?`, `null`, `x?`, `== null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, `match` on a `T?`) | `T?` and `null` compile: a `T?` is `::builtin::Nullable<T>` in C++, and a value or `null` converts into one anywhere a `T?` is expected (including `*T?`, a nullable pointer `(*T)?`, and nested `(T?)?`). Nothing reads one back yet: `??` type-checks but does not compile, and `T? -> U?` between different inner types fails in the C++ compiler. The null test `x?` is rejected with SC066E, `unwrap!` as an unknown macro, and `var x? = e` does not parse. [Narrowing](/docs/language/nullables/#narrowing) is not implemented, so a checked nullable does not yet read as its `T` | - |
 
 ---
 
