@@ -21,7 +21,7 @@ Stage 1 is built from source for now; prebuilt downloads come with the first rel
 | Map literals `{k: v}` | Not compiled | - |
 | Initializing a `const` field in a constructor | Not supported | - |
 | Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
-| Associated types (`type Node` in an interface) | Not parsed yet | - |
+| Associated types (`type Node` in an interface) | Parsed, with bounds and defaults; not compiled yet (`Self::Node` and `T::Node` don't resolve, and conformers don't supply them) | - |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | - |
