@@ -104,9 +104,13 @@ pub class ParseError {
         self.message = msg
         self.position = pos
     }
+
+    fn op panic (const self) -> string {
+        return f"{self.message} (line {self.position})"
+    }
 }
 
-pub fn parse_request(raw: string) panic -> Request {
+pub fn parse_request(raw: string) panic(ParseError) -> Request {
     var lines = raw.split("\r\n")
 
     if lines.length() == 0 {
@@ -155,7 +159,8 @@ Key patterns:
 - `Method` is a plain enum with behavior added via `extend`
 - `Header` is a struct: plain data, no constructor needed
 - `Request` is a class with private state (`query_params`) and public accessors
-- `parse_request` uses `panic` for error signaling; callers must handle `ParseError`
+- `ParseError` is an error type. Any movable type can be one; it also defines the optional `op panic`, the message shown when the error is displayed
+- `parse_request` uses `panic` for error signaling; as a `pub` function it declares its set, `panic(ParseError)`, so callers know exactly what to handle
 - `get_header` returns `string?` for safe nullable access
 
 ---
@@ -276,7 +281,19 @@ import std
 import request::{Request, Method}
 import response::Response
 
-pub type Handler = fn(*Request) panic -> Response
+pub class HandlerError {
+    pub var message: string
+
+    fn HandlerError(self, msg: string) {
+        self.message = msg
+    }
+
+    fn op panic (const self) -> string {
+        return self.message
+    }
+}
+
+pub type Handler = fn(*Request) panic(HandlerError) -> Response
 
 struct Route {
     var method: Method
@@ -290,7 +307,7 @@ pub class Router {
 
     fn Router(self) {
         self.routes = []
-        self.not_found_handler = fn (req: *Request) panic -> Response {
+        self.not_found_handler = fn (req: *Request) -> Response {
             return Response::not_found()
         }
     }
@@ -333,7 +350,8 @@ pub class Router {
 
 Key patterns:
 
-- `Handler` is a type alias for a function pointer that takes a request and may panic
+- `Handler` is a type alias for a function pointer that takes a request and may panic with a `HandlerError`; a function type must declare its panic set
+- A handler that never panics (like the default not-found closure) converts to `Handler` as it is
 - `Route` is a struct: plain data with aggregate init
 - `Router` uses method chaining for registration
 - `resolve` is `const`: routing does not mutate the router
@@ -350,6 +368,18 @@ import std
 import request::{parse_request, Request, ParseError}
 import response::Response
 import router::Router
+
+pub class BindError {
+    pub var port: i32
+
+    fn BindError(self, port: i32) {
+        self.port = port
+    }
+
+    fn op panic (const self) -> string {
+        return f"failed to bind to port {self.port}"
+    }
+}
 
 ffi "c++" import "socket_api.hh" as net
 
@@ -368,11 +398,11 @@ pub class Server {
         return &self.router
     }
 
-    pub fn start(self) panic {
+    pub fn start(self) panic(BindError) {
         var listener = net::tcp_listen(self.port)
 
         if listener < 0 {
-            panic std::Error::IO(f"failed to bind to port {self.port}")
+            panic BindError(self.port)
         }
 
         finally {
@@ -410,7 +440,6 @@ pub class Server {
             (try handler(&req) catch => Response::internal_error())
         })
             catch e: ParseError => Response::bad_request(e.message)
-            catch => Response::internal_error()
 
         net::tcp_write(fd, response.serialize())
     }
@@ -422,7 +451,7 @@ Key patterns:
 - `ffi "c++" import` brings in socket operations; no unsafe block is needed because `tcp_listen`, `tcp_accept`, etc. take and return value types (`i32`, `string`), not raw pointers
 - `finally` blocks ensure sockets are closed on all exit paths (normal, panic, early return)
 - `try`/`catch` is used in expression form to produce a `Response` on both success and failure
-- Nested `try`/`catch`: the outer one handles parse errors, the inner one handles handler panics
+- Nested `try`/`catch`: the outer one handles parse errors, the inner one handles handler panics. The outer `try` needs no catch-all: `ParseError` is the only error left in its body, and an arm for a type the body can't panic with would only draw a warning
 - `handle_client` is `priv` (an internal implementation detail)
 
 ---
@@ -434,21 +463,21 @@ Key patterns:
 ```kairo
 // main.k
 import std
-import server::Server
+import server::{Server, BindError}
 import request::{Request, Method}
 import response::{Response, StatusCode}
 
-fn handle_index(req: *Request) panic -> Response {
+fn handle_index(req: *Request) -> Response {
     return Response::ok()
         .json("{\"status\": \"running\"}")
 }
 
-fn handle_health(req: *Request) panic -> Response {
+fn handle_health(req: *Request) -> Response {
     return Response::ok()
         .text("ok")
 }
 
-fn handle_echo(req: *Request) panic -> Response {
+fn handle_echo(req: *Request) -> Response {
     if req->method != .Post {
         return Response(StatusCode::MethodNotAllowed)
             .text("POST only")
@@ -466,25 +495,23 @@ fn main() {
     r->get("/", handle_index)
     r->get("/health", handle_health)
     r->post("/echo", handle_echo)
-    r->fallback(fn (req: *Request) panic -> Response {
+    r->fallback(fn (req: *Request) -> Response {
         return Response::not_found()
     })
 
     try {
         srv.start()
-    } catch e: std::Error::IO {
-        std::println(f"server error: {e}")
-    } catch {
-        std::println("unexpected error")
+    } catch e: BindError {
+        std::println(f"server error: cannot bind to port {e.port}")
     }
 }
 ```
 
 Key patterns:
 
-- Handlers are plain functions passed as function pointers
+- Handlers are plain functions passed as function pointers; none of these panic, so each converts to `Handler` (a function that doesn't panic converts to any panicking function type)
 - The fallback handler is an inline closure
-- `main` handles all panics from `srv.start()`, so no unhandled errors escape
+- `main` handles every panic from `srv.start()`: `main` can never panic, so an error left unhandled there would be a compile error
 
 ---
 

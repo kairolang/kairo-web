@@ -164,11 +164,16 @@ A match guard that fails causes the arm to be skipped and evaluation continues t
 `where` clauses and [`panic`](/docs/language/panic/) are orthogonal. `where` selects which overload runs based on a runtime condition. `panic` signals an error from within a function body. They can coexist:
 
 ```kairo
+struct ConnectError {
+    var host: string
+    fn op panic (const self) -> string { return f"cannot connect to {self.host}" }
+}
+
 fn connect(host: string, port: i32) panic -> Connection
   where port > 0 && port <= 65535 {
     var conn = tcp_connect(host, port)
     if !conn.is_valid() {
-        panic std::Error::IO("connection failed")
+        panic ConnectError { host: host }
     }
     return conn
 }
@@ -178,6 +183,8 @@ fn connect(host: string, port: i32) -> Connection {
     return Connection::invalid()
 }
 ```
+
+Overloads in one `where` group may differ in `panic`. A call through the group may reach any of them, so its panic set is the union of the candidates' sets: a call to `connect` must handle `ConnectError` even though the fallback never panics.
 
 ---
 
@@ -244,10 +251,15 @@ fn classify(temp: f64) -> string where temp > 0.0   { return "liquid" }
 fn classify(temp: f64) -> string                     { return "frozen" }
 
 // Where with panic
+struct NotPositive {
+    var value: i32
+    fn op panic (const self) -> string { return f"{self.value} is not positive" }
+}
+
 fn parse_positive(input: string) panic -> i32
   where input.length() > 0 {
     var n = std::parse<i32>(input)
-    if n <= 0 { panic std::Error::Runtime("not positive") }
+    if n <= 0 { panic NotPositive { value: n } }
     return n
 }
 

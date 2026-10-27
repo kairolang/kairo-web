@@ -94,9 +94,10 @@ The `compile_` prefix keeps these distinct from runtime logging: `compile_error!
 | `embed_str!(path)` | File contents as a string literal |
 | `embed!(path)` | File contents as a byte array (`[byte]`) |
 | `unique_id!` / `unique_id!(tag)` | Generate a unique identifier |
-| `todo!(msg)` | Runtime panic placeholder with optional message |
-| `unreachable!(msg)` | Assert a code path is unreachable (panics if reached) |
+| `todo!(msg)` | Placeholder that crashes at runtime, with an optional message |
+| `unreachable!(msg)` | Assert a code path is unreachable (crashes if reached) |
 | `unreachable_unchecked!` | Optimizer hint: path is dead (UB if reached) |
+| `crash!()` / `crash!(msg)` | End the process: write `msg` (if given) and a newline to stderr, then abort. Never returns |
 
 ```kairo
 // Embed a shader as a string
@@ -111,7 +112,9 @@ fn process() -> Config {
 }
 ```
 
-`todo!()` and `unreachable!()` are SAFE: both [panic](/docs/language/panic/) at runtime if reached, with `unreachable!()` signaling a logic error rather than missing code. `unreachable_unchecked!()` is the unsafe variant: it is a hard assertion to the optimizer that the path is dead, and reaching it at runtime is undefined behavior. Reach for `unreachable_unchecked!` only when the panic branch of `unreachable!` shows up in a profile.
+`todo!()` and `unreachable!()` are SAFE: both crash at runtime if reached, like [`crash!()`](/docs/language/panic/#main-and-crash) (neither is a [panic](/docs/language/panic/): they join no panic set, so `fn process() -> Config { todo!(...) }` needs no `panic` specifier), with `unreachable!()` signaling a logic error rather than missing code. `unreachable_unchecked!()` is the unsafe variant: it is a hard assertion to the optimizer that the path is dead, and reaching it at runtime is undefined behavior. Reach for `unreachable_unchecked!` only when the crash branch of `unreachable!` shows up in a profile.
+
+`crash!` is not a compiler intrinsic: it is an ordinary `pub macro` declared in the builtin library, and every file sees it without an import, the way it sees the builtin types. It expands to a call to a function that returns [`!`](/docs/language/panic/#panic-and-no-return-), so the compiler knows nothing after it runs: a function returning `T` may end in `crash!()` with no `return` after it. Like `todo!()`, it is not a [panic](/docs/language/panic/): it joins no panic set and no `try` catches it, and `main` may call it. Because it is a library macro rather than a reserved name, a macro named `crash!` that a file declares or imports itself takes precedence. What it reports before aborting is not final; rely only on the fact that it does not return.
 
 Untagged, `unique_id!` produces a fresh identifier on every invocation. The tagged form `unique_id!(tag)` is stable within one dynamic macro expansion: every `unique_id!(guard)` inside the same expansion instance yields the SAME identifier, letting a macro body refer to one generated name in several places, while separate invocations of the macro still get distinct names.
 

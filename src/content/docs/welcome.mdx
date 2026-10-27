@@ -23,8 +23,8 @@ fn main() {
  
     try {
         engine::run(ctx)
-    } catch e: std::Error::Runtime {
-        std::println(f"engine failed: {e}")
+    } catch e: cxx::std::exception {
+        std::println(f"engine failed: {e.what()}")
     }
 }
 ```
@@ -78,11 +78,16 @@ fn try_parse_point(input: string) -> ParseResult<Point> {
     return ParseResult::Ok { value: Point { x: x, y: y } }
 }
 
+struct ConfigError {
+    var message: string
+    fn op panic (const self) -> string { return self.message }
+}
+
 fn load_config(path: string) panic -> Point {
     var content = std::read_file(path)
 
     if content.length() == 0 {
-        panic std::Error::IO("config file is empty")
+        panic ConfigError { message: "config file is empty" }
     }
 
     match try_parse_point(content) {
@@ -90,7 +95,7 @@ fn load_config(path: string) panic -> Point {
             return value
         }
         case .Error(var message) {
-            panic std::Error::Runtime(message)
+            panic ConfigError { message: message }
         }
     }
 }

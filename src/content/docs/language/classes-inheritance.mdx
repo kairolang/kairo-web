@@ -191,6 +191,8 @@ shape->area()   // 78.539... dynamic dispatch
 
 `virtual` creates a vtable slot. `override` in the derived class replaces the entry in that slot. A class only has a vtable pointer (8 bytes at offset 0) if it declares or inherits at least one `virtual` method. Non-polymorphic classes have no vtable overhead.
 
+A `virtual` method that may [panic](/docs/language/panic/) must declare its panic set (`virtual fn load(self) panic(IOError) -> Data`), since it is the contract for every override. An `override` may leave its own set inferred, but that set must be a subset of the base method's. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
+
 ### Abstract classes (pure virtual)
 
 A `virtual` method declared with no body is pure virtual: it must be overridden by any non-abstract derived class:

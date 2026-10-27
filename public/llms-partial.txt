@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-27T01:42:09.754Z
+> Generated: 2026-10-27T13:30:26.490Z
 
 ---
 
@@ -34,8 +34,8 @@ fn main() {
  
     try {
         engine::run(ctx)
-    } catch e: std::Error::Runtime {
-        std::println(f"engine failed: {e}")
+    } catch e: cxx::std::exception {
+        std::println(f"engine failed: {e.what()}")
     }
 }
 ```
@@ -89,11 +89,16 @@ fn try_parse_point(input: string) -> ParseResult<Point> {
     return ParseResult::Ok { value: Point { x: x, y: y } }
 }
 
+struct ConfigError {
+    var message: string
+    fn op panic (const self) -> string { return self.message }
+}
+
 fn load_config(path: string) panic -> Point {
     var content = std::read_file(path)
 
     if content.length() == 0 {
-        panic std::Error::IO("config file is empty")
+        panic ConfigError { message: "config file is empty" }
     }
 
     match try_parse_point(content) {
@@ -101,7 +106,7 @@ fn load_config(path: string) panic -> Point {
             return value
         }
         case .Error(var message) {
-            panic std::Error::Runtime(message)
+            panic ConfigError { message: message }
         }
     }
 }
@@ -744,7 +749,7 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
 - **Itanium C++ ABI** on every triple except `*-windows-msvc`, including `*-windows-gnu`.
 - **MSVC C++ ABI** on `*-windows-msvc` triples.
 - Name mangling follows whichever C++ ABI the triple selects. Kairo functions exported across the FFI boundary use C++ name mangling to support overloading and seamless interop with Clang-compiled C++ code. Explicit `ffi "C"` linkage (no mangling) is only used for C interop or when specifically requested.
-- Kairo never throws: panics are returned as tagged union values, and a Kairo `try`/`catch` around a Kairo call lowers to a `match` on that union.
+- Kairo never throws: panics are returned as tagged union values, and a Kairo `try`/`catch` around a Kairo call lowers to one tag compare per `catch` arm on that union.
 - A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems) using the standard unwind tables (`.eh_frame` / `__eh_frame`). Every Kairo function is `noexcept` unless marked `@unwind` (or built with `-funwind`), so a C++ exception that reaches a Kairo frame calls `std::terminate` unless that frame lets it through. A Kairo `try`/`catch` can catch one that every frame below it lets through.
 - Virtual dispatch into C++ classes works without special handling because Kairo lowers method calls on C++ objects directly to Clang, which handles vtable dispatch normally.
 - C++ smart pointers (`std::unique_ptr<T>`, `std::shared_ptr<T>`, `std::weak_ptr<T>`) map to Kairo's Tether-tracked equivalents (`std::Unique<T>`, `std::Shared<T>`, `std::Weak<*T>`) automatically. No `unsafe` block is required for FFI calls using smart pointers, references, move references, or value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe` block.
@@ -835,30 +840,41 @@ Stage 1 is built from source for now; prebuilt downloads come with the first rel
 | Associated types (`type Node` in an interface) | Parsed, with bounds and defaults; not compiled yet (`Self::Node` and `T::Node` don't resolve, and conformers don't supply them) | - |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
-| A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | - |
 | An initializer on an array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 | Struct destructuring (`var {a, b} = s`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Read the fields one by one: `var a = s.a` |
 | Functions, classes and enums declared inside a function body | Not compiled yet (a local `struct` works) | Declare them at file scope |
+| In a [script](/docs/language/modules/#scripts): a top-level variable of nullable type whose initializer is not a constant (`var g: i32? = find()`), and top-level destructuring (`var (a, b) = pair()`) | Rejected (`... is not supported yet`) | `var g: i32? = null`, then `g = find()` on the next line; destructure inside a function |
+| Top-level statements in an imported module (module initialization) | Rejected: only the file the program starts from runs top-level statements | Put the code in a function and call it from the script |
 | `for ... in` over Kairo vectors, sets, maps and strings | Not supported yet | Loop over a slice, an array or a range |
 | Yielding a literal from a generator (`yield 7`) | Fails in the C++ step | Yield a variable: `var v = 7` then `yield v` |
 | `eval for` directly in a `module` or class body | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use an `eval for` in a function body |
+| In an `eval for`: a label (`outer: eval for ...`), a `return` of a class or struct value from inside the loop, iterating an array whose length is a generic value parameter, and using the loop variable as an array length or generic argument | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) (the loop variable: an error) | Return after the loop; test the variable with `eval if` |
 | An `eval if` branch that is valid only for some instantiations of a generic (`eval if typeof T == i32 { return int_to_bytes(value) }`) | Both branches are type-checked against the bounds | Use [overloads](/docs/language/functions-overloading/) |
+| Strings, vectors, sets and maps at compile time (`eval NAME = "Kairo"`, a `string` parameter of an `eval fn`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use a `const` for a string; integers, floats, `bool`, `char`, arrays and tuples are evaluable |
+| An array length or generic argument computed from a generic value parameter (`[T; N + 1]`, `Buf<N * 2>`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use the parameter itself, or add a second parameter |
+| A generic value parameter of a non-integer type (`<eval B: bool>`, `<eval C: Config>`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use an integer parameter |
+| A generic class's `requires` predicate that names an `eval` constant or `eval fn` (`class <T> B requires sizeof T <= LIMIT`) | Accepted and not checked (a predicate of the class's own parameters, literals and `sizeof` is checked) | Write the limit as a literal in the class's clause, or check it in a constructor's `requires` |
 | An array length computed by a call (`[i32; size()]`, or an `eval` constant whose initializer calls an `eval fn`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use a literal, `eval` constants, or arithmetic over them |
 | `await`, `spawn` and the `thread` expression (`thread work()`) | Can be declared as operators, but do nothing yet. (A [`thread` variable](/docs/language/variables/#thread-local-variables) is a different construct and is compiled.) | - |
 | Catching a C++ exception in a Kairo `try`/`catch` (`catch e: cxx::std::exception`) | Fails with an internal compiler error | Catch it in C++, above an `@unwind` Kairo frame |
+| [Panic](/docs/language/panic/) (`panic`, `try`/`catch`/`finally` around a panicking call, the C++ view `::builtin::value_or_throw`) | Checked, not compiled. Panic sets are inferred and checked: an unhandled panicking call, a type outside a declared set `panic(E1, E2)`, `fn main() panic`, a panic reaching `main`, `panic` with `-> !`, and a type that cannot be panicked are all reported. Not checked yet: a bare `panic` where a set is required, the subset rules, and catch arms (a missing or dead arm). A call through a `fn` value is not seen as panicking yet. Not supported ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): panics in generic functions, generators and `async` functions. Code generation fails with an internal compiler error on every `panic`. `op panic` is accepted and compiled, but nothing calls it yet. `crash!()` works | Return a status or an [ADT enum](/docs/language/enums-adt/) result instead |
+| [Variadic enums](/docs/language/enums-adt/#variadic-enums) (`enum <T, ...E>`, pack-expanded variants `V { ... }...`) and [generic variadic functions](/docs/language/functions-parameters/#generic-variadic-functions) | Compile: pack parameters, forwarding with `...`, `for` over a pack, packs in class and base arguments, and pack-expanded variants built and matched by payload type. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) or a not-viable call): writing a pack's types as generic arguments (`f<i32, bool>(...)`), a pattern over a pack (`Box<T>...`), a pack-expanded field typed other than the pack itself (`e: *E`), building or matching a pack-expanded variant in a generic function, and a `return` from inside a `for` over a pack in a function whose return type has no default constructor. A partial specialization whose pattern holds a pack (`Traits<Box<T>, Args...>`) is ignored | Pass the types through arguments; build and match the variant where its type is concrete |
+| The checked `as` into a [closed enum](/docs/language/enums-plain/#closed-and-open-enums), and `unwrap!()`, in a file-scope initializer (`var c = f() as Color` outside a function) | Fails in the C++ compiler ("statement expression not allowed at file scope"); a constant operand is checked at compile time and works | Initialize the variable from a function, or with a constant |
+| `n as E?` from an integer into a nullable plain enum | Fails in the C++ compiler | Assign `n as E` to an `E?` instead |
+| The [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) `p as *D` | Compiles with no runtime check and no warning: a wrong type is not caught | Use the checked downcast `p as *D?` and test the result |
 | `@unwind` on a closure | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) (it parses as an expression attribute) | Use a named `@unwind` function, or build with `-funwind` |
 | Attributes on expressions, including heap allocation with `@create T(args)` | Parsed; rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | - |
-| [`where` guards](/docs/language/where/) on functions | Compile on free functions and methods (methods of generic classes too), with the fallback, priority order, coverage and the unreachable / overlap warnings. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator or constructor, an out-of-line method definition, a forward declaration, a generator, an `async` or `eval` function, a variadic function, or an overload with default arguments. An `unsafe` overload beside them is rejected (R039E): unsafe overloads cannot coexist with safe ones yet | Test the condition with an `if` inside one function |
+| [`where` guards](/docs/language/where/) on functions | Compile on free functions and methods (methods of generic classes too), with the fallback, priority order, coverage and the unreachable / overlap warnings. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator or constructor, an out-of-line method definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with default arguments. An `unsafe` overload beside them is rejected (R039E): unsafe overloads cannot coexist with safe ones yet | Test the condition with an `if` inside one function |
 | [`typeof`](/docs/language/type-system/#typeof-identity-semantics), as a type (`var y: typeof x`) or as a value | The compiler crashes (an internal error) | Write the type out |
 | [Closures](/docs/language/closures/) and lambdas (`fn () { ... }` as a value) | Compile, with every capture mode (by copy, `\|*\|`, `\|*x\|`, `\|const *x\|`, mixed, `\|\|`), stored in a `fn` variable or field, passed, returned and nested. One that captures nothing can be passed where a C function pointer is expected. Not yet: generic closures (`fn <T>(x: T)`) are rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported); a closure's default parameter values are dropped, so a call must pass every argument; `async` on a closure is ignored (it runs as a plain closure). Copying a closure that holds a moved-in MOVE value stops the program, and so does passing a closure that captures where a C function pointer is expected | Use a named generic function; pass every argument; capture a MOVE value by pointer (`\|*x\|`) when the closure is copied |
-| [Nullables](/docs/language/nullables/) (`T?`, `null`, `x?`, `== null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, `match` on a `T?`) | `T?` and `null` compile: a `T?` is `::builtin::Nullable<T>` in C++, and a value or `null` converts into one anywhere a `T?` is expected (including `*T?`, a nullable pointer `(*T)?`, and nested `(T?)?`). `var x? = e`, the null test `x?`, `== null` / `!= null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, a `match` on a `T?` and the checked downcast `p as *D?` compile. [Narrowing](/docs/language/nullables/#narrowing) works: a checked nullable reads as its `T`, through conditions, early exits, loops, `match` arms, `@inout` and mutable-`self` calls, pointers and closures, and an unchecked read is a compile error. Not yet: every `T?` stores its value and a presence flag, so `*T?` is not one pointer wide and `bool?` not one byte; `T? -> U?` between different inner types fails in the C++ compiler; a nullable reached through `->` or a subscript is not narrowed by a check; a checked downcast from a nullable pointer (`maybe_animal as *Dog?`) is rejected; in a generic function, `===` on a `T?` compares addresses when `T` turns out to be a pointer (only a written `*T?` compares what it points to) | Copy a nullable reached through `->` or a subscript to a local before checking it; test a nullable pointer before downcasting it (`if a? { a as *Dog? }`) |
+| [Nullables](/docs/language/nullables/) (`T?`, `null`, `x?`, `== null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, `match` on a `T?`) | `T?` and `null` compile: a `T?` is `::builtin::Nullable<T>` in C++, and a value or `null` converts into one anywhere a `T?` is expected (including `*T?`, a nullable pointer `(*T)?`, and nested `(T?)?`). `var x? = e`, the null test `x?`, `== null` / `!= null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, a `match` on a `T?` and the checked downcast `p as *D?` compile. [Narrowing](/docs/language/nullables/#narrowing) works: a checked nullable reads as its `T`, through conditions, early exits, loops, `match` arms, `@inout` and mutable-`self` calls, pointers and closures, and an unchecked read is a compile error. Not yet: `bool?` is not one byte (a `bool` has no spare value the compiler uses yet); `T? -> U?` between different inner types fails in the C++ compiler; a nullable reached through `->` or a subscript is not narrowed by a check; a checked downcast from a nullable pointer (`maybe_animal as *Dog?`) is rejected; in a generic function, `===` on a `T?` compares addresses when `T` turns out to be a pointer (only a written `*T?` compares what it points to) | Copy a nullable reached through `->` or a subscript to a local before checking it; test a nullable pointer before downcasting it (`if a? { a as *Dog? }`) |
 
 ---
 
 ## Checked by C++, Not by Kairo
 
-Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo diagnostic. The C++ step is also stricter than Kairo: a free function in the class's own module that reads a `priv` member is rejected, although [visibility](/docs/language/classes/#visibility) is module-wide and allows it. This covers `priv` constructors and assignments to a `const` variable (`const x: i32? = 42` then `x = null`, or to a `static const` / `thread const`): `--type-check-only` does not report the last.
+Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo diagnostic. The C++ step is also stricter than Kairo: a free function in the class's own module that reads a `priv` member is rejected, although [visibility](/docs/language/classes/#visibility) is module-wide and allows it. This covers `priv` constructors and assignments to a `const` variable (`const x: i32? = 42` then `x = null`, or to a `static const` / `thread const`): `--type-check-only` does not report the last. One case is caught by neither: an assignment to a top-level `const` of a [script](/docs/language/modules/#scripts) whose initializer is not a constant (`const LIMIT = load()` then `LIMIT = 6`) compiles and runs.
 
 ---
 
@@ -889,6 +905,7 @@ A [closure](/docs/language/closures/#tether-and-lifetime-safety) that captures a
 - [Tether](/docs/language/tether/), Kairo's memory-safety system, is not part of the alpha. Using a moved-from value is already a compile error; the rest of Tether's checks come later.
 - Some generic code is checked less strictly than it will be in 1.0.
 - The standard library is minimal: printing goes through `std::io::println`.
+- A program cannot read its command-line arguments yet: `main` takes no parameters, and `sys::args` (for scripts and programs alike) is planned.
 - Objective-C headers cannot be imported with `ffi` yet; C and C++ headers can. Plain C and Objective-C files cannot `#include` a `.k` file yet; C++ and Objective-C++ files can.
 
 ---
@@ -1218,7 +1235,7 @@ var point: (f64, f64) = (1.0, 2.0)                    // tuple
 
 // Function pointer
 fn add(a: i32, b: i32) -> i32 { return a + b }
-var #op: fn (i32, i32) -> i32 = add
+var f: fn (i32, i32) -> i32 = add
 ```
 
 ---
@@ -1272,6 +1289,26 @@ var y: string = "Hello, World!"
 ```
 
 Multi-variable declarations on a single line are not supported. Each binding gets its own statement.
+
+---
+
+## Identifiers
+
+An identifier is a run of letters, digits, `_`, `#` and any non-ASCII (UTF-8) characters, and it cannot begin with a digit. `#` has no special meaning: it is an ordinary name character, valid at the start, in the middle or at the end of a name, as many times as you like. There is no length limit.
+
+```kairo
+var count = 0
+var größe = 12
+var item#2 = "second"
+var a#b##c__42 = true
+```
+
+Keywords are spelled only with ASCII letters, digits and `_`, so a name containing `#` (or any non-ASCII character) is never a keyword. That makes `#` a convenient way to use a keyword's spelling as a name: `#op`, `#match` and `#type` are plain identifiers. Each is its own name, distinct from the keyword and from any other spelling: `#op` and `op#` are two different variables, and you write the `#` every time you use one.
+
+```kairo
+var #type: string = "circle"
+std::println(#type)
+```
 
 ---
 
@@ -2333,19 +2370,31 @@ try {
 }
 ```
 
-Catch blocks can filter by specific error types. The compiler checks exhaustiveness against the set of panic types declared by the called functions:
+Catch blocks can filter by specific error types. An error type is any movable type; it may define [`op panic`](/docs/language/operator-overloading/#op-panic) to give itself a message. The compiler checks exhaustiveness against the panic sets of the called functions:
 
 ```kairo
+struct IOError {
+    var path: string
+    fn op panic (const self) -> string { return f"cannot read {self.path}" }
+}
+
+struct ParseError {
+    var line: i32
+    fn op panic (const self) -> string { return f"parse error on line {self.line}" }
+}
+
+fn load_data(path: string) panic(IOError, ParseError) -> Data { /* ... */ }
+
 try {
-    read_file("data.txt")
-} catch e: std::Error::IO {
-    std::println(f"IO error: {e}")
-} catch e: std::Error::Runtime {
-    std::println(f"Runtime error: {e}")
+    load_data("data.txt")
+} catch e: IOError {
+    std::println(f"IO error: cannot read {e.path}")
+} catch e: ParseError {
+    std::println(f"parse error on line {e.line}")
 }
 ```
 
-A bare `catch` (no type) acts as a catch-all and satisfies exhaustiveness for any remaining types.
+A bare `catch` (no type) acts as a catch-all and satisfies exhaustiveness for any remaining types. Each typed arm catches exactly its type, with no subtyping between error types; an arm for a type the body cannot panic with is a warning. See [Panic](/docs/language/panic/#arms-match-exact-types).
 
 ### `try`/`catch` as an expression
 
@@ -2393,7 +2442,7 @@ The last arm of a `try` extends as far right as it can, like the last arm of an 
 try {
     acquire_resource()
     do_work()
-} catch e: std::Error::Runtime {
+} catch e: IOError {
     handle_error(e)
 } finally {
     release_resource()   // always executes
@@ -2464,7 +2513,7 @@ The `-fassert-mode` compiler flag replaces the default failure behavior:
 
 | Mode | Behavior |
 |---|---|
-| `panic`  | Panics with the provided message or a generated diagnostic |
+| `crash`  | Crashes with the provided message or a generated diagnostic: prints it with the source location and terminates, like [`crash!()`](/docs/language/panic/#main-and-crash). A failed assert is never a [panic](/docs/language/panic/): it joins no panic set and cannot be caught |
 | `return` | Returns a default-constructed value of the function's return type |
 | `log` | Logs the assertion failure and continues execution |
 
@@ -2477,18 +2526,22 @@ Asserts cannot appear at file scope they are only valid inside function bodies.
 
 ## `panic`
 
-`panic` is a statement that triggers an unrecoverable error in the current function. Functions that can panic must be annotated with the `panic` specifier in their signature, and the compiler enforces that callers handle the panic via `try`/`catch`.
+`panic` is a statement that raises an error from the current function: the function returns the error to its caller instead of a value. Functions that can panic must be annotated with the `panic` specifier in their signature, and the compiler enforces that callers handle the panic via `try`/`catch` or propagate it. The value panicked can be of any movable type (see [Error Types](/docs/language/panic/#error-types)).
 
 ```kairo
+struct DivideByZero {
+    fn op panic (const self) -> string { return "division by zero" }
+}
+
 fn divide(a: i32, b: i32) panic -> i32 {
     if b == 0 {
-        panic std::Error::Runtime("division by zero")
+        panic DivideByZero {}
     }
     return a / b
 }
 ```
 
-See [Panic](/docs/language/panic/) for the full panic model, including `Panickable<T>`, desugaring semantics, and the zero-cost codegen strategy.
+A panic never stops the program: an error can't reach `main` unhandled. To stop the program, use `crash!()`. See [Panic](/docs/language/panic/) for the full panic model, including panic sets, `main` and `crash!`, and the zero-cost codegen strategy.
 
 ---
 
@@ -2630,11 +2683,12 @@ Branch hints cannot be applied to `eval if` branches compile-time branches are r
 
 ## The Never Type
 
-Functions that never return they always panic, loop forever, or call a noreturn function use `!` as their return type:
+Functions that never return (they crash, loop forever, or call a noreturn function) use `!` as their return type. A `-> !` function cannot be [`panic`](/docs/language/panic/#panic-and-no-return-):
 
 ```kairo
-fn fatal(msg: string) panic -> ! {
-    panic std::Error::Runtime(msg)
+fn fatal(msg: string) -> ! {
+    std::println(msg)
+    crash!()
 }
 
 fn event_loop() -> ! {
@@ -2808,12 +2862,12 @@ Returning a slice literal is also an error, because the literal's storage ends w
 
 ### No-return `!`
 
-Functions that never return they always panic, loop forever, or call a no-return function use `!` as their return type:
+Functions that never return (they crash, loop forever, or call a no-return function) use `!` as their return type:
 
 ```kairo
 fn fatal(msg: string) -> ! {
     std::println(f"Fatal: {msg}")
-    std::crash(1)
+    crash!()
 }
 
 fn event_loop() -> ! {
@@ -2939,12 +2993,14 @@ Functions are first-class values. The type of a [function pointer](/docs/languag
 fn add(a: i32, b: i32) -> i32 = a + b
 fn sub(a: i32, b: i32) -> i32 = a - b
 
-var #op: fn(i32, i32) -> i32 = add
-op(3, 4)   // 7
+var f: fn(i32, i32) -> i32 = add
+f(3, 4)   // 7
 
-op = sub
-op(10, 3)  // 7
+f = sub
+f(10, 3)  // 7
 ```
+
+A function type for a function that may [panic](/docs/language/panic/) must declare its panic set: `fn(string) panic(IOError) -> i32`, not a bare `panic`, since a type has no body to infer the set from. A function converts to such a type when its own set is a subset of the declared one; a function that doesn't panic converts to any panicking function type. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
 
 Functions can be nested [inner functions](/docs/language/closures/#closures-vs-inner-functions) are scoped to the enclosing function:
 
@@ -3032,7 +3088,7 @@ class Server {
 var handler: fn(Request) -> Response = handle_request
 
 // No-return
-fn abort() -> ! { std::crash(1) }
+fn abort() -> ! { crash!() }
 ```
 
 ## See also
@@ -3204,10 +3260,16 @@ identity("hello")   // string
 
 Closures support the `panic`, `volatile`, and `async` [modifiers](/docs/language/functions-declarations/#function-modifiers). Modifiers appear after the capture list (if present) and before the return type. Order between modifiers does not matter. A closure can also use `-> !` to indicate it [never returns](/docs/language/functions/#no-return-).
 
+A panicking closure must **declare its panic set**, `panic(E1, E2)`: a bare `panic` on a closure is an error whose fix-it writes the set inferred from the body. The set is then visible where the closure is written, and it matches the [function type](/docs/language/functions/#function-pointers) the closure is stored in, which needs a declared set too.
+
 ```kairo
-var risky = fn () panic -> i32 {
+struct Failed {
+    fn op panic (const self) -> string { return "failed" }
+}
+
+var risky = fn () panic(Failed) -> i32 {
     if bad_condition {
-        panic std::Error::Runtime("failed")
+        panic Failed {}
     }
     return 42
 }
@@ -3216,12 +3278,12 @@ var side_effect = fn () volatile {}
 
 var background = fn () async {}
 
-var all_three = fn () volatile async panic -> i32 {
+var all_three = fn () volatile async panic(Failed) -> i32 {
     return 100
 }
 
-var divergent = fn () panic -> ! {
-    panic std::Error::Runtime("always panics")
+var divergent = fn () -> ! {
+    crash!()   // never returns; `panic` and `-> !` cannot be combined
 }
 ```
 
@@ -3364,8 +3426,8 @@ var id = fn <T>(x: T) -> T { return x }
 var nested = fn () = fn (x: i32) -> i32 = x * 2
 
 // Modifiers
-var risky = fn () panic -> i32 { return 42 }
-var divergent = fn () panic -> ! { panic std::Error::Runtime("fatal") }
+var risky = fn () panic(Failed) -> i32 { return 42 }
+var divergent = fn () -> ! { crash!() }
 
 // Passing closures
 fn apply(f: fn(i32) -> i32, x: i32) -> i32 = f(x)
@@ -3663,6 +3725,10 @@ See [Interfaces](/docs/language/interfaces/) and [Requires Clauses](/docs/langua
 [Type parameters](/docs/language/generics/) are declared in angle brackets before the class name:
 
 ```kairo
+struct StackUnderflow {
+    fn op panic (const self) -> string { return "stack underflow" }
+}
+
 class <T> Stack {
     var items: [T]
 
@@ -3676,7 +3742,7 @@ class <T> Stack {
 
     fn pop(self) panic -> T {
         if self.items.length() == 0 {
-            panic std::Error::Runtime("stack underflow")
+            panic StackUnderflow {}
         }
         return self.items.pop()
     }
@@ -5757,11 +5823,12 @@ Interface-satisfying types are not subtypes of the interface. [Interfaces](/docs
 
 ## The Never Type (`!`)
 
-`!` is the return type of functions that never return they [panic](/docs/language/panic/#panic-and-no-return-), loop forever, or call a no-return function:
+`!` is the return type of functions that never return: they crash, loop forever, or call a no-return function. A `-> !` function cannot [panic](/docs/language/panic/#panic-and-no-return-):
 
 ```kairo
-fn fatal(msg: string) panic -> ! {
-    panic std::Error::Runtime(msg)
+fn fatal(msg: string) -> ! {
+    std::println(msg)
+    crash!()
 }
 ```
 
@@ -5854,10 +5921,15 @@ var add: fn(i32, i32) -> i32 = fn (a: i32, b: i32) -> i32 { return a + b }
 var log: fn(string) -> void = std::println
 ```
 
-The [`panic` modifier](/docs/language/panic/#the-panic-specifier) can appear on function types to indicate the function may panic. Callers must handle the panic via `try`/`catch`:
+The [`panic` modifier](/docs/language/panic/#the-panic-specifier) can appear on function types to indicate the function may panic. On a function type it must name the panic set, `panic(E1, E2)`: a type has no body to infer the set from. Callers must handle the panic via `try`/`catch`:
 
 ```kairo
-var risky: fn(i32) panic -> i32 = some_panicking_function
+struct ParseError {
+    var input: string
+    fn op panic (const self) -> string { return f"cannot parse {self.input}" }
+}
+
+var risky: fn(i32) panic(ParseError) -> i32 = some_panicking_function
 
 try {
     risky(42)
@@ -5865,6 +5937,8 @@ try {
     // handle
 }
 ```
+
+A function converts to a panicking function type when its own set is a subset of the type's; a function that doesn't panic converts to any of them. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
 
 No other modifiers (`const`, `async`, `eval`, `unsafe`) are valid on function pointer types. `const` is a property of methods (it constrains `self`), not of the function signature. `unsafe` selects a different overload namespace, not a different type. `async` and `eval` require named function declarations.
 
@@ -6059,7 +6133,7 @@ var z: typeof x = 10                // type position: resolves to i32?
 
 // Function types
 var f: fn(i32) -> i32 = fn (x: i32) -> i32 { return x * 2 }
-var g: fn(i32) panic -> i32 = risky_fn
+var g: fn(i32) panic(ParseError) -> i32 = risky_fn
 
 // Collections
 var vec: [i32] = [1, 2, 3]
@@ -6159,11 +6233,12 @@ Implicit upcasting is covered in [Implicit Conversions](/docs/language/casting-i
 
 Base-to-derived casts come in two forms:
 
-**Asserting downcast** panics if the runtime type does not match. The function must have the [`panic` specifier](/docs/language/panic/#the-panic-specifier) or the cast must be inside a `try` block:
+**Asserting downcast** crashes the program if the runtime type does not match, like [`unwrap!`](/docs/language/nullables/) on null. A failed cast is a programmer error, not a [panic](/docs/language/panic/#what-is-not-a-panic): it is in no panic set and no `try` can catch it, so the function needs no `panic` specifier. The compiler warns on every asserting downcast and offers a fix-it rewriting it to the checked form below:
 
 ```kairo
-fn process(animal: *Animal) panic {
-    var *dog = animal as *Dog  // panics if animal is not a Dog
+fn process(animal: *Animal) {
+    var *dog = animal as *Dog  // crashes if animal is not a Dog
+                               // warning: use 'animal as *Dog?' and test the result
     dog->fetch()
 }
 ```
@@ -6249,7 +6324,7 @@ Every pointer cast is classified by what it does to *provenance* the compiler's 
 | `*T as unsafe *U` | Allowed, requires `unsafe` block | Lost | The provenance-loss point keep it visible |
 | `unsafe *T as unsafe *U` | Allowed, no `unsafe` | Already absent | Nothing left to lose |
 | `*Derived as *Base` | Implicit | Preserved | Same allocation, adjusted offset |
-| `*Base as *Derived` | Allowed, runtime check | Preserved | Vtable check, panics or yields null |
+| `*Base as *Derived` | Allowed, runtime check | Preserved | Vtable check, crashes (`as *Derived`) or yields null (`as *Derived?`) |
 
 The two error rows are deliberate refusals rather than warnings. `ptr as u8` has an honest spelling (`ptr as usize as u8`) that says the same thing in two steps, and `n as *T` has no honest spelling at all a safe pointer's guarantees cannot be reconstructed from a number.
 
@@ -6275,7 +6350,7 @@ var raw = Direction::North as u8   // 0
 var dir = 2u8 as Direction         // Direction::South
 ```
 
-Casting an integer to an enum that has no matching discriminant is undefined behavior. The compiler does not insert a runtime check.
+A plain enum is [closed](/docs/language/enums-plain/#closed-and-open-enums) unless it is declared `@open`, and casting an integer that is no variant's value into a closed enum fails: with a constant operand it is a compile error ([SC001E](/docs/language/diagnostics/#sc001e-a-constant-cast-into-a-closed-enum-is-no-variants-value)), otherwise the program crashes when the cast runs (a message and an abort, like a failed bounds check; no `try` catches it). The check is a compare on the integer before the cast (`v >= N` when the values are `0` to `N-1`), which the compiler drops when it can see the value. An `@open` enum, and every enum imported from C or C++, takes any value of its underlying type unchecked.
 
 The cast target must match the underlying type. `Direction::North as i32` requires the enum to be backed by `i32`, or an intermediate cast: `Direction::North as u8 as i32`.
 
@@ -6399,7 +6474,7 @@ If the source type declares `op as` for `T` and `T` also has a matching construc
 | Float to int | `x as i32` | Truncates/saturates | Saturates on overflow |
 | Int to float | `x as f64` | May lose precision | Rounded |
 | Derived-to-base ptr | Implicit | Safe | N/A |
-| Base-to-derived ptr (asserting) | `ptr as *Derived` | Runtime check | Panics |
+| Base-to-derived ptr (asserting) | `ptr as *Derived` | Runtime check, warns | Crashes |
 | Base-to-derived ptr (checked) | `ptr as *Derived?` | Runtime check | Returns null |
 | Safe to raw pointer | `ptr as unsafe *T` | Requires `unsafe` block | Provenance loss |
 | Raw to raw pointer | `raw as unsafe *T` | No check | Reinterpret |
@@ -6407,7 +6482,8 @@ If the source type declares `op as` for `T` and `T` also has a matching construc
 | Pointer to narrower int | `ptr as u8` | Compile error | Use `ptr as usize as u8` |
 | Integer to pointer | `n as unsafe *T` | Requires `unsafe` block | Fabricated provenance |
 | Plain enum to int | `e as u8` | Safe | Discriminant value |
-| Int to plain enum | `n as Direction` | UB if no match | No runtime check |
+| Int to closed plain enum | `n as Direction` | Error (constant) / crash (runtime) if no match | Checked; declare `@open` to skip |
+| Int to `@open` or imported enum | `n as Signal` | Safe | Any value of the underlying type |
 | ADT enum to int | N/A | Compile error | Use `extend` method |
 | User-defined | `x as TargetType` | Depends on `op as` | Calls user code |
 | Through a constructor | `x as T` | Depends on the constructor | Calls `T`'s one-parameter constructor |
@@ -6637,11 +6713,16 @@ See [Eval](/docs/language/eval/) for compile-time evaluation rules.
 `requires` and [`panic`](/docs/language/panic/) serve different purposes and can coexist. `requires` filters invalid inputs before the function body executes. `panic` handles valid inputs that produce errors during processing:
 
 ```kairo
+struct PortRange {
+    var port: i32
+    fn op panic (const self) -> string { return f"port {self.port} out of range" }
+}
+
 fn parse_port(input: string) panic -> i32
   requires input.length() > 0 {
     var port = std::parse<i32>(input)
     if port < 0 || port > 65535 {
-        panic std::Error::Runtime("port out of range")
+        panic PortRange { port: port }
     }
     return port
 }
@@ -6861,11 +6942,16 @@ A match guard that fails causes the arm to be skipped and evaluation continues t
 `where` clauses and [`panic`](/docs/language/panic/) are orthogonal. `where` selects which overload runs based on a runtime condition. `panic` signals an error from within a function body. They can coexist:
 
 ```kairo
+struct ConnectError {
+    var host: string
+    fn op panic (const self) -> string { return f"cannot connect to {self.host}" }
+}
+
 fn connect(host: string, port: i32) panic -> Connection
   where port > 0 && port <= 65535 {
     var conn = tcp_connect(host, port)
     if !conn.is_valid() {
-        panic std::Error::IO("connection failed")
+        panic ConnectError { host: host }
     }
     return conn
 }
@@ -6875,6 +6961,8 @@ fn connect(host: string, port: i32) -> Connection {
     return Connection::invalid()
 }
 ```
+
+Overloads in one `where` group may differ in `panic`. A call through the group may reach any of them, so its panic set is the union of the candidates' sets: a call to `connect` must handle `ConnectError` even though the fallback never panics.
 
 ---
 
@@ -6941,10 +7029,15 @@ fn classify(temp: f64) -> string where temp > 0.0   { return "liquid" }
 fn classify(temp: f64) -> string                     { return "frozen" }
 
 // Where with panic
+struct NotPositive {
+    var value: i32
+    fn op panic (const self) -> string { return f"{self.value} is not positive" }
+}
+
 fn parse_positive(input: string) panic -> i32
   where input.length() > 0 {
     var n = std::parse<i32>(input)
-    if n <= 0 { panic std::Error::Runtime("not positive") }
+    if n <= 0 { panic NotPositive { value: n } }
     return n
 }
 
@@ -8285,9 +8378,58 @@ URL: https://www.kairolang.org/docs/language/panic/
 
 # Panic
 
-`panic` is Kairo's error signaling mechanism. A function marked with the `panic` specifier can produce an error instead of its declared return type. Callers must handle the error via `try`/`catch` or propagate it by marking themselves `panic`. The compiler statically verifies that all error types are accounted for unhandled error types are a compile error.
+`panic` is Kairo's error signaling mechanism. A function marked with the `panic` specifier can produce an error instead of its declared return type. Callers must handle the error via `try`/`catch` or propagate it by marking themselves `panic`. The compiler statically verifies that all error types are accounted for: unhandled error types are a compile error.
 
-Unlike [C++ exceptions](/docs/language/c-cpp-exceptions/), panics use no unwinding tables and no runtime. The codegen is zero-cost every panic site becomes a tagged return value checked with a branch.
+Unlike [C++ exceptions](/docs/language/c-cpp-exceptions/), panics use no unwinding tables and no runtime. The codegen is zero-cost: every panic site becomes a tagged return value checked with a branch.
+
+> [!WARNING]
+> Panic is parsed but not compiled yet. See [Status](/docs/status/#not-compiled-yet).
+
+---
+
+## Error Types
+
+Any type can be panicked. There is no base error class, no required shape, no required operator, and no standard error module: an error type is an ordinary struct, class or enum. The type only has to be movable (an error is returned and propagated by value), and it must be a value type, not a reference or `void`.
+
+An error type may define [`op panic`](/docs/language/operator-overloading/#op-panic) to give itself a human-readable message:
+
+```kairo
+struct ParseError {
+    var message: string
+    var position: i32
+
+    fn op panic (const self) -> string {
+        return f"{self.message} at {self.position}"
+    }
+}
+```
+
+`op panic` is optional. It takes `const self` and returns `string`. A panic can never reach `main` unhandled, so Kairo itself never needs an error's message; the message is shown only on the C++ side, where [`value_or_throw`](/docs/language/c-cpp-exceptions/#converting-to-an-exception) turns an error into an exception whose `what()` uses it. Without `op panic`, `what()` gives the type name and source location instead. Raising, propagating and catching an error never call it.
+
+- Panicking a type that isn't movable is a compile error, at the `panic`, at a [declared set](#declared-panic-sets) or at a `catch e: T` that names it.
+- A type you don't own (a primitive, another module's type) can get `op panic` from an [`extend`](/docs/language/extends/).
+- A C++ type can be panicked too: it is just a value. It can't define a Kairo operator, so its `what()` is always the type name and location. Catching C++ *exceptions* is a separate mechanism; see [Exceptions](/docs/language/c-cpp-exceptions/#exceptions).
+
+The examples on this page use these error types and functions:
+
+```kairo
+struct IOError {
+    var path: string
+    fn op panic (const self) -> string { return f"cannot read {self.path}" }
+}
+
+struct RangeError {
+    var value: i32
+    fn op panic (const self) -> string { return f"{self.value} is out of range" }
+}
+
+struct EmptyInput {
+    fn op panic (const self) -> string { return "empty input" }
+}
+
+fn read_file(path: string) panic(IOError) -> string { /* ... */ }
+fn parse_and_validate() panic(RangeError, IOError) -> i32 { /* ... */ }
+```
 
 ---
 
@@ -8298,20 +8440,20 @@ Add `panic` after the parameter list to indicate a function may produce an error
 ```kairo
 fn parse_port(input: string) panic -> i32 {
     if input.length() == 0 {
-        panic std::Error::Runtime("empty input")
+        panic EmptyInput {}
     }
 
     var port = std::parse<i32>(input)
 
     if port < 0 || port > 65535 {
-        panic std::Error::Runtime("port out of range")
+        panic RangeError { value: port }
     }
 
     return port
 }
 ```
 
-The `panic` keyword inside the function body raises an error. The error value can be any type there is no base error class requirement.
+The `panic` statement inside the function body raises an error. The function's **panic set**, the error types it can produce, is inferred from its body: here `EmptyInput` and `RangeError`, plus whatever `std::parse` can propagate. To fix the set instead of inferring it, write it out: see [Declared Panic Sets](#declared-panic-sets).
 
 ---
 
@@ -8325,12 +8467,14 @@ fn load_config(path: string) -> Config {
 
     try {
         port = parse_port(read_file(path))
-    } catch e: std::Error::Runtime {
-        std::println(f"bad config: {e}")
+    } catch e: IOError {
+        std::println(f"cannot read file: {e.path}")
         port = 8080
-    } catch e: std::Error::IO {
-        std::println(f"cannot read file: {e}")
+    } catch e: RangeError {
+        std::println(f"bad port: {e.value}")
         port = 8080
+    } catch {
+        port = 8080   // EmptyInput, and anything std::parse propagates
     }
 
     return Config(port)
@@ -8343,14 +8487,14 @@ The compiler enforces that every error type reachable from the `try` body is han
 
 ```kairo
 fn partial_handler() panic -> i32 {
-    // This function only handles Runtime errors.
-    // IO errors propagate to the caller.
+    // This function only handles RangeError.
+    // IOError propagates to the caller.
     try {
         return parse_and_validate()
-    } catch e: std::Error::Runtime {
+    } catch e: RangeError {
         return -1
     }
-    // std::Error::IO is not caught propagates because this function is marked panic
+    // IOError is not caught: it propagates because this function is marked panic
 }
 ```
 
@@ -8374,13 +8518,48 @@ The error value can be bound to a variable for inspection, or the catch block ca
 ```kairo
 try {
     risky_operation()
-} catch e: std::Error::IO {
-    // e is bound can inspect the error
-    log_error(e)
+} catch e: IOError {
+    // e is bound: can inspect the error
+    log_error(e.path)
 } catch {
-    // no binding catch-all, error value is discarded
+    // no binding: catch-all, error value is discarded
 }
 ```
+
+### Arms match exact types
+
+A panic set is a set of **exact types**. There is no subtyping between error types: `catch e: Base` does not catch a panic whose type is a class derived from `Base`, and a set that holds both `Base` and `Derived` holds two distinct types, each caught by its own arm.
+
+```kairo
+class NetError {
+    fn op panic (const self) -> string { return "network error" }
+}
+
+class TimeoutError derives NetError {
+    fn op panic (const self) -> string { return "timed out" }
+}
+
+fn fetch() panic -> string {               // set: TimeoutError
+    panic TimeoutError()
+}
+
+try {
+    fetch()
+} catch e: NetError {                      // warning: NetError is not in the set; this arm never runs
+    // ...
+} catch e: TimeoutError {                  // this arm catches it
+    // ...
+}
+```
+
+> [!IMPORTANT]
+> This differs from C++, where `catch (const Base&)` also catches every derived exception. In Kairo each arm names one exact type, which keeps the dispatch a single compare per arm.
+
+### Dead arms and arm order
+
+- A `catch e: T` whose `T` is not in the `try` body's set can never run. It is a **warning**, with a fix-it removing the arm, not an error: a library that removes an error from a function's set must not break every caller that still catches it.
+- Two arms for the same type are an error.
+- Any arm after a bare `catch` is an error: the bare `catch` has already handled everything.
 
 ---
 
@@ -8390,14 +8569,14 @@ If a function calls a `panic` function without fully handling all error types, i
 
 ```kairo
 fn read_config() panic -> Config {
-    var content = read_file("config.txt")   // may panic with IO error
-    var port = parse_port(content)           // may panic with Runtime error
+    var content = read_file("config.txt")   // may panic with IOError
+    var port = parse_port(content)           // may panic with EmptyInput or RangeError
     return Config(port)
-    // Both IO and Runtime errors propagate caller must handle them
+    // all of them propagate: the caller must handle them
 }
 ```
 
-Calling a `panic` function without `try`/`catch` and without the `panic` specifier is a compile error:
+Calling a `panic` function without `try`/`catch` and without the `panic` specifier is a compile error. The error names every unhandled type; the fix-its add `panic` to the caller or wrap the call in `try`:
 
 ```kairo
 fn bad() -> i32 {
@@ -8405,33 +8584,113 @@ fn bad() -> i32 {
 }
 ```
 
+### Re-panic
+
+Inside a `catch` arm, `panic e` propagates the caught error to the caller, and its type joins the function's set. The error keeps its **original source location**: the site it reports is where it was first panicked, not the re-panic.
+
+```kairo
+fn load() panic -> i32 {
+    try {
+        return parse_and_validate()
+    } catch e: RangeError {
+        return -1
+    } catch e: IOError {
+        log_error(e.path)
+        panic e                   // still reports the site inside read_file
+    }
+}
+```
+
 ---
 
 ## Multiple Error Types
 
-A function does not declare which error types it can produce the compiler infers this from the function body. A single function can panic with any number of different error types:
+A single function can panic with any number of different error types. Without a declared set, the compiler infers the set from the function body:
 
 ```kairo
+struct FormatError {
+    var line: i32
+    fn op panic (const self) -> string { return f"invalid format on line {self.line}" }
+}
+
 fn process(path: string) panic -> Data {
     if !file_exists(path) {
-        panic std::Error::IO("file not found")
+        panic IOError { path: path }
     }
 
     var content = read_file(path)
 
     if content.length() == 0 {
-        panic std::Error::Runtime("empty file")
+        panic EmptyInput {}
     }
 
     if !validate(content) {
-        panic std::Error::Validation("invalid format")
+        panic FormatError { line: 1 }
     }
 
     return parse_data(content)
 }
 ```
 
-Callers of `process` must handle `std::Error::IO`, `std::Error::Runtime`, and `std::Error::Validation` (plus any errors from `read_file` and `parse_data`), or propagate them.
+Callers of `process` must handle `IOError`, `EmptyInput` and `FormatError` (plus any errors from `parse_data`), or propagate them.
+
+The order of the `panic` statements does not matter. A set is unordered: two sets holding the same types are the same set.
+
+---
+
+## Declared Panic Sets
+
+`panic(E1, E2)` names the set instead of inferring it. Library authors use it to pin their contract:
+
+```kairo
+fn load_port(path: string) panic(IOError, RangeError) -> i32 {
+    var text = read_file(path)          // IOError: in the set
+    return parse_port(text)             // compile error: 'EmptyInput' is not in the declared panic set of 'load_port'
+}
+```
+
+Anything panicked or propagated outside the declared set is a compile error, labelled at the `panic` or at the propagating call, with a fix-it adding the type to the list.
+
+The list is written right after `panic`, on the same line, wherever the specifier goes: after a function's or closure's parameter list, and after a function type's. There it is always the set, never a tuple. A line break ends the specifier, and in a function body `panic (x)` is the [`panic` statement](#the-panic-specifier) with a parenthesized value. A set names at least one type: `panic()` is an error whose fix-it removes the parentheses, leaving a bare `panic`.
+
+```kairo
+fn f() panic(IOError) -> (i32, i32)   // the set, then a tuple return type
+
+fn g() panic -> i32 {
+    panic (IOError { code: 5 })       // the statement, with a parenthesized value
+}
+```
+
+### Where a declared set is required
+
+A bare `panic` is enough on an ordinary function. A declared set is **required** in four positions, and a bare `panic` there is an error whose fix-it writes the inferred set:
+
+| Position | Why |
+|---|---|
+| A [function type](/docs/language/functions/#function-pointers): `fn(string) panic(IOError) -> i32` | It has no body to infer from |
+| An [interface requirement](/docs/language/interfaces-requirements/#panicking-requirements) | No body, and it is a contract for every conformer |
+| A [`virtual`](/docs/language/classes-inheritance/#virtual-dispatch) method of a base class | A contract for every override |
+| A [closure](/docs/language/closures/#modifiers): `fn () panic(IOError) -> i32 { ... }` | A readability rule: the set is visible where the closure is written |
+
+```kairo
+interface Loader {
+    fn load(self, path: string) panic(IOError) -> string
+}
+
+fn run(f: fn(string) panic(IOError, RangeError) -> i32) panic -> i32 { return f("port.txt") }
+
+var retry = fn () panic(IOError) -> string { return read_file("data.txt") }
+```
+
+### Subsets
+
+- An `override` may leave its set inferred, but the set must be a subset of the base method's.
+- A conforming method's set must be a subset of the interface requirement's.
+- A function whose set is `S` converts to a function type whose set is `S'` only when `S` is a subset of `S'`. A function that doesn't panic converts to any panicking function type.
+
+### Public functions
+
+An inferred set on a `pub` function is API surface that changes silently when the body changes. When building a library, the compiler warns about a `pub` function whose set is inferred, with a fix-it that writes the set out. The warning is off for executables.
 
 ---
 
@@ -8439,11 +8698,22 @@ Callers of `process` must handle `std::Error::IO`, `std::Error::Runtime`, and `s
 
 ```kairo
 var port = try parse_port(input)
-    catch e: std::Error::Runtime => 8080
+    catch e: RangeError => 8080
     catch => 3000
 ```
 
 `try`/`catch` can produce a value. Each arm is `catch ... => value`, and every arm must produce the same type. `finally` is not permitted in expression form.
+
+An arm may also leave instead of producing a value: `return` from the enclosing function, or `break` / `continue` out of an enclosing loop. Such an arm has type [`!`](/docs/language/type-system/#the-never-type-), so it fits beside arms of any type:
+
+```kairo
+fn port_or_default(input: string) -> i32 {
+    var port = try parse_port(input) catch => return 3000
+    return port
+}
+```
+
+Inside a closure, `return` leaves the closure, as everywhere.
 
 See [Control Flow](/docs/language/control-flow/#trycatch-as-an-expression) for the `=>` arm rules: arm forms, line breaks, and nesting.
 
@@ -8457,7 +8727,7 @@ See [Control Flow](/docs/language/control-flow/#trycatch-as-an-expression) for t
 try {
     acquire_lock()
     do_work()
-} catch e: std::Error::Runtime {
+} catch e: IOError {
     handle_error(e)
 }
 
@@ -8493,22 +8763,46 @@ See [Control Flow](/docs/language/control-flow/#finally) for full `finally` sema
 
 ---
 
-## Panic and No-Return (`!`)
+## `main` and `crash!`
 
-A function with return type `!` can never return normally it always panics, loops forever, or calls another no-return function. The `panic` specifier and `!` cannot coexist because `panic` implies an alternative return path (the error), while `!` guarantees no return at all:
+`main` can never panic:
+
+- `fn main() panic` is a compile error.
+- A panic that would reach `main` unhandled is a compile error, naming each unhandled type and the call that propagates it. Every error is handled in `main` or below it.
+- A [script](/docs/language/modules/#scripts)'s top-level code follows the same rule: it must handle every panic.
+
+To stop the program, call `crash!()`. It terminates the process and never returns. It is not a panic: it is in no set and cannot be caught.
 
 ```kairo
+fn main() -> i32 {
+    var port = try parse_and_validate() catch => crash!()
+    return serve(port)
+}
+```
+
+> [!NOTE]
+> `crash!` is a macro defined in the builtin library. What it reports before terminating (a message, the source location) is not final; rely only on the fact that it does not return.
+
+---
+
+## Panic and No-Return (`!`)
+
+A function with return type `!` can never return normally: it crashes, loops forever, or calls another no-return function. The `panic` specifier and `!` cannot coexist, because `panic` implies an alternative return path (the error), while `!` guarantees no return at all:
+
+```kairo
+struct FatalError {
+    var message: string
+    fn op panic (const self) -> string { return self.message }
+}
+
 fn fatal(msg: string) panic -> ! {
     // compile error: panic and ! are contradictory
-    panic std::Error::Runtime("fatal error") // invalid, panic implies an error return, but ! means no return at all
+    panic FatalError { message: msg } // invalid, panic implies an error return, but ! means no return at all
 }
 
 fn fatal(msg: string) -> ! {
-    loop {
-        crash!(msg) // valid
-    }
-    
-    // ok: never returns
+    std::println(msg)
+    crash!() // valid: never returns
 }
 ```
 
@@ -8516,99 +8810,100 @@ See [Functions](/docs/language/functions/#no-return-) and [Type System](/docs/la
 
 ---
 
+## What Is Not a Panic
+
+Some failures stop the program instead of producing an error value. None of them is in a panic set, and none can be caught:
+
+- `crash!()`.
+- [`unwrap!`](/docs/language/nullables/) on a null value.
+- A failing [asserting downcast](/docs/language/casting/#downcasting-base-to-derived), `p as *Derived`. The compiler warns on every asserting downcast and suggests the checked form `p as *Derived?`, which yields null instead.
+
+A bad cast or a null unwrap is a programmer error, not a recoverable condition. Making it a panic would add an error type to every function that downcasts, and to every caller above it.
+
+---
+
+## Where Panics Are Not Allowed
+
+- **Global initializers.** A `panic`, a `try`, or a call to a panicking function in the initializer of a global variable is a compile error: there is no function for the error to propagate to. A [script](/docs/language/modules/#scripts)'s top-level variables are initialized as part of its top-level code, so they may use `try`.
+- **`eval` functions.** `panic` in a function evaluated at compile time is an error. See [Eval](/docs/language/eval/).
+- **Generators and `async`.** For a [generator](/docs/language/functions-generators/) or an [`async`](/docs/language/concurrency/) function, an error surfaces where the caller resumes it: at the `next()` call (including the hidden one in a `for` loop) or the `await`, which handles or propagates it like any other panicking call. A `panic`, or a panicking call, inside a generator or `async` body is not supported yet.
+
+---
+
 ## Codegen
 
-Panics compile to zero-cost tagged return values. There are no [unwinding tables](/docs/language/attributes/#unwinding), no runtime exception handler, and no stack unwinding. A function marked `panic` returns a tagged union containing either the success value or an error with source location metadata.
+Panics compile to zero-cost tagged return values. There are no [unwinding tables](/docs/language/attributes/#unwinding), no runtime exception handler, and no stack unwinding. A function marked `panic` returns a tagged union holding either the success value or one of the errors in its set, together with the source location where the error was raised. Every Kairo function, panicking or not, stays `noexcept` in its generated C++.
 
-At the call site, the compiler lowers `try`/`catch` to a [`match`](/docs/language/pattern-matching/) on the tagged union. If the tag indicates an error, the matching catch block executes. If it indicates success, the value is extracted and execution continues.
+At a call site, the compiler tests the tag. On success, execution continues with the value. An error the caller doesn't handle is returned to its own caller as it is, keeping its tag and source location. A call in tail position (`return g()`) needs no test at all.
+
+`try`/`catch` lowers to one tag compare per `catch` arm, in order, with a bare `catch` as the final fallback. An error type's tag is the same in every set that contains it, so passing an error up through callers with larger sets never translates it.
 
 This means:
 
 - No runtime overhead on the success path beyond a single branch (which the branch predictor handles efficiently)
-- No stack unwinding errors propagate via normal return values
-- No unwinding tables for panics smaller executables
+- No stack unwinding: errors propagate via normal return values
+- No unwinding tables for panics: smaller executables
 - No Kairo function throws; only a C++ exception can unwind through Kairo code
 
 > [!NOTE]
 > The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use the platform unwinder. See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) in C/C++ Interop.
 
 > [!NOTE]
-> The `panic` statement inside a function body (`panic SomeError(...)`) does not halt the program. It produces the error as the function's return value. The term "panic" refers to the signaling mechanism, not to a crash. The program only terminates if an error reaches `main()` or the top level and is re-panicked with `panic e` in that context.
+> The `panic` statement inside a function body (`panic SomeError { ... }`) does not halt the program. It produces the error as the function's return value. The term "panic" refers to the signaling mechanism, not to a crash. Because an error can never reach `main` unhandled, a panic never terminates the program; [`crash!`](#main-and-crash) does.
 
----
+### Performance: keep error types small
 
-## Error Types
+The result of a panicking function is returned in registers only while it is at most 16 bytes (on x86-64): an 8-byte header holding the tag and the source location, plus the largest of the return type and the error types in its set. When every payload is at most 8 bytes, the result travels in two registers.
 
-Kairo does not prescribe a specific error hierarchy. Any type can be used as a panic value. The standard library provides common error types under `std::Error`:
-
-```kairo
-panic std::Error::Runtime("message")
-panic std::Error::IO("message")
-panic std::Error::Validation("message")
-```
-
-> [!IMPORTANT]
-> The `std::Error` hierarchy is still being finalized. Detailed documentation for standard error types will be added in a future update.
-
-User-defined error types work the same way:
-
-```kairo
-class ParseError {
-    pub var message: string
-    pub var position: i32
-
-    fn ParseError(self, msg: string, pos: i32) {
-        self.message = msg
-        self.position = pos
-    }
-}
-
-fn parse(input: string) panic -> Ast {
-    if input.length() == 0 {
-        panic ParseError("unexpected end of input", 0)
-    }
-    // ...
-}
-
-try {
-    parse("")
-} catch e: ParseError {
-    std::println(f"parse error at {e.position}: {e.message}")
-}
-```
+One large error type in a set changes that for every function whose result has that set: they all return through memory. That is correct, only slower. The compiler emits a remark when a result type exceeds 16 bytes, naming the payload that pushed it over. To keep a large error cheap, store its bulky part behind a pointer, or give the detailed context its own error type that only cold paths produce.
 
 ---
 
 ## Summary
 
 ```kairo
-// Function that may panic
+// An error type: any movable type (op panic gives it a message)
+struct DivideByZero {
+    fn op panic (const self) -> string { return "division by zero" }
+}
+
+// Function that may panic; its set is inferred: DivideByZero
 fn divide(a: i32, b: i32) panic -> i32 {
     if b == 0 {
-        panic std::Error::Runtime("division by zero")
+        panic DivideByZero {}
     }
     return a / b
 }
 
-// Full handling no panic propagation
+// A declared set
+fn checked_divide(a: i32, b: i32) panic(DivideByZero) -> i32 = divide(a, b)
+
+// Full handling: no panic propagation
 fn safe_divide(a: i32, b: i32) -> i32 {
     try {
         return divide(a, b)
-    } catch e: std::Error::Runtime {
-        std::println(f"error: {e}")
+    } catch e: DivideByZero {
+        std::println("error: division by zero")
         return 0
     }
 }
 
-// Partial handling propagates unhandled types
-fn partial(a: i32, b: i32) panic -> i32 {
-    return try complex_operation(a, b)
-        catch e: std::Error::Runtime => -1
-    // other error types propagate
+// Partial handling: propagates unhandled types
+fn partial() panic -> i32 {
+    return try parse_and_validate()
+        catch e: RangeError => -1
+    // IOError propagates
 }
 
-// Expression form
-var result = try divide(10, 0) catch => 0
+// Expression form, and an arm that leaves
+fn expression_forms(s: string) -> i32 {
+    var result = try divide(10, 0) catch => 0
+    var port = try parse_port(s) catch => return result
+    return port
+}
+
+// A closure declares its set
+var risky = fn () panic(DivideByZero) -> i32 { return divide(1, 0) }
 
 // Scope exit
 fn with_cleanup() panic {
@@ -8616,12 +8911,18 @@ fn with_cleanup() panic {
     finally { release(resource) }
     do_work(resource)
 }
+
+// Stopping the program
+fn main() -> i32 {
+    return try partial() catch => crash!()
+}
 ```
 
 ## See also
 
 - [Control Flow](/docs/language/control-flow/#error-handling)
 - [Assert](/docs/language/control-flow/#assert)
+- [Operator Overloading: `op panic`](/docs/language/operator-overloading/#op-panic)
 - [Exceptions & Panics](/docs/language/c-cpp-exceptions/)
 - [Unwinding](/docs/language/attributes/#unwinding)
 - [Requires and Panic](/docs/language/requires/#requires-and-panic)
@@ -8740,8 +9041,10 @@ Eval bodies must be deterministic and free of side effects. The following are no
 | Pointer operations (`*T`, `unsafe *T`) | No addressable memory at compile time |
 | `async` / `await` / `spawn` | No runtime scheduler at compile time |
 | `panic` | No runtime error handler at compile time |
-| Mutable global, static, or thread variables | Side effects across evaluations |
+| Global, static, or thread variables that are not `eval` (a `const` global is initialized at run time) | Side effects across evaluations; no value at compile time |
 | Calls to non-`eval` functions | Cannot guarantee compile-time evaluation |
+| Locals whose type has a non-trivial destructor | No runtime to run it at compile time |
+| A `where` clause on an `eval` function | Use `requires` |
 
 ### What is allowed
 
@@ -8812,12 +9115,12 @@ See [Control Flow](/docs/language/control-flow/#compile-time-branching) for `eva
 
 ## Eval For
 
-`eval for` unrolls a loop at compile time when all loop bounds and operations are compile-time evaluable:
+`eval for` unrolls a loop at compile time: the body is compiled once per value, and in each copy the loop variable is a compile-time constant, so it can be tested with `eval if`:
 
 ```kairo
-eval fn fill_squares(@inout table: [i32; 16]) {
+fn fill_squares(@inout table: [i32; 16]) {
     eval for i in 0..16 {
-        table[i] = i * i
+        table[i] = i * i        // sixteen assignments, no loop at run time
     }
 }
 
@@ -8825,12 +9128,35 @@ var squares: [i32; 16]
 fill_squares(&squares)
 ```
 
-If the loop body or bounds depend on runtime values, the compiler emits an error.
+What an `eval for` can iterate:
 
-An `eval for` in a `eval` function is not allowed.
+| Iterable | Example |
+|---|---|
+| A range whose bounds are compile-time values | `eval for i in 0..N`, `eval for i in -3..=3` |
+| An `eval` array, or an array literal of compile-time values | `eval for p in PRIMES` |
+| A call of an `eval` generator | `eval for k in evens(10)` |
 
-> [!NOTE]
-> `eval for` fully computes the loop at compile time and embeds the result. Or if the loop is too large, the compiler will try to unroll the loop without evaluation, and emit a optimization remark. If and only if neither is possible, the compiler will emit an error.
+Anything else (a run-time bound, a `var` array, a generator that is not `eval`) is a compile error. `continue` and `break` work as in any loop, and so does `return` out of the enclosing function.
+
+An `eval` generator is an `eval fn` that yields. It runs at compile time, so it can do whatever an `eval fn` can, loops and conditions included, and the `eval for` iterates the values it yielded:
+
+```kairo
+eval fn evens(n: i32) -> yield i32 {
+    for var k: i32 = 0; k < n; ++k {
+        if k % 2 == 0 { yield k }
+    }
+}
+
+fn sum_evens() -> i32 {
+    var total = 0
+    eval for e in evens(10) { total += e }   // 0 + 2 + 4 + 6 + 8
+    return total
+}
+```
+
+An eval generator can only be iterated by an `eval for`.
+
+Inside an `eval fn` the whole function already runs at compile time, so an `eval for` there is an ordinary loop, and its bounds may be the function's parameters (see `sum_range` in the [Summary](#summary)).
 
 ---
 
@@ -8925,31 +9251,31 @@ See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ## Eval in Classes
 
-Eval can be used within class definitions to create compile-time computed values, adding eval to class fields, methods, and constructors are valid. If the class contains a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators), it cannot be used in an `eval` context. Classes can mix eval functions with regular functions.
+Inside a class, `eval` marks three different things:
+
+- **An `eval` field** is a compile-time constant of the class, one value shared by every object (like a `static` field, but computed at compile time). It is read as `ClassName::NAME` and cannot be assigned.
+- **An `eval` method** runs at compile time. It can be called wherever its object and arguments are compile-time values; it takes `const self` to be called on an `eval` object (an `eval` binding is const).
+- **An `eval` constructor** makes the class an *eval class*: its objects can be built at compile time, so an `eval` binding can hold one. The same constructor builds an object at run time too, as long as its arguments are compile-time values.
+
+A class can mix `eval` and regular members; regular methods simply cannot be called from compile-time code. A class with a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) cannot be an `eval` value: a compile-time object is never destroyed.
 
 ```kairo
-class HashState {
-    eval seed: u64    = FNV_OFFSET_BASIS;
-    eval data: string = "";
+eval FNV_OFFSET: u64 = 2166136261
+eval FNV_PRIME: u64  = 16777619
 
-    eval fn HashState(self, input: string) {
-        self.data = input;
-    }
+class Hasher {
+    pub eval SEED: u64 = FNV_OFFSET       // a class constant
+    pub var state: u64                    // per-object state, set by the constructor
 
-    eval fn hash(self) -> u64 {
-        // Simple hash function
-        var hash = self.seed;
-        for c in self.data {
-            hash = (hash * 16777619) ^ c as u64;
-        }
-        return hash;
+    eval fn Hasher(self, start: u64) { self.state = start }
+
+    eval fn mix(const self, b: u64) -> u64 {
+        return (self.state ^ b) * FNV_PRIME
     }
 }
 
-eval state = HashState("hello")
-eval hash  = state.hash()
-
-std::println(hash); // Prints the hash of "hello"
+eval H     = Hasher(Hasher::SEED)   // a compile-time object
+eval MIXED = H.mix(7)               // computed at compile time
 ```
 
 ## Summary
@@ -9041,11 +9367,33 @@ A module's path is exactly its C++ namespace. `utils/strings.k` in a library nam
 
 This holds for the files you compile, too. A `.k` named on the command line, or included from C++, is a module like any other, with the path an import of it gets: compiled from `project/`, `utils/io.k` is `utils::io` whether it is compiled, imported or included. So `kcc -c utils/io.k` in one run defines `utils::io::read_file`, and a `main.k` compiled in another run that imports `utils::io` links against it. A path segment that is not a valid C++ identifier is rewritten into one (`operator.k` is `namespace operator_`).
 
-`main` is the exception: a file-scope `fn main` is the program's global `int main` in whatever file it is declared, never in a namespace. A `main` inside a `module foo { }` block is the ordinary function `foo::main`.
+`main` is the exception: a file-scope `fn main` is the program's global `int main` in whatever file it is declared, never in a namespace, and so is the `main` a [script](#scripts) gets. A `main` inside a `module foo { }` block is the ordinary function `foo::main`.
 
 A file outside every [search directory](#search-directories-and-library-names) and every [library](#naming-a-library) has no module path. Its declarations are emitted in a namespace named after the file's stem (`/tmp/scratch.k` becomes `namespace scratch`), its `priv` and `internal` declarations sit in an unnamed namespace and cannot be reached from any other translation unit, and it has no header. A file-scope declaration with no visibility written is `pub`.
 
 Two files under one root that both open `module codec` reopen one namespace, as in C++. Reopening never crosses a root.
+
+## Scripts
+
+A file named on the command line (by `kairo` or `kcc`) that has statements at the top level and no `fn main` is a **script**: its top-level statements are the program, run in order as the body of a `main` the compiler writes. The end of the file returns `0`; a top-level `return` returns from that `main`, and its value, an integer, is the exit status.
+
+```kairo
+
+
+fn load() -> i32 { return 42 }
+
+const LIMIT: i32 = 10           // a constant: initialized before anything runs
+var answer = load()             // not a constant: runs here, at its line
+println(f"start {LIMIT}")
+println(f"answer {answer}")
+if answer > LIMIT { return 1 }  // exit status 1
+```
+
+Every top-level `var`, `const`, `static`, `thread` and `eval` stays a global: functions in the file can name it. A binding whose initializer is a constant (a literal, `sizeof` / `alignof`, or an integer the compiler can evaluate) is initialized before the first statement, as any global is; so are `eval` and `thread` bindings and a binding with no initializer. Every other initializer runs at its own line, in order with the statements around it.
+
+Reading such a variable before its line has run is an error when the compiler can see it: a read in the top-level code above the line, a read in the variable's own initializer, or a top-level call, above the line, of a function in the file that reads it on every path. Anywhere the order cannot be seen (in a function called through another function, a method, a closure), the read is checked when it runs, and the program stops with `script variable 'x' used before its line ran (file:line)`, in every build mode. Values whose line has run are destroyed when the program ends, in reverse order, after the last statement and on every `return`.
+
+A file with `fn main` cannot also have top-level statements, and only the file the program starts from runs them: a top-level statement in an imported module, or in a `.k` file a C++ file includes, is an error. Every command-line input may be a script, but two scripts linked into one program are an error naming both (compiling them with `-c` and no link is fine). A `jump!` at the top level may not cross a line whose initializer runs there. See [Diagnostics](/docs/language/diagnostics/#scripts) for the errors, and [Implementation Status](/docs/status/) for what is not supported yet.
 
 ## Library Entry Files
 
@@ -9264,7 +9612,7 @@ Individual items can be imported selectively:
 println("hello")
 ```
 
-[**Core language primitives**](/docs/language/primitives/) (`i32`, `string`, `bool`, `[T]`, etc.) and **built-in syntax** (`if`, `for`, `match`, etc.) are always available without any import. Only **standard library functions and types** (`std::println`, `std::Error`, `std::Shared`, etc.) require an explicit import.
+[**Core language primitives**](/docs/language/primitives/) (`i32`, `string`, `bool`, `[T]`, etc.) and **built-in syntax** (`if`, `for`, `match`, etc.) are always available without any import. Only **standard library functions and types** (`std::println`, `std::parse`, `std::Shared`, etc.) require an explicit import.
 
 See [Imports](/docs/language/imports/) for import syntax and the `pub import` pattern for re-exporting.
 
@@ -9970,6 +10318,14 @@ fn Counter::get(const self) -> i32 { return self.n }   // ...so this definition 
 A closure cannot carry `@unwind` yet: written before a closure, it is an expression attribute, which is not supported. A closure follows `-funwind`.
 
 See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) for how C++ exceptions move through Kairo code.
+
+### Enums
+
+| Attribute | Description | Applies to |
+|---|---|---|
+| `@open` | The enum may hold any value of its underlying type: no checked `as`, no niche | Plain enums |
+
+A plain enum is closed by default; see [Closed and open enums](/docs/language/enums-plain/#closed-and-open-enums). `@open` on anything else is an error.
 
 ### Conversions
 
@@ -10950,7 +11306,7 @@ Kairo and C++ signal failure differently, and the two models meet at one place: 
 - **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic/): a tagged union value returned to the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
 - **Kairo frames are `noexcept`.** Every Kairo function, method, constructor, operator and closure is `noexcept` in its generated C++, unless it is marked [`@unwind`](/docs/language/attributes/#unwinding) or the program is built with `-funwind`. A C++ exception that reaches a `noexcept` Kairo frame terminates the program (`std::terminate`).
-- **`try`/`catch` handles both.** Around a Kairo call it lowers to a [`match`](/docs/language/pattern-matching/) on the returned tagged union. Around a C++ call it catches C++ exceptions through the unwinder.
+- **`try`/`catch` handles both.** Around a Kairo call it lowers to a tag compare per `catch` arm on the returned tagged union. Around a C++ call it catches C++ exceptions through the unwinder.
 
 ### C++ to Kairo
 
@@ -11018,7 +11374,7 @@ The flags:
 
 ### Kairo to C++: Kairo never throws
 
-Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a checked effect with a typed, inferred set: a Kairo error is a tagged union value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
+Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a checked effect with a typed set, inferred or declared: a Kairo error is a tagged union value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
 - A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
 - A C++ exception thrown by C++ code that Kairo calls terminates the program when it reaches a Kairo frame, unless that frame is [`@unwind`](/docs/language/attributes/#unwinding) (or the program is built with `-funwind`), in which case it unwinds through.
@@ -11026,18 +11382,58 @@ Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a 
 
 #### The value API
 
-A fallible Kairo function returns its result union directly. C++ sees a type carrying the tag and the possible outcomes, and inspects it without any unwinding involved.
+A fallible Kairo function returns its result union directly, by value and `[[nodiscard]]`. C++ sees a type carrying the tag, the source location of an error, and the possible outcomes, and inspects it without any unwinding involved.
+
+The API over the result is a set of free function templates in the `::builtin` namespace (the same namespace that holds `::builtin::null`), emitted with the generated C++. They are free functions rather than members because the result type's class text must be identical in every translation unit and header.
+
+| Helper | Meaning |
+|---|---|
+| `::builtin::ok(p)` | `true` when `p` holds a value |
+| `::builtin::value(p)` | The value, by reference; only valid when `ok(p)` |
+| `::builtin::is<E>(p)` | `true` when `p` holds an error of type `E` |
+| `::builtin::error<E>(p)` | The error, as `E&`; only valid when `is<E>(p)` |
+| `::builtin::site(p)` | The source file, line and column where the error was raised |
+| `::builtin::type_id<E>` | The id of error type `E`, the value stored in the tag |
+
+```cpp
+#include "config.k"                    // fn load_port(path: string) panic(IOError, RangeError) -> i32
+
+int port_or_default() {
+    auto r = load_port("port.txt");
+    if (::builtin::ok(r))
+        return ::builtin::value(r);
+    if (::builtin::is<RangeError>(r))
+        return 0;                      // ::builtin::error<RangeError>(r) is the Kairo error value
+    return 8080;                       // IOError
+}
+```
+
+A panic set holds exact types (there is no subtyping between error types; see [Panic](/docs/language/panic/#arms-match-exact-types)), so `is<E>` matches only `E` itself.
+
+> [!WARNING]
+> Panic is not compiled yet, so neither is this C++ view of a panicking function. See [Status](/docs/status/#not-compiled-yet).
 
 #### Converting to an exception
 
-Because chaining over a tagged union is unidiomatic in C++, the result type also offers a conversion to a thrown exception. The conversion is a method on the result type rather than a second entry point per function: one generated symbol, no name collisions, and it composes with the rest of an expression.
+Because chaining over a tagged union is unidiomatic in C++, a result can be converted to a thrown exception with `::builtin::value_or_throw(p)`: it returns the value on success, and otherwise throws `::builtin::panic_error<E>` for the error type `E` the result holds.
+
+```cpp
+try {
+    int port = ::builtin::value_or_throw(load_port("port.txt"));
+    serve(port);
+} catch (const ::builtin::panic_error<IOError>& e) {
+    log(e.error.path);                 // the Kairo error value
+} catch (const ::builtin::panic_error_base& e) {
+    log(e.what());                     // any other Kairo error
+}
+```
+
+- `::builtin::panic_error<E>` derives from `::builtin::panic_error_base`, which derives from `std::exception`, so `catch (const ::builtin::panic_error_base&)` catches any Kairo error and `catch (const std::exception&)` catches it too. Its `error` member holds the Kairo error value.
+- `what()` is the error's [`op panic`](/docs/language/operator-overloading/#op-panic) message followed by its type and source location: `<message> [<ErrorType> at <file>:<line>:<col>]`, for example `missing config key 'port' [ConfigError at app.k:12:9]`. A type with no `op panic` (it is optional) gives just the type and location: `ConfigError at app.k:12:9`. The string is built once, when the exception is constructed.
 
 The conversion is **generated C++**. It inspects the tag and throws from the C++ side of the boundary. Kairo itself still never throws, and the real entry point is unaffected. C++ callers who want exceptions get them; callers who want values keep the value API.
 
 Throwing a Kairo error *out of Kairo* is not a roadmap item; it is excluded by the effect system. The conversion is a translation at the boundary, not a change to how Kairo signals failure.
-
-> [!NOTE]
-> The exact spelling of the result type and its conversion method is not yet finalized.
 
 ## See also
 
@@ -11709,6 +12105,8 @@ shape->area()   // 78.539... dynamic dispatch
 
 `virtual` creates a vtable slot. `override` in the derived class replaces the entry in that slot. A class only has a vtable pointer (8 bytes at offset 0) if it declares or inherits at least one `virtual` method. Non-polymorphic classes have no vtable overhead.
 
+A `virtual` method that may [panic](/docs/language/panic/) must declare its panic set (`virtual fn load(self) panic(IOError) -> Data`), since it is the contract for every override. An `override` may leave its own set inferred, but that set must be a subset of the base method's. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
+
 ### Abstract classes (pure virtual)
 
 A `virtual` method declared with no body is pure virtual: it must be overridden by any non-abstract derived class:
@@ -12098,6 +12496,12 @@ class Parser {
 Member methods can also be declared inside the class body without a body and defined out-of-line using the `Class::method` qualified-name syntax:
 
 ```kairo
+struct ParseError {
+    var message: string
+    var pos: usize
+    fn op panic (const self) -> string { return f"{self.message} at token {self.pos}" }
+}
+
 class Parser {
     var tokens: [Token]
     var pos: usize
@@ -12122,7 +12526,7 @@ fn Parser::advance(self) -> Token {
 fn Parser::peek(const self) -> Token = self.tokens[self.pos]
 
 fn Parser::error(self, msg: string) panic {
-    panic std::Error::Parse(msg, self.pos)
+    panic ParseError { message: msg, pos: self.pos }
 }
 ```
 
@@ -12404,8 +12808,8 @@ var record: (i32, string, bool) = (42, "Answer", true)
 
 ```kairo
 fn add(a: i32, b: i32) -> i32 { return a + b }
-var #op: fn (i32, i32) -> i32 = add
-op(3, 4)  // 7
+var f: fn (i32, i32) -> i32 = add
+f(3, 4)  // 7
 ```
 
 > [!IMPORTANT]
@@ -12948,6 +13352,101 @@ Imported C++ enums are exempt.
 
 **Fix:** give each variant a distinct value. See [Enums](/docs/language/enums-plain/#discriminant-values).
 
+### SC001E: a constant cast into a closed enum is no variant's value
+
+`as` into a [closed](/docs/language/enums-plain/#closed-and-open-enums) plain enum with a constant that no variant has. The code is a placeholder until the error gets its own.
+
+```
+{n} is not a value of '{E}': a closed enum holds only its variants' values
+```
+
+```kairo
+enum Color derives u8 { Red, Green, Blue }
+
+var c = 3 as Color     // error SC001E: 3 is not a value of 'Color'
+```
+
+The note points at the enum. When the enum is declared in the same file, a fix-it inserts `@open` before its `enum` keyword.
+
+**Fix:** cast a value one of the variants has, or declare the enum `@open` if it is meant to hold other values. A non-constant operand is not an error: it is checked when it runs and crashes on a miss.
+
+### SC001E: `@open` on something other than a plain enum
+
+```
+'@open' does not apply to an ADT enum: no cast makes its tag, so it is always closed
+'@open' does not apply to this declaration; only a plain enum can be open
+```
+
+The fix-it removes the attribute.
+
+### SC001E: a pack-expanded variant is malformed
+
+A [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) `V { e: E }...` must have a payload that names the enum's type pack, must be the enum's last variant, and must be its only one. A pack named in a variant without `...` is the same error. The code is a placeholder until the error gets its own.
+
+```
+variant '{V}' is followed by ... but has no payload, so there is nothing to expand
+variant '{V}' is followed by ..., but its payload names no type pack of '{E}'
+pack-expanded variant '{V}' must be the last variant of '{E}'
+'{E}' already has a pack-expanded variant, '{V}'; an enum expands its pack once
+variant '{V}' names the type pack '{P}', but is one variant; add ... after it to make one variant per element of '{P}'
+```
+
+```kairo
+enum <T, ...E> R {
+    Err { e: E },        // error SC001E: add ... after it
+    Ok { v: T },
+}
+```
+
+A fix-it removes a `...` that expands nothing, or adds the missing one.
+
+**Fix:** follow the variant that holds the pack with `...` and put it last.
+
+### SC001E: no expansion of a pack-expanded variant fits
+
+A construction or a pattern names a pack-expanded variant, and its payload type picks no expansion, or several. A pattern must write the type on the binder of the pack field when there is more than one expansion; a fix-it writes the first one's. The note lists the expansions.
+
+```
+no '{V}' of '{T}' holds a '{U}'
+a '{U}' fits more than one '{V}' of '{T}'; the payload's type must pick one
+'{V}' is one variant per element of a pack in '{T}'; name the payload's type to pick one
+'{T}' has no '{V}' variant: its pack is empty
+```
+
+```kairo
+enum <T, ...E> Outcome { Ok { value: T }, Err { error: E }... }
+
+var o: Outcome<i32, i64, f64> = .Err { error: 1 }   // error SC001E: an i32 fits both
+match o {
+    case .Err(var error) { }                         // error SC001E: name the type, 'var error: i64'
+    default { }
+}
+```
+
+**Fix:** give the payload a value of exactly one element's type, and write `var error: T` in the pattern.
+
+### SC001E: a type pack or a pack parameter where one value or type is expected
+
+A type pack (`...T`) stands for several types and a pack parameter (`...xs: T`) for several values, so neither can be used as one. A pack is written expanded as an argument (`Box<T...>`, `f(xs...)`), as the type of a `...` parameter, or, for a pack parameter, iterated with `for`. The code is a placeholder until the error gets its own.
+
+```
+'{T}' is a type pack and stands for several types; a field cannot have it as its type
+'{xs}' is a pack of values with different types; pass it on expanded as an argument, or iterate it with a for loop
+a pack expansion is written only as a call argument, where it passes each element as its own argument
+only a pack parameter can be expanded
+```
+
+```kairo
+class <...T> Holder { var xs: T }     // error SC001E
+fn <...T> f(...xs: T) {
+    var y = xs                         // error SC001E
+    for x in xs { }                    // fine
+    g(xs...)                           // fine
+}
+```
+
+**Fix:** expand the pack, or iterate it.
+
 ### SC123E: a variant name does not fit the expected type
 
 A `.V`, or a pattern head, must name a variant of the enum it is checked against. It covers construction as well as [`match` patterns](/docs/language/pattern-matching/#enum-variant-matching): `.V` with no expected enum type, `.V` against a type that is not an enum, a variant the enum does not have, a variant of another enum, a type that is not the matched type, and a name that is not a variant, a constant or a type.
@@ -13020,6 +13519,67 @@ See [Enums](/docs/language/enums-adt/#construction).
 
 ---
 
+## Panic
+
+These are the [panic](/docs/language/panic/) effect checks: every error a call or a `panic` may produce is handled with `try`/`catch` or propagated by a `panic` function. Messages name every type involved; a set is listed in a fixed order.
+
+### SC001E: `unhandled panic: '{f}' may panic with '{E}', and '{g}' is not marked 'panic'`
+
+A call to a panicking function, or a `panic` statement, in a function with no `panic` specifier, where no enclosing `try` catches the types listed. Two fix-its: mark the function `panic` to propagate, or wrap the call in `try ... catch => crash!()` to handle it there. The same check applies to a closure (`... and the closure is not marked 'panic'`).
+
+```kairo
+fn parse_port(s: string) panic -> i32 { ... }
+
+fn bad() -> i32 {
+    return parse_port("8080")   // error SC001E
+}
+```
+
+**Fix:** mark `bad` `panic`, or handle the error: `return try parse_port("8080") catch => 8080`.
+
+### SC001E: `'{E}' is not in the declared panic set of '{f}'`
+
+A function (or closure) with a [declared set](/docs/language/panic/#declared-panic-sets) `panic(E1, E2)` panics with, or propagates, a type outside it. The note points at the callee the type comes from; the fix-it adds the type to the list.
+
+```kairo
+fn load(path: string) panic(IOError) -> i32 {
+    return parse_port(read_file(path))   // error: 'RangeError' is not in the declared panic set of 'load'
+}
+```
+
+### SC001E: `'main' cannot panic` / `a panic cannot reach 'main'`
+
+`main` can never be `panic` (fix-it: remove it), and an error that would reach `main` unhandled is an error at the call that propagates it, with a fix-it handling it there or stopping the program with [`crash!()`](/docs/language/panic/#main-and-crash). A script's top-level code follows the same rule (`a panic cannot reach a script's top level`).
+
+### SC001E: `'{f}' cannot be both 'panic' and '-> !'`
+
+A `panic` function returns its error to the caller; a `-> !` function never returns. Fix-it: remove `panic`.
+
+### SC001E: `{what} cannot panic: it runs where no call is written, so nothing could handle the error`
+
+A destructor (`op delete`), a transfer constructor (`@copy` / `@move`), a default constructor, an `@implicit` conversion and `op panic` are called by the language where no call is written, so an error from them could never be caught. Fix-it: remove `panic`.
+
+### SC001E: `type '{T}' cannot be panicked: {why}`
+
+An error is returned and propagated by value, so a type a `panic` raises, a declared set names, or a `catch` names (`cannot be caught`) must be movable, complete, and a value: not a reference, not `void`. The reason says which rule failed, and a note points at the type.
+
+```kairo
+class Pinned {
+    @move fn Pinned(self, other: Pinned) = delete
+}
+fn f() panic -> i32 { panic Pinned() }   // error: it is not movable
+```
+
+### SC001E: `a global's initializer cannot panic` / `cannot hold a 'try'`
+
+A global's (or static field's) initializer runs at file scope: there is no function for an error to propagate to, and no place for a `try`. Initialize it in a function instead. A field's default and a parameter's default may call a panicking function only inside a `try` that handles everything (`a field's default cannot panic: ...`).
+
+### SC001E: `'op panic' takes 'const self'` / `'op panic' must return 'string'`
+
+[`op panic`](/docs/language/operator-overloading/#op-panic) is optional, but when a type defines it, it is `fn op panic (const self) -> string`. Fix-its insert `const` and write `string`.
+
+---
+
 ## Not Yet Supported
 
 ### SC116E: a feature is not yet supported
@@ -13040,7 +13600,9 @@ It is reported for:
 - an initializer on an `eval` or array-typed field
 - a generic record's field default that reads another field
 - an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
-- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` or `eval` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
+- building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
+- a generic [`panic`](/docs/language/panic/) function (or one inside a generic type), a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside a generic function, a generator, or an `async` body
+- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
@@ -13062,6 +13624,61 @@ enum W { Has { b: Box<i32> }, Empty }   // error SC116E
 > ```
 
 **Fix:** rewrite around the construct for now. See [Status](/docs/status/).
+
+---
+
+## Scripts
+
+The errors of [script mode](/docs/language/modules/#scripts): a file with top-level statements and no `fn main`.
+
+### `script variable '{x}' is read before the line that gives it a value has run`
+
+A top-level variable whose initializer is not a constant gets its value at its own line. Reading it in the top-level code above that line, or in its own initializer, reads a value that does not exist yet. A note points at the line.
+
+```kairo
+
+
+fn load() -> i32 { return 1 }
+
+println(f"{count}")      // error: read before its line
+var count = load()
+```
+
+**Fix:** move the read below the line, or give the variable a constant initializer.
+
+### `'{f}' reads script variable '{x}' before the line that gives it a value has run`
+
+A top-level call, made above `x`'s line, of a function in the file that reads `x` on every path. Notes point at the read and at the line. A function that reads it only on some path, or through another function, is not reported: that read is checked when it runs, and stops the program with `script variable '{x}' used before its line ran ({file}:{line})`.
+
+**Fix:** call the function after the line.
+
+### `this 'jump!' crosses the line that gives script variable '{x}' its value`
+
+A top-level `jump!` whose path passes over a line whose initializer runs there: forward, the initializer would be skipped while the reads after the label assume it ran; back, it would run again. Notes point at the line and at the label. (A `jump!` written by the user is also [SC116E](#sc116e-a-feature-is-not-yet-supported) for now.)
+
+### `a file with 'fn main' cannot also have top-level statements; 'main' is where the program starts`
+
+The statements would never run. A note points at `main`.
+
+**Fix:** move them into `main`, or delete `main` to make the file a script.
+
+### `a top-level statement runs only in the program's root file; this file is imported as a module`
+
+Only the file the program starts from runs top-level statements. An imported module, or a `.k` file included from C++, runs none.
+
+**Fix:** move the statement into a function, or into the file the program starts from.
+
+### `two script files in one program: '{a}' and '{b}' each run top-level statements as 'main'`
+
+Every command-line input may be a script, and each script is a `main`, so two in one link are two programs. Reported at the second script's first statement, with a note at the first's. Compiling them with `-c` and no link is not an error.
+
+### `a top-level 'return' gives the program's exit status, an integer; this value is a '{T}'`
+
+A top-level `return` returns from the script's `main`: bare it returns `0`, and a value must be an integer.
+
+### `'{x}' redefined`
+
+A name defined twice in one scope; at the top level that includes two bindings of one name, whatever keyword declares each (`static count` and `var count`). A note points at the first. When both are file-scope bindings, a fix-it renames the second to the first free `{x}2`, `{x}3`, ...; a duplicate field or local gets the error and the note only.
 
 ---
 
@@ -13088,6 +13705,8 @@ fn g() -> i32 {
 ```
 
 One warning covers the whole dead run of statements, up to the end of the block or the next `label!` (a `jump!` target makes what follows it reachable again). A note points at the statement that leaves. A `return` inside a closure ends only the closure, so code after the closure is not affected. A `match` arm that can never match is reported separately, as SC121E.
+
+The top level of a [script](/docs/language/modules/#scripts) is a block too: code after a top-level `return` is reported. A declaration between the statements (a function, a type, a binding with a constant initializer) is never dead code and is left out of the warning and its fix-it; the dead code after it gets a warning of its own.
 
 **Fix:** delete the dead statements (the fix-it does), or move them above the statement that leaves. See [Control Flow](/docs/language/control-flow/).
 
@@ -13460,15 +14079,24 @@ See [Control Flow](/docs/language/pattern-matching/#match-as-an-expression) for 
 
 ## Memory layout
 
-An ADT enum stores a discriminant tag plus storage sized to the largest variant's payload. The tag is a `u32`. A variant with no payload consumes no extra storage beyond the tag.
-
-> [!NOTE]
-> A `derives` type on an enum with payloads is accepted but ignored for now: the tag stays `u32`. See [Status](/docs/status/#not-compiled-yet).
+An ADT enum stores a discriminant tag plus storage sized to the largest variant's payload. The tag is the enum's `derives` type when it names one, otherwise the smallest unsigned integer that holds a tag per variant: `u8` up to 256 variants, `u16` beyond. A variant with no payload consumes no extra storage beyond the tag. A `derives` type too narrow for the variants is an error.
 
 ```
 ParseResult<f64> layout:
-  [tag: u32] [payload: max(sizeof Success, sizeof Error)] [padding]
+  [tag: u8] [payload: max(sizeof Success, sizeof Error)] [padding]
 ```
+
+When every payload field is a primitive, a pointer, or a plain enum, the tag sits inside each payload instead of in front of it, so the payload's padding absorbs it: `enum Pair { Two { a: u8, b: u16 }, One { c: u8 }, Zero }` is 4 bytes, not 6.
+
+An enum with exactly one variant that carries a payload, that payload a single field, and at least one variant without a payload, may need no tag at all. If the field has bit patterns it never holds, each payload-free variant is stored as one of them:
+
+- a pointer is never null, so `null` stands for the variant: `(*Foo)?` is the size of a pointer, and is passed and returned like one;
+- a [closed](/docs/language/enums-plain/#closed-and-open-enums) plain enum whose values are `0` to `N-1` never holds a value past its last variant: `Color?` is one byte for an `enum Color derives u8 { Red, Green, Blue }`, with `null` stored as 3;
+- an enum with payloads never holds a tag past its last variant: `Inst?` is the size of `Inst`.
+
+An [`@open`](/docs/language/enums-plain/#closed-and-open-enums) plain enum has no spare patterns: `as` can give it any value of its underlying type, so `Color?` keeps a tag (two bytes for an `@open enum Color derives u8`). Neither does a plain enum with explicit values that leave gaps, nor an imported C or C++ enum.
+
+The field must also copy and destroy as plain bytes. Nesting keeps working: `(Color?)?` is still one byte, stored as 4, since `Color?` leaves values to spare, while `((*Foo)?)?` needs a tag, since the pointer's only spare pattern is taken. No program can observe the difference except through `sizeof`.
 
 The compiler generates a [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) that switches on the tag to destroy the active variant's fields. Copy and move operations follow the same pattern.
 
@@ -13510,6 +14138,48 @@ enum <T impl Serializable> CacheEntry {
 ```
 
 See [Requires Clauses](/docs/language/requires/) for the full constraint system.
+
+### Variadic enums
+
+An enum can take a type pack (`...E`, as in [generic variadic functions](/docs/language/functions-parameters/#generic-variadic-functions)) and declare a **pack-expanded variant**: a variant written once and followed by `...`, which expands to one variant per element of the pack.
+
+```kairo
+enum <T, ...E> Outcome {
+    Ok  { value: T },
+    Err { error: E }...,    // one Err variant per element of E
+}
+
+type Parsed = Outcome<i32, string, f64>   // variants: Ok { value: i32 }, Err { error: string }, Err { error: f64 }
+type Plain  = Outcome<i32>                 // an empty pack: only Ok
+```
+
+- A pack-expanded variant's payload names the pack (`E`) as a field's whole type, and each expansion has that element as its payload type.
+- The expansions share the variant's name and are told apart by their payload type: a pattern or construction that names `Err` picks the expansion whose payload type matches.
+- Equal types in a pack give one variant, not two: `Outcome<i32, string, string>` has one `Err { error: string }`, and is the same type as `Outcome<i32, string>`.
+- A variant that is not followed by `...` is an ordinary variant, the same in every instantiation. It cannot name the pack.
+- An enum has at most one pack-expanded variant, and it is the last one.
+
+A construction picks the expansion whose payload type is the value's type exactly, or, failing that, the one expansion the value converts to:
+
+```kairo
+var a: Parsed = .Err { error: "bad digit" }   // Err { error: string }
+var b: Parsed = .Err { error: 0.5 }           // Err { error: f64 }
+var c: Parsed = .Err { error: 1 }             // error: an i32 fits neither exactly, and both by conversion
+```
+
+A pattern picks one by the type written on the binder of the pack field. With a single expansion the type may be left out. Each expansion is its own case for [exhaustiveness](/docs/language/pattern-matching/#exhaustiveness):
+
+```kairo
+fn describe(p: Parsed) -> string = match p {
+    case .Ok(var value)           => f"{value}"
+    case .Err(var error: string)  => error
+    case .Err(var error: f64)     => "out of range"
+}
+```
+
+A generic function can take and return a variadic enum, and its pack is deduced from the argument (`fn <...E> relay(o: Outcome<i32, E...>) -> Outcome<i32, E...>`). Building or matching a pack-expanded variant at a type that still depends on a generic parameter is not supported yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)).
+
+The builtin result type of a [panicking function](/docs/language/panic/) is declared this way, with the function's panic set as the pack.
 
 ---
 
@@ -13596,6 +14266,8 @@ fn main() -> i32 {
 
 [Bitwise operators](/docs/language/operators/#bitwise) are not defined on the enum type itself, so test a flag on the underlying integer: cast both sides with `as` and compare the result with `0`.
 
+A combination no variant names (`Read | Execute`, 5 above) is not a value of a [closed](#closed-and-open-enums) enum, so casting it back with `as` fails. A flags enum that is meant to hold any combination is declared `@open`.
+
 ---
 
 ## Underlying Type
@@ -13644,7 +14316,41 @@ fn main() -> i32 {
 }
 ```
 
-Casting an integer to an enum that has no matching discriminant is undefined behavior.
+Casting back is checked, unless the enum is `@open`: see the next section.
+
+---
+
+## Closed and open enums
+
+A plain enum is **closed** by default: it only ever holds one of its variants' values. Every way to make a value of it keeps that true:
+
+- `n as E` with a **constant** `n` that is no variant's value is a compile error, [SC001E](/docs/language/diagnostics/#sc001e-a-constant-cast-into-a-closed-enum-is-no-variants-value), with a fix-it that declares the enum `@open`.
+- `n as E` with any other `n` is checked when it runs. A value that is no variant's **crashes** the program, like a failed bounds check: it prints the cast and where it is, then aborts. It is not a [`panic`](/docs/language/panic/): no `try` catches it. The check compares the integer before the cast, so when the compiler can see the value it costs nothing: `v >= 3` for an enum whose values are `0`, `1`, `2`, and one compare per variant when the values are explicit.
+
+Because a closed enum never holds anything else, the compiler can use the values past its variants: `Color?` is one byte, `null` stored as a value no `Color` has (see [ADT memory layout](/docs/language/enums-adt/#memory-layout)), and a `match` that covers every variant needs no fallback for an undeclared value.
+
+The `@open` attribute declares an **open** enum, one that may hold any value of its underlying type, as a C++ enum does (clang's `enum_extensibility(open)`):
+
+```kairo
+@open enum Signal derives u8 {
+    Hup = 1,
+    Int = 2,
+    Kill = 9,
+}
+
+fn main() -> i32 {
+    var s = 15 as Signal    // fine: Signal is open, 15 is a value it may hold
+    return 0
+}
+```
+
+An open enum gets no `as` check, no niche (`Signal?` keeps a tag), and a complete `match` over it traps on an undeclared value below `-O3`. Use it for flags whose combinations are values, for codes another program may extend, and for anything filled in by C or C++.
+
+- `@open` applies to a plain enum only. On an enum with payloads, a struct, a function or anything else it is an error with a fix-it that removes it. Written on a [forward declaration](#forward-declarations) or the definition, it opens the enum.
+- An enum [imported from C or C++](/docs/language/c-cpp/) is always open: clang owns its values.
+- An enum with no variants holds no value at all unless it is `@open`; declare one that is a raw word, like the builtin `Byte`, `@open`.
+
+`unsafe` code can still put an undeclared value into a closed enum without `as`: a reinterpreting pointer cast (`&n as unsafe *Color`), a [union](/docs/language/unions/), or C or C++ code writing through a pointer it was handed. That is undefined behavior: the value may read back as `null` through a `Color?`, and a `match` may take any arm. Declare the enum `@open` when other code writes it.
 
 ---
 
@@ -13706,7 +14412,7 @@ fn background() async -> Data          { /* ... */ }
 | `unsafe` | Yes | Yes | [Separate overload namespace](/docs/language/unsafe/#unsafe-function-overloads) for alternative implementations |
 | `eval` | Yes | Yes | Must be evaluable at compile time. See [Eval](/docs/language/eval/) |
 | `async` | Yes | Yes | Asynchronous execution. See [Concurrency](/docs/language/concurrency/) |
-| `panic` | Yes | Yes | May panic; callers must handle. See [Panic](/docs/language/panic/) |
+| `panic` | Yes | Yes | May panic; callers must handle. `panic(E1, E2)` declares the set. See [Panic](/docs/language/panic/) |
 | `inline` | Yes | Yes | Puts the body in the interface. See [`inline`](#inline) |
 | `final` | | Yes | Prevents override in subclasses. See [Classes](/docs/language/classes-inheritance/#final) |
 
@@ -14409,7 +15115,9 @@ fn <...T> print_all(...args: T) {
 print_all(42, "hello", true)   // prints each on a new line
 ```
 
-The parameter is a tuple of heterogeneous types. Each element in the pack must satisfy the constraints used in the function body in the example above, every `T` must be convertible to `string` via `as`.
+The parameter is a pack: one value per argument, each with its own type, and `T` stands for that list of types. A pack is not a value on its own: the body iterates it with `for` (the loop body runs once per element, at that element's type) or forwards it with `...` (below). Each element must satisfy the constraints the body puts on it: in the example above, every `T` must be convertible to `string` via `as`. The element types are deduced from the arguments; writing them as generic arguments (`print_all<i32, bool>(...)`) is not supported yet.
+
+A type pack is only ever written expanded (`Box<T...>`) or as the type of a `...` parameter: a field, variable, return value or ordinary parameter cannot have a pack as its type.
 
 ### Pack expansion and forwarding
 
@@ -14421,7 +15129,7 @@ fn <...T> log_all(...args: T) {
 }
 ```
 
-The same postfix form appears in type position for pack-typed signatures. The split mirrors the [token-macro splat](/docs/language/macros/#variadic-macros-and-pack-expansion): `...` before a name declares a pack, `...` after an expression expands one.
+An expansion is written only as a call argument, and only of a pack parameter. The same postfix form appears in type position for pack-typed signatures (`-> Outcome<i32, T...>`, `derives Base<T...>`). The split mirrors the [token-macro splat](/docs/language/macros/#variadic-macros-and-pack-expansion): `...` before a name declares a pack, `...` after an expression expands one.
 
 
 ## See also
@@ -14745,7 +15453,7 @@ URL: https://www.kairolang.org/docs/language/interfaces-requirements/
 
 # Interface Requirements
 
-An interface body contains method signatures (including generic methods), static function signatures, operator signatures, constructor requirements, and [associated types](/docs/language/interfaces/#associated-types). This page covers the operator, constructor, static, and `Self` requirements.
+An interface body contains method signatures (including generic methods), static function signatures, operator signatures, constructor requirements, and [associated types](/docs/language/interfaces/#associated-types). This page covers the operator, constructor, static, `Self` and panicking requirements.
 
 ---
 
@@ -14921,6 +15629,36 @@ interface Duplicable {
 
 ---
 
+## Panicking Requirements
+
+A requirement that may [panic](/docs/language/panic/) must declare its panic set, `panic(E1, E2)`. A bare `panic` on a requirement is an error: a requirement has no body to infer a set from, and the set is the contract every conformer is held to.
+
+```kairo
+struct ReadError {
+    var path: string
+    fn op panic (const self) -> string { return f"cannot read {self.path}" }
+}
+
+interface Source {
+    fn read(self, path: string) panic(ReadError) -> string
+}
+
+class Disk impl Source {
+    fn read(self, path: string) panic -> string {     // set inferred: ReadError
+        if !exists(path) { panic ReadError { path: path } }
+        return load(path)
+    }
+}
+
+class Memory impl Source {
+    fn read(self, path: string) -> string { return "" }   // ok: no panic at all
+}
+```
+
+A conforming method may infer its set, but the set must be a subset of the requirement's. Panicking with a type outside it is an error at the conformer.
+
+---
+
 ## See also
 
 - [Interfaces](/docs/language/interfaces/)
@@ -15022,9 +15760,10 @@ The `compile_` prefix keeps these distinct from runtime logging: `compile_error!
 | `embed_str!(path)` | File contents as a string literal |
 | `embed!(path)` | File contents as a byte array (`[byte]`) |
 | `unique_id!` / `unique_id!(tag)` | Generate a unique identifier |
-| `todo!(msg)` | Runtime panic placeholder with optional message |
-| `unreachable!(msg)` | Assert a code path is unreachable (panics if reached) |
+| `todo!(msg)` | Placeholder that crashes at runtime, with an optional message |
+| `unreachable!(msg)` | Assert a code path is unreachable (crashes if reached) |
 | `unreachable_unchecked!` | Optimizer hint: path is dead (UB if reached) |
+| `crash!()` / `crash!(msg)` | End the process: write `msg` (if given) and a newline to stderr, then abort. Never returns |
 
 ```kairo
 // Embed a shader as a string
@@ -15039,7 +15778,9 @@ fn process() -> Config {
 }
 ```
 
-`todo!()` and `unreachable!()` are SAFE: both [panic](/docs/language/panic/) at runtime if reached, with `unreachable!()` signaling a logic error rather than missing code. `unreachable_unchecked!()` is the unsafe variant: it is a hard assertion to the optimizer that the path is dead, and reaching it at runtime is undefined behavior. Reach for `unreachable_unchecked!` only when the panic branch of `unreachable!` shows up in a profile.
+`todo!()` and `unreachable!()` are SAFE: both crash at runtime if reached, like [`crash!()`](/docs/language/panic/#main-and-crash) (neither is a [panic](/docs/language/panic/): they join no panic set, so `fn process() -> Config { todo!(...) }` needs no `panic` specifier), with `unreachable!()` signaling a logic error rather than missing code. `unreachable_unchecked!()` is the unsafe variant: it is a hard assertion to the optimizer that the path is dead, and reaching it at runtime is undefined behavior. Reach for `unreachable_unchecked!` only when the crash branch of `unreachable!` shows up in a profile.
+
+`crash!` is not a compiler intrinsic: it is an ordinary `pub macro` declared in the builtin library, and every file sees it without an import, the way it sees the builtin types. It expands to a call to a function that returns [`!`](/docs/language/panic/#panic-and-no-return-), so the compiler knows nothing after it runs: a function returning `T` may end in `crash!()` with no `return` after it. Like `todo!()`, it is not a [panic](/docs/language/panic/): it joins no panic set and no `try` catches it, and `main` may call it. Because it is a library macro rather than a reserved name, a macro named `crash!` that a file declares or imports itself takes precedence. What it reports before aborting is not final; rely only on the fact that it does not return.
 
 Untagged, `unique_id!` produces a fresh identifier on every invocation. The tagged form `unique_id!(tag)` is stable within one dynamic macro expansion: every `unique_id!(guard)` inside the same expansion instance yields the SAME identifier, letting a macro body refer to one generated name in several places, while separate invocations of the macro still get distinct names.
 
@@ -15418,6 +16159,7 @@ Operators are overloaded by defining `fn op` methods on a [class](/docs/language
 | `as` | ok | no | Returns a converted value. Member-only. |
 | `delete` | ok | no | Custom destructor. Member-only. |
 | `await` | ok | no | Returns the awaited value. |
+| `panic` | ok | no | `fn op panic (const self) -> string`: the optional message for a [panicked](/docs/language/panic/#error-types) value. See [`op panic`](#op-panic). |
 | `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` | ok | no | Returns nothing. Declare either this or its binary operator, not both. |
 | `=` | no | no | Generated by the compiler; cannot be overloaded. |
 | `===` | no | no | Built in; needs a nullable operand. |
@@ -15553,6 +16295,7 @@ struct V {
 | `in` (containment) | `fn op in (self, other: T) -> bool` | `if item in collection` checks membership |
 | `in` (iteration) | `fn op in (self) -> yield T` | `for x in collection` yields elements |
 | `delete` | `fn op delete (self)` | Custom destructor called when the value goes out of scope |
+| `panic` | `fn op panic (const self) -> string` | The message for an error of this type, used when the error is shown (optional) |
 
 The two `in` signatures are distinguished by context: the compiler uses the `-> bool` variant in `if` expressions and the `-> yield T` variant in `for` loops.
 
@@ -15614,6 +16357,30 @@ var t = n + "!"          // error: operands are not converted; write (n as strin
 ```
 
 Without [`@implicit`](/docs/language/attributes/#conversions), `op as` only runs on an explicit `as`.
+
+### `op panic`
+
+Any movable type can be [panicked](/docs/language/panic/#error-types); `op panic` is optional. When a type defines it, the operator returns the human-readable message for an error of that type:
+
+```kairo
+struct ConfigError {
+    var key: string
+
+    fn op panic (const self) -> string {
+        return f"missing config key {self.key}"
+    }
+}
+
+fn port(cfg: Config) panic -> i32 {
+    if !cfg.has("port") { panic ConfigError { key: "port" } }
+    return cfg.get_int("port")
+}
+```
+
+- The signature is fixed: no parameters besides `const self`, and a `string` result. A plain `self` receiver is an error whose fix-it inserts `const`.
+- The message is built only when the error is displayed, for example by [`value_or_throw`](/docs/language/c-cpp-exceptions/#converting-to-an-exception) on the C++ side. Raising, propagating and catching an error never call it.
+- Without `op panic`, a displayed error shows its type name and source location instead of a message.
+- An [extension](/docs/language/extends/) may add `op panic` to a Kairo type it doesn't own, such as a primitive or another module's type. A C++ type cannot define it; it can still be panicked, and shows its type name.
 
 ## Places and values: `[]`, `->`
 
@@ -16486,9 +17253,9 @@ The organizing principle in one sentence: **debug is allowed to rewrite your cod
 
 Both are access-safety clauses. They differ in the *nature of the fallback*.
 
-A bounds check (`assert(off < count)`) does not change the meaning of the program. `buf[i]` still means `buf[i]`; the access either proceeds or panics on exactly the inputs that would have been UB. Emitting it in release costs one predictable branch and is the price of permitting safe pointer arithmetic with runtime indices. That is the entire point of Kairo's pointer model; see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic).
+A bounds check (`assert(off < count)`) does not change the meaning of the program. `buf[i]` still means `buf[i]`; the access either proceeds or crashes on exactly the inputs that would have been UB (a crash, not a [panic](/docs/language/panic/): it joins no panic set). Emitting it in release costs one predictable branch and is the price of permitting safe pointer arithmetic with runtime indices. That is the entire point of Kairo's pointer model; see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic).
 
-A null fallback (`if (p == null) panic()`) *introduces a control-flow edge that is not visible in the source*. A release binary that silently panics on a null dereference the programmer never guarded has hidden control flow, which violates the same guarantee that forbids hidden allocation. So no mode inserts that guard. An access to a nullable the compiler cannot prove non-null is a compile error in debug and release alike: check it (`if x?`), give a fallback (`??`), or force it (`unwrap!()`), each of which writes the null path into the source. See [Nullables](/docs/language/nullables/#null-checking).
+A null fallback (`if (p == null) crash!()`) *introduces a control-flow edge that is not visible in the source*. A release binary that silently crashes on a null dereference the programmer never guarded has hidden control flow, which violates the same guarantee that forbids hidden allocation. So no mode inserts that guard. An access to a nullable the compiler cannot prove non-null is a compile error in debug and release alike: check it (`if x?`), give a fallback (`??`), or force it (`unwrap!()`), each of which writes the null path into the source. See [Nullables](/docs/language/nullables/#null-checking).
 
 ## See also
 

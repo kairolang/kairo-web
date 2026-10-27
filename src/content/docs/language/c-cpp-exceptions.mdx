@@ -15,7 +15,7 @@ Kairo and C++ signal failure differently, and the two models meet at one place: 
 - **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic/): a tagged union value returned to the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
 - **Kairo frames are `noexcept`.** Every Kairo function, method, constructor, operator and closure is `noexcept` in its generated C++, unless it is marked [`@unwind`](/docs/language/attributes/#unwinding) or the program is built with `-funwind`. A C++ exception that reaches a `noexcept` Kairo frame terminates the program (`std::terminate`).
-- **`try`/`catch` handles both.** Around a Kairo call it lowers to a [`match`](/docs/language/pattern-matching/) on the returned tagged union. Around a C++ call it catches C++ exceptions through the unwinder.
+- **`try`/`catch` handles both.** Around a Kairo call it lowers to a tag compare per `catch` arm on the returned tagged union. Around a C++ call it catches C++ exceptions through the unwinder.
 
 ### C++ to Kairo
 
@@ -83,7 +83,7 @@ The flags:
 
 ### Kairo to C++: Kairo never throws
 
-Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a checked effect with a typed, inferred set: a Kairo error is a tagged union value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
+Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a checked effect with a typed set, inferred or declared: a Kairo error is a tagged union value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
 - A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
 - A C++ exception thrown by C++ code that Kairo calls terminates the program when it reaches a Kairo frame, unless that frame is [`@unwind`](/docs/language/attributes/#unwinding) (or the program is built with `-funwind`), in which case it unwinds through.
@@ -91,18 +91,58 @@ Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a 
 
 #### The value API
 
-A fallible Kairo function returns its result union directly. C++ sees a type carrying the tag and the possible outcomes, and inspects it without any unwinding involved.
+A fallible Kairo function returns its result union directly, by value and `[[nodiscard]]`. C++ sees a type carrying the tag, the source location of an error, and the possible outcomes, and inspects it without any unwinding involved.
+
+The API over the result is a set of free function templates in the `::builtin` namespace (the same namespace that holds `::builtin::null`), emitted with the generated C++. They are free functions rather than members because the result type's class text must be identical in every translation unit and header.
+
+| Helper | Meaning |
+|---|---|
+| `::builtin::ok(p)` | `true` when `p` holds a value |
+| `::builtin::value(p)` | The value, by reference; only valid when `ok(p)` |
+| `::builtin::is<E>(p)` | `true` when `p` holds an error of type `E` |
+| `::builtin::error<E>(p)` | The error, as `E&`; only valid when `is<E>(p)` |
+| `::builtin::site(p)` | The source file, line and column where the error was raised |
+| `::builtin::type_id<E>` | The id of error type `E`, the value stored in the tag |
+
+```cpp
+#include "config.k"                    // fn load_port(path: string) panic(IOError, RangeError) -> i32
+
+int port_or_default() {
+    auto r = load_port("port.txt");
+    if (::builtin::ok(r))
+        return ::builtin::value(r);
+    if (::builtin::is<RangeError>(r))
+        return 0;                      // ::builtin::error<RangeError>(r) is the Kairo error value
+    return 8080;                       // IOError
+}
+```
+
+A panic set holds exact types (there is no subtyping between error types; see [Panic](/docs/language/panic/#arms-match-exact-types)), so `is<E>` matches only `E` itself.
+
+> [!WARNING]
+> Panic is not compiled yet, so neither is this C++ view of a panicking function. See [Status](/docs/status/#not-compiled-yet).
 
 #### Converting to an exception
 
-Because chaining over a tagged union is unidiomatic in C++, the result type also offers a conversion to a thrown exception. The conversion is a method on the result type rather than a second entry point per function: one generated symbol, no name collisions, and it composes with the rest of an expression.
+Because chaining over a tagged union is unidiomatic in C++, a result can be converted to a thrown exception with `::builtin::value_or_throw(p)`: it returns the value on success, and otherwise throws `::builtin::panic_error<E>` for the error type `E` the result holds.
+
+```cpp
+try {
+    int port = ::builtin::value_or_throw(load_port("port.txt"));
+    serve(port);
+} catch (const ::builtin::panic_error<IOError>& e) {
+    log(e.error.path);                 // the Kairo error value
+} catch (const ::builtin::panic_error_base& e) {
+    log(e.what());                     // any other Kairo error
+}
+```
+
+- `::builtin::panic_error<E>` derives from `::builtin::panic_error_base`, which derives from `std::exception`, so `catch (const ::builtin::panic_error_base&)` catches any Kairo error and `catch (const std::exception&)` catches it too. Its `error` member holds the Kairo error value.
+- `what()` is the error's [`op panic`](/docs/language/operator-overloading/#op-panic) message followed by its type and source location: `<message> [<ErrorType> at <file>:<line>:<col>]`, for example `missing config key 'port' [ConfigError at app.k:12:9]`. A type with no `op panic` (it is optional) gives just the type and location: `ConfigError at app.k:12:9`. The string is built once, when the exception is constructed.
 
 The conversion is **generated C++**. It inspects the tag and throws from the C++ side of the boundary. Kairo itself still never throws, and the real entry point is unaffected. C++ callers who want exceptions get them; callers who want values keep the value API.
 
 Throwing a Kairo error *out of Kairo* is not a roadmap item; it is excluded by the effect system. The conversion is a translation at the boundary, not a change to how Kairo signals failure.
-
-> [!NOTE]
-> The exact spelling of the result type and its conversion method is not yet finalized.
 
 ## See also
 

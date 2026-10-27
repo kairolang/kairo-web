@@ -295,6 +295,101 @@ Imported C++ enums are exempt.
 
 **Fix:** give each variant a distinct value. See [Enums](/docs/language/enums-plain/#discriminant-values).
 
+### SC001E: a constant cast into a closed enum is no variant's value
+
+`as` into a [closed](/docs/language/enums-plain/#closed-and-open-enums) plain enum with a constant that no variant has. The code is a placeholder until the error gets its own.
+
+```
+{n} is not a value of '{E}': a closed enum holds only its variants' values
+```
+
+```kairo
+enum Color derives u8 { Red, Green, Blue }
+
+var c = 3 as Color     // error SC001E: 3 is not a value of 'Color'
+```
+
+The note points at the enum. When the enum is declared in the same file, a fix-it inserts `@open` before its `enum` keyword.
+
+**Fix:** cast a value one of the variants has, or declare the enum `@open` if it is meant to hold other values. A non-constant operand is not an error: it is checked when it runs and crashes on a miss.
+
+### SC001E: `@open` on something other than a plain enum
+
+```
+'@open' does not apply to an ADT enum: no cast makes its tag, so it is always closed
+'@open' does not apply to this declaration; only a plain enum can be open
+```
+
+The fix-it removes the attribute.
+
+### SC001E: a pack-expanded variant is malformed
+
+A [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) `V { e: E }...` must have a payload that names the enum's type pack, must be the enum's last variant, and must be its only one. A pack named in a variant without `...` is the same error. The code is a placeholder until the error gets its own.
+
+```
+variant '{V}' is followed by ... but has no payload, so there is nothing to expand
+variant '{V}' is followed by ..., but its payload names no type pack of '{E}'
+pack-expanded variant '{V}' must be the last variant of '{E}'
+'{E}' already has a pack-expanded variant, '{V}'; an enum expands its pack once
+variant '{V}' names the type pack '{P}', but is one variant; add ... after it to make one variant per element of '{P}'
+```
+
+```kairo
+enum <T, ...E> R {
+    Err { e: E },        // error SC001E: add ... after it
+    Ok { v: T },
+}
+```
+
+A fix-it removes a `...` that expands nothing, or adds the missing one.
+
+**Fix:** follow the variant that holds the pack with `...` and put it last.
+
+### SC001E: no expansion of a pack-expanded variant fits
+
+A construction or a pattern names a pack-expanded variant, and its payload type picks no expansion, or several. A pattern must write the type on the binder of the pack field when there is more than one expansion; a fix-it writes the first one's. The note lists the expansions.
+
+```
+no '{V}' of '{T}' holds a '{U}'
+a '{U}' fits more than one '{V}' of '{T}'; the payload's type must pick one
+'{V}' is one variant per element of a pack in '{T}'; name the payload's type to pick one
+'{T}' has no '{V}' variant: its pack is empty
+```
+
+```kairo
+enum <T, ...E> Outcome { Ok { value: T }, Err { error: E }... }
+
+var o: Outcome<i32, i64, f64> = .Err { error: 1 }   // error SC001E: an i32 fits both
+match o {
+    case .Err(var error) { }                         // error SC001E: name the type, 'var error: i64'
+    default { }
+}
+```
+
+**Fix:** give the payload a value of exactly one element's type, and write `var error: T` in the pattern.
+
+### SC001E: a type pack or a pack parameter where one value or type is expected
+
+A type pack (`...T`) stands for several types and a pack parameter (`...xs: T`) for several values, so neither can be used as one. A pack is written expanded as an argument (`Box<T...>`, `f(xs...)`), as the type of a `...` parameter, or, for a pack parameter, iterated with `for`. The code is a placeholder until the error gets its own.
+
+```
+'{T}' is a type pack and stands for several types; a field cannot have it as its type
+'{xs}' is a pack of values with different types; pass it on expanded as an argument, or iterate it with a for loop
+a pack expansion is written only as a call argument, where it passes each element as its own argument
+only a pack parameter can be expanded
+```
+
+```kairo
+class <...T> Holder { var xs: T }     // error SC001E
+fn <...T> f(...xs: T) {
+    var y = xs                         // error SC001E
+    for x in xs { }                    // fine
+    g(xs...)                           // fine
+}
+```
+
+**Fix:** expand the pack, or iterate it.
+
 ### SC123E: a variant name does not fit the expected type
 
 A `.V`, or a pattern head, must name a variant of the enum it is checked against. It covers construction as well as [`match` patterns](/docs/language/pattern-matching/#enum-variant-matching): `.V` with no expected enum type, `.V` against a type that is not an enum, a variant the enum does not have, a variant of another enum, a type that is not the matched type, and a name that is not a variant, a constant or a type.
@@ -367,6 +462,67 @@ See [Enums](/docs/language/enums-adt/#construction).
 
 ---
 
+## Panic
+
+These are the [panic](/docs/language/panic/) effect checks: every error a call or a `panic` may produce is handled with `try`/`catch` or propagated by a `panic` function. Messages name every type involved; a set is listed in a fixed order.
+
+### SC001E: `unhandled panic: '{f}' may panic with '{E}', and '{g}' is not marked 'panic'`
+
+A call to a panicking function, or a `panic` statement, in a function with no `panic` specifier, where no enclosing `try` catches the types listed. Two fix-its: mark the function `panic` to propagate, or wrap the call in `try ... catch => crash!()` to handle it there. The same check applies to a closure (`... and the closure is not marked 'panic'`).
+
+```kairo
+fn parse_port(s: string) panic -> i32 { ... }
+
+fn bad() -> i32 {
+    return parse_port("8080")   // error SC001E
+}
+```
+
+**Fix:** mark `bad` `panic`, or handle the error: `return try parse_port("8080") catch => 8080`.
+
+### SC001E: `'{E}' is not in the declared panic set of '{f}'`
+
+A function (or closure) with a [declared set](/docs/language/panic/#declared-panic-sets) `panic(E1, E2)` panics with, or propagates, a type outside it. The note points at the callee the type comes from; the fix-it adds the type to the list.
+
+```kairo
+fn load(path: string) panic(IOError) -> i32 {
+    return parse_port(read_file(path))   // error: 'RangeError' is not in the declared panic set of 'load'
+}
+```
+
+### SC001E: `'main' cannot panic` / `a panic cannot reach 'main'`
+
+`main` can never be `panic` (fix-it: remove it), and an error that would reach `main` unhandled is an error at the call that propagates it, with a fix-it handling it there or stopping the program with [`crash!()`](/docs/language/panic/#main-and-crash). A script's top-level code follows the same rule (`a panic cannot reach a script's top level`).
+
+### SC001E: `'{f}' cannot be both 'panic' and '-> !'`
+
+A `panic` function returns its error to the caller; a `-> !` function never returns. Fix-it: remove `panic`.
+
+### SC001E: `{what} cannot panic: it runs where no call is written, so nothing could handle the error`
+
+A destructor (`op delete`), a transfer constructor (`@copy` / `@move`), a default constructor, an `@implicit` conversion and `op panic` are called by the language where no call is written, so an error from them could never be caught. Fix-it: remove `panic`.
+
+### SC001E: `type '{T}' cannot be panicked: {why}`
+
+An error is returned and propagated by value, so a type a `panic` raises, a declared set names, or a `catch` names (`cannot be caught`) must be movable, complete, and a value: not a reference, not `void`. The reason says which rule failed, and a note points at the type.
+
+```kairo
+class Pinned {
+    @move fn Pinned(self, other: Pinned) = delete
+}
+fn f() panic -> i32 { panic Pinned() }   // error: it is not movable
+```
+
+### SC001E: `a global's initializer cannot panic` / `cannot hold a 'try'`
+
+A global's (or static field's) initializer runs at file scope: there is no function for an error to propagate to, and no place for a `try`. Initialize it in a function instead. A field's default and a parameter's default may call a panicking function only inside a `try` that handles everything (`a field's default cannot panic: ...`).
+
+### SC001E: `'op panic' takes 'const self'` / `'op panic' must return 'string'`
+
+[`op panic`](/docs/language/operator-overloading/#op-panic) is optional, but when a type defines it, it is `fn op panic (const self) -> string`. Fix-its insert `const` and write `string`.
+
+---
+
 ## Not Yet Supported
 
 ### SC116E: a feature is not yet supported
@@ -387,6 +543,8 @@ It is reported for:
 - an initializer on an `eval` or array-typed field
 - a generic record's field default that reads another field
 - an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
+- building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
+- a generic [`panic`](/docs/language/panic/) function (or one inside a generic type), a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside a generic function, a generator, or an `async` body
 - [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.

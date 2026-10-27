@@ -231,6 +231,14 @@ A closure cannot carry `@unwind` yet: written before a closure, it is an express
 
 See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) for how C++ exceptions move through Kairo code.
 
+### Enums
+
+| Attribute | Description | Applies to |
+|---|---|---|
+| `@open` | The enum may hold any value of its underlying type: no checked `as`, no niche | Plain enums |
+
+A plain enum is closed by default; see [Closed and open enums](/docs/language/enums-plain/#closed-and-open-enums). `@open` on anything else is an error.
+
 ### Conversions
 
 | Attribute | Description | Applies to |
