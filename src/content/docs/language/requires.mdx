@@ -178,7 +178,7 @@ eval fn is_power_of_two(n: i32) -> bool {
     return n > 0 && (n & (n - 1)) == 0
 }
 
-fn <const N: i32> clear_aligned(@inout buf: [u8; N])
+fn <eval N: i32> clear_aligned(@inout buf: [u8; N])
   requires is_power_of_two(N) {
     for i in 0..N { buf[i] = 0 }
 }

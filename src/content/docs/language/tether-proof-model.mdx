@@ -43,7 +43,7 @@ Where:
 
 Each clause is a distinct **proof domain** with its own analysis. Tether discharges as many clauses as it can statically. The clauses that remain (the **residual**) determine what is generated. The mapping from a residual clause to a code-generation response is the entire specification of Tether's behavior, and it is given in [The Residual Table](#the-residual-table).
 
-The critical design point: the obligation is checked at the **dereference**, never at pointer arithmetic. Forming a pointer value (`var q = p + i`) computes a new provenance fact and emits no code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic offset information through arbitrarily many SSA transformations and discharge or eliminate the obligation as late as possible (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
+The critical design point: the obligation is checked at the **dereference**, never at pointer arithmetic. Forming a pointer value (`var *q = p + i`) computes a new provenance fact and emits no code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic offset information through arbitrarily many SSA transformations and discharge or eliminate the obligation as late as possible (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
 
 ---
 

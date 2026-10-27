@@ -74,13 +74,13 @@ class MyClass {
     fn MyClass(self) = default
 
     fn init(self) {
-        data = unsafe std::alloc<i32>(sizeof i32 * 10) // 10 i32's allocated
+        self.data = unsafe std::alloc<i32>(sizeof i32 * 10) // 10 i32's allocated
     }
 
     fn op delete(self) {
-        if data != &null {
-            unsafe std::free(data)
-            data = &null
+        if self.data != &null {
+            unsafe std::free(self.data)
+            self.data = &null
         }
     }
 }
@@ -213,7 +213,7 @@ class Buffer {
     var size: usize
 
     fn Buffer(self, size: usize) {
-        self.data = std::alloc<u8>(size)
+        self.data = unsafe std::alloc<u8>(size)
         self.size = size
     }
 
@@ -221,12 +221,12 @@ class Buffer {
     fn Buffer(self, other: Self) {
         self.data  = other.data
         self.size  = other.size
-        other.data = null
+        other.data = &null
         other.size = 0
     }
 
     fn op delete(self) {
-        std::free(self.data)
+        unsafe std::free(self.data)
     }
 }
 ```

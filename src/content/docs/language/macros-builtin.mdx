@@ -79,7 +79,7 @@ std::println(f"logged from {file!}:{line!}")
 | `compile_note!(msg)` | Emit a compile note |
 
 ```kairo
-eval if platform == "wasm" {
+eval if defined!(__wasm__) {
     compile_error!("WebAssembly is not supported yet")
 }
 ```
@@ -119,13 +119,25 @@ Untagged, `unique_id!` produces a fresh identifier on every invocation. The tagg
 
 | Macro | Description |
 |---|---|
-| `defined!(name)` | Check if a macro with the given name exists |
+| `defined!(name)` | `true` if a macro with the given name exists, `false` otherwise |
 
 ```kairo
 eval if defined!(DEBUG_MODE) {
     fn log(msg: string) { std::println(f"[DEBUG] {msg}") }
 } else {
     fn log(msg: string) { }
+}
+```
+
+`defined!` sees Kairo macros (a `macro NAME!` defined earlier, or `-D NAME` on the command line) and C/C++ macros: the target's predefined macros (`__linux__`, `_WIN32`, `__x86_64__`, `__aarch64__`, ...) and every macro the file's [`ffi`](/docs/language/c-cpp/) headers define. That makes it the way to select platform code:
+
+```kairo
+ffi "c" import "config.h"     // #define HAVE_FAST_PATH 1
+
+eval if defined!(__linux__) && defined!(HAVE_FAST_PATH) {
+    fn init() { /* ... */ }
+} else {
+    fn init() { /* fallback */ }
 }
 ```
 
@@ -140,7 +152,7 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 | `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow/#jumps) |
 | `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow/#jumps) |
 | `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe/#forget) |
-| `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/nullables/#force-unwrap) |
+| `unwrap!(expr)` | Force-unwrap a nullable; aborts the program on null | [Nullables](/docs/language/nullables/#force-unwrap) |
 | `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence/) |
 
 These use macro syntax (`name!`) to make their usage explicit and searchable in a codebase, but they are not user-definable they are built into the compiler.

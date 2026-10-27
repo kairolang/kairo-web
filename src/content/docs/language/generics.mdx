@@ -43,6 +43,26 @@ fn <T impl Copyable> store(item: T) -> T { ... }
 
 See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
+## Value parameters
+
+A generic parameter can be a compile-time **value** instead of a type: `eval N: T`. Its argument must be [evaluable at compile time](/docs/language/eval/), a literal, an `eval` constant, or arithmetic over them, and inside the generic `N` is a constant of type `T`, usable as an array length:
+
+```kairo
+eval CAPACITY = 16
+
+class <eval N: usize, T> Ring {
+    var items: [T; N]
+    fn capacity(const self) -> usize { return N }
+}
+
+fn <eval N: usize> scaled() -> usize { return N * 2 }
+
+var r = Ring<CAPACITY, i32>()     // the same type as Ring<16, i32>
+var s = scaled<4>()               // 8
+```
+
+A function's value parameter is given explicitly (`scaled<4>()`) or deduced from an array argument's length (`fn <eval N: usize> sum(const a: [i32; N])` called with a `[i32; 3]`). A `const` binding is not evaluable at compile time, so it cannot be a value argument; `const N: T` is not a parameter spelling either (write `eval N: T`).
+
 ---
 
 ## See also

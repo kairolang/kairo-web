@@ -14,6 +14,7 @@ Kairo and C++ signal failure differently, and the two models meet at one place: 
 
 - **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic/): a tagged union value returned to the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
+- **Kairo frames are `noexcept`.** Every Kairo function, method, constructor, operator and closure is `noexcept` in its generated C++, unless it is marked [`@unwind`](/docs/language/attributes/#unwinding) or the program is built with `-funwind`. A C++ exception that reaches a `noexcept` Kairo frame terminates the program (`std::terminate`).
 - **`try`/`catch` handles both.** Around a Kairo call it lowers to a [`match`](/docs/language/pattern-matching/) on the returned tagged union. Around a C++ call it catches C++ exceptions through the unwinder.
 
 ### C++ to Kairo
@@ -32,18 +33,61 @@ fn main() {
 }
 ```
 
-The exception does not have to be thrown directly inside the `try`. It can come from a C++ call several Kairo frames down, and the unwinder passes through the Kairo frames in between to reach the `catch`. The compiler emits unwind info for exactly those frames: a Kairo function gets it only when it sits between a C++ call and a Kairo `try` that can catch from that call. Kairo code with no such path carries no unwind tables.
+> [!WARNING]
+> Catching a C++ exception in a Kairo `try`/`catch` is not compiled yet. See [Status](/docs/status/).
+
+The exception can come from a C++ call several Kairo frames down, but every Kairo frame between the `throw` and the `catch` must let it through: mark each one [`@unwind`](/docs/language/attributes/#unwinding), or build with `-funwind`. A frame that is `noexcept` (the default) stops the exception by terminating the program, before the `catch` is reached. The frame holding the `try` itself does not need `@unwind`: the exception stops there.
+
+```kairo
+@unwind fn relay(x: i32) -> i32 {
+    return checked_double(x) + 1        // C++, may throw: passes through relay
+}
+
+fn guarded(x: i32) -> i32 {
+    try { return relay(x) } catch e: cxx::std::exception { return -1 }
+}
+```
 
 > [!NOTE]
-> Unlike Kairo's [panic system](/docs/language/panic/), the compiler cannot statically determine every exception type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue to the next enclosing Kairo `try`. An exception that no Kairo `try` catches keeps unwinding like any C++ exception. If it reaches a [`@no_unwind`](/docs/language/attributes/#unwinding) function, the program terminates (`std::terminate`).
+> Unlike Kairo's [panic system](/docs/language/panic/), the compiler cannot statically determine every exception type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue to the next enclosing frame, which terminates the program if it is `noexcept`.
+
+### C++ exceptions through Kairo frames
+
+A C++ function that throws and catches internally works under any Kairo caller: nothing reaches the Kairo frame. What `noexcept` decides is an exception that leaves the C++ code Kairo called:
+
+| The Kairo frame it reaches | What happens |
+|---|---|
+| A plain Kairo function (the default) | `std::terminate`: the program aborts |
+| An `@unwind` function, or any function under `-funwind` | The exception passes through, to the next frame up (a C++ `catch` in a C++ caller works) |
+| A `@no_unwind` function | `std::terminate`, even under `-funwind` |
+
+```kairo
+ffi "c++" import "guard.hh"      // int checked(int) throws; int guard(int (*)(int), int) catches
+
+@unwind fn relay(x: i32) -> i32 { return checked(x) + 1 }
+
+fn main() -> i32 {
+    return guard(relay, -4)       // -1: thrown through relay, caught by guard in C++
+}
+```
+
+Without `@unwind` on `relay`, the same program aborts with the C++ runtime's "terminating due to uncaught exception" message.
+
+The flags:
+
+- `-fno-unwind` (the default): every Kairo function is `noexcept`, except those marked `@unwind`.
+- `-funwind`: no Kairo function is `noexcept`, except those marked `@no_unwind`. Closures follow the flag (a closure cannot be marked `@unwind` yet). Build every Kairo module and `kcc` host of one program with the same setting.
+- C++ exceptions themselves are on for a hosted target. A freestanding target (no OS in the target triple, `--freestanding`, kernel mode) has no unwinder and keeps them off unless `-fexceptions` asks; `-fno-exceptions` turns them off anywhere.
+
+`noexcept` is part of the C++ contract a Kairo declaration exposes. A C++ class that overrides a Kairo `virtual fn` must mark its override `noexcept` too (C++ rejects an override whose exception specification is laxer than the base's), unless the Kairo method is `@unwind`. The other way, a Kairo override of a C++ `virtual` that is `noexcept` must not be `@unwind`. A function declared with `ffi` linkage, or imported from a C/C++ header, keeps the exception specification its C/C++ declaration states.
 
 ### Kairo to C++: Kairo never throws
 
 Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a checked effect with a typed, inferred set: a Kairo error is a tagged union value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
 - A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
-- A C++ exception thrown by C++ code that Kairo calls can unwind through Kairo frames, unless a Kairo `try` catches it.
-- A function marked [`@no_unwind`](/docs/language/attributes/#unwinding) has `noexcept` on its generated C++ declaration and definition, so `noexcept`-conditional C++ code that calls it takes the `noexcept(true)` branch. An exception that reaches it terminates the program.
+- A C++ exception thrown by C++ code that Kairo calls terminates the program when it reaches a Kairo frame, unless that frame is [`@unwind`](/docs/language/attributes/#unwinding) (or the program is built with `-funwind`), in which case it unwinds through.
+- Every Kairo function that is not `@unwind` has `noexcept` on its generated C++ declaration and definition, so `noexcept`-conditional C++ code that calls it (`std::vector` reallocation, `std::move_if_noexcept`) takes the `noexcept(true)` branch.
 
 #### The value API
 

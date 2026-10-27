@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-25T05:43:55.243Z
+> Generated: 2026-10-27T01:42:09.754Z
 
 ---
 
@@ -745,7 +745,7 @@ The ABI boundary between Kairo-emitted code and C++-emitted code is:
 - **MSVC C++ ABI** on `*-windows-msvc` triples.
 - Name mangling follows whichever C++ ABI the triple selects. Kairo functions exported across the FFI boundary use C++ name mangling to support overloading and seamless interop with Clang-compiled C++ code. Explicit `ffi "C"` linkage (no mangling) is only used for C interop or when specifically requested.
 - Kairo never throws: panics are returned as tagged union values, and a Kairo `try`/`catch` around a Kairo call lowers to a `match` on that union.
-- A C++ exception can be caught by a Kairo `try`/`catch`. It is unwound by the platform unwinder (libunwind on Unix-like systems) using the standard unwind tables (`.eh_frame` / `__eh_frame`). The compiler emits unwind info only for Kairo frames between a C++ call and a Kairo `try` that can catch from it. A C++ exception that no Kairo `try` catches keeps unwinding; if it reaches a `@no_unwind` function, the program calls `std::terminate`.
+- A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems) using the standard unwind tables (`.eh_frame` / `__eh_frame`). Every Kairo function is `noexcept` unless marked `@unwind` (or built with `-funwind`), so a C++ exception that reaches a Kairo frame calls `std::terminate` unless that frame lets it through. A Kairo `try`/`catch` can catch one that every frame below it lets through.
 - Virtual dispatch into C++ classes works without special handling because Kairo lowers method calls on C++ objects directly to Clang, which handles vtable dispatch normally.
 - C++ smart pointers (`std::unique_ptr<T>`, `std::shared_ptr<T>`, `std::weak_ptr<T>`) map to Kairo's Tether-tracked equivalents (`std::Unique<T>`, `std::Shared<T>`, `std::Weak<*T>`) automatically. No `unsafe` block is required for FFI calls using smart pointers, references, move references, or value types. Only raw pointer parameters (`T*`, `void*`) require an `unsafe` block.
 
@@ -836,22 +836,29 @@ Stage 1 is built from source for now; prebuilt downloads come with the first rel
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
 | Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
 | A declared underlying type on a payload enum (`enum E derives u8 { A { x: i32 }, B }`) | Accepted and ignored: the tag is always `u32` | - |
-| Static fields (`static count: i32` in a class) | Type-check, but do not link: no definition is emitted yet | Use a file-scope `static` variable |
-| An initializer on a `static`, `eval` or array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (array), or use a file-scope `static` or an `eval` inside a `module` (static/eval) |
+| An initializer on an array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 | Struct destructuring (`var {a, b} = s`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Read the fields one by one: `var a = s.a` |
 | Functions, classes and enums declared inside a function body | Not compiled yet (a local `struct` works) | Declare them at file scope |
 | `for ... in` over Kairo vectors, sets, maps and strings | Not supported yet | Loop over a slice, an array or a range |
-| `for ... in` over a generator | Rejected with SC095E | Call the generator's methods directly |
 | Yielding a literal from a generator (`yield 7`) | Fails in the C++ step | Yield a variable: `var v = 7` then `yield v` |
-| `eval` at file scope, or an `eval` constant used as an array length | Not compiled yet | Put `eval` constants and `eval fn` inside a `module`; use a literal for array lengths |
-| `await`, `spawn` and `thread` | Can be declared as operators, but do nothing yet | - |
+| `eval for` directly in a `module` or class body | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use an `eval for` in a function body |
+| An `eval if` branch that is valid only for some instantiations of a generic (`eval if typeof T == i32 { return int_to_bytes(value) }`) | Both branches are type-checked against the bounds | Use [overloads](/docs/language/functions-overloading/) |
+| An array length computed by a call (`[i32; size()]`, or an `eval` constant whose initializer calls an `eval fn`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use a literal, `eval` constants, or arithmetic over them |
+| `await`, `spawn` and the `thread` expression (`thread work()`) | Can be declared as operators, but do nothing yet. (A [`thread` variable](/docs/language/variables/#thread-local-variables) is a different construct and is compiled.) | - |
+| Catching a C++ exception in a Kairo `try`/`catch` (`catch e: cxx::std::exception`) | Fails with an internal compiler error | Catch it in C++, above an `@unwind` Kairo frame |
+| `@unwind` on a closure | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) (it parses as an expression attribute) | Use a named `@unwind` function, or build with `-funwind` |
+| Attributes on expressions, including heap allocation with `@create T(args)` | Parsed; rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | - |
+| [`where` guards](/docs/language/where/) on functions | Compile on free functions and methods (methods of generic classes too), with the fallback, priority order, coverage and the unreachable / overlap warnings. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator or constructor, an out-of-line method definition, a forward declaration, a generator, an `async` or `eval` function, a variadic function, or an overload with default arguments. An `unsafe` overload beside them is rejected (R039E): unsafe overloads cannot coexist with safe ones yet | Test the condition with an `if` inside one function |
+| [`typeof`](/docs/language/type-system/#typeof-identity-semantics), as a type (`var y: typeof x`) or as a value | The compiler crashes (an internal error) | Write the type out |
+| [Closures](/docs/language/closures/) and lambdas (`fn () { ... }` as a value) | Compile, with every capture mode (by copy, `\|*\|`, `\|*x\|`, `\|const *x\|`, mixed, `\|\|`), stored in a `fn` variable or field, passed, returned and nested. One that captures nothing can be passed where a C function pointer is expected. Not yet: generic closures (`fn <T>(x: T)`) are rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported); a closure's default parameter values are dropped, so a call must pass every argument; `async` on a closure is ignored (it runs as a plain closure). Copying a closure that holds a moved-in MOVE value stops the program, and so does passing a closure that captures where a C function pointer is expected | Use a named generic function; pass every argument; capture a MOVE value by pointer (`\|*x\|`) when the closure is copied |
+| [Nullables](/docs/language/nullables/) (`T?`, `null`, `x?`, `== null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, `match` on a `T?`) | `T?` and `null` compile: a `T?` is `::builtin::Nullable<T>` in C++, and a value or `null` converts into one anywhere a `T?` is expected (including `*T?`, a nullable pointer `(*T)?`, and nested `(T?)?`). `var x? = e`, the null test `x?`, `== null` / `!= null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, a `match` on a `T?` and the checked downcast `p as *D?` compile. [Narrowing](/docs/language/nullables/#narrowing) works: a checked nullable reads as its `T`, through conditions, early exits, loops, `match` arms, `@inout` and mutable-`self` calls, pointers and closures, and an unchecked read is a compile error. Not yet: every `T?` stores its value and a presence flag, so `*T?` is not one pointer wide and `bool?` not one byte; `T? -> U?` between different inner types fails in the C++ compiler; a nullable reached through `->` or a subscript is not narrowed by a check; a checked downcast from a nullable pointer (`maybe_animal as *Dog?`) is rejected; in a generic function, `===` on a `T?` compares addresses when `T` turns out to be a pointer (only a written `*T?` compares what it points to) | Copy a nullable reached through `->` or a subscript to a local before checking it; test a nullable pointer before downcasting it (`if a? { a as *Dog? }`) |
 
 ---
 
 ## Checked by C++, Not by Kairo
 
-Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo diagnostic. This covers `priv` constructors and writes to `const` fields.
+Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo diagnostic. The C++ step is also stricter than Kairo: a free function in the class's own module that reads a `priv` member is rejected, although [visibility](/docs/language/classes/#visibility) is module-wide and allows it. This covers `priv` constructors and assignments to a `const` variable (`const x: i32? = 42` then `x = null`, or to a `static const` / `thread const`): `--type-check-only` does not report the last.
 
 ---
 
@@ -860,6 +867,8 @@ Access control is enforced, but the error comes from the C++ compiler at build t
 Passing a slice literal to a function that **stores** the slice is not caught. The literal's storage ends with the statement, so the stored slice dangles. This becomes an error when [Tether](/docs/language/tether/) lands; until then, pass a `var` or a `[T]` to any function that keeps what it is given. See [Primitives](/docs/language/collections/#how-long-a-slice-literals-storage-lives).
 
 Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not reported. See [Enums](/docs/language/enums-adt/#destructuring-with-match).
+
+Initializing or assigning a safe pointer `*T` with `&null` (`var p: *i32 = &null`) is not reported, although `*T` is never null by design. Use a nullable pointer `*T?` for a pointer that may be absent. See [Pointers and nullability](/docs/language/nullables/#pointers-and-nullability).
 
 Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a default constructor. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
 
@@ -870,6 +879,8 @@ Three [`extend`](/docs/language/extends/) rules are not diagnosed yet:
 - An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See [Interface Conformance](/docs/language/extends/#interface-conformance).
 
 A [generator](/docs/language/functions-generators/#generator-lifetimes) that outlives the object it was created from, or an `@inout` argument it was given, is not caught; it dangles. This becomes an error when [Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object it came from.
+
+A [closure](/docs/language/closures/#tether-and-lifetime-safety) that captures a local by pointer (`|*x|`, `|*|`) and outlives it, by being returned or stored, is not caught; the pointer dangles. This becomes an error when [Tether](/docs/language/tether/) lands. Until then, capture by copy in a closure that leaves its scope.
 
 ---
 
@@ -1138,7 +1149,7 @@ var void_t: MyObj<void> = MyObj<void>()  // void is valid here
 | Type | Size | Description |
 |---|---|---|
 | `*T` | 8 bytes | Safe pointer non-null, compiler-tracked |
-| `unsafe *T` | 8 bytes | Raw pointer nullable, no safety checks |
+| `unsafe *T` | 8 bytes | Raw pointer may hold `&null`, no safety checks |
 
 `*T` is a thin pointer (8 bytes). It is non-null by construction and supports pointer arithmetic when the compiler can track its provenance via [Tether](/docs/language/tether/). See [Pointers](/docs/language/pointers/) for full details.
 
@@ -1194,7 +1205,7 @@ var k: byte = 0xFF      // raw byte, no arithmetic
 
 // Pointers
 var x = 42
-var p = &x              // *i32
+var *p = &x             // *i32
 var q: unsafe *i32 = unsafe &x
 
 // Collections
@@ -1249,8 +1260,8 @@ URL: https://www.kairolang.org/docs/language/variables/
 |---|---|---|---|---|
 | `var` | Yes | Automatic | Optional (default-initialized) | Optional (inferred) |
 | `const` | No | Automatic | Required | Optional (inferred) |
-| `static` | Yes | Static | Optional | Required |
-| `thread` | Yes | Thread-local (one instance per thread) | Optional | Required |
+| `static` | Yes | Static | Optional | Optional (inferred) |
+| `thread` | Yes | Thread-local (one instance per thread) | Optional | Optional (inferred) |
 | `eval` | No | Compile-time | Required | Optional (inferred) |
 
 > Variables in Kairo are mutable by default. `const` bindings at local scope require an initializer, but class-level `const` members can be left uninitialized at declaration and assigned exactly once in the constructor body. See [Classes](/docs/language/classes/#const-members-in-constructors) for details.
@@ -1311,7 +1322,42 @@ var name? = get_name()
 // equivalent to: var name: string? = get_name()
 ```
 
-These are purely syntactic sugar the compiler infers the full type from the right-hand side. The long form is always valid and preferred when clarity matters.
+The stars give the pointer depth, to any depth, and they combine with `?`:
+
+```kairo
+var x = 5
+var *p = &x            // *i32
+var **pp = &p          // **i32
+var ***ppp = &pp       // ***i32
+var *n? = &x           // (*i32)?: a nullable pointer, wrapped once
+var *m? = find_ptr()   // find_ptr() -> (*i32)?: m is (*i32)?, not ((*i32)?)?
+```
+
+These are purely syntactic sugar the compiler infers the full type from the right-hand side. The shorthand never converts anything: the stars must match the initializer, and a mismatch is a compile error whose fix-it writes the right spelling:
+
+```kairo
+var *bad = &p          // error: '*bad' states a pointer of depth 1, but its initializer is '**i32', a pointer of depth 2; write '**bad'
+var *notp = x          // error: '*notp' declares a pointer, but its initializer has type 'i32', which is not one
+var unsafe *s = &x     // error: 'unsafe *s' declares an unsafe pointer, but its initializer is the safe pointer '*i32'; write '*s'
+var *m2 = find_ptr()   // error: '*m2' is initialized with a nullable '*i32?'; write '*m2?' so the declaration says it may be null
+```
+
+`unsafe` describes the outermost pointer only, as in the type `unsafe **i32` (an unsafe pointer to a safe `*i32`). A shorthand and a type annotation on the same name (`var *p: *i32`, `var x?: i32`) is an error: write one or the other. Fields declare their type and never take a shorthand.
+
+The long form is always valid and preferred when clarity matters.
+
+A binding with neither an annotation nor a shorthand whose inferred type is nullable or a pointer gets a warning, so the declaration always shows what the binding is. The fix-it writes the shorthand:
+
+```kairo
+var n = find()         // warning: 'n' is nullable; write 'n?' so it reads as one
+var p = &x             // warning: 'p' is a pointer; write '*p'
+var pp = &p            // warning: 'pp' is a pointer; write '**pp'
+var r = raw()          // raw() -> unsafe *i32. warning: 'r' is a pointer; write 'unsafe *r'
+var m = find_ptr()     // warning: 'm' is a nullable pointer; write '*m?' so it reads as one
+var q: *i32 = &x       // no warning: the type is written
+```
+
+Destructuring and `for` bindings are not checked, and neither is a binding whose type depends on a generic parameter.
 
 ---
 
@@ -1372,19 +1418,29 @@ eval MAX_SIZE = 1024 * 1024
 
 ## Static Variables
 
-`static` declares a binding with static storage duration it lives for the entire program. Unlike `var`, `static` requires an explicit type annotation.
+`static` declares a binding with static storage duration it lives for the entire program. Its type follows the same rule as `var`: write a type, an initializer, or both, and with an initializer the type is inferred. A `static` with neither is an error.
 
 ```kairo
 static counter: i32 = 0
+static limit = 64        // i32
+static *top = &limit      // *i32
 ```
 
-`static` can be combined with `const` for immutable static data. See [Modules](/docs/language/modules/) for `static` at module scope.
+`static` can be combined with `const` for immutable static data, in either order: `static const` and `const static` are the same declaration. The `const` applies to the binding itself, so the static cannot be reassigned; a `const` deeper in the type (`static p: *const i32`) only protects what it points to. The shorthands work as usual.
+
+```kairo
+static const LIMIT = 64          // const i32, static storage
+const static NAME: string = "k"  // same thing, other order
+static const *ROOT = &limit      // *i32 that cannot be re-pointed
+```
+
+Seen from C++, a namespace-scope `static const` is a `const` variable, a function-local one is `static const`, and a class member is a `static const` data member. `eval` is already `const`, so `eval const` and `const eval` are accepted and mean exactly `eval`. See [Modules](/docs/language/modules/) for `static` at module scope.
 
 ---
 
 ## Thread-Local Variables
 
-`thread` declares a binding with thread storage duration: every thread gets its own instance, initialized when the thread first touches it and destroyed when that thread exits. Like `static`, it requires an explicit type annotation and may appear at file scope, class scope, or inside a function body. A function-local `thread` keeps its value across calls on the same thread, like a static local, and is independent per thread.
+`thread` declares a binding with thread storage duration: every thread gets its own instance, initialized when the thread first touches it and destroyed when that thread exits. Like `static`, its type may be written or inferred from the initializer, and it may appear at file scope, class scope, or inside a function body. A function-local `thread` keeps its value across calls on the same thread, like a static local, and is independent per thread.
 
 ```kairo
 thread counter: i32 = 0
@@ -1401,7 +1457,7 @@ fn next_id() -> u64 {
 }
 ```
 
-`thread` combines with `const` the way `static` does. A `thread` binding without an initializer is default-initialized per thread under the rules in [Default Initialization](#default-initialization). Access is `name` at file scope and `Self::name` / `Type::name` at class scope, the same as `static`. Seen from C++, a `thread` binding is a `thread_local` variable.
+`thread` combines with `const` the way `static` does. A `thread` binding without an initializer is default-initialized per thread under the rules in [Default Initialization](#default-initialization). Access is `name` at file scope and `Self::name` / `Type::name` at class scope, the same as `static`. Seen from C++, a `thread` binding is a `thread_local` variable (`static thread_local` in a class or a function body). `static thread` is accepted as another spelling of `thread`.
 
 ---
 
@@ -1607,7 +1663,7 @@ Variables are block-scoped and [destroyed at the end of their enclosing block](/
 
 ```kairo
 var x = 10
-var y = &x
+var *y = &x
 {
     *y = 15    // ok: x is still alive, y is valid
 }
@@ -1704,7 +1760,7 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 
 ### `==` vs `===`
 
-`===` is valid when at least one operand is [nullable](/docs/language/nullables/) (`T?`). `a === b` is true when both are non-null and equal. On nullable pointers (`*T?`) it compares the values they point to, where `==` compares **addresses**. Using `===` where neither operand is nullable is an error, including two `*T`. To compare the pointees of two non-null pointers, dereference them and use `==`.
+`===` is valid when at least one operand is [nullable](/docs/language/nullables/) (`T?`). `a === b` is true when both are non-null and equal: it reads as `(a? && b?) && a == b`, with `==` applied to the unwrapped values. A non-nullable operand needs no test, so `a === 5` is `a? && a == 5`. On nullable pointers (`*T?`) it compares the values they point to, where `==` compares **addresses**. This goes one level only: on `(**T)?` it compares the `*T` values, which are addresses. Using `===` where neither operand is nullable is an error, including two `*T`. To compare the pointees of two non-null pointers, dereference them and use `==`. When a nullable pointer is involved, both sides must be pointers (`p === 42` is an error), and a nullable raw pointer (`unsafe *T?`) needs an `unsafe` block, since `===` dereferences it. `x === null` is never true, so it is an error, with a fix-it that writes the null test `!x?`.
 
 ```kairo
 var a = 42
@@ -1717,8 +1773,8 @@ p === q   // true: both point to 42
 ```
 
 ```kairo
-var x = &a
-var y = &b
+var *x = &a
+var *y = &b
 
 x === y   // error: '===' needs a nullable operand; '*i32' and '*i32' are not nullable
 *x == *y  // true
@@ -1820,11 +1876,18 @@ Kairo provides null-safe operators for working with [nullable types](/docs/langu
 | `?.` | Null-safe member access | `obj?.field` |
 | `?->` | Null-safe pointer deref + member access | `ptr?->field` |
 
-If the left-hand side is null, the entire expression evaluates to null instead of crashing.
+If the left-hand side is null, nothing on the right is evaluated and the entire expression is null. `x?.m` reads as `if x? => x.m else null`, and `x?.f(args)` the same: the call and its arguments run only when `x` is non-null. Nothing is constructed on the null path. The result type is the member's (or the call result's) type made nullable, `M?`, and stays `M?` when `M` is already nullable rather than becoming `(M?)?`. `?->` is the same over a nullable pointer, and a chain `a?.b?.c` applies each step to the previous step's result.
 
 ```kairo
 var user: User? = find_user("alice")
-var name = user?.get_name()   // string? null if user is null
+var name? = user?.get_name()  // string?: null if user is null; get_name() not called
+var city? = user?.address?.city  // string?: null if user or address is null
+```
+
+`??` supplies the fallback for the null case. The result is `T`, or `T?` when the right side is itself nullable; it chains to the right:
+
+```kairo
+var shown = user?.get_name() ?? "guest"   // string
 ```
 
 The non-null equivalents follow the same pattern without the safety check:
@@ -1935,7 +1998,7 @@ Operators are listed from highest precedence (tightest binding) to lowest. Opera
 |---|---|---|---|
 | 1 | Literals, names, `( )` grouping, `({ ... })`, `match` | | Primary expressions |
 | 2 | `::` | Left | Scope resolution |
-| 3 | `()` `[]` `.` `->` `?.` `?->` | Left | Postfix / member access |
+| 3 | `()` `[]` `.` `->` `?.` `?->` `?` (null test) | Left | Postfix / member access |
 | 4 | `++` `--` (postfix) | Left | Postfix increment/decrement |
 | 5 | `++` `--` (prefix) `!` `~` `+` `-` (unary) `*` `&` `sizeof` `alignof` `typeof` | Right | Prefix / unary |
 | 6 | `as` | Left | Type cast |
@@ -2439,6 +2502,8 @@ fn max(a: i32, b: i32) -> i32 {
 }
 ```
 
+A statement written after a `return` in the same block (or after a `break`, `continue`, `panic` or `jump!`) can never run, and the compiler warns about it ([SC003W](/docs/language/diagnostics/#sc003w-unreachable-code)). A `return` inside a closure ends only the closure.
+
 ## Blocks and Scope
 
 A block is a brace-delimited sequence of statements. Every block introduces a new lexical scope variables declared inside are not visible outside, and [destructors run at the closing brace](/docs/language/ownership/#destruction-order) in reverse declaration order.
@@ -2510,9 +2575,9 @@ Kairo does not have a `goto` keyword. `label!` and `jump!` are compiler intrinsi
 `eval if` selects a branch at compile time. The condition must be a compile-time constant expression if it is not, the compiler emits an error. Only the selected branch is included in the final program; the other branches are discarded entirely (no codegen, no type-checking).
 
 ```kairo
-eval if platform == "linux" {
+eval if defined!(__linux__) {
     fn init() { /* linux-specific init */ }
-} else if platform == "windows" {
+} else if defined!(_WIN32) {
     fn init() { /* windows-specific init */ }
 } else {
     fn init() { /* fallback */ }
@@ -2586,6 +2651,8 @@ var x: i32 = if valid => compute() else => fatal("invalid state")
 // fatal() returns ! which coerces to i32
 ```
 
+Because a call to a `-> !` function never comes back, a statement after it in the same block is unreachable, and the compiler warns ([SC003W](/docs/language/diagnostics/#sc003w-unreachable-code)). The same holds after an `if` whose every branch leaves, an exhaustive `match` whose every arm leaves, and a `loop` or `while true` that no `break` exits.
+
 See [Functions](/docs/language/functions/) for return type syntax and [Type System](/docs/language/type-system/) for how `!` interacts with type inference.
 
 ---
@@ -2602,7 +2669,7 @@ See [Functions](/docs/language/functions/) for return type syntax and [Type Syst
 
 ```kairo
 if ptr != null && *ptr == 42 {
-    // safe: *ptr is only evaluated if ptr is non-null
+    // safe: *ptr is only evaluated if ptr (a *i32?) is non-null, so ptr is narrowed there
 }
 ```
 
@@ -3659,9 +3726,6 @@ Counter::get_count()   // 2
 
 Static variables are declared `static name: Type`, with no `var`, and require an explicit type annotation. They can be initialized at the declaration site or at program startup. Static methods do not take `self` and cannot access instance members.
 
-> [!NOTE]
-> Static fields do not compile yet: an initializer on one is rejected, and without one the program does not link. See [Status](/docs/status/#not-compiled-yet).
-
 ---
 
 ## Const Methods
@@ -3750,7 +3814,7 @@ class Tree {
     var root: unsafe *Node
 
     fn Tree(self) {
-        self.root = null
+        self.root = &null
     }
 }
 ```
@@ -3835,7 +3899,7 @@ var obj = Foo(42)   // stack-allocated
 Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether/) determines whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
-var ptr = @create Foo(42)
+var *ptr = @create Foo(42)
 ```
 
 See [Pointers](/docs/language/pointers/) and [Tether](/docs/language/tether/).
@@ -3890,7 +3954,7 @@ class UniqueFile {
     @move
     fn UniqueFile(self, other: Self) {
         self.handle  = other.handle
-        other.handle = null
+        other.handle = &null
     }
 
     fn op delete(self) {
@@ -3900,7 +3964,7 @@ class UniqueFile {
 
 // Inheritance with virtual dispatch
 class Shape {
-    fn area(const self) -> f64 = virtual
+    virtual fn area(const self) -> f64
 }
 
 class Circle derives Shape {
@@ -5738,7 +5802,7 @@ See [Primitives](/docs/language/primitives/#void) for details.
 
 ## Nullable Types in the Type System
 
-`T?` is syntactic sugar for the compiler-intrinsic `Nullable<T>` tagged union. `Nullable` is not directly usable as a type name use the `?` suffix:
+`T?` is syntactic sugar for the built-in `Nullable<T>`, which holds a `T` or `null` (the one value of the empty type `null_t`). It is constructed only from a `T` or from `null`, which is what the implicit conversions `T` to `T?` and `null` to `T?` do. `Nullable` is not directly usable as a type name use the `?` suffix:
 
 ```kairo
 var x: i32? = 42
@@ -6099,16 +6163,16 @@ Base-to-derived casts come in two forms:
 
 ```kairo
 fn process(animal: *Animal) panic {
-    var dog = animal as *Dog   // panics if animal is not a Dog
+    var *dog = animal as *Dog  // panics if animal is not a Dog
     dog->fetch()
 }
 ```
 
-**Checked downcast** returns a [nullable pointer](/docs/language/nullables/#pointers-and-nullability) `*Derived?`, which is null if the runtime type does not match:
+**Checked downcast** returns a [nullable pointer](/docs/language/nullables/#pointers-and-nullability) `*Derived?` (a nullable pointer, `(*Derived)?`), which is null if the runtime type does not match:
 
 ```kairo
 fn process(animal: *Animal) {
-    var dog = animal as *Dog?   // null if animal is not a Dog
+    var *dog? = animal as *Dog? // null if animal is not a Dog
     if dog? {
         dog->fetch()
     }
@@ -6127,8 +6191,8 @@ Casting a safe pointer to a raw pointer `*T as unsafe *U` requires an [`unsafe` 
 var ptr: *i32 = &some_value
 
 unsafe {
-    var raw = ptr as unsafe *void    // provenance loss: safe pointer to raw
-    var back = raw as unsafe *i32    // reinterpret caller must ensure correctness
+    var unsafe *raw = ptr as unsafe *void    // provenance loss: safe pointer to raw
+    var unsafe *back = raw as unsafe *i32    // reinterpret caller must ensure correctness
 }
 ```
 
@@ -6164,7 +6228,7 @@ Casting an integer to a pointer fabricates a pointer from a numeric address. The
 var addr: usize = 0x7FFE_0000_1000
 
 unsafe {
-    var ptr = addr as unsafe *i32   // ok: fabricating provenance
+    var unsafe *ptr = addr as unsafe *i32   // ok: fabricating provenance
 }
 
 // var bad = addr as *i32           // compile error: cannot create safe pointer from integer
@@ -6256,7 +6320,7 @@ There is no collapsing cast in Kairo. A cast that quietly produced a default-con
 | Intent | Write | On null |
 |---|---|---|
 | Supply a fallback | `x ?? 0` | Yields the fallback |
-| Assert non-null | `unwrap!(x)` | Panics (requires `panic` / `try`) |
+| Assert non-null | `unwrap!(x)` | Aborts the program (not catchable) |
 
 Both read at the call site as a decision about null. `x as i32` reads as a type conversion and hides one.
 
@@ -6264,10 +6328,10 @@ Both read at the call site as a decision about null. `x as i32` reads as a type 
 var count: i32? = lookup_count()
 
 var n = count ?? 0            // explicit: absent means zero
-var m = unwrap!(count)        // explicit: absent is a bug, panic
+var m = unwrap!(count)        // explicit: absent is a bug, abort
 ```
 
-See [Variables](/docs/language/nullables/#nullable-types) for the rest of the nullable operations (`?.`, `??`, `unwrap!()`, null checking).
+See [Nullables](/docs/language/nullables/#nullable-types) for the rest of the nullable operations (`?.`, `??`, `unwrap!()`, null checking).
 
 ---
 
@@ -6553,7 +6617,7 @@ eval fn is_power_of_two(n: i32) -> bool {
     return n > 0 && (n & (n - 1)) == 0
 }
 
-fn <const N: i32> clear_aligned(@inout buf: [u8; N])
+fn <eval N: i32> clear_aligned(@inout buf: [u8; N])
   requires is_power_of_two(N) {
     for i in 0..N { buf[i] = 0 }
 }
@@ -6640,7 +6704,7 @@ URL: https://www.kairolang.org/docs/language/where/
 
 # Where Clauses
 
-`where` attaches runtime-conditional constraints to function declarations. A `where` clause specifies a condition that is checked at the call site if it fails, execution falls through to the next matching overload. The compiler folds multiple `where`-constrained overloads into a single function with branch dispatch.
+`where` attaches runtime-conditional constraints to function declarations. A `where` clause specifies a condition that is checked when the function is called; if it fails, execution falls through to the next matching overload. The compiler folds multiple `where`-constrained overloads into a single function with branch dispatch.
 
 For compile-time constraints, see [Requires Clauses](/docs/language/requires/).
 
@@ -6662,17 +6726,19 @@ For compile-time constraints, see [Requires Clauses](/docs/language/requires/).
 A `where` clause appears after the parameter list and return type, before the function body:
 
 ```kairo
-fn sqrt(x: f64) -> f64
+ffi "c" import "math.h"   // the C library's sqrt
+
+fn root(x: f64) -> f64
   where x >= 0.0 {
-    return std::math::sqrt(x)
+    return sqrt(x)
 }
 
-fn sqrt(x: f64) -> f64 {
+fn root(x: f64) -> f64 {
     return 0.0   // fallback for negative input
 }
 ```
 
-At the call site, the compiler generates a branch. If the condition holds, the constrained overload runs. If not, execution falls to the next candidate.
+The overloads compile to one function, `root`, which tests the condition. If the condition holds, the constrained overload runs. If not, execution falls to the next candidate. Every caller, including C++ code calling `root`, calls that one function; the overloads' bodies are private to the file.
 
 Multiple conditions are combined with boolean operators:
 
@@ -6691,17 +6757,26 @@ fn safe_divide(a: i32, b: i32) -> i32 {
 
 ## Fallback Requirement
 
-Every `where`-constrained overload must have a fallback an overload with no `where` clause (or a `where` clause that covers the remaining cases). If no fallback exists, the compiler emits an error:
+Every `where`-constrained overload must have a fallback: an overload with no `where` clause, or `where` clauses the compiler can prove cover every remaining case. If no fallback exists, the compiler emits an error:
 
 ```
-error: no fallback overload for 'sqrt' when where condition fails
+error: no fallback overload for 'root' when where condition fails
   --> src/math.k:1:1
-  1 | fn sqrt(x: f64) -> f64
+  1 | fn root(x: f64) -> f64
   2 |   where x >= 0.0 {
   note: add an overload without a 'where' clause to handle all remaining cases
 ```
 
 The fallback is the compiler's guarantee that every call site has a valid code path.
+
+Conditions that compare integer parameters with constants (`x >= 0`, `x < 0`, joined with `&&`), test a `bool` parameter, or are `true`, can cover every value without a fallback; the last one is then never tested:
+
+```kairo
+fn sign(x: i32) -> i32 where x >= 0 { return 1 }
+fn sign(x: i32) -> i32 where x < 0  { return -1 }   // ok: every i32 is covered
+```
+
+Overloads with the same parameter types are dispatched together, and must agree on the return type and on receiver `const`-ness. An overload with a different parameter list is an ordinary overload and is not a fallback.
 
 ---
 
@@ -6725,10 +6800,10 @@ fn categorize(x: i32) -> string {
 }
 ```
 
-Declaration order is the programmer's explicit priority control. The compiler does not attempt to determine which condition is "more specific" it chains them sequentially in the order they appear in source.
+Declaration order is the programmer's explicit priority control. The compiler does not attempt to determine which condition is "more specific": it chains them sequentially in the order they appear in source. The fallback is always tested last, wherever it is declared. Each condition is evaluated at most once per call, in order, and only until one holds.
 
 > [!WARNING]
-> A `where` condition that is a strict subset of a preceding condition will never fire. The compiler emits a warning when it can statically determine that a `where` clause is unreachable:
+> A `where` condition that is a strict subset of a preceding condition will never fire. The compiler emits a warning when it can statically determine that a `where` clause is unreachable (it decides conditions that compare integer parameters with constants, alone or joined with `&&`):
 >
 > ```kairo
 > fn process(x: i32) -> string where x > 50 { return "high" }
@@ -6748,7 +6823,7 @@ fn handle(x: i32) -> string where x > 50            { return "over 50" }  // war
 fn handle(x: i32) -> string                          { return "other" }
 ```
 
-Declaration order still determines the result `x == 75` hits the first overload but the warning signals that the intent may not match the behavior.
+Declaration order still determines the result: `x == 75` hits the first overload, but the warning signals that the intent may not match the behavior. A narrower condition before a wider one, as in `categorize` above, is the priority pattern and is not warned about. Conditions the compiler cannot decide (floating-point comparisons, function calls) produce no warning.
 
 ---
 
@@ -6833,7 +6908,7 @@ See [Unsafe](/docs/language/unsafe/) for the unsafe overload model.
 
 ## What where Cannot Do
 
-`where` is only valid on free functions and methods. The following are compile errors:
+`where` is only valid on free functions and methods. The following are compile errors (so is a `where` clause on a closure):
 
 ```kairo
 // compile error: where on a type use requires instead
@@ -6857,8 +6932,8 @@ Type instantiation is always compile-time. [Interface conformance](/docs/languag
 
 ```kairo
 // Basic runtime dispatch with fallback
-fn sqrt(x: f64) -> f64 where x >= 0.0 { return std::math::sqrt(x) }
-fn sqrt(x: f64) -> f64                 { return 0.0 }
+fn root(x: f64) -> f64 where x >= 0.0 { return sqrt(x) }   // C's sqrt, from math.h
+fn root(x: f64) -> f64                 { return 0.0 }
 
 // Multiple constrained overloads declaration order is priority
 fn classify(temp: f64) -> string where temp > 100.0 { return "boiling" }
@@ -6928,7 +7003,7 @@ var p: *i32 = &x      // ok: p is guaranteed valid
 *p = 100              // no null check needed
 ```
 
-If you need a pointer that might be absent, use `*T?`:
+If you need a pointer that might be absent, use `*T?`, a nullable pointer (see [Pointers and Nullable Types](#pointers-and-nullable-types)):
 
 ```kairo
 var p: *i32? = get_pointer()   // might be null
@@ -6938,7 +7013,7 @@ if p? {
 }
 ```
 
-For raw nullable pointers with no compiler tracking, use `unsafe *T`:
+For a raw pointer with no compiler tracking, use `unsafe *T`. It is the only pointer that can hold the null address, written `&null`. A bare `null` is a nullable's null and never a pointer: `var raw: unsafe *i32 = null` is a compile error. A null check compares against `&null` by hand:
 
 ```kairo
 var raw: unsafe *i32 = &null   // ok: raw pointers can be null
@@ -6990,7 +7065,7 @@ var raw: unsafe *i32 = unsafe std::alloc<i32>(sizeof i32)
 
 // From an integer address (requires an unsafe block: fabricates provenance)
 unsafe {
-    var raw = 0x7FFE_0000_1000 as unsafe *i32
+    var unsafe *raw = 0x7FFE_0000_1000 as unsafe *i32
 }
 
 // Null
@@ -7094,7 +7169,7 @@ Bounds checking follows the same rules as pointer arithmetic Tether checks when 
 var handle: unsafe *void = get_opaque_handle()
 
 // *handle             // compile error: cannot dereference void pointer
-var typed = handle as unsafe *i32
+var unsafe *typed = handle as unsafe *i32
 var value = *typed     // ok: typed pointer
 ```
 
@@ -7139,7 +7214,7 @@ Tether picks the smart pointer type from how the pointer is used across the prog
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = @create Config(8080)
+    var *cfg = @create Config(8080)
     return cfg
     // debug: promote cfg -> std::Unique<Config>
     // release: error, annotate the return type
@@ -7165,13 +7240,13 @@ Stack allocation is the default. Heap allocation uses `@create T()`:
 
 ```kairo
 var stack_val = Config(8080)                    // stack-allocated
-var heap_ptr = @create Config(8080)        // heap-allocated, Tether chooses pointer type
+var *heap_ptr = @create Config(8080)        // heap-allocated, Tether chooses pointer type
 ```
 
 For raw heap allocation without Tether tracking:
 
 ```kairo
-var raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
+var unsafe *raw = unsafe std::alloc<i32>(sizeof i32 * 10)   // raw allocation, 10 i32s
 // must be manually freed
 unsafe std::free(raw)
 ```
@@ -7186,7 +7261,7 @@ See [Tether](/docs/language/tether/) for how allocation interacts with lifetime 
 |---|---|
 | `==` | Compares addresses do both pointers point to the same location? |
 | `!=` | Negation of `==` |
-| `===` | Null-aware equality on nullable pointers (`*T?`): true when both are non-null and the values they point to are equal |
+| `===` | Null-aware equality on nullable pointers (`*T?`): true when both are non-null and the values they point to are equal (one level: on `(**T)?` it compares the `*T` addresses) |
 
 ```kairo
 var a = 42
@@ -7224,12 +7299,21 @@ See [Functions](/docs/language/functions/#function-pointers) for function pointe
 
 ## Pointers and Nullable Types
 
-`*T` is non-null by construction. To represent a pointer that might not exist, use `*T?` which wraps the pointer in the standard [`Nullable<T>` system](/docs/language/nullables/#pointers-and-nullability):
+`*T` is non-null by construction. To represent a pointer that might not exist, use `*T?` which wraps the pointer in the standard [`Nullable<T>` system](/docs/language/nullables/#pointers-and-nullability).
+
+`*T?` reads as `(*T)?`: the `?` applies to the whole pointer type, so the pointer itself may be null. A pointer to a nullable value is a different type, written with parentheses as `*(T?)`: the pointer is never null, and the value it points to may be.
+
+```kairo
+var a: *i32? = find_ptr()   // (*i32)?: maybe a pointer; check a? before *a
+var b: *(i32?) = &slot      // slot: i32?; b is always valid, *b may be null
+```
+
+A nullable safe pointer is one pointer wide: null is stored as `0x0`, with no separate flag.
 
 | | `*T` | `*T?` | `unsafe *T` |
 |---|---|---|---|
 | Can be null | No | Yes | Yes |
-| Null check mechanism | N/A | `?.`, `??`, `unwrap!()`, `val?` | `ptr != &null` (manual) |
+| Null check mechanism | N/A | `val?`, `== null`, `?.`, `?->`, `??`, `unwrap!()` | `ptr != &null` (manual) |
 | Dereference null | Cannot happen | Compile error (must check first) | Undefined behavior |
 | Tether tracked | Yes | Yes | No |
 
@@ -7238,17 +7322,17 @@ See [Functions](/docs/language/functions/#function-pointers) for function pointe
 ```kairo
 var p: *i32 = &x            // always valid, no null check needed
 var q: *i32? = find_ptr()   // might be null must check before use
-var r: unsafe *i32 = &null  // raw pointer, nullable, no tracking
+var r: unsafe *i32 = &null  // raw pointer, may hold &null, no tracking
 
 if q? {
     std::println(*q)         // compiler knows q is non-null here
 }
 
-var val = q ?? &fallback     // use fallback pointer if q is null
-var forced = unwrap!(q)      // panics if null
+var *val = q ?? &fallback    // *i32: use fallback pointer if q is null
+var *forced = unwrap!(q)     // *i32: aborts if null
 ```
 
-See [Variables](/docs/language/nullables/#nullable-types) for the full nullable type system.
+See [Nullables](/docs/language/nullables/#nullable-types) for the full nullable type system.
 
 ---
 
@@ -7279,14 +7363,14 @@ var p: *i32 = &arr[0]
 *(p + 2)   // 30
 
 // Heap allocation
-var heap = @create Config(8080)
+var *heap = @create Config(8080)
 
 // Smart pointer (explicit)
 var unique: std::Unique<Config> = @create Config(8080)
 
 // Void pointer
 var opaque: unsafe *void = get_handle()
-var typed = opaque as unsafe *i32
+var unsafe *typed = opaque as unsafe *i32
 
 // Double pointer
 var pp: **i32 = &p
@@ -7553,14 +7637,14 @@ When Tether promotes a heap pointer to a [smart pointer](/docs/language/pointers
 
 ```kairo
 // Single owner, no aliasing -> Unique
-var cfg = @create Config(8080)
+var *cfg = @create Config(8080)
 return cfg
 // Tether: cfg has one owner -> Unique
 ```
 
 ```kairo
 // Aliased, both pointers escape -> Shared
-var cfg = @create Config(8080)
+var *cfg = @create Config(8080)
 server_a.config = cfg
 server_b.config = cfg
 // Tether: cfg is aliased across two live bindings -> Shared
@@ -7568,7 +7652,7 @@ server_b.config = cfg
 
 ```kairo
 // Aliased, but the alias dies before escape -> Unique
-var cfg = @create Config(8080)
+var *cfg = @create Config(8080)
 {
     var tmp: *Config = cfg
     validate(tmp)
@@ -7733,8 +7817,8 @@ y.method()             // ok
 
 // Pointer aliasing (single-threaded): allowed, Tether checks provenance
 var val = 42
-var p = &val
-var q = &val
+var *p = &val
+var *q = &val
 *p = 100
 std::println(*q)       // 100
 
@@ -7805,7 +7889,7 @@ Where Tether places a value's destruction depends on whether the destructor is o
 **Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. Tether places the `@destroy`/`@free` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
 
 ```kairo
-var foo = @create SomeClass()    // trivial destructor
+var *foo = @create SomeClass()    // trivial destructor
 use(foo)
 // @destroy foo inserted here
 std::println(10)
@@ -7815,7 +7899,7 @@ std::println(10)
 
 ```kairo
 fn example() {
-    var cfg = @create Config(8080)    // side-effecting destructor
+    var *cfg = @create Config(8080)    // side-effecting destructor
     use(cfg)
     std::println(10)
 }
@@ -7841,7 +7925,7 @@ If the destructor has timing-sensitive side effects a flush, a lock release, a l
 ## What Tether Does Not Do
 
 - **Garbage collection.** No tracing, no mark-and-sweep, no runtime collector. Reference counting for `Shared` is the only runtime ownership cost, and it exists only where multiple ownership is required.
-- **Runtime borrow checking.** Aliasing is resolved at compile time. Tether does not insert runtime aliasing checks; it inserts bounds, epoch, and (for tainted/nullable residuals) access checks those are clause discharges, not borrow checks.
+- **Runtime borrow checking.** Aliasing is resolved at compile time. Tether does not insert runtime aliasing checks; it inserts bounds, epoch, and (for tainted residuals) access checks those are clause discharges, not borrow checks.
 - **Lifetime annotations.** No `'a`-style parameters, no lifetime polymorphism. Whole-program analysis infers concrete lifetimes from usage.
 - **Reference counting everywhere.** Single-owner pointers promote to `Unique` (no refcount); contained lifetimes are not promoted at all. Refcounting appears only under proven multiple ownership.
 - **Cross-language analysis.** C++ is opaque beyond the one-level heuristic on a visible body. Across the [FFI boundary](/docs/language/tether-internals/#cc-interop), Tether fails closed (taint inbound, epoch-freeze outbound) rather than guessing.
@@ -7857,7 +7941,7 @@ The whole system, in one table maps each clause's residual to its response:
 | bounds (range)                                   | hoisted/local check, both modes              | R    |
 | UAF (provenance intact)                          | epoch compare, both modes                    | R    |
 | UAF (provenance lost)                            | hard error                                   | N    |
-| nullability                                      | debug check / release error                  | P    |
+| nullability                                      | compile error, both modes                    | N    |
 | ownership escape (heap-promotable)               | debug promote / release error                | P    |
 | stack escape (heap-promotable)                   | debug heap-lift / release error              | P    |
 | stack escape (non-promotable)                    | hard error                                   | N    |
@@ -7920,7 +8004,7 @@ An `unsafe { ... }` block suspends [Tether](/docs/language/tether/) for all oper
 - `unsafe &x` can create raw pointers from safe bindings
 
 ```kairo
-var x = @create i32(42)   // Tether-tracked safe pointer
+var *x = @create i32(42)   // Tether-tracked safe pointer
 
 unsafe {
     forget!(x)                  // drop x from Tether tracking
@@ -7938,7 +8022,7 @@ An `unsafe` block is required when calling a [C/C++ function](/docs/language/c-c
 ffi "c++" import "native.hh";
 
 fn main() {
-    var data = @create i32(100)
+    var *data = @create i32(100)
 
     unsafe {
         forget!(data)
@@ -7972,7 +8056,7 @@ See [C/C++ Interop](/docs/language/c-cpp/) for the full FFI model.
 `forget!()` is a [compiler intrinsic](/docs/language/macros-builtin/#compiler-intrinsic-macros) that permanently removes a pointer from Tether tracking. It is only valid inside an `unsafe` block:
 
 ```kairo
-var ptr = @create Config(8080)
+var *ptr = @create Config(8080)
 
 unsafe {
     forget!(ptr)   // Tether stops tracking ptr
@@ -7988,7 +8072,7 @@ The primary use case is [transferring ownership to C++ code](/docs/language/c-cp
 ffi "c++" import "engine.hh";
 
 fn init_engine() {
-    var cfg = @create EngineConfig(defaults())
+    var *cfg = @create EngineConfig(defaults())
 
     unsafe {
         forget!(cfg)
@@ -8109,7 +8193,7 @@ fn foo() unsafe     Yes             Yes             Compiler (Tether)
 ffi "c++" import "lib.hh";
 
 fn send_to_native(data: Config) {
-    var ptr = @create Config(data)
+    var *ptr = @create Config(data)
 
     unsafe {
         forget!(ptr)
@@ -8132,7 +8216,7 @@ fn allocate_aligned(size: usize, align: usize) -> unsafe *void {
 ```kairo
 fn write_register(addr: usize, value: u32) {
     unsafe {
-        var reg = addr as unsafe *u32   // integer-to-pointer cast fabricates provenance
+        var unsafe *reg = addr as unsafe *u32   // integer-to-pointer cast fabricates provenance
         *reg = value
     }
 }
@@ -8158,7 +8242,7 @@ fn bounds_check(arr: [i32], index: i32) unsafe -> i32 {
 
 ```kairo
 // Unsafe block suspends Tether
-var ptr = @create i32(42)
+var *ptr = @create i32(42)
 unsafe {
     forget!(ptr)
     c_function(ptr as unsafe *i32)
@@ -8176,7 +8260,7 @@ var precise = compute(3.14)
 var fast = unsafe compute(3.14)
 
 // forget!() drop pointer from Tether
-var data = @create Buffer(1024)
+var *data = @create Buffer(1024)
 unsafe {
     forget!(data)
     // data is no longer tracked manual management required
@@ -8566,7 +8650,9 @@ eval MAX_BUFFER = 1024 * 1024
 eval HEADER_SIZE = sizeof u32 + sizeof u16 + sizeof u8
 ```
 
-`eval` bindings are implicitly `const` they cannot be reassigned. The initializer must be a compile-time evaluable expression.
+`eval` bindings are implicitly `const` they cannot be reassigned (writing `eval const` or `const eval` is accepted and means the same). The initializer must be a compile-time evaluable expression.
+
+An `eval` binding or `eval fn` can be declared anywhere a declaration can: at file scope, inside a `module`, as a class member, or in a function body.
 
 ### Type annotation
 
@@ -8679,16 +8765,18 @@ Eval bodies must be deterministic and free of side effects. The following are no
 `eval if` selects a branch at compile time. The condition must be a compile-time constant. Only the selected branch is compiled the others are discarded entirely (no codegen, no type checking):
 
 ```kairo
-eval if platform == "linux" {
+eval if defined!(__linux__) {
     fn init_platform() { /* linux-specific */ }
-} else if platform == "windows" {
+} else if defined!(_WIN32) {
     fn init_platform() { /* windows-specific */ }
 } else {
     fn init_platform() { /* fallback */ }
 }
 ```
 
-`eval if` can appear at the top level (selecting between declarations) or inside function bodies (selecting between code paths):
+`eval if` can appear at the top level, in a `module` or in a class body (selecting between declarations) or inside function bodies (selecting between code paths). The declarations of the selected branch belong to the enclosing scope, exactly as if the `eval if` were not there: at file scope and in a module they are the scope's declarations, in a class body a `var` is a field and a `fn` a method, and in a function body the branch's locals are the function's.
+
+Outside a function body the condition decides which declarations exist, so it must be evaluable before names are resolved: literals, `eval` constants (including ones an earlier `eval if` declared), `!`, `&&`, `||`, comparisons, integer arithmetic and [`defined!`](/docs/language/macros-builtin/#conditional). Calling an `eval fn` there is an error. Inside a function body a condition that depends on a generic parameter (`sizeof T`) is decided per instantiation.
 
 ```kairo
 fn <T> process(x: T) -> T {
@@ -8839,9 +8927,6 @@ See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 Eval can be used within class definitions to create compile-time computed values, adding eval to class fields, methods, and constructors are valid. If the class contains a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators), it cannot be used in an `eval` context. Classes can mix eval functions with regular functions.
 
-> [!NOTE]
-> An initializer on an `eval` field is not compiled yet. See [Status](/docs/status/#not-compiled-yet).
-
 ```kairo
 class HashState {
     eval seed: u64    = FNV_OFFSET_BASIS;
@@ -8886,7 +8971,7 @@ eval TWO_TO_16 = power(2, 16)   // 65536
 var buffer: [u8; MAX_SIZE]
 
 // Eval if (platform selection)
-eval if platform == "linux" {
+eval if defined!(__linux__) {
     eval CACHE_LINE = 64
 } else {
     eval CACHE_LINE = 128
@@ -9725,7 +9810,7 @@ Attributes can take additional arguments beyond the implicit node parameter:
 ```kairo
 macro @repeat(block: *AST::Block, times: i32) {
     var original = block->clone()
-    var expanded = @create AST::Block()
+    var *expanded = @create AST::Block()
 
     for i in 0..times {
         expanded->body.append(original.clone())
@@ -9821,6 +9906,10 @@ struct SimdData { ... }
 var old_config: Config
 ```
 
+An attribute can also be applied to an expression: `@name operand`, or `@name(args) operand`. The operand is one unary expression, including its calls, member accesses and initializers, so `@create Config(8080)` applies to the whole constructor call. Binary operators bind looser (`@a x + 1` is `(@a x) + 1`), and a member access on the result needs parentheses: `(@create Config(8080))->port`. At the start of a statement, an `@name` is an expression attribute when an expression follows it on the same line (`@destroy p`, `@create Config(8080)`); it attaches to the statement or declaration instead when what follows is a declaration (`@deprecated var`, `@copy fn`), a keyword statement (`@likely if`), a block (`@repeat(3) { ... }`), a loop label, or a line break.
+
+> Expression attributes parse, but none has a meaning yet: `@create` and every other one are rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported). See [Status](/docs/status/).
+
 ---
 
 ## Built-in Attributes
@@ -9857,25 +9946,28 @@ See [Control Flow](/docs/language/control-flow/#branch-hints) for branch predict
 
 | Attribute | Description | Applies to |
 |---|---|---|
-| `@no_unwind` | Promise that the function never unwinds | Functions |
+| `@unwind` | Let a C++ exception pass through this function | Functions, methods |
+| `@no_unwind` | Keep the function `noexcept`, even under `-funwind` | Functions, methods |
 
-`@no_unwind` marks the function's generated C++ declaration and definition `noexcept`. That is all it does: nothing checks the promise. If a `@no_unwind` function does unwind, for example because a C++ exception passes through it, the program terminates (`std::terminate`).
+Every Kairo function is `noexcept` in its generated C++ declaration and definition: a C++ exception that reaches a Kairo frame terminates the program (`std::terminate`). `@unwind` removes the `noexcept` from one function, so a C++ exception thrown by a C++ callee unwinds through it to the next frame up. The `-funwind` flag removes it from every Kairo function, closures included; `@no_unwind` keeps it on one function even then. Marking one function both is an error.
 
 ```kairo
-@no_unwind
-fn add(a: i32, b: i32) -> i32 { return a + b }   // C++: int add(int a, int b) noexcept
+fn add(a: i32, b: i32) -> i32 { return a + b }        // C++: int add(int a, int b) noexcept
+@unwind fn relay(x: i32) -> i32 { return cxx_may_throw(x) }   // C++: int relay(int x)
 ```
 
-Writing `@no_unwind` on any one declaration of a function covers all of them: a [forward declaration](/docs/language/functions-declarations/#forward-declarations), the declaration inside a class, or the [out-of-line definition](/docs/language/classes-out-of-line/).
+Writing `@unwind` or `@no_unwind` on any one declaration of a function covers all of them: a [forward declaration](/docs/language/functions-declarations/#forward-declarations), the declaration inside a class, or the [out-of-line definition](/docs/language/classes-out-of-line/).
 
 ```kairo
 class Counter {
     var n: i32
-    @no_unwind fn get(const self) -> i32     // declared here...
+    @unwind fn get(const self) -> i32     // declared here...
 }
 
-fn Counter::get(const self) -> i32 { return self.n }   // ...so this definition is noexcept too
+fn Counter::get(const self) -> i32 { return self.n }   // ...so this definition is not noexcept either
 ```
+
+A closure cannot carry `@unwind` yet: written before a closure, it is an expression attribute, which is not supported. A closure follows `-funwind`.
 
 See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) for how C++ exceptions move through Kairo code.
 
@@ -10374,8 +10466,8 @@ An allocator with RAII semantics it frees everything it allocated when it leaves
 ```kairo
 @mem::set_scoped_allocator(ArenaAllocator)
 fn process_frame() {
-    var a = @create Mesh(vertices)
-    var b = @create Texture(pixels)
+    var *a = @create Mesh(vertices)
+    var *b = @create Texture(pixels)
     // freed wholesale when process_frame returns
 }
 ```
@@ -10857,6 +10949,7 @@ Kairo and C++ signal failure differently, and the two models meet at one place: 
 
 - **Kairo never throws.** A Kairo failure is a [panic](/docs/language/panic/): a tagged union value returned to the caller. No exception ever starts in Kairo code.
 - **C++ throws.** A C++ exception is unwound by the platform unwinder (libunwind on Unix-like systems).
+- **Kairo frames are `noexcept`.** Every Kairo function, method, constructor, operator and closure is `noexcept` in its generated C++, unless it is marked [`@unwind`](/docs/language/attributes/#unwinding) or the program is built with `-funwind`. A C++ exception that reaches a `noexcept` Kairo frame terminates the program (`std::terminate`).
 - **`try`/`catch` handles both.** Around a Kairo call it lowers to a [`match`](/docs/language/pattern-matching/) on the returned tagged union. Around a C++ call it catches C++ exceptions through the unwinder.
 
 ### C++ to Kairo
@@ -10875,18 +10968,61 @@ fn main() {
 }
 ```
 
-The exception does not have to be thrown directly inside the `try`. It can come from a C++ call several Kairo frames down, and the unwinder passes through the Kairo frames in between to reach the `catch`. The compiler emits unwind info for exactly those frames: a Kairo function gets it only when it sits between a C++ call and a Kairo `try` that can catch from that call. Kairo code with no such path carries no unwind tables.
+> [!WARNING]
+> Catching a C++ exception in a Kairo `try`/`catch` is not compiled yet. See [Status](/docs/status/).
+
+The exception can come from a C++ call several Kairo frames down, but every Kairo frame between the `throw` and the `catch` must let it through: mark each one [`@unwind`](/docs/language/attributes/#unwinding), or build with `-funwind`. A frame that is `noexcept` (the default) stops the exception by terminating the program, before the `catch` is reached. The frame holding the `try` itself does not need `@unwind`: the exception stops there.
+
+```kairo
+@unwind fn relay(x: i32) -> i32 {
+    return checked_double(x) + 1        // C++, may throw: passes through relay
+}
+
+fn guarded(x: i32) -> i32 {
+    try { return relay(x) } catch e: cxx::std::exception { return -1 }
+}
+```
 
 > [!NOTE]
-> Unlike Kairo's [panic system](/docs/language/panic/), the compiler cannot statically determine every exception type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue to the next enclosing Kairo `try`. An exception that no Kairo `try` catches keeps unwinding like any C++ exception. If it reaches a [`@no_unwind`](/docs/language/attributes/#unwinding) function, the program terminates (`std::terminate`).
+> Unlike Kairo's [panic system](/docs/language/panic/), the compiler cannot statically determine every exception type a C++ function might throw. A `catch` block that doesn't handle a thrown type lets the exception continue to the next enclosing frame, which terminates the program if it is `noexcept`.
+
+### C++ exceptions through Kairo frames
+
+A C++ function that throws and catches internally works under any Kairo caller: nothing reaches the Kairo frame. What `noexcept` decides is an exception that leaves the C++ code Kairo called:
+
+| The Kairo frame it reaches | What happens |
+|---|---|
+| A plain Kairo function (the default) | `std::terminate`: the program aborts |
+| An `@unwind` function, or any function under `-funwind` | The exception passes through, to the next frame up (a C++ `catch` in a C++ caller works) |
+| A `@no_unwind` function | `std::terminate`, even under `-funwind` |
+
+```kairo
+ffi "c++" import "guard.hh"      // int checked(int) throws; int guard(int (*)(int), int) catches
+
+@unwind fn relay(x: i32) -> i32 { return checked(x) + 1 }
+
+fn main() -> i32 {
+    return guard(relay, -4)       // -1: thrown through relay, caught by guard in C++
+}
+```
+
+Without `@unwind` on `relay`, the same program aborts with the C++ runtime's "terminating due to uncaught exception" message.
+
+The flags:
+
+- `-fno-unwind` (the default): every Kairo function is `noexcept`, except those marked `@unwind`.
+- `-funwind`: no Kairo function is `noexcept`, except those marked `@no_unwind`. Closures follow the flag (a closure cannot be marked `@unwind` yet). Build every Kairo module and `kcc` host of one program with the same setting.
+- C++ exceptions themselves are on for a hosted target. A freestanding target (no OS in the target triple, `--freestanding`, kernel mode) has no unwinder and keeps them off unless `-fexceptions` asks; `-fno-exceptions` turns them off anywhere.
+
+`noexcept` is part of the C++ contract a Kairo declaration exposes. A C++ class that overrides a Kairo `virtual fn` must mark its override `noexcept` too (C++ rejects an override whose exception specification is laxer than the base's), unless the Kairo method is `@unwind`. The other way, a Kairo override of a C++ `virtual` that is `noexcept` must not be `@unwind`. A function declared with `ffi` linkage, or imported from a C/C++ header, keeps the exception specification its C/C++ declaration states.
 
 ### Kairo to C++: Kairo never throws
 
 Kairo does not throw. [`panic`](/docs/language/panic/#the-panic-specifier) is a checked effect with a typed, inferred set: a Kairo error is a tagged union value returned to the caller, not an object propagated by the unwinder. No exception ever starts in Kairo code.
 
 - A C++ caller never needs a `try`/`catch` to handle a Kairo error; it inspects the returned value.
-- A C++ exception thrown by C++ code that Kairo calls can unwind through Kairo frames, unless a Kairo `try` catches it.
-- A function marked [`@no_unwind`](/docs/language/attributes/#unwinding) has `noexcept` on its generated C++ declaration and definition, so `noexcept`-conditional C++ code that calls it takes the `noexcept(true)` branch. An exception that reaches it terminates the program.
+- A C++ exception thrown by C++ code that Kairo calls terminates the program when it reaches a Kairo frame, unless that frame is [`@unwind`](/docs/language/attributes/#unwinding) (or the program is built with `-funwind`), in which case it unwinds through.
+- Every Kairo function that is not `@unwind` has `noexcept` on its generated C++ declaration and definition, so `noexcept`-conditional C++ code that calls it (`std::vector` reallocation, `std::move_if_noexcept`) takes the `noexcept(true)` branch.
 
 #### The value API
 
@@ -11008,6 +11144,8 @@ A module that defines nothing (only comments, or only [`pub import` re-exports](
 | `fn m(self)` inside `extend Vec2 { }` | free function `geo::vec::m(Vec2* self)` |
 | `x: i32`, `x: f64`, `x: usize` | `std::int32_t`, `double`, `std::size_t` |
 | `p: *T` | `T*` |
+| `x: T?` | `::builtin::Nullable<T>` (see [Nullables Across the Boundary](#nullables-across-the-boundary)) |
+| `null` | `::builtin::null` |
 | `@inout x: T`, `@move x: T` | `T&`, `T&&` |
 | `type Name = T` inside a class | `using Name = T;` member, under the same access level |
 | `@no_unwind fn f()` | `void f() noexcept` |
@@ -11034,6 +11172,27 @@ The struct's name is a **structural** function of its element types, not an ordi
 
 > [!NOTE]
 > The exact structural encoding is part of the ABI and is specified separately. It is injective across all type constructors that can appear in a tuple, and unambiguous under nesting.
+
+---
+
+## Nullables Across the Boundary
+
+A Kairo [nullable](/docs/language/nullables/) `T?` is the C++ class template `::builtin::Nullable<T>`, and Kairo's `null` is the constant `::builtin::null`, the one value of the empty type `::builtin::null_t`. `Nullable<T>` has two constructors, one from `null_t` and one from `T`, so C++ code builds one the same way Kairo's implicit conversions do:
+
+```cpp
+::builtin::Nullable<int> a = ::builtin::null;   // Kairo: var a: i32? = null
+::builtin::Nullable<int> b = 5;                 // Kairo: var b: i32? = 5
+```
+
+The layout depends on `T`:
+
+| Kairo | Storage |
+|---|---|
+| `*T?` (any safe pointer, `const` included) | the pointer alone, `sizeof(T*)`; null is `0x0` |
+| `bool?` | one byte; `0x02` is null |
+| any other `T?` | the `T` and a presence flag |
+
+`(T?)?` is `Nullable<Nullable<T>>`.
 
 ---
 
@@ -11303,6 +11462,10 @@ error: '-fno-rtti' changes C++ type layout and cannot be used in a translation u
 
 The distinction matters because the fix differs. Category 2 means *drop the flag*. Category 3 means *this can never work in a mixed TU*.
 
+### Exceptions
+
+C++ exceptions are on in a Kairo translation unit's C++ on a hosted target, and off on a freestanding one (no OS in the triple, `--freestanding`, kernel mode) unless `-fexceptions` is given; `-fno-exceptions` turns them off. Separately, `-funwind` / `-fno-unwind` (the default) decide whether Kairo functions are `noexcept`: see [Exceptions & Panics](/docs/language/c-cpp-exceptions/#c-exceptions-through-kairo-frames). Use one `-funwind` setting for every Kairo module and `kcc` host in a program.
+
 ## See also
 
 - [C & C++ Interoperability](/docs/language/c-cpp/)
@@ -11548,12 +11711,12 @@ shape->area()   // 78.539... dynamic dispatch
 
 ### Abstract classes (pure virtual)
 
-A method declared with `= virtual` has no body and must be overridden by any non-abstract derived class:
+A `virtual` method declared with no body is pure virtual: it must be overridden by any non-abstract derived class:
 
 ```kairo
 class Shape {
-    fn area(const self) -> f64 = virtual
-    fn perimeter(const self) -> f64 = virtual
+    virtual fn area(const self) -> f64
+    virtual fn perimeter(const self) -> f64
 }
 
 class Circle derives Shape {
@@ -11574,7 +11737,17 @@ class Circle derives Shape {
 var c = Circle(5.0)  // ok: all pure virtuals overridden
 ```
 
-`= virtual` implies vtable participation no `virtual` prefix is needed on the declaration. A class with any `= virtual` method cannot be instantiated directly.
+A class with a pure virtual method is abstract, and so is a derived class that leaves any of its bases' pure methods unoverridden. Creating an object of an abstract class (`Shape()`, `Shape{ }`) is a compile error that points at the method keeping it abstract; a pointer to one (`*Shape`) is fine. In C++ a pure virtual method is `virtual R f() = 0`, so a C++ class can derive a Kairo abstract class and a Kairo class can derive a C++ one.
+
+Kairo methods are `noexcept` in C++ (see [Exceptions](/docs/language/c-cpp-exceptions/#c-exceptions-through-kairo-frames)), so a C++ class overriding a Kairo `virtual fn` must declare its override `noexcept` as well, unless the Kairo method is `@unwind`:
+
+```cpp
+struct Rect : shape::Shape {                       // Shape: a Kairo abstract class
+    double area() const noexcept override { return w * h; }
+};
+```
+
+Only a `virtual` method without a body is pure; a method that is not `virtual` and has no body is a declaration. After `=`, a function takes only an expression, `default` or `delete`: the old spelling `fn area(const self) -> f64 = virtual` is an error whose fix-it rewrites it to `virtual fn area(const self) -> f64`.
 
 ### Final
 
@@ -11682,13 +11855,13 @@ class MyClass {
     fn MyClass(self) = default
 
     fn init(self) {
-        data = unsafe std::alloc<i32>(sizeof i32 * 10) // 10 i32's allocated
+        self.data = unsafe std::alloc<i32>(sizeof i32 * 10) // 10 i32's allocated
     }
 
     fn op delete(self) {
-        if data != &null {
-            unsafe std::free(data)
-            data = &null
+        if self.data != &null {
+            unsafe std::free(self.data)
+            self.data = &null
         }
     }
 }
@@ -11821,7 +11994,7 @@ class Buffer {
     var size: usize
 
     fn Buffer(self, size: usize) {
-        self.data = std::alloc<u8>(size)
+        self.data = unsafe std::alloc<u8>(size)
         self.size = size
     }
 
@@ -11829,12 +12002,12 @@ class Buffer {
     fn Buffer(self, other: Self) {
         self.data  = other.data
         self.size  = other.size
-        other.data = null
+        other.data = &null
         other.size = 0
     }
 
     fn op delete(self) {
-        std::free(self.data)
+        unsafe std::free(self.data)
     }
 }
 ```
@@ -12612,6 +12785,33 @@ f([1, 2, 3] as [i32])          // ok
 
 ---
 
+## Where Clauses
+
+### `no fallback overload for '{f}' when where condition fails`
+
+Every [`where`](/docs/language/where/#fallback-requirement)-constrained overload needs a fallback: an overload of the same signature with no `where` clause, or conditions the compiler can prove cover every value. A note says what to add.
+
+```kairo
+fn root(x: f64) -> f64 where x >= 0.0 { return x }   // error: no fallback
+fn root(x: f64) -> f64 { return 0.0 }                 // ok: the fallback
+```
+
+**Fix:** add an overload without a `where` clause.
+
+### `'where' is not allowed on ...`
+
+A `where` clause is runtime dispatch among overloads, so it is an error on a type (`'where' is not allowed on a class`, with a fix-it to `requires`), on an interface method, on an `unsafe` overload (unsafe overloads are a separate namespace), and on a closure. A guarded overload also needs a body (`a guarded overload of '{f}' needs a body`).
+
+### `every overload in the 'where' dispatch of '{f}' must have the same {what}`
+
+The overloads of one dispatch become one function, so they must agree on return type, `const self`, `inline`, `-> !` and linkage. A note points at the first overload.
+
+### `'where' guard of '{f}' is unreachable` / `overlaps an earlier one` / `never holds` (warnings)
+
+The compiler compares conditions that test integer parameters against constants. A condition inside an earlier one never fires (a note points at the earlier one); a condition that partly overlaps an earlier one sends the shared values to the earlier overload; a contradictory one (`x > 5 && x < 3`) never holds. See [Declaration Order](/docs/language/where/#declaration-order-determines-priority).
+
+---
+
 ## Default Arguments
 
 ### SC106E: a default argument refers to another parameter or `self`
@@ -12837,8 +13037,10 @@ It is reported for:
 - matching a string against a pattern that isn't a string literal or a constant initialized with one
 - matching a record value against a literal-style pattern
 - a non-generic payload enum whose payload holds a type whose copy, move and destruction are not known until instantiation
-- an initializer on a `static`, `eval` or array-typed field
+- an initializer on an `eval` or array-typed field
 - a generic record's field default that reads another field
+- an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
+- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` or `eval` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
@@ -12860,6 +13062,34 @@ enum W { Has { b: Box<i32> }, Empty }   // error SC116E
 > ```
 
 **Fix:** rewrite around the construct for now. See [Status](/docs/status/).
+
+---
+
+## Control Flow
+
+### SC003W: unreachable code
+
+Message: `unreachable code; the statement above always transfers control out of this block`
+
+A statement can never run because the one before it in the same block always leaves: a `return`, `break`, `continue`, `panic` or `jump!`; a call to a function that returns `!`; an `if` with an `else` whose every branch leaves; an exhaustive `match` whose every arm leaves; or an infinite `loop` / `while true` that no `break` exits.
+
+```kairo
+fn stop() -> ! { loop { } }
+
+fn f(c: bool) -> i32 {
+    if c { return 1 } else { return 2 }
+    return 3         // warning SC003W
+}
+
+fn g() -> i32 {
+    stop()
+    return 0         // warning SC003W
+}
+```
+
+One warning covers the whole dead run of statements, up to the end of the block or the next `label!` (a `jump!` target makes what follows it reachable again). A note points at the statement that leaves. A `return` inside a closure ends only the closure, so code after the closure is not affected. A `match` arm that can never match is reported separately, as SC121E.
+
+**Fix:** delete the dead statements (the fix-it does), or move them above the statement that leaves. See [Control Flow](/docs/language/control-flow/).
 
 ---
 
@@ -14248,6 +14478,26 @@ fn <T impl Copyable> store(item: T) -> T { ... }
 
 See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
+## Value parameters
+
+A generic parameter can be a compile-time **value** instead of a type: `eval N: T`. Its argument must be [evaluable at compile time](/docs/language/eval/), a literal, an `eval` constant, or arithmetic over them, and inside the generic `N` is a constant of type `T`, usable as an array length:
+
+```kairo
+eval CAPACITY = 16
+
+class <eval N: usize, T> Ring {
+    var items: [T; N]
+    fn capacity(const self) -> usize { return N }
+}
+
+fn <eval N: usize> scaled() -> usize { return N * 2 }
+
+var r = Ring<CAPACITY, i32>()     // the same type as Ring<16, i32>
+var s = scaled<4>()               // 8
+```
+
+A function's value parameter is given explicitly (`scaled<4>()`) or deduced from an array argument's length (`fn <eval N: usize> sum(const a: [i32; N])` called with a `[i32; 3]`). A `const` binding is not evaluable at compile time, so it cannot be a value argument; `const N: T` is not a parameter spelling either (write `eval N: T`).
+
 ---
 
 ## See also
@@ -14757,7 +15007,7 @@ std::println(f"logged from {file!}:{line!}")
 | `compile_note!(msg)` | Emit a compile note |
 
 ```kairo
-eval if platform == "wasm" {
+eval if defined!(__wasm__) {
     compile_error!("WebAssembly is not supported yet")
 }
 ```
@@ -14797,13 +15047,25 @@ Untagged, `unique_id!` produces a fresh identifier on every invocation. The tagg
 
 | Macro | Description |
 |---|---|
-| `defined!(name)` | Check if a macro with the given name exists |
+| `defined!(name)` | `true` if a macro with the given name exists, `false` otherwise |
 
 ```kairo
 eval if defined!(DEBUG_MODE) {
     fn log(msg: string) { std::println(f"[DEBUG] {msg}") }
 } else {
     fn log(msg: string) { }
+}
+```
+
+`defined!` sees Kairo macros (a `macro NAME!` defined earlier, or `-D NAME` on the command line) and C/C++ macros: the target's predefined macros (`__linux__`, `_WIN32`, `__x86_64__`, `__aarch64__`, ...) and every macro the file's [`ffi`](/docs/language/c-cpp/) headers define. That makes it the way to select platform code:
+
+```kairo
+ffi "c" import "config.h"     // #define HAVE_FAST_PATH 1
+
+eval if defined!(__linux__) && defined!(HAVE_FAST_PATH) {
+    fn init() { /* ... */ }
+} else {
+    fn init() { /* fallback */ }
 }
 ```
 
@@ -14818,7 +15080,7 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 | `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow/#jumps) |
 | `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow/#jumps) |
 | `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe/#forget) |
-| `unwrap!(expr)` | Force-unwrap a nullable, panic on null | [Variables](/docs/language/nullables/#force-unwrap) |
+| `unwrap!(expr)` | Force-unwrap a nullable; aborts the program on null | [Nullables](/docs/language/nullables/#force-unwrap) |
 | `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence/) |
 
 These use macro syntax (`name!`) to make their usage explicit and searchable in a codebase, but they are not user-definable they are built into the compiler.
@@ -14842,21 +15104,30 @@ URL: https://www.kairolang.org/docs/language/nullables/
 
 ## Nullable Types
 
-`T?` is sugar for `Nullable<T>` a compiler-intrinsic tagged union that holds either a value of type `T` or null. It applies to any type, not just pointers.
+`T?` is sugar for `Nullable<T>`, a built-in type that holds either a value of type `T` or `null`. It applies to any type, not just pointers.
 
 ```kairo
 var name: string? = get_name()   // may be null
 var count: i32? = null           // explicitly null
 ```
 
+`null` is a real value: the one constant of the empty type `null_t`. `Nullable<T>` has exactly two constructors, one from `null_t` and one from `T`, and every implicit conversion to `T?` is one of them: `var c: i32? = 5` constructs from the `i32`, `= null` from the `null_t`. A bare `null` is only ever a nullable's null: it never converts to a pointer, so `var p: unsafe *i32 = null` is a compile error. The null raw pointer is spelled `&null` (see [Pointers and nullability](#pointers-and-nullability)).
+
+The storage depends on `T`. A nullable [safe pointer](#pointers-and-nullability) is the pointer itself, the same size, with `0x0` meaning null; `bool?` is one byte. Every other `T?` stores the value and a presence flag. `Nullable` is not writable as a type name in Kairo; the `?` suffix is the only spelling (see [Type System](/docs/language/type-system/#nullable-types-in-the-type-system)). From C++ it is `::builtin::Nullable<T>`; see [Using Kairo in C++](/docs/language/c-cpp-exposing/#nullables-across-the-boundary).
+
 ### Shorthand declaration
 
 The `?` suffix on the variable name infers the nullable type from the initializer:
 
 ```kairo
-var name? = get_name()           // inferred as string?
+var n? = 10                      // i32?
+var name? = get_name()           // get_name() -> string?: name is string?, not (string?)?
+var k = 3
+var *p? = &k                     // (*i32)?: combines with the pointer shorthand (see Variables)
 // var x? = null                 // compile error: no underlying type to infer
 ```
+
+A declaration that infers a nullable type without the `?` gets a warning, with a fix-it that adds it: `var n = find()` with `find() -> i32?` reads like a plain value, so the compiler asks for `var n? = find()`. See [Declaration Shorthands](/docs/language/variables/#declaration-shorthands).
 
 ### Null checking
 
@@ -14871,6 +15142,8 @@ if result? {
 }
 ```
 
+`x?`, `x != null` and `null != x` are the same test, and `!x?`, `x == null` and `null == x` are its negation. Every spelling narrows the same way.
+
 Accessing members on an unchecked nullable is a compile error:
 
 ```kairo
@@ -14878,35 +15151,181 @@ var user? = find_user("alice")
 user.name   // compile error: user has not been null-checked
 ```
 
+### Narrowing
+
+The compiler tracks, at every point in a function, whether each nullable variable or field path (`user`, `req.body`, `a.b.c`) is **known non-null**, **known null**, or **maybe null**. A known non-null nullable is used as its `T` directly, with no syntax at the use. Reading the value of a maybe-null or known-null one (member access, a dereference, an operator, passing it where a `T` is expected) is a compile error, in every build mode. No mode inserts a hidden check; the null path is always written in the source. Uses that do not need the value are fine in any state: assigning it, passing it to a `T?` parameter, and `?`, `== null`, `??`, `?.`, `===`, `unwrap!()`.
+
+Where the compiler cannot tell, the answer is maybe null. Where paths merge, the result is the weaker state: non-null on one path and null on the other is maybe null.
+
+#### Assignments set the state
+
+An assignment gives the variable the state of the value assigned:
+
+```kairo
+var x? = 10           // known non-null: a plain i32 was assigned
+std::println(x + 1)   // ok, no check needed
+
+x = null              // known null
+// x + 1              // compile error: x is always null here
+
+x = lookup()          // lookup() -> i32?: maybe null
+// x + 1              // compile error: x may be null here
+if x? { std::println(x + 1) }   // ok
+
+var y? = x            // y has x's state
+
+var k = 7
+var p: *i32? = &k     // known non-null: an address is never null
+```
+
+A parameter of type `T?` starts maybe null.
+
+#### Conditions refine the state
+
+- `if x? { ... } else { ... }`: `x` is non-null in the first block and null in the `else`.
+- `!` swaps the two: in `if !x? { ... } else { ... }`, the `else` block sees `x` non-null.
+- `a && b`: `b` is checked as if `a` were true, so `x? && x > 0` is fine. The `if` block of `if a && b` sees what both establish.
+- `a || b`: `b` is checked as if `a` were false, so `!x? || x > 0` is fine. The `else` of `if a || b` sees what both refute.
+- Value-form `if c => t else e` and `??` follow the same rules.
+- **Early exit.** When one branch cannot fall through (`return`, `break`, `continue`, a `panic`, a call to a `-> !` function), the code after the `if` continues with the other branch's state:
+
+```kairo
+fn area(s: Shape?) -> f64 {
+    if !s? { return 0.0 }
+    return s.width * s.height   // s is non-null from here on
+}
+```
+
+**Mind the precedence.** `&&` binds tighter than `||`, so this is an error:
+
+```kairo
+var a? = lookup()
+if a? && a > 0 || a < 0 { ... }
+// compile error: a may be null here
+//   parsed as (a? && a > 0) || a < 0, and a < 0 runs when a? is false
+```
+
+The compiler offers a fix-it that adds the parentheses putting every use on the checked path, with a note that `unwrap!(a)` is the alternative:
+
+```kairo
+if a? && (a > 0 || a < 0) { ... }   // ok
+```
+
+#### Loops
+
+A loop condition refines the body the same way an `if` does. Inside the body, a variable stays narrowed unless the body itself can make it maybe null again: `while x? { ... }` re-tests every iteration, so `x` is non-null at the top of the body whatever the body does to it. After a `while`, the state is the condition's false case, merged with the state at every `break`. A `for` loop has no condition to refine with; its body starts from the state before the loop, minus anything the body can make maybe null.
+
+```kairo
+var node: *Node? = head
+while node? {
+    visit(node)          // node is non-null: the condition proves it
+    node = node->next    // next: *Node?, so node is maybe null again...
+}                        // ...until the condition re-tests it
+```
+
+`next` is a nullable pointer, not a `Node?`: a `T?` holds its `T` in place, so a `Node` holding a `Node?` would contain itself, which is a compile error.
+
+#### What makes it maybe null again
+
+Besides an assignment, anything that can write the variable where the compiler cannot see the value:
+
+- passing it to an [`@inout`](/docs/language/functions-parameter-modes/) parameter;
+- writing through a non-`const` pointer to it, or to anything that contains it, or passing such a pointer to a function (see [Closures and stored pointers](#closures-and-stored-pointers));
+- for a field path such as `foo.data`: any of the above on `foo`, and any method call that takes `foo` as mutable `self`. The call can change `foo`'s fields, not make `foo` itself null, so a nullable `foo` that was checked stays non-null.
+
+A `const` pointer, a `const self` call, or passing it by value leaves the state alone. Taking a pointer into a local (`var *p = &x`) changes nothing by itself; writing through it, or letting it escape, does.
+
+```kairo
+if cfg.path? {
+    cfg.reload()          // fn reload(self): may write cfg.path
+    // open(cfg.path)     // compile error: cfg.path may be null here
+}
+```
+
+A nullable reached through `->` or a subscript (`p->cache`, `items[i].cache`) is not tracked: a check on it does not narrow it, and the compiler says so. Copy it to a local and check that:
+
+```kairo
+var c? = p->cache
+if c? { use(c.value) }
+```
+
+#### Closures and stored pointers
+
+A [closure](/docs/language/closures/) that captures by copy needs no special care: its copy starts in the state the variable had when the closure was made, unless the closure assigns its copy, which keeps its value from one call to the next. Inside a closure that captures `x` by pointer, `*x` is not tracked: copy it to a local and check that. A closure that captures by non-`const` pointer, or a pointer value such as `var *p = &x`, can write `x` behind the compiler's back, so the compiler follows it:
+
+- calling a closure that captured `x` by pointer, or writing through `p`, makes `x` maybe null;
+- once that closure or pointer escapes (passed to a function that can keep it, stored in a field, a global or a container, or returned), **every** call from then until `x` goes out of scope makes `x` maybe null, since any call might run it. A check still narrows `x` until the next call.
+
+```kairo
+var x: Node? = make()
+var clear = fn ()|*x| { *x = null }
+if x? {
+    clear()
+    // x.value            // compile error: clear() may have set x to null
+}
+```
+
+A `const *` capture or pointer cannot write, and changes nothing.
+
+#### Globals and statics
+
+A nullable `static` or file-scope variable is narrowed by a check only until the next call: any call may write it.
+
+```kairo
+static current: Session? = null
+
+fn report() {
+    if current? {
+        var id = current.id   // ok: no call since the check
+        log(id)
+        // current.id         // compile error: log() may have written current
+    }
+}
+```
+
+### Matching on a nullable
+
+A [`match`](/docs/language/pattern-matching/#matching-a-nullable) on a `T?` must answer `case null` first; every later arm, `default` included, sees the value as non-null, and `case var v` binds the unwrapped `T`.
+
 ### Safe access (`?.`)
 
-The [`?.` operator](/docs/language/operators/#null-safe-access) calls a method or accesses a member only if the value is non-null. If null, it default-constructs the type and calls the method on that instead:
+The [`?.` operator](/docs/language/operators/#null-safe-access) calls a method or accesses a member only if the value is non-null. If it is null, nothing to the right of `?.` is evaluated and the whole expression is null, so its type is the member's type made nullable:
 
 ```kairo
 var config? = load_config()
-config?.timeout   // if null, uses Config().timeout
+var t? = config?.timeout         // i32?: null when config is null
+var n = config?.timeout ?? 30    // i32: 30 when config is null
+var ok? = config?.save(path())   // bool?: save() and path() run only when config is non-null
 ```
 
-If the type is not trivially default-constructible (deleted default constructor, contains atomic types), `?.` is a compile error.
+`x?.m` means `if x? => x.m else null`, and `x?.f(args)` the same, with the call and its arguments evaluated only on the non-null path. Nothing is ever constructed on the null path. When the member's type is already nullable it is not wrapped twice: `x?.m` with `m: T?` is `T?`. `?->` is the same over a [nullable pointer](#pointers-and-nullability), and a chain `a?.b?.c` applies each step to the previous step's result.
+
+The steps after a `?.` act on the value, up to the next `?.`: `user?.address.city` is `string?` when `address` is not nullable. A call's result is the nullable, so `user?.find_order()?.total` needs the second `?.`. A method that returns nothing makes a statement: `conn?.close()` calls `close()` only when `conn` is non-null. The result is a value, not a place: `config?.timeout = 5` is a compile error. `?.` and `?->` on a value that cannot be null are a compile error too, with a fix-it that writes `.` (or `->`).
 
 ### Null coalescing (`??`)
 
-`??` provides a fallback value when the left side is null. Both sides must be the same underlying type:
+`??` provides a fallback value when the left side is null. Both sides must be the same underlying type. The result is `T`, or `T?` when the right side is itself nullable, and `??` chains to the right:
 
 ```kairo
-var value = get_f32() ?? 0.212   // value is f32, not f32?
-var name = get_name() ?? "anonymous"
+var value = get_f32() ?? 0.212             // value is f32, not f32?
+var name = get_name() ?? "anonymous"       // string
+var host? = env_host() ?? config_host()    // string?: config_host() -> string?
+var port = env_port() ?? file_port() ?? 80 // i32
 ```
+
+### Null-aware equality (`===`)
+
+`a === b` is true when both are non-null and their values are equal: `(a? && b?) && a == b`. A non-nullable operand needs no test, so `a === 5` is `a? && a == 5`. The `==` is the values' own, a user `op ==` included. On nullable pointers it compares what they point to, one level down. At least one operand must be nullable, and `x === null` is an error (it is never true; write `!x?`). Like the conjunction it reads as, a true `a === b` narrows both: in `if a === b { ... }`, `a` and `b` are non-null. See [Operators](/docs/language/operators/#comparison).
 
 ### Force unwrap
 
-`unwrap!()` extracts the value or panics if null:
+`unwrap!()` extracts the value, or terminates the program if it is null:
 
 ```kairo
-var x = unwrap!(maybe_value)   // panics if null
+var x = unwrap!(maybe_value)   // aborts the program if null
 ```
 
-`unwrap!()` desugars to a null check followed by a `panic` on the null path. The caller must be inside a `try` block or in a function with the `panic` specifier. See [Panic](/docs/language/panic/) for the panic model.
+`unwrap!(x)` reads as `if x? => x else <abort>`. On null it writes a message naming the expression and its source location to stderr (`unwrap!(maybe_value) on null at /home/me/app/main.k:12:13`: the source file's full path, line and column), then aborts the process (like C++ `std::abort`). Since the program cannot continue past a null, `x` itself is known non-null after `unwrap!(x)`, and on a variable or field `unwrap!(x)` is that variable: `unwrap!(cfg).port = 80` writes `cfg`'s value. `unwrap!` on a value that cannot be null is a compile error. It is not a [panic](/docs/language/panic/): nothing can catch it, so it needs no `try` and no `panic` specifier, and it is not part of a function's panic set. Use it where a null value means the program itself is wrong; where null is an outcome to handle, use `if x?`, `??` or `?.`.
 
 ### Const interaction
 
@@ -14934,7 +15353,7 @@ var ptr: *i32 = &x
 var bad: *i32 = &null  // compile error: *T is non-null
 ```
 
-To represent a pointer that might not exist, use `*T?`. This wraps the pointer in the standard `Nullable<T>` system with full support for `?`, `?.`, `??`, and `unwrap!()`:
+To represent a pointer that might not exist, use `*T?`, a nullable pointer. It reads as `(*T)?`, not as a pointer to a nullable, which is `*(T?)` (see [Pointers](/docs/language/pointers/#pointers-and-nullable-types)). It is one pointer wide, with null stored as `0x0`, and supports `?`, `?.`, `?->`, `??`, `===` and `unwrap!()`:
 
 ```kairo
 var ptr: *i32? = find_pointer()
@@ -14943,11 +15362,11 @@ if ptr? {
     std::println(*ptr)          // compiler knows ptr is non-null here
 }
 
-var val = ptr ?? &fallback      // use fallback if null
-var forced = unwrap!(ptr)       // panics if null
+var *val = ptr ?? &fallback     // *i32: use fallback if null
+var *forced = unwrap!(ptr)      // aborts if null
 ```
 
-For raw nullable pointers with no compiler tracking, use `unsafe *T` with manual null comparison:
+For a raw pointer with no compiler tracking, use `unsafe *T`. It is the only pointer that can hold the null address, written `&null` (a bare `null` is a nullable's null, never a pointer), and it is checked by comparing against `&null` by hand:
 
 ```kairo
 var raw: unsafe *i32 = &null
@@ -14976,7 +15395,7 @@ URL: https://www.kairolang.org/docs/language/operator-overloading/
 
 # Operator Overloading
 
-Operators are overloaded by defining `fn op` methods on a [class](/docs/language/classes/) or [struct](/docs/language/structures/), or in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may declare any overloadable operator except `as`, `[]`, `->`, `.*`, `->*` and `delete`, which are **member-only**: they must be declared in the type's own body.
+Operators are overloaded by defining `fn op` methods on a [class](/docs/language/classes/) or [struct](/docs/language/structures/), or in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may declare any overloadable operator except `as`, `[]`, `->` and `delete`, which are **member-only**: they must be declared in the type's own body.
 
 ## All Overload-able Operators for User-Defined Types
 
@@ -15089,7 +15508,7 @@ fn op r++ (self) -> T    // postfix: x++ the ++ is on the right of the operand
 
 ## Const Overloading Operators
 
-`op []`, `op .*`, `op ->*` and `op ->` may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. For a place overload, the `const self` version returns `*const T` where the `self` version returns `*T` (see [Places and values](#places-and-values------)). This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions-overloading/#const-overloading-restriction) for details.
+`op []` and `op ->` may overload on receiver const-ness, the one exception to the const-overload restriction that applies to named methods. For a place overload, the `const self` version returns `*const T` where the `self` version returns `*T` (see [Places and values](#places-and-values---)). This exception exists because operators cannot be renamed. See [Functions](/docs/language/functions-overloading/#const-overloading-restriction) for details.
 
 ```kairo
 class Buffer {
@@ -15122,7 +15541,7 @@ Every other operator follows the named-method rule: a `const self` overload of i
 struct V {
     var x: i32
     fn op + (self, o: V) -> V { /* ... */ }
-    fn op + (const self, o: V) -> V { /* ... */ }   // error: only [], .*, ->* and -> overload on const-ness
+    fn op + (const self, o: V) -> V { /* ... */ }   // error: only [] and -> overload on const-ness
 }
 ```
 
@@ -15196,9 +15615,9 @@ var t = n + "!"          // error: operands are not converted; write (n as strin
 
 Without [`@implicit`](/docs/language/attributes/#conversions), `op as` only runs on an explicit `as`.
 
-## Places and values: `[]`, `.*`, `->*`, `->`
+## Places and values: `[]`, `->`
 
-`op []`, `op .*` and `op ->*` are either **place** or **value** operators. The declared return type decides which.
+`op []` is either a **place** or a **value** operator. The declared return type decides which.
 
 A safe pointer return (`*T` or `*const T`) makes it a place:
 
@@ -15208,7 +15627,7 @@ A safe pointer return (`*T` or `*const T`) makes it a place:
 
 Any other return makes it a value operator: `a[i]` is the returned value, an rvalue. You can read it but not assign to it, and `&a[i]` is an error.
 
-`unsafe *T` is rejected as a return type, because it is neither a place nor a value. A pointer return from `[]`, `.*` or `->*` always means a place, so these operators cannot return a pointer by value. Use a named method to hand out a pointer.
+`unsafe *T` is rejected as a return type, because it is neither a place nor a value. A pointer return from `[]` always means a place, so `op []` cannot return a pointer by value. Use a named method to hand out a pointer.
 
 `op ->` isn't part of this rule. It must return `*T` or `*const T`, and `->` is then applied to that result, as with C++'s `operator->`. `unsafe *T` is rejected there too.
 
@@ -15225,7 +15644,7 @@ struct <T> Buf {
 var b = Buf<i32>{ data: [1, 2, 3, 4] }
 b[0] = 10          // through the place
 var s = b[0..2]    // a new value
-var p = &b[1]      // *i32 into b.data
+var *p = &b[1]     // *i32 into b.data
 ```
 
 ## Delete Operator
@@ -15425,6 +15844,30 @@ var kind = match http_status {
 }
 ```
 
+## Matching a nullable
+
+A `match` on a [nullable](/docs/language/nullables/) `T?` must answer null first: its first arm is `case null`, on its own and with no `where` guard. A first arm that is anything else is a compile error (not a warning). When the match has no `case null` at all, the fix-it inserts `case null { }` at the top (in expression form, where the arm needs a value, the error says to add `case null => <value>`); when `case null` is further down, or shares its arm with other patterns, the error points at it. Because null is answered once, at the top, every later arm, `default` included, sees the value as non-null:
+
+```kairo
+match port {                    // port: i32?
+    case null { use_default() } // port is null here
+    case 0    { pick_free() }   // a value pattern only matches a present value
+    default   { bind(port) }    // port is non-null: case null took null
+}
+```
+
+A binding pattern binds the unwrapped value, so `case var v` on an `i32?` binds `v: i32` and never matches null:
+
+```kairo
+var label = match port {
+    case null                    => "none"
+    case var p where p < 1024    => f"system port {p}"   // p: i32
+    default                      => f"port {port}"        // port reads as i32
+}
+```
+
+A `where` guard narrows its arm the same way an `if` condition does. After the `match`, the value's null state is the merge of every arm that can fall through. A second `case null` is an error: the first arm already answered null. Exhaustiveness is checked over `T`, so a `bool?` with `case null`, `case true` and `case false` needs no `default`.
+
 ## `match` as an expression
 
 ```kairo
@@ -15472,6 +15915,7 @@ The compiler verifies that all possible values are covered:
 | Integers / strings | `default` always required |
 | Booleans | `true` + `false` covers it |
 | Structs | `default` always required |
+| Nullable `T?` | `case null` first, then the rule for `T` |
 
 A `default` case matches any value not covered by preceding cases. It must be the last case.
 
@@ -15597,7 +16041,7 @@ One branch (or zero), discharging millions of accesses. This is the same class o
 
 ### Forming versus dereferencing, and one-past-the-end
 
-`var q = a + i` produces a pointer value and emits no code, regardless of whether `i` is in range. The obligation attaches to `*q`, not to the formation of `q`.
+`var *q = a + i` produces a pointer value and emits no code, regardless of whether `i` is in range. The obligation attaches to `*q`, not to the formation of `q`.
 
 Forming a pointer anywhere in `[base, base + count]` inclusive of the one-past-the-end address is legal and emits nothing. This is required: idiomatic range loops compare against a one-past pointer (`while p < end`), and that pointer must be formable and comparable without being undefined. Forming a pointer *beyond* one-past carries a "not dereferenceable" mark in its provenance; the pointer value is defined and may be compared, but any attempt to dereference it fails C3. Comparison of two pointers is defined when they share provenance, or when both lie in `[base, base + count]`.
 
@@ -15623,7 +16067,7 @@ A pointer value derived at epoch *e* records *e* in its provenance. Clause C1 re
 
 ```kairo
 var buf: *i32 = @create i32(64)
-var p = buf + 5
+var *p = buf + 5
 realloc(buf)        // increments buf's epoch
 *p = 1              // C1 residual: p was derived at the old epoch
 ```
@@ -15638,7 +16082,7 @@ Folding UAF into the same obligation as bounds is what makes the architecture sc
 
 `foo.bar.baz` is `PROVEN_STATIC` when `foo` is non-null and the field offsets are static: the access inherits `foo`'s provenance with a constant offset, and its obligation is exactly `foo`'s obligation.
 
-Taking an interior pointer `var p = &foo.bar` creates a new pointer whose provenance is derived from `foo`'s allocation at `foo`'s current epoch. Dropping or moving `foo` increments that epoch, so a later `*p` fails C1 by the same mechanism as any other use-after-free. Interior pointers are not special-cased; they reuse the epoch machinery.
+Taking an interior pointer `var *p = &foo.bar` creates a new pointer whose provenance is derived from `foo`'s allocation at `foo`'s current epoch. Dropping or moving `foo` increments that epoch, so a later `*p` fails C1 by the same mechanism as any other use-after-free. Interior pointers are not special-cased; they reuse the epoch machinery.
 
 ## See also
 
@@ -15702,7 +16146,7 @@ fn <T> take_ownership(x: *T) {
 }
 
 fn caller() {
-    var cfg = @create Config(8080)
+    var *cfg = @create Config(8080)
     take_ownership(cfg)
     // ownership transferred; using cfg after this is a compile error
 }
@@ -15792,7 +16236,7 @@ Exactly one live binding holds the pointer at any point. Ownership may transfer 
 
 ```kairo
 fn make_config() -> *Config {
-    var cfg = @create Config(8080)
+    var *cfg = @create Config(8080)
     return cfg
     // debug: promote cfg -> std::Unique<Config>
     // release: error, annotate the return type
@@ -15805,7 +16249,7 @@ Multiple live bindings refer to the same allocation and single ownership cannot 
 
 ```kairo
 fn share_config(a: *Server, b: *Server) {
-    var cfg = @create Config(8080)
+    var *cfg = @create Config(8080)
     a.config = cfg
     b.config = cfg
     // debug: promote cfg -> std::Shared<Config>
@@ -15815,7 +16259,7 @@ fn share_config(a: *Server, b: *Server) {
 A short-lived alias that dies before the owner escapes does **not** force `Shared`. The trigger is not "multiple pointers exist" but "multiple pointers are *live* at a point where shared ownership is required for safety."
 
 ```kairo
-var cfg = @create Config(8080)
+var *cfg = @create Config(8080)
 {
     var tmp: *Config = cfg
     validate(tmp)
@@ -15840,7 +16284,7 @@ A pointer whose lifetime is fully contained, or provably bounded by its referent
 
 ```kairo
 fn process() {
-    var data = @create Buffer(1024)
+    var *data = @create Buffer(1024)
     fill(data)
     consume(data)
     @destroy data    // fully contained -> plain *T
@@ -15944,7 +16388,7 @@ Where:
 
 Each clause is a distinct **proof domain** with its own analysis. Tether discharges as many clauses as it can statically. The clauses that remain (the **residual**) determine what is generated. The mapping from a residual clause to a code-generation response is the entire specification of Tether's behavior, and it is given in [The Residual Table](#the-residual-table).
 
-The critical design point: the obligation is checked at the **dereference**, never at pointer arithmetic. Forming a pointer value (`var q = p + i`) computes a new provenance fact and emits no code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic offset information through arbitrarily many SSA transformations and discharge or eliminate the obligation as late as possible (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
+The critical design point: the obligation is checked at the **dereference**, never at pointer arithmetic. Forming a pointer value (`var *q = p + i`) computes a new provenance fact and emits no code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic offset information through arbitrarily many SSA transformations and discharge or eliminate the obligation as late as possible (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
 
 ---
 
@@ -16009,14 +16453,14 @@ The compiler walks every dereference, reads its residual set, classifies it, and
 
 ## The Residual Table
 
-A residual clause does not have a uniform response. Bounds falls back to a runtime check; a lost provenance is a hard error; a [nullable](/docs/language/nullables/) dereference is a hard error in release but a transform in debug. The response is **per-clause**, and the full mapping is the specification of the system:
+A residual clause does not have a uniform response. Bounds falls back to a runtime check; a lost provenance is a hard error; an unchecked [nullable](/docs/language/nullables/) access is a compile error in every mode. The response is **per-clause**, and the full mapping is the specification of the system:
 
 | Residual clause / condition                                  | Response                                              | Tier |
 |--------------------------------------------------------------|-------------------------------------------------------|------|
 | **C3 bounds**, range residual                                | hoisted or local bounds check, **both modes**        | R    |
 | **C1 epoch (UAF)**, provenance intact                        | epoch comparison at deref, **both modes**            | R    |
 | **C1 epoch (UAF)**, provenance lost                          | hard error, both modes                                | N    |
-| **C4 nullability**                                           | debug: insert null check + panic; release: hard error | P    |
+| **C4 nullability**                                           | compile error, both modes: check it in source         | N    |
 | **Ownership/escape**, value is heap-promotable               | debug: promote to smart pointer; release: hard error  | P    |
 | **Stack escape**, value is heap-promotable                   | debug: rewrite to heap alloc + promote; release: error| P    |
 | **Stack escape**, value not heap-promotable                  | hard error, both modes                                | N    |
@@ -16033,18 +16477,18 @@ A residual clause does not have a uniform response. Bounds falls back to a runti
 The three response classes are:
 
 - **Tier R, runtime-check fallback, both debug and release.** The residual is a property that can be established by a cheap, side-effect-free runtime check. The program is unchanged; it pays a comparison. **This is the only tier that emits runtime code in a release build.**
-- **Tier P, debug transforms, release hard-errors with the fix.** The residual can be established by *changing the program* (inserting a [smart pointer](/docs/language/tether-promotion/), lifting a stack value to the heap, inserting a null guard). Debug performs the transformation and warns. Release refuses, because the transformation would be a hidden allocation or hidden control flow in a release binary, and emits a hard error showing the exact source change the programmer must make.
+- **Tier P, debug transforms, release hard-errors with the fix.** The residual can be established by *changing the program* (inserting a [smart pointer](/docs/language/tether-promotion/), lifting a stack value to the heap). Debug performs the transformation and warns. Release refuses, because the transformation would be a hidden allocation or hidden control flow in a release binary, and emits a hard error showing the exact source change the programmer must make.
 - **Tier N, never allowed, hard error in all modes.** No runtime check and no transformation can establish safety, because the information required to even *form* a check is absent (lost provenance, undeterminable ownership) or the property is genuinely uncheckable (a data race is UB that a single-threaded check cannot rule out).
 
 The organizing principle in one sentence: **debug is allowed to rewrite your code to make it work; release makes you write the code that debug would have written; some things are wrong no matter who writes them.**
 
-### Why bounds is Tier R but nullability is Tier P
+### Why bounds is Tier R but nullability is never inserted
 
 Both are access-safety clauses. They differ in the *nature of the fallback*.
 
 A bounds check (`assert(off < count)`) does not change the meaning of the program. `buf[i]` still means `buf[i]`; the access either proceeds or panics on exactly the inputs that would have been UB. Emitting it in release costs one predictable branch and is the price of permitting safe pointer arithmetic with runtime indices. That is the entire point of Kairo's pointer model; see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic).
 
-A null fallback (`if (p == null) panic()`) *introduces a control-flow edge that is not visible in the source*. A release binary that silently panics on a null dereference the programmer never guarded has hidden control flow, which violates the same guarantee that forbids hidden allocation. So nullability is Tier P: debug inserts the guard so you can keep moving, release makes you either prove non-null or handle the null case explicitly.
+A null fallback (`if (p == null) panic()`) *introduces a control-flow edge that is not visible in the source*. A release binary that silently panics on a null dereference the programmer never guarded has hidden control flow, which violates the same guarantee that forbids hidden allocation. So no mode inserts that guard. An access to a nullable the compiler cannot prove non-null is a compile error in debug and release alike: check it (`if x?`), give a fallback (`??`), or force it (`unwrap!()`), each of which writes the null path into the source. See [Nullables](/docs/language/nullables/#null-checking).
 
 ## See also
 

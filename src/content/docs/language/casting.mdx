@@ -83,7 +83,7 @@ Base-to-derived casts come in two forms:
 
 ```kairo
 fn process(animal: *Animal) panic {
-    var dog = animal as *Dog   // panics if animal is not a Dog
+    var *dog = animal as *Dog  // panics if animal is not a Dog
     dog->fetch()
 }
 ```
@@ -92,7 +92,7 @@ fn process(animal: *Animal) panic {
 
 ```kairo
 fn process(animal: *Animal) {
-    var dog = animal as *Dog?   // null if animal is not a Dog
+    var *dog? = animal as *Dog? // null if animal is not a Dog
     if dog? {
         dog->fetch()
     }
@@ -111,8 +111,8 @@ Casting a safe pointer to a raw pointer `*T as unsafe *U` requires an [`unsafe` 
 var ptr: *i32 = &some_value
 
 unsafe {
-    var raw = ptr as unsafe *void    // provenance loss: safe pointer to raw
-    var back = raw as unsafe *i32    // reinterpret caller must ensure correctness
+    var unsafe *raw = ptr as unsafe *void    // provenance loss: safe pointer to raw
+    var unsafe *back = raw as unsafe *i32    // reinterpret caller must ensure correctness
 }
 ```
 
@@ -148,7 +148,7 @@ Casting an integer to a pointer fabricates a pointer from a numeric address. The
 var addr: usize = 0x7FFE_0000_1000
 
 unsafe {
-    var ptr = addr as unsafe *i32   // ok: fabricating provenance
+    var unsafe *ptr = addr as unsafe *i32   // ok: fabricating provenance
 }
 
 // var bad = addr as *i32           // compile error: cannot create safe pointer from integer
@@ -240,7 +240,7 @@ There is no collapsing cast in Kairo. A cast that quietly produced a default-con
 | Intent | Write | On null |
 |---|---|---|
 | Supply a fallback | `x ?? 0` | Yields the fallback |
-| Assert non-null | `unwrap!(x)` | Panics (requires `panic` / `try`) |
+| Assert non-null | `unwrap!(x)` | Aborts the program (not catchable) |
 
 Both read at the call site as a decision about null. `x as i32` reads as a type conversion and hides one.
 
@@ -248,10 +248,10 @@ Both read at the call site as a decision about null. `x as i32` reads as a type 
 var count: i32? = lookup_count()
 
 var n = count ?? 0            // explicit: absent means zero
-var m = unwrap!(count)        // explicit: absent is a bug, panic
+var m = unwrap!(count)        // explicit: absent is a bug, abort
 ```
 
-See [Variables](/docs/language/nullables/#nullable-types) for the rest of the nullable operations (`?.`, `??`, `unwrap!()`, null checking).
+See [Nullables](/docs/language/nullables/#nullable-types) for the rest of the nullable operations (`?.`, `??`, `unwrap!()`, null checking).
 
 ---
 
