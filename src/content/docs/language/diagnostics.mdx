@@ -532,7 +532,19 @@ A `panic` function returns its error to the caller; a `-> !` function never retu
 
 ### SC001E: `{what} cannot panic: it runs where no call is written, so nothing could handle the error`
 
-A destructor (`op delete`), a transfer constructor (`@copy` / `@move`), a default constructor, an `@implicit` conversion and `op panic` are called by the language where no call is written, so an error from them could never be caught. Fix-it: remove `panic`.
+An `@implicit` conversion and `op panic` are called by the language where no call is written, so an error from them could never be caught. Fix-it: remove `panic`.
+
+### SC001E: `a constructor cannot panic` / `a destructor cannot panic`
+
+No constructor (one with parameters, the default constructor, a transfer constructor) and no destructor (`op delete`) can [panic](/docs/language/classes-lifecycle/#constructors-and-destructors-never-panic): an object is built whole or not at all, and a destructor runs on every exit, where nothing could take an error. Marking one `panic` is `a constructor cannot panic: an object is either built whole or not at all` (or the destructor's reason), with a fix-it removing `panic`. A panic that would escape one's body is `a constructor cannot panic: '{f}' may panic with '{E}', which is not handled`, with fix-its handling it there or stopping the program with `crash!()`. For a constructor, a note says that construction which can fail belongs in a static factory function.
+
+```kairo
+class Conn {
+    var fd: i32
+    fn Conn(self, n: i32) { self.fd = open_fd(n) }   // error: a constructor cannot panic
+    static fn open(n: i32) panic -> Conn { return Conn(open_fd(n)) }   // fine
+}
+```
 
 ### SC001E: `type '{T}' cannot be panicked: {why}`
 
@@ -580,6 +592,12 @@ Every [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) 
 ### SC001E: `a second 'catch' arm for '{T}'` / `no 'catch' arm may follow a bare 'catch'`
 
 Two arms for the same type, or any arm after a bare `catch` (which has already handled everything), are errors with a fix-it removing the arm. In the expression form an arm after the default is a syntax error (S054E).
+
+### SC001E: `'catch' of the C++ exception '{T}' in a build without C++ exceptions (-fno-exceptions, or a target with no OS)`
+
+A `catch e: T` arm whose `T` is a C++ type outside the `try` body's panic set [catches a C++ exception](/docs/language/c-cpp-exceptions/#c-to-kairo), which needs C++ exceptions. They are off with `-fno-exceptions`, and by default for a target with no OS (or `--freestanding`). A note points at the C++ type; the fix-it removes the arm. The code is a placeholder until the error gets its own.
+
+**Fix:** remove the arm, or build with `-fexceptions`.
 
 ### SC001E: `'op panic' takes 'const self'` / `'op panic' must return 'string'`
 
@@ -644,9 +662,10 @@ It is reported for:
 - an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
 - building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
 - naming the panic result type `Panic<T, E...>` in source (`a panic result type cannot be named yet`): a panicking call's result is handled with `try` or propagated, not stored
-- a bare `catch e`'s binding used other than to re-panic it (`panic e`), and a function type whose panic set names a generic parameter
+- keeping a panic result in a variable (`a stored panic result is not yet supported`), such as `var copy = e` for a bare `catch e`'s binding (re-panicking it with `panic e` is fine), and a function type whose panic set names a generic parameter
+- a call of a panicking operator (`a call of a panicking operator is not yet supported`)
 - a generic [`panic`](/docs/language/panic/) function (or one inside a generic type), a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside a generic function, a generator, or an `async` body
-- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
+- [`where` dispatch](/docs/language/where/) on a generic function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
