@@ -155,6 +155,8 @@ class X {
 
 A move is written bare at the call site, `X(h)`, with no marker on the argument.
 
+A transfer constructor written `= default` copies or moves every field, which initializes each of them. One with a body is a constructor like any other: it must initialize every `const` member and every [field without a default](/docs/language/classes/#fields-without-a-default), and its first whole write of such a field is that field's initialization.
+
 A class with no transfer constructor takes the weakest category its bases and fields allow: **COPY** if all of them are COPY, **MOVE** if any is move-only, **NON_TRANSFER** if any cannot be transferred. Its special members are compiler-generated to match.
 
 A class cannot define both `@copy` and `@move` transfer constructors pick one:

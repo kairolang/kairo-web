@@ -460,6 +460,38 @@ fn main() -> i32 {
 
 See [Enums](/docs/language/enums-adt/#construction).
 
+### SC001E: a constructor does not initialize a field that has no default
+
+A field with no initializer whose type has no default (`bool`, an enum with payloads, a class with no default constructor, an array of any of these) is initialized by every constructor, like a `const` member: the constructor's first whole write of it is its initialization. See [Classes](/docs/language/classes/#fields-without-a-default). The code is a placeholder until the error gets its own.
+
+```
+constructor of '{C}' does not initialize field '{f}', and {why}
+field '{f}' is not initialized on every path through the constructor of '{C}', and {why}
+'{f}' is written in part before it is initialized, and {why}
+a defaulted constructor of '{C}' cannot initialize field '{f}', and {why}
+array field '{f}' is initialized on some paths through the constructor of '{C}' only; an array is not assignable, so its one initialization must be on every path
+'self' is used before the constructor has initialized its fields
+```
+
+`{why}` says why the type has no default, the same reason a local gets (`'Frame' is an enum with payloads, so no variant is its default`). The note points at the field; when the constructor writes the field element by element instead, a second note points at the first such write.
+
+```kairo
+enum Frame { Burst { base: i32, count: i32 }, Idle }
+
+class Batch {
+    var frames: [Frame; 2]
+
+    fn Batch(self) {             // error SC001E: does not initialize field 'frames'
+        self.frames[0] = .Idle   // note: this writes part of 'frames'
+        self.frames[1] = .Idle
+    }
+}
+```
+
+**Fix:** build the field whole first (`self.frames = [.Idle, .Idle]`) on every path, before any method call; or give it an initializer at its declaration.
+
+An array field's one whole write in a constructor is its initialization, so a second one, or one inside a loop, is SC071E (`an array is not assignable; 'frames' may already be initialized here`).
+
 ---
 
 ## Panic
@@ -517,9 +549,71 @@ fn f() panic -> i32 { panic Pinned() }   // error: it is not movable
 
 A global's (or static field's) initializer runs at file scope: there is no function for an error to propagate to, and no place for a `try`. Initialize it in a function instead. A field's default and a parameter's default may call a panicking function only inside a `try` that handles everything (`a field's default cannot panic: ...`).
 
+### SC001E: `the panic set of ... must be declared`
+
+A bare `panic` where the set is a contract or has no body to infer from: a [function type](/docs/language/panic/#where-a-declared-set-is-required) (`the panic set of a 'fn' type must be declared`), an interface requirement, a `virtual` method of a base class, or a closure (`a closure's panic set must be declared`). Where there is a body, the fix-it writes the set it was inferred to be (or removes `panic` when nothing panics); otherwise a note says there is no body to infer from.
+
+```kairo
+var retry = fn () panic -> string { return read_file("x") }   // error: write 'panic(IOError)'
+```
+
+### SC001E: `'{E}' is not in the panic set of '{Base::m}', which this overrides` / `implements`
+
+An [override](/docs/language/panic/#subsets)'s set must be a subset of the base method's, and a conforming method's a subset of the interface requirement's. The fix-it adds the type to the base's or the requirement's declared set. Overriding a method that does not panic with one that does is `an override cannot panic when '{Base::m}', which it overrides, does not`.
+
+### SC001E: `'{f}' is used as a value, but its panic set is inferred`
+
+A function value's type carries its panic set (`fn() panic(IOError) -> i32`), and a set inferred from the body is not known when the value's type is given. Declare it; the fix-it writes the inferred set. Converting between function types follows the [subset rule](/docs/language/panic/#subsets): a function whose set is not a subset of the target's is a type mismatch (`cannot convert 'fn () panic(E, F) -> i32' to 'fn () panic(E) -> i32'`).
+
+### SC001W: `the panic set of public function '{f}' is inferred ({E}); declare it ...`
+
+Only when building a library (`--shared`): a `pub` function's inferred set is API surface that changes when the body does. The fix-it writes the set.
+
+### SC001W: `this arm never runs: '{T}' is not in the panic set of its 'try' (...)`
+
+A `catch e: T` whose `T` the `try` body cannot panic with. A warning, not an error, so that a library removing an error from a function's set does not break callers that still catch it. The fix-it removes the arm. Arms match [exact types](/docs/language/panic/#arms-match-exact-types): `catch e: Base` does not catch a `Derived`. A C++ type outside the set is a [C++ exception](/docs/language/c-cpp-exceptions/#exceptions) arm and is never reported.
+
+### SC001W: `'{p as *D}' crashes the program when the object is not a '{D}'; use '{p as *D}?' and test the result for cleaner handling`
+
+Every [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) warns: on the wrong dynamic type it crashes the program (it is not a panic and cannot be caught). The fix-it appends `?`, turning it into the checked downcast, which yields null on a miss.
+
+### SC001E: `a second 'catch' arm for '{T}'` / `no 'catch' arm may follow a bare 'catch'`
+
+Two arms for the same type, or any arm after a bare `catch` (which has already handled everything), are errors with a fix-it removing the arm. In the expression form an arm after the default is a syntax error (S054E).
+
 ### SC001E: `'op panic' takes 'const self'` / `'op panic' must return 'string'`
 
 [`op panic`](/docs/language/operator-overloading/#op-panic) is optional, but when a type defines it, it is `fn op panic (const self) -> string`. Fix-its insert `const` and write `string`.
+
+### SC001E: `'{A}' and '{B}' cannot be in one panic set: both have type id 0x{id}`
+
+Every error type has a 32-bit type id, the tag its errors are stored with, computed from the type's full name so every file agrees on it. Two types whose ids are equal cannot be in one panic set: their errors would be indistinguishable. This is astronomically rare; it is reported where the set is formed, with a note at each type. The code is a placeholder until the error gets its own.
+
+**Fix:** rename one of the two types, or keep them in different sets (handle one of them before the other propagates).
+
+### OPT001R: `'{Panic}' is {n} bytes, so a function returning it returns through memory, not in two registers`
+
+A remark, not a warning. A panicking function's result is returned in two registers while it is at most 16 bytes: the tag and site word, plus a payload of at most 8 bytes. One wider error type (or a wider return type) makes every function with that set return through memory: correct, just slower. The remark names the widest payload. The code is a placeholder until the remark gets its own.
+
+**Fix:** nothing is required. To keep the fast path, panic with a small error (an id, or a pointer to the details).
+
+---
+
+## Compile-Time Values
+
+The errors of [array lengths and generic value arguments](/docs/language/generics/#computed-lengths-and-arguments) that are computed at compile time. The codes are placeholders until each gets its own.
+
+### SC001E: `an array length can call only 'eval' functions; '{f}' is not 'eval'`
+
+A length or value argument is computed at compile time, so a function it calls must be `eval`. A note points at the function; when it is yours, the fix-it adds `eval`. (`a generic value argument can call ...` is the same for an argument.)
+
+### SC001E: `'{T}' cannot be the type of a generic value parameter: {why}`
+
+An [eval class](/docs/language/generics/#eval-classes-as-value-parameters) used as a value parameter's type must be structural: `{why}` names the first field that is not `pub`, is `mutable` or points to mutable memory (through nested fields: `its field 'inner' is a 'Hidden', and its field 'secret' is not 'pub'`), or the first of its constructors that is not `eval`, or a destructor. A note points at it.
+
+### SC001E: `the condition of an 'eval if' outside a function body must fold before names are resolved; 'sizeof' needs a type's layout, ...`
+
+A declaration-scope [`eval if`](/docs/language/eval/#eval-if) decides which declarations exist before types are resolved, so `sizeof` and `alignof` cannot be part of it. The note names what works: `defined!(__LP64__)` for the pointer width, or the `eval if` moved into a function body, where it is decided with the layout known.
 
 ---
 
@@ -540,10 +634,17 @@ It is reported for:
 - matching a string against a pattern that isn't a string literal or a constant initialized with one
 - matching a record value against a literal-style pattern
 - a non-generic payload enum whose payload holds a type whose copy, move and destruction are not known until instantiation
-- an initializer on an `eval` or array-typed field
+- an initializer on an `eval` field, and one on an array-typed field that is `static`, an array of arrays, or not a list literal
+- in a constructor that initializes a `const` field or a field without a default: a generic constructor or one with an expression body; `try`, `finally`, an `inline` block, `label!` or `jump!` before the last such initialization; a `static` or array local declared before it and used after it; initializing an array field of arrays, or one whose length is a generic parameter
+- a vector, set, map or f-string in an `eval` context (`a vector in an eval context is not yet supported`); a string literal is fine
+- an array length computed by C++ from an `eval` constant of the field's own class (`an array length computed by C++ from 'J', an 'eval' constant of the field's own class, is not supported`): inside its own body the class is incomplete. A note points at the constant; the fix-it moves it to module scope
+- an array length or generic value argument that calls an `eval fn` (or reads an `eval` constant computed by one) in a declaration's type, a field or a signature (`... is not yet supported in a declaration's type; write it inside a function body, or make the constant fold`); inside a function body it is accepted
+- a generic value parameter whose type is neither an integer nor an eval class (`<eval B: bool>`)
 - a generic record's field default that reads another field
 - an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
 - building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
+- naming the panic result type `Panic<T, E...>` in source (`a panic result type cannot be named yet`): a panicking call's result is handled with `try` or propagated, not stored
+- a bare `catch e`'s binding used other than to re-panic it (`panic e`), and a function type whose panic set names a generic parameter
 - a generic [`panic`](/docs/language/panic/) function (or one inside a generic type), a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside a generic function, a generator, or an `async` body
 - [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 

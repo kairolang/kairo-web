@@ -316,6 +316,7 @@ var retry = fn () panic(IOError) -> string { return read_file("data.txt") }
 - An `override` may leave its set inferred, but the set must be a subset of the base method's.
 - A conforming method's set must be a subset of the interface requirement's.
 - A function whose set is `S` converts to a function type whose set is `S'` only when `S` is a subset of `S'`. A function that doesn't panic converts to any panicking function type.
+- A function used as a value (passed, stored, assigned) must declare its set: the value's type carries the set, and an inferred set is only known once the whole program is checked. The compiler's fix-it writes the inferred set.
 
 ### Public functions
 
@@ -409,8 +410,10 @@ fn main() -> i32 {
 }
 ```
 
+`crash!("why")` writes `why` and a newline to stderr, then aborts; `crash!()` writes nothing. The rest of the crash family ends the program the same way, each with a message the compiler builds (what failed and its `file:line:col`): `unwrap!` on null, a failed checked `as` into a closed enum, and a failed [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) `p as *D`.
+
 > [!NOTE]
-> `crash!` is a macro defined in the builtin library. What it reports before terminating (a message, the source location) is not final; rely only on the fact that it does not return.
+> A crash runs on a program that is already broken, so it does only what a signal handler may: one `write` of an already-built message (at most 4096 bytes) to stderr, then `abort()`, with any `SIGABRT` handler the program installed reset first. No allocation, no locks, no Kairo code runs. `crash!` is a macro defined in the builtin library ([what it may do](/docs/language/macros-builtin/)).
 
 ---
 
