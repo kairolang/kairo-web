@@ -89,10 +89,10 @@ fn process(animal: *Animal) {
 }
 ```
 
-On a miss the program writes one line to stderr naming the cast, the target type, the pointer's static type and where the cast is, then aborts (`SIGABRT`). The line is built at compile time, so nothing is formatted while crashing:
+On a miss the program writes one line to stderr naming the cast, the target type, the pointer's static type and where the cast is (the source file's full path, line and column), then aborts (`SIGABRT`). The line is built at compile time, so nothing is formatted while crashing:
 
 ```text
-animal as *Dog: the object is not a 'Dog' (static type '*Animal') at app.k:2:16
+animal as *Dog: the object is not a 'Dog' (static type '*Animal') at /home/me/app/app.k:2:16
 ```
 
 A null pointer is not a miss: it stays null.

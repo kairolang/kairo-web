@@ -552,6 +552,7 @@ An error is returned and propagated by value, so a type a `panic` raises, a decl
 
 ```kairo
 class Pinned {
+    fn Pinned(self) {}
     @move fn Pinned(self, other: Pinned) = delete
 }
 fn f() panic -> i32 { panic Pinned() }   // error: it is not movable
@@ -601,7 +602,11 @@ A `catch e: T` arm whose `T` is a C++ type outside the `try` body's panic set [c
 
 ### SC001E: `'op panic' takes 'const self'` / `'op panic' must return 'string'`
 
-[`op panic`](/docs/language/operator-overloading/#op-panic) is optional, but when a type defines it, it is `fn op panic (const self) -> string`. Fix-its insert `const` and write `string`.
+[`op panic`](/docs/language/operator-overloading/#op-panic) is optional, but when a type defines it, it is `fn op panic (const self) -> string`. Fix-its insert `const` and write `string`. An operand besides `self` is SC055E (`'op panic' takes no operand besides the receiver`).
+
+### S055E: `an explicit panic set names at least one error type`
+
+`panic()` with nothing inside, in a function header, a closure or a function type. A bare `panic` already means an inferred set. Fix-it: remove the parentheses.
 
 ### SC001E: `'{A}' and '{B}' cannot be in one panic set: both have type id 0x{id}`
 
