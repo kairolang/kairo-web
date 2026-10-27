@@ -33,8 +33,25 @@ fn main() {
 }
 ```
 
-> [!WARNING]
-> Catching a C++ exception in a Kairo `try`/`catch` is not compiled yet. See [Status](/docs/status/).
+A `catch e: T` arm whose `T` is a C++ type that the `try` body cannot [panic](/docs/language/panic/) with catches a C++ exception of type `T`, by C++'s own rules: an exception of a class derived from `T` matches too, and the arms are tried in order. `e` refers to the exception object. Such an arm is never checked against the panic set and never reported as dead. A C++ type that *is* in the body's panic set is an ordinary panic arm.
+
+Which C++ calls are covered is decided by where they are written: a C++ call inside the `try` body, however deeply nested in its expressions and blocks, is covered. The function holding the `try` stays `noexcept`; the `try` is a real C++ `try` inside it. An exception that no arm matches reaches the function's `noexcept` boundary and terminates the program, as one thrown anywhere else in a `noexcept` frame does. A bare `catch` catches panics only, never a C++ exception.
+
+```kairo
+fn read_or_default(x: i32) -> i32 {
+    try {
+        return checked_double(x)
+    } catch e: cxx::std::runtime_error {
+        return 0                          // a std::logic_error here would terminate
+    }
+}
+```
+
+The expression form works the same way: `try checked_double(x) catch e: cxx::std::exception => -1`. C++ arms and panic arms can share one `try`.
+
+`panic e` inside a C++ arm panics a copy of the caught exception (of the arm's type) as a Kairo error, raised at that `panic`.
+
+C++ exception arms need C++ exceptions: in a build with `-fno-exceptions`, or for a target with no OS where they default off, such an arm is an error ([SC001E](/docs/language/diagnostics/)), with a fix-it removing it.
 
 The exception can come from a C++ call several Kairo frames down, but every Kairo frame between the `throw` and the `catch` must let it through: mark each one [`@unwind`](/docs/language/attributes/#unwinding), or build with `-funwind`. A frame that is `noexcept` (the default) stops the exception by terminating the program, before the `catch` is reached. The frame holding the `try` itself does not need `@unwind`: the exception stops there.
 
@@ -101,26 +118,26 @@ The API over the result is a set of free function templates in the `::builtin` n
 | `::builtin::value(p)` | The value, by reference; only valid when `ok(p)` |
 | `::builtin::is<E>(p)` | `true` when `p` holds an error of type `E` |
 | `::builtin::error<E>(p)` | The error, as `E&`; only valid when `is<E>(p)` |
-| `::builtin::site(p)` | The source file, line and column where the error was raised |
+| `::builtin::site(p)` | A `::builtin::source_site { file, line, col }`: where the error was raised. `file` is null for a result that holds a value |
 | `::builtin::type_id<E>` | The id of error type `E`, the value stored in the tag |
+| `::builtin::panic_set<P>` | A trait over a result type `P`: `value_type` (`T`), `types` (`::builtin::panic_types<E...>`), `size` (the number of error types) and `payload_offset` (where the value and every error start) |
 
 ```cpp
-#include "config.k"                    // fn load_port(path: string) panic(IOError, RangeError) -> i32
+#include "config.k"                    // pub fn load_port(path: string) panic(IOError, RangeError) -> i32
 
 int port_or_default() {
-    auto r = load_port("port.txt");
+    auto r = config::load_port("port.txt");
     if (::builtin::ok(r))
         return ::builtin::value(r);
-    if (::builtin::is<RangeError>(r))
-        return 0;                      // ::builtin::error<RangeError>(r) is the Kairo error value
+    if (::builtin::is<config::RangeError>(r))
+        return 0;                      // ::builtin::error<config::RangeError>(r) is the Kairo error value
     return 8080;                       // IOError
 }
 ```
 
-A panic set holds exact types (there is no subtyping between error types; see [Panic](/docs/language/panic/#arms-match-exact-types)), so `is<E>` matches only `E` itself.
+A panic set holds exact types (there is no subtyping between error types; see [Panic](/docs/language/panic/#arms-match-exact-types)), so `is<E>` matches only `E` itself. `is<E>` of a type not in the set is `false`; `error<E>` of one does not compile.
 
-> [!WARNING]
-> Panic is not compiled yet, so neither is this C++ view of a panicking function. See [Status](/docs/status/#not-compiled-yet).
+The function is declared `[[nodiscard]]`: dropping the result drops the error with it. A header written with `--emit-headers` declares the same function, includes the headers of its error types, and declares the result type `extern template`, so the C++ that includes several Kairo headers instantiates it once.
 
 #### Converting to an exception
 
@@ -138,7 +155,9 @@ try {
 ```
 
 - `::builtin::panic_error<E>` derives from `::builtin::panic_error_base`, which derives from `std::exception`, so `catch (const ::builtin::panic_error_base&)` catches any Kairo error and `catch (const std::exception&)` catches it too. Its `error` member holds the Kairo error value.
-- `what()` is the error's [`op panic`](/docs/language/operator-overloading/#op-panic) message followed by its type and source location: `<message> [<ErrorType> at <file>:<line>:<col>]`, for example `missing config key 'port' [ConfigError at app.k:12:9]`. A type with no `op panic` (it is optional) gives just the type and location: `ConfigError at app.k:12:9`. The string is built once, when the exception is constructed.
+- `what()` is the error's [`op panic`](/docs/language/operator-overloading/#op-panic) message (the type's own, or one an `extend` gives it) followed by its type and source location: `<message> [<ErrorType> at <file>:<line>:<col>]`, for example `missing config key 'port' [ConfigError at app.k:12:9]`. A type with no `op panic` (it is optional) gives just the type and location: `ConfigError at app.k:12:9`. The file is named as it was given to the compiler. The string is built once, when the exception is constructed, and its copies share it.
+- `value_or_throw` takes the result by value: a temporary result's value or error is moved out, a named one's is copied. An error type that can only be moved works too; catch its `panic_error<E>` by reference.
+- `panic_error_base`, `panic_error<E>` and `value_or_throw` exist only where the C++ is compiled with exceptions; the value API is always there.
 
 The conversion is **generated C++**. It inspects the tag and throws from the C++ side of the boundary. Kairo itself still never throws, and the real entry point is unaffected. C++ callers who want exceptions get them; callers who want values keep the value API.
 

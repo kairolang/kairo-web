@@ -155,6 +155,8 @@ try {
 }
 ```
 
+A catch-all can bind the error too: `catch e` holds whichever error the earlier arms did not catch. It can be re-panicked with `panic e`, which keeps the original source location. Holding it in another variable (`var copy = e`) is not supported yet.
+
 ### Arms match exact types
 
 A panic set is a set of **exact types**. There is no subtyping between error types: `catch e: Base` does not catch a panic whose type is a class derived from `Base`, and a set that holds both `Base` and `Derived` holds two distinct types, each caught by its own arm.
@@ -457,6 +459,7 @@ A bad cast or a null unwrap is a programmer error, not a recoverable condition. 
 ## Where Panics Are Not Allowed
 
 - **Global initializers.** A `panic`, a `try`, or a call to a panicking function in the initializer of a global variable is a compile error: there is no function for the error to propagate to. A [script](/docs/language/modules/#scripts)'s top-level variables are initialized as part of its top-level code, so they may use `try`.
+- **Constructors and destructors.** No constructor or destructor can panic, and no panic may escape one: handle it inside, or stop with `crash!()`. Construction that can fail belongs in a static factory function. See [Class Lifecycle](/docs/language/classes-lifecycle/#constructors-and-destructors-never-panic).
 - **`eval` functions.** `panic` in a function evaluated at compile time is an error. See [Eval](/docs/language/eval/).
 - **Generators and `async`.** For a [generator](/docs/language/functions-generators/) or an [`async`](/docs/language/concurrency/) function, an error surfaces where the caller resumes it: at the `next()` call (including the hidden one in a `for` loop) or the `await`, which handles or propagates it like any other panicking call. A `panic`, or a panicking call, inside a generator or `async` body is not supported yet.
 
@@ -466,9 +469,11 @@ A bad cast or a null unwrap is a programmer error, not a recoverable condition. 
 
 Panics compile to zero-cost tagged return values. There are no [unwinding tables](/docs/language/attributes/#unwinding), no runtime exception handler, and no stack unwinding. A function marked `panic` returns a tagged union holding either the success value or one of the errors in its set, together with the source location where the error was raised. Every Kairo function, panicking or not, stays `noexcept` in its generated C++.
 
-At a call site, the compiler tests the tag. On success, execution continues with the value. An error the caller doesn't handle is returned to its own caller as it is, keeping its tag and source location. A call in tail position (`return g()`) needs no test at all.
+At a call site, the compiler tests the tag where the call is, so arguments still run left to right and a call on the right of `&&` or `||` still runs only when that side is evaluated. On success, execution continues with the value. An error the caller doesn't handle is returned to its own caller as it is, keeping its tag and source location; the payload is moved, or copied as raw bytes when the two results have the same layout. A call in tail position (`return g()`) needs no test at all.
 
-`try`/`catch` lowers to one tag compare per `catch` arm, in order, with a bare `catch` as the final fallback. An error type's tag is the same in every set that contains it, so passing an error up through callers with larger sets never translates it.
+`try`/`catch` lowers to one tag compare per `catch` arm, in order, with a bare `catch` as the final fallback, and a catch binding refers to the error in place. An error type's tag is the same in every set that contains it, so passing an error up through callers with larger sets never translates it. When a `try` body holds a single panicking call, the arms read that call's result directly. With more than one, the first error is moved into storage that is only ever built on the error path, and moved out again before any arm runs, so every way of leaving an arm (falling through, `return`, `break`, `continue`, a re-panic) destroys it exactly once.
+
+An override of a `virtual` method returns its base method's result type, whatever its own (smaller) set: callers through the base and through the derived type see one function. A function value whose type allows more errors than the function it holds (or any, when the function cannot panic) is wrapped where it is converted.
 
 This means:
 
@@ -478,7 +483,9 @@ This means:
 - No Kairo function throws; only a C++ exception can unwind through Kairo code
 
 > [!NOTE]
-> The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use the platform unwinder. See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) in C/C++ Interop.
+> The same `try`/`catch` syntax can also catch an exception thrown by C++ code called inside the `try` (`catch e: cxx::std::exception`). That path does use the platform unwinder: the `try` becomes a C++ `try` inside the still-`noexcept` function. See [Exceptions](/docs/language/c-cpp-exceptions/#c-to-kairo) in C/C++ Interop.
+>
+> C++ code calling a panicking Kairo function gets the tagged union by value and reads it with `::builtin::ok`, `value`, `is<E>`, `error<E>` and `site`, or converts it to an exception with `::builtin::value_or_throw`. See [Kairo to C++](/docs/language/c-cpp-exceptions/#kairo-to-c-kairo-never-throws).
 
 > [!NOTE]
 > The `panic` statement inside a function body (`panic SomeError { ... }`) does not halt the program. It produces the error as the function's return value. The term "panic" refers to the signaling mechanism, not to a crash. Because an error can never reach `main` unhandled, a panic never terminates the program; [`crash!`](#main-and-crash) does.
