@@ -132,6 +132,33 @@ f([1, 2, 3] as [i32])          // ok
 
 ---
 
+## Where Clauses
+
+### `no fallback overload for '{f}' when where condition fails`
+
+Every [`where`](/docs/language/where/#fallback-requirement)-constrained overload needs a fallback: an overload of the same signature with no `where` clause, or conditions the compiler can prove cover every value. A note says what to add.
+
+```kairo
+fn root(x: f64) -> f64 where x >= 0.0 { return x }   // error: no fallback
+fn root(x: f64) -> f64 { return 0.0 }                 // ok: the fallback
+```
+
+**Fix:** add an overload without a `where` clause.
+
+### `'where' is not allowed on ...`
+
+A `where` clause is runtime dispatch among overloads, so it is an error on a type (`'where' is not allowed on a class`, with a fix-it to `requires`), on an interface method, on an `unsafe` overload (unsafe overloads are a separate namespace), and on a closure. A guarded overload also needs a body (`a guarded overload of '{f}' needs a body`).
+
+### `every overload in the 'where' dispatch of '{f}' must have the same {what}`
+
+The overloads of one dispatch become one function, so they must agree on return type, `const self`, `inline`, `-> !` and linkage. A note points at the first overload.
+
+### `'where' guard of '{f}' is unreachable` / `overlaps an earlier one` / `never holds` (warnings)
+
+The compiler compares conditions that test integer parameters against constants. A condition inside an earlier one never fires (a note points at the earlier one); a condition that partly overlaps an earlier one sends the shared values to the earlier overload; a contradictory one (`x > 5 && x < 3`) never holds. See [Declaration Order](/docs/language/where/#declaration-order-determines-priority).
+
+---
+
 ## Default Arguments
 
 ### SC106E: a default argument refers to another parameter or `self`
@@ -357,8 +384,10 @@ It is reported for:
 - matching a string against a pattern that isn't a string literal or a constant initialized with one
 - matching a record value against a literal-style pattern
 - a non-generic payload enum whose payload holds a type whose copy, move and destruction are not known until instantiation
-- an initializer on a `static`, `eval` or array-typed field
+- an initializer on an `eval` or array-typed field
 - a generic record's field default that reads another field
+- an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
+- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` or `eval` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
@@ -380,6 +409,34 @@ enum W { Has { b: Box<i32> }, Empty }   // error SC116E
 > ```
 
 **Fix:** rewrite around the construct for now. See [Status](/docs/status/).
+
+---
+
+## Control Flow
+
+### SC003W: unreachable code
+
+Message: `unreachable code; the statement above always transfers control out of this block`
+
+A statement can never run because the one before it in the same block always leaves: a `return`, `break`, `continue`, `panic` or `jump!`; a call to a function that returns `!`; an `if` with an `else` whose every branch leaves; an exhaustive `match` whose every arm leaves; or an infinite `loop` / `while true` that no `break` exits.
+
+```kairo
+fn stop() -> ! { loop { } }
+
+fn f(c: bool) -> i32 {
+    if c { return 1 } else { return 2 }
+    return 3         // warning SC003W
+}
+
+fn g() -> i32 {
+    stop()
+    return 0         // warning SC003W
+}
+```
+
+One warning covers the whole dead run of statements, up to the end of the block or the next `label!` (a `jump!` target makes what follows it reachable again). A note points at the statement that leaves. A `return` inside a closure ends only the closure, so code after the closure is not affected. A `match` arm that can never match is reported separately, as SC121E.
+
+**Fix:** delete the dead statements (the fix-it does), or move them above the statement that leaves. See [Control Flow](/docs/language/control-flow/).
 
 ---
 

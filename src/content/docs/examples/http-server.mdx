@@ -90,7 +90,9 @@ pub class Request {
 
     pub fn content_length(const self) -> i32 {
         var cl? = self.get_header("Content-Length")
-        return cl as i32 ?? 0
+        if !cl? { return 0 }   // no header, no body
+        // std::parse panics on malformed input: a bad header also counts as no body
+        return try std::parse<i32>(cl) catch => 0
     }
 }
 
@@ -434,7 +436,7 @@ Key patterns:
 import std
 import server::Server
 import request::{Request, Method}
-import response::Response
+import response::{Response, StatusCode}
 
 fn handle_index(req: *Request) panic -> Response {
     return Response::ok()
@@ -460,13 +462,13 @@ fn handle_echo(req: *Request) panic -> Response {
 fn main() {
     var srv = Server(8080)
 
-    srv.routes()
-        ->get("/", handle_index)
-        ->get("/health", handle_health)
-        ->post("/echo", handle_echo)
-        ->fallback(fn (req: *Request) panic -> Response {
-            return Response::not_found()
-        })
+    var *r = srv.routes()
+    r->get("/", handle_index)
+    r->get("/health", handle_health)
+    r->post("/echo", handle_echo)
+    r->fallback(fn (req: *Request) panic -> Response {
+        return Response::not_found()
+    })
 
     try {
         srv.start()
@@ -527,7 +529,7 @@ curl http://localhost:8080/nonexistent
 | [Finally](/docs/language/control-flow/#finally) | Socket cleanup |
 | [Closures](/docs/language/closures/) | Fallback handler |
 | [Nullable types](/docs/language/nullables/#nullable-types) | `get_header` returns `string?` |
-| [Null coalescing](/docs/language/nullables/#null-coalescing-) | `content_length` uses `??` |
+| [Null checking](/docs/language/nullables/#null-checking) | `content_length` tests `cl?` before parsing it |
 | [Type aliases](/docs/language/type-aliases/) | `Handler` type |
 | [C++ interop](/docs/language/c-cpp/) | Socket API via `ffi "c++"` |
 | [Match](/docs/language/pattern-matching/) | Method parsing, status code reasons |

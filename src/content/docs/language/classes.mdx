@@ -341,9 +341,6 @@ Counter::get_count()   // 2
 
 Static variables are declared `static name: Type`, with no `var`, and require an explicit type annotation. They can be initialized at the declaration site or at program startup. Static methods do not take `self` and cannot access instance members.
 
-> [!NOTE]
-> Static fields do not compile yet: an initializer on one is rejected, and without one the program does not link. See [Status](/docs/status/#not-compiled-yet).
-
 ---
 
 ## Const Methods
@@ -432,7 +429,7 @@ class Tree {
     var root: unsafe *Node
 
     fn Tree(self) {
-        self.root = null
+        self.root = &null
     }
 }
 ```
@@ -517,7 +514,7 @@ var obj = Foo(42)   // stack-allocated
 Heap allocation uses `@create T()`, which returns a pointer. [Tether](/docs/language/tether/) determines whether the returned pointer is raw or promoted to a smart pointer based on usage analysis:
 
 ```kairo
-var ptr = @create Foo(42)
+var *ptr = @create Foo(42)
 ```
 
 See [Pointers](/docs/language/pointers/) and [Tether](/docs/language/tether/).
@@ -572,7 +569,7 @@ class UniqueFile {
     @move
     fn UniqueFile(self, other: Self) {
         self.handle  = other.handle
-        other.handle = null
+        other.handle = &null
     }
 
     fn op delete(self) {
@@ -582,7 +579,7 @@ class UniqueFile {
 
 // Inheritance with virtual dispatch
 class Shape {
-    fn area(const self) -> f64 = virtual
+    virtual fn area(const self) -> f64
 }
 
 class Circle derives Shape {

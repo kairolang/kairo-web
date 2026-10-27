@@ -21,7 +21,9 @@ eval MAX_BUFFER = 1024 * 1024
 eval HEADER_SIZE = sizeof u32 + sizeof u16 + sizeof u8
 ```
 
-`eval` bindings are implicitly `const` they cannot be reassigned. The initializer must be a compile-time evaluable expression.
+`eval` bindings are implicitly `const` they cannot be reassigned (writing `eval const` or `const eval` is accepted and means the same). The initializer must be a compile-time evaluable expression.
+
+An `eval` binding or `eval fn` can be declared anywhere a declaration can: at file scope, inside a `module`, as a class member, or in a function body.
 
 ### Type annotation
 
@@ -109,8 +111,10 @@ Eval bodies must be deterministic and free of side effects. The following are no
 | Pointer operations (`*T`, `unsafe *T`) | No addressable memory at compile time |
 | `async` / `await` / `spawn` | No runtime scheduler at compile time |
 | `panic` | No runtime error handler at compile time |
-| Mutable global, static, or thread variables | Side effects across evaluations |
+| Global, static, or thread variables that are not `eval` (a `const` global is initialized at run time) | Side effects across evaluations; no value at compile time |
 | Calls to non-`eval` functions | Cannot guarantee compile-time evaluation |
+| Locals whose type has a non-trivial destructor | No runtime to run it at compile time |
+| A `where` clause on an `eval` function | Use `requires` |
 
 ### What is allowed
 
@@ -134,16 +138,18 @@ Eval bodies must be deterministic and free of side effects. The following are no
 `eval if` selects a branch at compile time. The condition must be a compile-time constant. Only the selected branch is compiled the others are discarded entirely (no codegen, no type checking):
 
 ```kairo
-eval if platform == "linux" {
+eval if defined!(__linux__) {
     fn init_platform() { /* linux-specific */ }
-} else if platform == "windows" {
+} else if defined!(_WIN32) {
     fn init_platform() { /* windows-specific */ }
 } else {
     fn init_platform() { /* fallback */ }
 }
 ```
 
-`eval if` can appear at the top level (selecting between declarations) or inside function bodies (selecting between code paths):
+`eval if` can appear at the top level, in a `module` or in a class body (selecting between declarations) or inside function bodies (selecting between code paths). The declarations of the selected branch belong to the enclosing scope, exactly as if the `eval if` were not there: at file scope and in a module they are the scope's declarations, in a class body a `var` is a field and a `fn` a method, and in a function body the branch's locals are the function's.
+
+Outside a function body the condition decides which declarations exist, so it must be evaluable before names are resolved: literals, `eval` constants (including ones an earlier `eval if` declared), `!`, `&&`, `||`, comparisons, integer arithmetic and [`defined!`](/docs/language/macros-builtin/#conditional). Calling an `eval fn` there is an error. Inside a function body a condition that depends on a generic parameter (`sizeof T`) is decided per instantiation.
 
 ```kairo
 fn <T> process(x: T) -> T {
@@ -179,12 +185,12 @@ See [Control Flow](/docs/language/control-flow/#compile-time-branching) for `eva
 
 ## Eval For
 
-`eval for` unrolls a loop at compile time when all loop bounds and operations are compile-time evaluable:
+`eval for` unrolls a loop at compile time: the body is compiled once per value, and in each copy the loop variable is a compile-time constant, so it can be tested with `eval if`:
 
 ```kairo
-eval fn fill_squares(@inout table: [i32; 16]) {
+fn fill_squares(@inout table: [i32; 16]) {
     eval for i in 0..16 {
-        table[i] = i * i
+        table[i] = i * i        // sixteen assignments, no loop at run time
     }
 }
 
@@ -192,12 +198,35 @@ var squares: [i32; 16]
 fill_squares(&squares)
 ```
 
-If the loop body or bounds depend on runtime values, the compiler emits an error.
+What an `eval for` can iterate:
 
-An `eval for` in a `eval` function is not allowed.
+| Iterable | Example |
+|---|---|
+| A range whose bounds are compile-time values | `eval for i in 0..N`, `eval for i in -3..=3` |
+| An `eval` array, or an array literal of compile-time values | `eval for p in PRIMES` |
+| A call of an `eval` generator | `eval for k in evens(10)` |
 
-> [!NOTE]
-> `eval for` fully computes the loop at compile time and embeds the result. Or if the loop is too large, the compiler will try to unroll the loop without evaluation, and emit a optimization remark. If and only if neither is possible, the compiler will emit an error.
+Anything else (a run-time bound, a `var` array, a generator that is not `eval`) is a compile error. `continue` and `break` work as in any loop, and so does `return` out of the enclosing function.
+
+An `eval` generator is an `eval fn` that yields. It runs at compile time, so it can do whatever an `eval fn` can, loops and conditions included, and the `eval for` iterates the values it yielded:
+
+```kairo
+eval fn evens(n: i32) -> yield i32 {
+    for var k: i32 = 0; k < n; ++k {
+        if k % 2 == 0 { yield k }
+    }
+}
+
+fn sum_evens() -> i32 {
+    var total = 0
+    eval for e in evens(10) { total += e }   // 0 + 2 + 4 + 6 + 8
+    return total
+}
+```
+
+An eval generator can only be iterated by an `eval for`.
+
+Inside an `eval fn` the whole function already runs at compile time, so an `eval for` there is an ordinary loop, and its bounds may be the function's parameters (see `sum_range` in the [Summary](#summary)).
 
 ---
 
@@ -292,34 +321,31 @@ See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ## Eval in Classes
 
-Eval can be used within class definitions to create compile-time computed values, adding eval to class fields, methods, and constructors are valid. If the class contains a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators), it cannot be used in an `eval` context. Classes can mix eval functions with regular functions.
+Inside a class, `eval` marks three different things:
 
-> [!NOTE]
-> An initializer on an `eval` field is not compiled yet. See [Status](/docs/status/#not-compiled-yet).
+- **An `eval` field** is a compile-time constant of the class, one value shared by every object (like a `static` field, but computed at compile time). It is read as `ClassName::NAME` and cannot be assigned.
+- **An `eval` method** runs at compile time. It can be called wherever its object and arguments are compile-time values; it takes `const self` to be called on an `eval` object (an `eval` binding is const).
+- **An `eval` constructor** makes the class an *eval class*: its objects can be built at compile time, so an `eval` binding can hold one. The same constructor builds an object at run time too, as long as its arguments are compile-time values.
+
+A class can mix `eval` and regular members; regular methods simply cannot be called from compile-time code. A class with a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) cannot be an `eval` value: a compile-time object is never destroyed.
 
 ```kairo
-class HashState {
-    eval seed: u64    = FNV_OFFSET_BASIS;
-    eval data: string = "";
+eval FNV_OFFSET: u64 = 2166136261
+eval FNV_PRIME: u64  = 16777619
 
-    eval fn HashState(self, input: string) {
-        self.data = input;
-    }
+class Hasher {
+    pub eval SEED: u64 = FNV_OFFSET       // a class constant
+    pub var state: u64                    // per-object state, set by the constructor
 
-    eval fn hash(self) -> u64 {
-        // Simple hash function
-        var hash = self.seed;
-        for c in self.data {
-            hash = (hash * 16777619) ^ c as u64;
-        }
-        return hash;
+    eval fn Hasher(self, start: u64) { self.state = start }
+
+    eval fn mix(const self, b: u64) -> u64 {
+        return (self.state ^ b) * FNV_PRIME
     }
 }
 
-eval state = HashState("hello")
-eval hash  = state.hash()
-
-std::println(hash); // Prints the hash of "hello"
+eval H     = Hasher(Hasher::SEED)   // a compile-time object
+eval MIXED = H.mix(7)               // computed at compile time
 ```
 
 ## Summary
@@ -341,7 +367,7 @@ eval TWO_TO_16 = power(2, 16)   // 65536
 var buffer: [u8; MAX_SIZE]
 
 // Eval if (platform selection)
-eval if platform == "linux" {
+eval if defined!(__linux__) {
     eval CACHE_LINE = 64
 } else {
     eval CACHE_LINE = 128

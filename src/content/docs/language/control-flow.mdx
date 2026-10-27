@@ -422,6 +422,8 @@ fn max(a: i32, b: i32) -> i32 {
 }
 ```
 
+A statement written after a `return` in the same block (or after a `break`, `continue`, `panic` or `jump!`) can never run, and the compiler warns about it ([SC003W](/docs/language/diagnostics/#sc003w-unreachable-code)). A `return` inside a closure ends only the closure.
+
 ## Blocks and Scope
 
 A block is a brace-delimited sequence of statements. Every block introduces a new lexical scope variables declared inside are not visible outside, and [destructors run at the closing brace](/docs/language/ownership/#destruction-order) in reverse declaration order.
@@ -493,9 +495,9 @@ Kairo does not have a `goto` keyword. `label!` and `jump!` are compiler intrinsi
 `eval if` selects a branch at compile time. The condition must be a compile-time constant expression if it is not, the compiler emits an error. Only the selected branch is included in the final program; the other branches are discarded entirely (no codegen, no type-checking).
 
 ```kairo
-eval if platform == "linux" {
+eval if defined!(__linux__) {
     fn init() { /* linux-specific init */ }
-} else if platform == "windows" {
+} else if defined!(_WIN32) {
     fn init() { /* windows-specific init */ }
 } else {
     fn init() { /* fallback */ }
@@ -568,6 +570,8 @@ fn event_loop() -> ! {
 var x: i32 = if valid => compute() else => fatal("invalid state")
 // fatal() returns ! which coerces to i32
 ```
+
+Because a call to a `-> !` function never comes back, a statement after it in the same block is unreachable, and the compiler warns ([SC003W](/docs/language/diagnostics/#sc003w-unreachable-code)). The same holds after an `if` whose every branch leaves, an exhaustive `match` whose every arm leaves, and a `loop` or `while true` that no `break` exits.
 
 See [Functions](/docs/language/functions/) for return type syntax and [Type System](/docs/language/type-system/) for how `!` interacts with type inference.
 
