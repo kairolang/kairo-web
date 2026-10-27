@@ -89,6 +89,14 @@ fn process(animal: *Animal) {
 }
 ```
 
+On a miss the program writes one line to stderr naming the cast, the target type, the pointer's static type and where the cast is, then aborts (`SIGABRT`). The line is built at compile time, so nothing is formatted while crashing:
+
+```text
+animal as *Dog: the object is not a 'Dog' (static type '*Animal') at app.k:2:16
+```
+
+A null pointer is not a miss: it stays null.
+
 **Checked downcast** returns a [nullable pointer](/docs/language/nullables/#pointers-and-nullability) `*Derived?` (a nullable pointer, `(*Derived)?`), which is null if the runtime type does not match:
 
 ```kairo
@@ -100,7 +108,7 @@ fn process(animal: *Animal) {
 }
 ```
 
-Both forms perform a runtime type check using the [vtable](/docs/language/classes-inheritance/#virtual-dispatch) (the class must have at least one `virtual` method). Downcasting a non-polymorphic class is a compile error.
+Both forms perform a runtime type check using the [vtable](/docs/language/classes-inheritance/#virtual-dispatch) (the class must have at least one `virtual` method), compiled to C++'s `dynamic_cast`. Downcasting a non-polymorphic class is a compile error. Inside a generic body, a pointee that is a type parameter works only with the checked form (`a as (*T)?`); the asserting form is an error there for now.
 
 ### Raw pointer cast
 
