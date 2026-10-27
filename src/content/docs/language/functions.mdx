@@ -107,12 +107,12 @@ Returning a slice literal is also an error, because the literal's storage ends w
 
 ### No-return `!`
 
-Functions that never return they always panic, loop forever, or call a no-return function use `!` as their return type:
+Functions that never return (they crash, loop forever, or call a no-return function) use `!` as their return type:
 
 ```kairo
 fn fatal(msg: string) -> ! {
     std::println(f"Fatal: {msg}")
-    std::crash(1)
+    crash!()
 }
 
 fn event_loop() -> ! {
@@ -245,6 +245,8 @@ f = sub
 f(10, 3)  // 7
 ```
 
+A function type for a function that may [panic](/docs/language/panic/) must declare its panic set: `fn(string) panic(IOError) -> i32`, not a bare `panic`, since a type has no body to infer the set from. A function converts to such a type when its own set is a subset of the declared one; a function that doesn't panic converts to any panicking function type. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
+
 Functions can be nested [inner functions](/docs/language/closures/#closures-vs-inner-functions) are scoped to the enclosing function:
 
 ```kairo
@@ -331,7 +333,7 @@ class Server {
 var handler: fn(Request) -> Response = handle_request
 
 // No-return
-fn abort() -> ! { std::crash(1) }
+fn abort() -> ! { crash!() }
 ```
 
 ## See also

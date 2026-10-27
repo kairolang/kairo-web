@@ -278,6 +278,10 @@ See [Interfaces](/docs/language/interfaces/) and [Requires Clauses](/docs/langua
 [Type parameters](/docs/language/generics/) are declared in angle brackets before the class name:
 
 ```kairo
+struct StackUnderflow {
+    fn op panic (const self) -> string { return "stack underflow" }
+}
+
 class <T> Stack {
     var items: [T]
 
@@ -291,7 +295,7 @@ class <T> Stack {
 
     fn pop(self) panic -> T {
         if self.items.length() == 0 {
-            panic std::Error::Runtime("stack underflow")
+            panic StackUnderflow {}
         }
         return self.items.pop()
     }
