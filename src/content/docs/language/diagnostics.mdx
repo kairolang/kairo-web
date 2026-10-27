@@ -2,7 +2,7 @@
 group: errors
 order: 20
 title: Diagnostics
-description: "Kairo compiler error messages explained: arrays, slices, overload resolution, default arguments, lifecycle, enums and value arms, and how to fix each one."
+description: "Kairo compiler error messages explained: arrays, slices, overload resolution, default arguments, lifecycle, enums, scripts and value arms, and how to fix each one."
 ---
 
 # Diagnostics
@@ -387,7 +387,7 @@ It is reported for:
 - an initializer on an `eval` or array-typed field
 - a generic record's field default that reads another field
 - an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
-- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` or `eval` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
+- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
@@ -409,6 +409,61 @@ enum W { Has { b: Box<i32> }, Empty }   // error SC116E
 > ```
 
 **Fix:** rewrite around the construct for now. See [Status](/docs/status/).
+
+---
+
+## Scripts
+
+The errors of [script mode](/docs/language/modules/#scripts): a file with top-level statements and no `fn main`.
+
+### `script variable '{x}' is read before the line that gives it a value has run`
+
+A top-level variable whose initializer is not a constant gets its value at its own line. Reading it in the top-level code above that line, or in its own initializer, reads a value that does not exist yet. A note points at the line.
+
+```kairo
+import std::io::println
+
+fn load() -> i32 { return 1 }
+
+println(f"{count}")      // error: read before its line
+var count = load()
+```
+
+**Fix:** move the read below the line, or give the variable a constant initializer.
+
+### `'{f}' reads script variable '{x}' before the line that gives it a value has run`
+
+A top-level call, made above `x`'s line, of a function in the file that reads `x` on every path. Notes point at the read and at the line. A function that reads it only on some path, or through another function, is not reported: that read is checked when it runs, and stops the program with `script variable '{x}' used before its line ran ({file}:{line})`.
+
+**Fix:** call the function after the line.
+
+### `this 'jump!' crosses the line that gives script variable '{x}' its value`
+
+A top-level `jump!` whose path passes over a line whose initializer runs there: forward, the initializer would be skipped while the reads after the label assume it ran; back, it would run again. Notes point at the line and at the label. (A `jump!` written by the user is also [SC116E](#sc116e-a-feature-is-not-yet-supported) for now.)
+
+### `a file with 'fn main' cannot also have top-level statements; 'main' is where the program starts`
+
+The statements would never run. A note points at `main`.
+
+**Fix:** move them into `main`, or delete `main` to make the file a script.
+
+### `a top-level statement runs only in the program's root file; this file is imported as a module`
+
+Only the file the program starts from runs top-level statements. An imported module, or a `.k` file included from C++, runs none.
+
+**Fix:** move the statement into a function, or into the file the program starts from.
+
+### `two script files in one program: '{a}' and '{b}' each run top-level statements as 'main'`
+
+Every command-line input may be a script, and each script is a `main`, so two in one link are two programs. Reported at the second script's first statement, with a note at the first's. Compiling them with `-c` and no link is not an error.
+
+### `a top-level 'return' gives the program's exit status, an integer; this value is a '{T}'`
+
+A top-level `return` returns from the script's `main`: bare it returns `0`, and a value must be an integer.
+
+### `'{x}' redefined`
+
+A name defined twice in one scope; at the top level that includes two bindings of one name, whatever keyword declares each (`static count` and `var count`). A note points at the first. When both are file-scope bindings, a fix-it renames the second to the first free `{x}2`, `{x}3`, ...; a duplicate field or local gets the error and the note only.
 
 ---
 
@@ -435,6 +490,8 @@ fn g() -> i32 {
 ```
 
 One warning covers the whole dead run of statements, up to the end of the block or the next `label!` (a `jump!` target makes what follows it reachable again). A note points at the statement that leaves. A `return` inside a closure ends only the closure, so code after the closure is not affected. A `match` arm that can never match is reported separately, as SC121E.
+
+The top level of a [script](/docs/language/modules/#scripts) is a block too: code after a top-level `return` is reported. A declaration between the statements (a function, a type, a binding with a constant initializer) is never dead code and is left out of the warning and its fix-it; the dead code after it gets a warning of its own.
 
 **Fix:** delete the dead statements (the fix-it does), or move them above the statement that leaves. See [Control Flow](/docs/language/control-flow/).
 
