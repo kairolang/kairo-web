@@ -11,8 +11,8 @@ description: The panic specifier, error types and op panic, inferred and declare
 
 Unlike [C++ exceptions](/docs/language/c-cpp-exceptions/), panics use no unwinding tables and no runtime. The codegen is zero-cost: every panic site becomes a tagged return value checked with a branch.
 
-> [!WARNING]
-> Panic is parsed but not compiled yet. See [Status](/docs/status/#not-compiled-yet).
+> [!NOTE]
+> Panic is compiled. Not supported yet: a panic in a generic function (or a method of a generic type), in a generator or an `async` function, a call of a panicking operator, and keeping a caught error in another variable. See [Status](/docs/status/#not-compiled-yet).
 
 ---
 
@@ -288,7 +288,7 @@ The list is written right after `panic`, on the same line, wherever the specifie
 fn f() panic(IOError) -> (i32, i32)   // the set, then a tuple return type
 
 fn g() panic -> i32 {
-    panic (IOError { code: 5 })       // the statement, with a parenthesized value
+    panic (IOError { path: "x" })     // the statement, with a parenthesized value
 }
 ```
 
@@ -462,6 +462,7 @@ A bad cast or a null unwrap is a programmer error, not a recoverable condition. 
 - **Constructors and destructors.** No constructor or destructor can panic, and no panic may escape one: handle it inside, or stop with `crash!()`. Construction that can fail belongs in a static factory function. See [Class Lifecycle](/docs/language/classes-lifecycle/#constructors-and-destructors-never-panic).
 - **`eval` functions.** `panic` in a function evaluated at compile time is an error. See [Eval](/docs/language/eval/).
 - **Generators and `async`.** For a [generator](/docs/language/functions-generators/) or an [`async`](/docs/language/concurrency/) function, an error surfaces where the caller resumes it: at the `next()` call (including the hidden one in a `for` loop) or the `await`, which handles or propagates it like any other panicking call. A `panic`, or a panicking call, inside a generator or `async` body is not supported yet.
+- **Generic functions.** A generic function's set can depend on its type arguments, so it will be inferred per instantiation. Not supported yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): a generic `panic` function, a `panic` method of a generic type, and a `panic` or a panicking call inside a generic body.
 
 ---
 

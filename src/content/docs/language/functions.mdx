@@ -324,7 +324,7 @@ fn process(x: i32) unsafe -> i32 { /* ... */ }
 
 // Method with modifiers
 class Server {
-    pub fn start(self) async panic { /* ... */ }
+    pub fn start(self) async panic { /* ... */ }   // `async` with `panic`: not supported yet (SC116E)
     pub fn status(const self) -> string { /* ... */ }
     pub static fn default_port() -> i32 = 8080
 }

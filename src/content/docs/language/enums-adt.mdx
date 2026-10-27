@@ -220,8 +220,11 @@ A construction picks the expansion whose payload type is the value's type exactl
 ```kairo
 var a: Parsed = .Err { error: "bad digit" }   // Err { error: string }
 var b: Parsed = .Err { error: 0.5 }           // Err { error: f64 }
-var c: Parsed = .Err { error: 1 }             // error: an i32 fits neither exactly, and both by conversion
+var c: Parsed = .Err { error: 1 }             // Err { error: f64 }: an i32 matches neither exactly, and converts only to f64
+var d: Parsed = .Err { error: true }          // error: no Err holds a bool
 ```
+
+A value that converts to more than one expansion is an error too: in `Outcome<i32, i64, f64>`, an `i32` fits both `Err { error: i64 }` and `Err { error: f64 }`, so the payload's type must pick one.
 
 A pattern picks one by the type written on the binder of the pack field. With a single expansion the type may be left out. Each expansion is its own case for [exhaustiveness](/docs/language/pattern-matching/#exhaustiveness):
 
