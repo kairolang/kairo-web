@@ -205,6 +205,14 @@ kbld                                       # must be on PATH, or use ./build/rel
 
 The first `kbld` builds the patched LLVM before building Stage 1. This is a long, one-time compile; it has not hung. Subsequent builds reuse it.
 
+Each build leaves a self-contained toolchain in `build/<triple>/<mode>/`: `bin/` holds `kairo` beside the bundled `clang`, `clang++` and `lld`, and `lib/` holds the clang resource directory, the `builtin` and `std` libraries, and every shared library the binaries need. The compiler finds all of it from its own location, so it runs with no flags:
+
+```bash
+build/x86_64-linux-gnu/release/bin/kairo main.k -o main
+```
+
+`--resource-dir`, `--builtins-dir`, `--std-dir` and `--sysroot` still override what it finds. If one of them cannot be found the compiler warns, naming the path it searched and the flag to pass. Not having a sysroot is a warning too, unless you pass `--freestanding`.
+
 You can run test files whose entry point is `fn Test() -> i32 { ... }`:
 
 ```bash

@@ -14,17 +14,20 @@ section: Getting Started
 Kairo is an open-source, statically typed, compiled systems programming language with native bidirectional C++ interoperability. C++ projects can `#include` Kairo files directly. Kairo code calls C++ libraries without a binding layer. The compiler emits ABI-compatible object code that links with GCC, Clang, or MSVC output.
 
 ```kairo
-import std
- 
-ffi "c++" import "engine.hh" as engine
- 
+import std::io::println
+
+ffi "c++" import "vector"
+ffi "c" import "math.h"
+
 fn main() {
-    var ctx = engine::create_context()
- 
-    try {
-        engine::run(ctx)
-    } catch e: cxx::std::exception {
-        std::println(f"engine failed: {e.what()}")
+    var samples: cxx::std::vector<f64>
+    samples.push_back(4.0)
+    samples.push_back(9.0)
+    samples.push_back(16.0)
+
+    println(f"{samples.size()} samples")
+    for x in samples {
+        println(f"sqrt({x}) = {sqrt(x)}")
     }
 }
 ```
@@ -44,7 +47,9 @@ fn main() {
 ## At a Glance
 
 ```kairo
-import std
+import std::io::println
+
+ffi "c" import "math.h"
 
 struct Point {
     var x: f64; var y: f64; // semi-colons are optional!
@@ -52,71 +57,85 @@ struct Point {
 
 extend Point {
     fn length(const self) -> f64 {
-        return std::sqrt(self.x * self.x + self.y * self.y)
+        return sqrt(self.x * self.x + self.y * self.y)   // C's sqrt, called directly
     }
 
-    fn op +(self, other: Point) -> Point {
+    fn op +(const self, const other: Point) -> Point {
         return Point { x: self.x + other.x, y: self.y + other.y }
     }
 }
 
-enum <T> ParseResult {
-    Ok    { value: T },
-    Error { message: string },
+enum Shape {
+    Circle { radius: f64 },
+    Rect   { width: f64, height: f64 },
+    Empty,
 }
 
-fn try_parse_point(input: string) -> ParseResult<Point> {
-    var parts = input.split(",")
-
-    if parts.length() != 2 {
-        return ParseResult::Error { message: f"expected 'x,y', got '{input}'" }
-    }
-
-    var x = std::parse<f64>(parts[0].trim())
-    var y = std::parse<f64>(parts[1].trim())
-
-    return ParseResult::Ok { value: Point { x: x, y: y } }
+interface HasArea {   // structural: Shape satisfies it just by having area()
+    fn area(const self) -> f64
 }
 
-struct ConfigError {
-    var message: string
-    fn op panic (const self) -> string { return self.message }
-}
-
-fn load_config(path: string) panic -> Point {
-    var content = std::read_file(path)
-
-    if content.length() == 0 {
-        panic ConfigError { message: "config file is empty" }
-    }
-
-    match try_parse_point(content) {
-        case .Ok(var value) {
-            return value
-        }
-        case .Error(var message) {
-            panic ConfigError { message: message }
+extend Shape {
+    fn area(const self) -> f64 {
+        match self {
+            case .Circle(var radius)          { return 3.14159 * radius * radius }
+            case .Rect(var width, var height) { return width * height }
+            case .Empty                       { return 0.0 }
         }
     }
 }
 
-var a = Point { x: 3.0, y: 4.0 }
-var b = Point { x: 1.0, y: 2.0 }
+fn <T impl HasArea> describe(const item: T) -> string {
+    return f"area {item.area()}"
+}
 
-std::println(f"sum length: {(a + b).length()}")
+enum Setting { Port, Host, Timeout }   // closed: only these three values exist
 
-match try_parse_point("1.5, 2.5") {
-    case .Ok(var value) {
-        std::println(f"parsed: ({value.x}, {value.y})")
-    }
-    case .Error(var message) {
-        std::println(f"failed: {message}")
+extend Setting {
+    fn name(const self) -> string {
+        match self {
+            case .Port    { return "port" }
+            case .Host    { return "host" }
+            case .Timeout { return "timeout" }
+        }
     }
 }
 
-var origin = try load_config("origin.conf") catch => Point { x: 0.0, y: 0.0 }
+fn lookup(key: Setting) -> i32? {
+    match key {   // every variant covered, so no default arm
+        case .Port    { return 8080 }
+        case .Timeout { return 30 }
+        case .Host    { return null }
+    }
+}
 
-std::println(f"origin: ({origin.x}, {origin.y})")
+struct Missing {
+    var key: Setting
+    fn op panic (const self) -> string { return f"{self.key.name()} is not set" }
+}
+
+fn require(key: Setting) panic -> i32 {
+    var value? = lookup(key)
+    if !value? {
+        panic Missing { key: key }
+    }
+    return value   // narrowed: value is a plain i32 here
+}
+
+fn main() {
+    var a = Point { x: 3.0, y: 4.0 }
+    var b = Point { x: 1.0, y: 2.0 }
+    println(f"sum length: {(a + b).length()}")
+
+    println(describe(Shape::Rect { width: 2.0, height: 3.0 }))
+
+    try {
+        println(f"port: {require(.Port)}")
+        println(f"host: {require(.Host)}")
+    } catch e: Missing {
+        println(f"missing: {e.key.name()}")
+    }
+}
 ```
 
 ---
