@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-10-27T13:30:26.490Z
+> Generated: 2026-11-01T00:09:14.183Z
 
 ---
 
@@ -26,16 +26,19 @@ Kairo is an open-source, statically typed, compiled systems programming language
 
 ```kairo
 
- 
-ffi "c++" import "engine.hh" as engine
- 
+
+ffi "c++" import "vector"
+ffi "c" import "math.h"
+
 fn main() {
-    var ctx = engine::create_context()
- 
-    try {
-        engine::run(ctx)
-    } catch e: cxx::std::exception {
-        std::println(f"engine failed: {e.what()}")
+    var samples: cxx::std::vector<f64>
+    samples.push_back(4.0)
+    samples.push_back(9.0)
+    samples.push_back(16.0)
+
+    println(f"{samples.size()} samples")
+    for x in samples {
+        println(f"sqrt({x}) = {sqrt(x)}")
     }
 }
 ```
@@ -57,77 +60,93 @@ fn main() {
 ```kairo
 
 
+ffi "c" import "math.h"
+
 struct Point {
     var x: f64; var y: f64; // semi-colons are optional!
 }
 
 extend Point {
     fn length(const self) -> f64 {
-        return std::sqrt(self.x * self.x + self.y * self.y)
+        return sqrt(self.x * self.x + self.y * self.y)   // C's sqrt, called directly
     }
 
-    fn op +(self, other: Point) -> Point {
+    fn op +(const self, const other: Point) -> Point {
         return Point { x: self.x + other.x, y: self.y + other.y }
     }
 }
 
-enum <T> ParseResult {
-    Ok    { value: T },
-    Error { message: string },
+enum Shape {
+    Circle { radius: f64 },
+    Rect   { width: f64, height: f64 },
+    Empty,
 }
 
-fn try_parse_point(input: string) -> ParseResult<Point> {
-    var parts = input.split(",")
-
-    if parts.length() != 2 {
-        return ParseResult::Error { message: f"expected 'x,y', got '{input}'" }
-    }
-
-    var x = std::parse<f64>(parts[0].trim())
-    var y = std::parse<f64>(parts[1].trim())
-
-    return ParseResult::Ok { value: Point { x: x, y: y } }
+interface HasArea {   // structural: Shape satisfies it just by having area()
+    fn area(const self) -> f64
 }
 
-struct ConfigError {
-    var message: string
-    fn op panic (const self) -> string { return self.message }
-}
-
-fn load_config(path: string) panic -> Point {
-    var content = std::read_file(path)
-
-    if content.length() == 0 {
-        panic ConfigError { message: "config file is empty" }
-    }
-
-    match try_parse_point(content) {
-        case .Ok(var value) {
-            return value
-        }
-        case .Error(var message) {
-            panic ConfigError { message: message }
+extend Shape {
+    fn area(const self) -> f64 {
+        match self {
+            case .Circle(var radius)          { return 3.14159 * radius * radius }
+            case .Rect(var width, var height) { return width * height }
+            case .Empty                       { return 0.0 }
         }
     }
 }
 
-var a = Point { x: 3.0, y: 4.0 }
-var b = Point { x: 1.0, y: 2.0 }
+fn <T impl HasArea> describe(const item: T) -> string {
+    return f"area {item.area()}"
+}
 
-std::println(f"sum length: {(a + b).length()}")
+enum Setting { Port, Host, Timeout }   // closed: only these three values exist
 
-match try_parse_point("1.5, 2.5") {
-    case .Ok(var value) {
-        std::println(f"parsed: ({value.x}, {value.y})")
-    }
-    case .Error(var message) {
-        std::println(f"failed: {message}")
+extend Setting {
+    fn name(const self) -> string {
+        match self {
+            case .Port    { return "port" }
+            case .Host    { return "host" }
+            case .Timeout { return "timeout" }
+        }
     }
 }
 
-var origin = try load_config("origin.conf") catch => Point { x: 0.0, y: 0.0 }
+fn lookup(key: Setting) -> i32? {
+    match key {   // every variant covered, so no default arm
+        case .Port    { return 8080 }
+        case .Timeout { return 30 }
+        case .Host    { return null }
+    }
+}
 
-std::println(f"origin: ({origin.x}, {origin.y})")
+struct Missing {
+    var key: Setting
+    fn op panic (const self) -> string { return f"{self.key.name()} is not set" }
+}
+
+fn require(key: Setting) panic -> i32 {
+    var value? = lookup(key)
+    if !value? {
+        panic Missing { key: key }
+    }
+    return value   // narrowed: value is a plain i32 here
+}
+
+fn main() {
+    var a = Point { x: 3.0, y: 4.0 }
+    var b = Point { x: 1.0, y: 2.0 }
+    println(f"sum length: {(a + b).length()}")
+
+    println(describe(Shape::Rect { width: 2.0, height: 3.0 }))
+
+    try {
+        println(f"port: {require(.Port)}")
+        println(f"host: {require(.Host)}")
+    } catch e: Missing {
+        println(f"missing: {e.key.name()}")
+    }
+}
 ```
 
 ---
@@ -498,6 +517,14 @@ kbld                                       # must be on PATH, or use ./build/rel
 
 The first `kbld` builds the patched LLVM before building Stage 1. This is a long, one-time compile; it has not hung. Subsequent builds reuse it.
 
+Each build leaves a self-contained toolchain in `build/<triple>/<mode>/`: `bin/` holds `kairo` beside the bundled `clang`, `clang++` and `lld`, and `lib/` holds the clang resource directory, the `builtin` and `std` libraries, and every shared library the binaries need. The compiler finds all of it from its own location, so it runs with no flags:
+
+```bash
+build/x86_64-linux-gnu/release/bin/kairo main.k -o main
+```
+
+`--resource-dir`, `--builtins-dir`, `--std-dir` and `--sysroot` still override what it finds. If one of them cannot be found the compiler warns, naming the path it searched and the flag to pass. Not having a sysroot is a warning too, unless you pass `--freestanding`.
+
 You can run test files whose entry point is `fn Test() -> i32 { ... }`:
 
 ```bash
@@ -835,46 +862,63 @@ Stage 1 is built from source for now; prebuilt downloads come with the first rel
 | Vector literals (`var v: [i32] = [1, 2, 3]`) | Type-check and compile, but do not link: the built-in vector constructors are not implemented yet | Use an array `[T; N]` or a slice `[T;]` |
 | Set literals `{a, b}` | Not compiled | - |
 | Map literals `{k: v}` | Not compiled | - |
-| Initializing a `const` field in a constructor | Not supported | - |
-| Non-generic payload enums whose payload has a type with unknown copy, move and destruction (`enum W { Has { b: Box<i32> } }` for a generic class `Box`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Make the enum generic over the payload type |
-| Associated types (`type Node` in an interface) | Parsed, with bounds and defaults; not compiled yet (`Self::Node` and `T::Node` don't resolve, and conformers don't supply them) | - |
+| Initializing a `const` field or a [field without a default](/docs/language/classes/#fields-without-a-default) in a constructor | Compiles, and an array field built element by element, one write per element with a constant index. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): in a generic constructor or one with an expression body; with `try`, `finally`, an `inline` block, `label!` or `jump!` before the last such initialization; with a `static` or array local declared before it and used after it; an array field of arrays, or of a generic length | Move that code after the last initialization, or give the field an initializer |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet | Dispatch through a base class with `virtual` methods |
-| Shorthand `.V` as the LEFT operand of `==` / `!=` (`.North == dir`) | Rejected with [SC123E](/docs/language/diagnostics/#sc123e-a-variant-name-does-not-fit-the-expected-type) | Put the variable first: `dir == .North` |
-| An initializer on an array-typed field | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor |
+| An initializer on a `static` array-typed field, on a field that is an array of arrays, or one that is not a list literal (`[a, b, c]`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Initialize it in a constructor (`self.a = [...]`), or write the list literal |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 | Struct destructuring (`var {a, b} = s`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Read the fields one by one: `var a = s.a` |
-| Functions, classes and enums declared inside a function body | Not compiled yet (a local `struct` works) | Declare them at file scope |
+| Functions, classes and enums declared inside a function body | Compile. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): one that uses a generic parameter of the function (or class) around it, and an `extend` inside a function body | Declare such a declaration at file scope with its own generic parameter |
 | In a [script](/docs/language/modules/#scripts): a top-level variable of nullable type whose initializer is not a constant (`var g: i32? = find()`), and top-level destructuring (`var (a, b) = pair()`) | Rejected (`... is not supported yet`) | `var g: i32? = null`, then `g = find()` on the next line; destructure inside a function |
 | Top-level statements in an imported module (module initialization) | Rejected: only the file the program starts from runs top-level statements | Put the code in a function and call it from the script |
-| `for ... in` over Kairo vectors, sets, maps and strings | Not supported yet | Loop over a slice, an array or a range |
+| `for ... in` over Kairo vectors, sets, maps and strings | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported): the library types do not declare their `op in` yet. The compiler side is done: an `op in (self) -> yield T` on these types, as on any type, is what a `for` calls | Loop over a slice, an array or a range |
 | Yielding a literal from a generator (`yield 7`) | Fails in the C++ step | Yield a variable: `var v = 7` then `yield v` |
 | `eval for` directly in a `module` or class body | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use an `eval for` in a function body |
-| In an `eval for`: a label (`outer: eval for ...`), a `return` of a class or struct value from inside the loop, iterating an array whose length is a generic value parameter, and using the loop variable as an array length or generic argument | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) (the loop variable: an error) | Return after the loop; test the variable with `eval if` |
-| An `eval if` branch that is valid only for some instantiations of a generic (`eval if typeof T == i32 { return int_to_bytes(value) }`) | Both branches are type-checked against the bounds | Use [overloads](/docs/language/functions-overloading/) |
-| Strings, vectors, sets and maps at compile time (`eval NAME = "Kairo"`, a `string` parameter of an `eval fn`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use a `const` for a string; integers, floats, `bool`, `char`, arrays and tuples are evaluable |
-| An array length or generic argument computed from a generic value parameter (`[T; N + 1]`, `Buf<N * 2>`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use the parameter itself, or add a second parameter |
-| A generic value parameter of a non-integer type (`<eval B: bool>`, `<eval C: Config>`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use an integer parameter |
+| In an `eval for`: a label (`outer: eval for ...`), a `return` of a class or struct value from inside the loop, and iterating an array whose length is a generic value parameter | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Return after the loop |
+| An `eval if` branch that is valid only for some instantiations of a generic (`eval if typeof T == i32 { return int_to_bytes(value) }`, the [Type-based branching](/docs/language/eval/#type-based-branching) example) | Both branches are type-checked against the bounds, so the example does not compile; this waits on per-instantiation checking of generics | Use [overloads](/docs/language/functions-overloading/) |
+| Vectors, sets, maps and f-strings at compile time (`eval V: [i32] = [1, 2]`, `f"n={n}"` in an `eval fn`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use an array; string literals, integers, floats, `bool`, `char`, arrays and tuples are evaluable |
+| An `eval` field computed by an `eval fn` used as an array length in a field of its own class (`class B { eval J = two()  var b: [i32; J] }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported), with a fix-it moving the constant to module scope, where it works | Apply the fix-it, or make the constant fold (literals and arithmetic over `eval` constants) |
+| A generic value parameter of a type other than an integer or an [eval class](/docs/language/generics/#eval-classes-as-value-parameters) (`<eval B: bool>`, `<eval F: f64>`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use an integer parameter |
 | A generic class's `requires` predicate that names an `eval` constant or `eval fn` (`class <T> B requires sizeof T <= LIMIT`) | Accepted and not checked (a predicate of the class's own parameters, literals and `sizeof` is checked) | Write the limit as a literal in the class's clause, or check it in a constructor's `requires` |
-| An array length computed by a call (`[i32; size()]`, or an `eval` constant whose initializer calls an `eval fn`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Use a literal, `eval` constants, or arithmetic over them |
+| A function that reads a `priv` member of a class in its file and whose signature names a nested type (`fn f(k: Outer::Inner, v: *Vault)`) | Fails in the C++ step with I003E (the class cannot name such a function as a friend ahead of `Outer`) | Make the member `pub`, or move the nested type to file scope |
+| An operator in the body of a macro imported from another file (`pub macro m!(x) { f() + x }`) | Rejected with SC066E "operator '+' is not defined on primitives" at the use | Call a function in the macro body instead of using the operator |
+| A base initializer whose arguments need a temporary that a later lowering hoists into its own statement (a `match` or `??` expression as an argument of `Base::Base(self, ...)`) | The C++ step rejects it: the hoisted statement is not visible to the base's mem-initializer | Compute the argument in a static helper function and pass its result |
+| Reading a field inherited from a generic base through the derived class (`class IntBox derives Box<i32>`, then `ib.item` where `item: T`) | The field is typed `T`, not `i32`: `ib.item == 4` is rejected (R051E). Methods inherited the same way are typed correctly | Read it through a method of the base (`fn get(self) -> T`) |
+| An imported C++ overload set told apart by a C++20 concept or a SFINAE condition that calls a METHOD of a Kairo class you pass (`template <IndexableBuffer B> f(B&)` beside a fallback overload, where `IndexableBuffer` requires `b.len()`) | The compiler judges the condition against the class's fields only, so when another overload also fits, that one is chosen. A lone overload is still called | Give the C++ overloads distinct names, or wrap the call in a header function that takes your class |
+| `v.insert(v.begin(), ...)` on a `cxx::std::vector` (an `iterator` where the function takes a `const_iterator`) | Rejected with SC063E: the conversion between the two iterator types is a C++ converting-constructor template, which is not considered | Pass `v.cbegin()` / `v.cend()` |
+| An unqualified call of a function declared in an imported header's namespace (`tag(b, x)` with `b: adl::Box`), found in C++ by argument-dependent lookup | Not found (R020E) when no function of that name is visible otherwise; with a Kairo function of the same name in scope, the C++ ones are found and ranked with it as in C++. Operators are always found this way | Qualify the call: `adl::tag(b, x)` |
+| Inheriting constructors in an imported C++ class (`using Base::Base;`) | The class imports, but the inherited constructors are not callable from Kairo ("declares no constructor taking arguments") | Default-construct and assign, or add a forwarding constructor in a header |
+| A C++ template value argument the parameter cannot hold (`Narrow<256>` for `unsigned char`, `Flag<2>` for `bool`) | Not checked by the compiler; the C++ step rejects it at the use (C115E, clang's wording) | Write a value in the parameter's range |
+| One imported C++ template instantiated with two pointer flavours of the same type in one program (`vector<*Node>` and `vector<unsafe *Node>`) | The second shares the first's member signatures, so its elements read back with the first's flavour | Use one flavour per element type in a program |
+| An imported C++ template used inside a generic Kairo function over its own parameter (`fn <T> f(v: cxx::std::vector<T>)`, then `for x in v` or `v.size()`) | Rejected: the instance cannot be filled until `T` is known, so its members come from the template's pattern and `begin`/`end` are [SC064E](/docs/language/diagnostics/#sc064e) "ambiguous" | Write the function for the concrete element type, or pass the values in a Kairo container |
+| `map::operator[]` (and any C++ member that default-constructs its element) with a Kairo [ADT enum](/docs/language/enums-adt/) as the element (`cxx::std::map<i32, Shape>`, then `m[1] = ...`) | Fails in the C++ step ("no matching constructor"): an ADT has no default value | Use `insert_or_assign` / `at`, or wrap the value in a nullable (`map<i32, Shape?>`) |
+| An imported class template whose non-type parameter's default depends on an earlier parameter (`llvm::SmallVector<T>`, whose `N` is computed from `T`) | The argument must be written (`SmallVector<i32, 4>`); omitting it is [R032E](/docs/language/diagnostics/) "requires at least 2 generic arguments" | Write the inline size |
 | `await`, `spawn` and the `thread` expression (`thread work()`) | Can be declared as operators, but do nothing yet. (A [`thread` variable](/docs/language/variables/#thread-local-variables) is a different construct and is compiled.) | - |
-| Catching a C++ exception in a Kairo `try`/`catch` (`catch e: cxx::std::exception`) | Fails with an internal compiler error | Catch it in C++, above an `@unwind` Kairo frame |
-| [Panic](/docs/language/panic/) (`panic`, `try`/`catch`/`finally` around a panicking call, the C++ view `::builtin::value_or_throw`) | Checked, not compiled. Panic sets are inferred and checked: an unhandled panicking call, a type outside a declared set `panic(E1, E2)`, `fn main() panic`, a panic reaching `main`, `panic` with `-> !`, and a type that cannot be panicked are all reported. Not checked yet: a bare `panic` where a set is required, the subset rules, and catch arms (a missing or dead arm). A call through a `fn` value is not seen as panicking yet. Not supported ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): panics in generic functions, generators and `async` functions. Code generation fails with an internal compiler error on every `panic`. `op panic` is accepted and compiled, but nothing calls it yet. `crash!()` works | Return a status or an [ADT enum](/docs/language/enums-adt/) result instead |
+| [Panic](/docs/language/panic/) (`panic`, `try`/`catch`/`finally` around a panicking call, the C++ view `::builtin::value_or_throw`) | Compiled and run. Panic sets are inferred and checked, as specified: unhandled calls, declared sets and where they are required, the subset rules for overrides, conformers and function types, `main`, `panic` with `-> !`, constructors and destructors (which never panic), the error-type rules, and `try`/`catch` arms (dead, duplicate, after a bare `catch`); an expression arm may `return`, `break` or `continue`. A panicking function returns its error as a value (no unwinding): propagation, both `try` forms, re-panic (keeping the original site), `finally` (one written after a `try` runs when its block exits, like any `finally`, and warns), `where` groups, closures and function values work, in registers up to 16 bytes. [Generic functions](/docs/language/panic/#generic-functions) and methods of generic types panic too: the set is computed at the definition (a bound's requirement adds its declared set at the bound's arguments, a generic callee its set at the call's), and one C++ template serves every instantiation, its set ordered per instantiation. Not supported ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): panics under a `<T: type>` parameter, in generators and `async` functions, and in generic closures; a function type whose set names a generic parameter; a call of a panicking operator; keeping a bare `catch e` binding in another variable. The [C++ view](/docs/language/c-cpp-exceptions/#the-value-api) works through `#include "foo.k"` and `--emit-headers`: the inspection helpers, `value_or_throw` and `what()` (from `op panic`, a type's own or an `extend`'s), and a header declaring `[[nodiscard]] Panic<T, E...>`. A [C++ exception arm](/docs/language/c-cpp-exceptions/#c-to-kairo) (`catch e: cxx::std::exception`) works in both `try` forms. The source location in `what()` and `::builtin::site()` is found on ELF (Linux, the BSDs) only so far: elsewhere `what()` gives the type without a location, and a C++ host linked against a Kairo `--shared` library gets no location for an error raised inside the library. An `extend` of a generic type supplying `op panic` is not used by `what()`. `crash!()` and the asserting downcast `p as *D` (a crash on a miss) work | Without a location, log `::builtin::type_id<E>` |
 | [Variadic enums](/docs/language/enums-adt/#variadic-enums) (`enum <T, ...E>`, pack-expanded variants `V { ... }...`) and [generic variadic functions](/docs/language/functions-parameters/#generic-variadic-functions) | Compile: pack parameters, forwarding with `...`, `for` over a pack, packs in class and base arguments, and pack-expanded variants built and matched by payload type. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) or a not-viable call): writing a pack's types as generic arguments (`f<i32, bool>(...)`), a pattern over a pack (`Box<T>...`), a pack-expanded field typed other than the pack itself (`e: *E`), building or matching a pack-expanded variant in a generic function, and a `return` from inside a `for` over a pack in a function whose return type has no default constructor. A partial specialization whose pattern holds a pack (`Traits<Box<T>, Args...>`) is ignored | Pass the types through arguments; build and match the variant where its type is concrete |
 | The checked `as` into a [closed enum](/docs/language/enums-plain/#closed-and-open-enums), and `unwrap!()`, in a file-scope initializer (`var c = f() as Color` outside a function) | Fails in the C++ compiler ("statement expression not allowed at file scope"); a constant operand is checked at compile time and works | Initialize the variable from a function, or with a constant |
 | `n as E?` from an integer into a nullable plain enum | Fails in the C++ compiler | Assign `n as E` to an `E?` instead |
-| The [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) `p as *D` | Compiles with no runtime check and no warning: a wrong type is not caught | Use the checked downcast `p as *D?` and test the result |
+| A C string (`*const std::c_char`, a C++ `const char*`) in an f-string (`f"{e.what()}"`) | Compiles, and prints the pointer (`const c_char @ 0x...`): there is no C-string formatter yet | Pass it on to C or C++ code to print it |
+| `e.what()` on a C++ exception arm whose class redeclares `what()` (`catch e: cxx::std::runtime_error`) | Rejected as ambiguous (SC064E) | Catch `cxx::std::exception` to read the message |
 | `@unwind` on a closure | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) (it parses as an expression attribute) | Use a named `@unwind` function, or build with `-funwind` |
 | Attributes on expressions, including heap allocation with `@create T(args)` | Parsed; rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | - |
-| [`where` guards](/docs/language/where/) on functions | Compile on free functions and methods (methods of generic classes too), with the fallback, priority order, coverage and the unreachable / overlap warnings. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator or constructor, an out-of-line method definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with default arguments. An `unsafe` overload beside them is rejected (R039E): unsafe overloads cannot coexist with safe ones yet | Test the condition with an `if` inside one function |
+| [`where` guards](/docs/language/where/) on functions | Compile on free functions and methods (methods of generic classes too), with the fallback, priority order, coverage and the unreachable / overlap warnings. Generic functions group too when their overloads differ only in the names of their type parameters; they must name those parameters alike and have the same bounds. Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): on a generic function with a value or pack parameter, or a type parameter none of its parameters' types mentions; a `virtual` or `override` method, an `extend` member, an operator or constructor, an out-of-line method definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with default arguments. An `unsafe` overload beside them is rejected (R039E): unsafe overloads cannot coexist with safe ones yet | Test the condition with an `if` inside one function |
 | [`typeof`](/docs/language/type-system/#typeof-identity-semantics), as a type (`var y: typeof x`) or as a value | The compiler crashes (an internal error) | Write the type out |
 | [Closures](/docs/language/closures/) and lambdas (`fn () { ... }` as a value) | Compile, with every capture mode (by copy, `\|*\|`, `\|*x\|`, `\|const *x\|`, mixed, `\|\|`), stored in a `fn` variable or field, passed, returned and nested. One that captures nothing can be passed where a C function pointer is expected. Not yet: generic closures (`fn <T>(x: T)`) are rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported); a closure's default parameter values are dropped, so a call must pass every argument; `async` on a closure is ignored (it runs as a plain closure). Copying a closure that holds a moved-in MOVE value stops the program, and so does passing a closure that captures where a C function pointer is expected | Use a named generic function; pass every argument; capture a MOVE value by pointer (`\|*x\|`) when the closure is copied |
-| [Nullables](/docs/language/nullables/) (`T?`, `null`, `x?`, `== null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, `match` on a `T?`) | `T?` and `null` compile: a `T?` is `::builtin::Nullable<T>` in C++, and a value or `null` converts into one anywhere a `T?` is expected (including `*T?`, a nullable pointer `(*T)?`, and nested `(T?)?`). `var x? = e`, the null test `x?`, `== null` / `!= null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, a `match` on a `T?` and the checked downcast `p as *D?` compile. [Narrowing](/docs/language/nullables/#narrowing) works: a checked nullable reads as its `T`, through conditions, early exits, loops, `match` arms, `@inout` and mutable-`self` calls, pointers and closures, and an unchecked read is a compile error. Not yet: `bool?` is not one byte (a `bool` has no spare value the compiler uses yet); `T? -> U?` between different inner types fails in the C++ compiler; a nullable reached through `->` or a subscript is not narrowed by a check; a checked downcast from a nullable pointer (`maybe_animal as *Dog?`) is rejected; in a generic function, `===` on a `T?` compares addresses when `T` turns out to be a pointer (only a written `*T?` compares what it points to) | Copy a nullable reached through `->` or a subscript to a local before checking it; test a nullable pointer before downcasting it (`if a? { a as *Dog? }`) |
+| [Nullables](/docs/language/nullables/) (`T?`, `null`, `x?`, `== null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, `match` on a `T?`) | `T?` and `null` compile: a `T?` is `::builtin::Nullable<T>` in C++, and a value or `null` converts into one anywhere a `T?` is expected (including `*T?`, a nullable pointer `(*T)?`, and nested `(T?)?`). `var x? = e`, the null test `x?`, `== null` / `!= null`, `??`, `?.`, `?->`, `===`, `unwrap!()`, a `match` on a `T?` and the checked downcast `p as *D?` compile. [Narrowing](/docs/language/nullables/#narrowing) works: a checked nullable reads as its `T`, through conditions, early exits, loops, `match` arms, `@inout` and mutable-`self` calls, pointers and closures, and an unchecked read is a compile error. Not yet: `bool?` is not one byte (a `bool` has no spare value the compiler uses yet); `T? -> U?` between different inner types fails in the C++ compiler; a nullable reached through `->` or a subscript is not narrowed by a check; a checked downcast from a nullable pointer (`maybe_animal as *Dog?`) is rejected | Copy a nullable reached through `->` or a subscript to a local before checking it; test a nullable pointer before downcasting it (`if a? { a as *Dog? }`) |
+| [`<T: type>`](/docs/language/generics/#the-type-regime-transitional) generic parameters | On by default until the compiler compiles itself; `-fno-duck-generics` turns the regime off, and `: type` is then rejected with [SC001E](/docs/language/diagnostics/#generics). With it on, the body compiles as a C++ template and the C++ compiler checks each instantiation; member calls through `T` (`x.f()`, `p->f()`, `x.f<A>()`, `T::f()`) are emitted as written. A panic from a member call through `T` is not tracked, so a discarded result drops it with only a C++ warning, and any other panic in such a body is rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported). `&self as *X` in a mixin over `: type` X compiles to a `static_cast` (no `unsafe`), so a mixin that is not the first base is read correctly. Transitional: the regime and the flag go once the bootstrap mixins are migrated | Bound the parameter with an interface (`<T impl I>`) |
+| A [partial specialization selected by `requires`](/docs/language/requires/#partial-specializations-selected-by-requires) whose clause needs more than literals and the `sizeof` / `alignof` of builtins, pointers and arrays (a struct's size, an `eval` function), or names a conformance (`requires P impl I`) | The first is an error ([SC001E](/docs/language/diagnostics/#generics)) where an instantiation is used, the second is rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported); two constrained partials with the same pattern that both hold are ambiguous even where C++ would order them | Select by the argument's pattern (`<P> X<*P>`), or by a size of a builtin type |
+| A generic class whose body names a pointer to itself at a growing argument (`var p: *L<Wrap<T>>` inside `L<T>`) | Rejected with [SC001E](/docs/language/diagnostics/#generics) "instantiation depth exceeds 128", although nothing is instantiated through a pointer | Name the pointer at a fixed argument, or type-erase it (`*void`) |
+| A [float-to-integer cast](/docs/language/casting/#float-to-integer) of an out-of-range value, an infinity or NaN | Compiles, but does not saturate: the result is whatever the target's conversion instruction gives (on x86_64, `1.0e18 as i32` is `i32` min and `-1.0 as u8` is 255) | Clamp the value into the target's range before the cast |
+| `x as bf16` on an `f16`, and `x as f16` on a `bf16` | Fail in the C++ step | Go through `f32`: `x as f32 as bf16` |
+| `x as f16` on an `i128` or `u128`, `x as i128` / `as u128` on an `f16`, and `x as bf16` on an `f80` | Fail to link: the runtime's conversion routines for these pairs are missing | Go through `f32` (or `i64` for an in-range value) |
+| An integer literal where a [`byte`](/docs/language/primitives/#byte) is expected (`var b: byte = 0xFF`) | Rejected ("cannot convert 'i32' to 'byte'") | `0xFFu8 as byte` |
+| A `char` literal outside ASCII (`'漢'`, `'é'`) | Fails in the C++ step | Build it from its code point: `0x6F22u32 as char` |
 
 ---
 
 ## Checked by C++, Not by Kairo
 
-Access control is enforced, but the error comes from the C++ compiler at build time rather than as a Kairo diagnostic. The C++ step is also stricter than Kairo: a free function in the class's own module that reads a `priv` member is rejected, although [visibility](/docs/language/classes/#visibility) is module-wide and allows it. This covers `priv` constructors and assignments to a `const` variable (`const x: i32? = 42` then `x = null`, or to a `static const` / `thread const`): `--type-check-only` does not report the last. One case is caught by neither: an assignment to a top-level `const` of a [script](/docs/language/modules/#scripts) whose initializer is not a constant (`const LIMIT = load()` then `LIMIT = 6`) compiles and runs.
+An assignment to a `const` variable (`const x: i32? = 42` then `x = null`, or to a `static const` / `thread const`) is reported by the C++ compiler at build time rather than as a Kairo diagnostic: `--type-check-only` does not report it. One case is caught by neither: an assignment to a top-level `const` of a [script](/docs/language/modules/#scripts) whose initializer is not a constant (`const LIMIT = load()` then `LIMIT = 6`) compiles and runs.
 
 ---
 
@@ -884,15 +928,19 @@ Passing a slice literal to a function that **stores** the slice is not caught. T
 
 Assigning to a `const` binding introduced by a `match` pattern (`case .Error(const message)`) is not reported. See [Enums](/docs/language/enums-adt/#destructuring-with-match).
 
-Initializing or assigning a safe pointer `*T` with `&null` (`var p: *i32 = &null`) is not reported, although `*T` is never null by design. Use a nullable pointer `*T?` for a pointer that may be absent. See [Pointers and nullability](/docs/language/nullables/#pointers-and-nullability).
 
 Declaring `var x: T` with no initializer in a generic body is not reported when no bound requires a default constructor. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
 
-Three [`extend`](/docs/language/extends/) rules are not diagnosed yet:
+Calling a method that a generic class inherits from a generic base with an argument of the wrong type (`Const<i32>().put(x)` where `put(self, v: T)` is declared in `Source<T>` and `Const<T>` derives it) is not reported by Kairo: the base's `T` is taken from the argument, and the C++ step rejects the call. A method the class declares itself is checked against the instance's type.
+
+A class or struct that declares `impl I` but does not conform to `I` (a missing method, a missing associated type, or two interfaces it declares giving one inherited associated type different defaults) is not reported at its declaration, only where the conformance is used (passing it to a `T impl I`). See [Conformance](/docs/language/interfaces/#conformance).
+
+Four [`extend`](/docs/language/extends/) rules are not diagnosed yet:
 
 - A plain `extend` outside the type's file, or an `extend ... impl` in neither the type's nor the interface's file, is accepted. See [Same-File Restriction](/docs/language/extends/#same-file-restriction).
 - Calling an extension member whose bounds the type arguments do not satisfy is not reported at the call site. See [Generic Extends](/docs/language/extends/#generic-extends).
 - An `extend ... impl` that is missing interface methods is not reported at the `extend` declaration. See [Interface Conformance](/docs/language/extends/#interface-conformance).
+- An extension member is only meant to be visible in files that import the extension's file, directly or through other imports. A generic bound checks this (a type that meets `T impl I` only through an extension the file does not import is an error there), but a plain member call does not: `m.scale()` can find an extension the file never imports, depending on the order files are compiled in.
 
 A [generator](/docs/language/functions-generators/#generator-lifetimes) that outlives the object it was created from, or an `@inout` argument it was given, is not caught; it dangles. This becomes an error when [Tether](/docs/language/tether/) covers generators. Until then, do not keep a generator longer than the object it came from.
 
@@ -912,7 +960,7 @@ A [closure](/docs/language/closures/#tether-and-lifetime-safety) that captures a
 
 ## Language Gaps
 
-- A Kairo `string` cannot be passed to a C `const char*` parameter; `string.c_str()` is planned. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
+- A Kairo `string` reaches a C `const char*` parameter only through an `unsafe` cast of its bytes (`s.data as unsafe *const std::c_char`); `string.c_str()` is planned. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
 - Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object and for primitive operators whose two operands both have side effects. See [Operators](/docs/language/operators/#evaluation-order).
 
 ---
@@ -966,7 +1014,11 @@ var d = 1_000_000   // i32 underscores are ignored, use freely as separators
 var e = 0xFF        // i32 hexadecimal
 var f = 0b1010_0011 // i32 binary
 var g = 0o77        // i32 octal
+var h = 64usize     // usize: the target's pointer width
+var i = 5f32        // f32: a float suffix on an integer body makes it that float
 ```
+
+The integer suffixes are `i8` `i16` `i32` `i64` `i128`, `u8` `u16` `u32` `u64` `u128`, in lower or upper case (`42U8`), and `usize` and `isize`. A suffix is a declaration, not a hint: `42u8` is a `u8` wherever it stands, so it selects the `u8` overload and a generic called with it deduces `T = u8`. A value that does not fit the suffix's type is an error, and so is a suffix that names no type (`1u7`, [SC074E](/docs/language/diagnostics/)). Prefixes and separators combine with a suffix: `0xFF_FFu16`, `0b1010u8`.
 
 ### Overflow behavior
 
@@ -1003,7 +1055,11 @@ All floating-point types except `f80` follow the IEEE 754 standard. A float lite
 var x = 3.14        // f64 (default)
 var y = 3.14f32     // f32
 var z = 1.0e-10     // f64 scientific notation
+var w = 0x1.8p3f32  // f32 hexadecimal float: 12.0
+var b = 1.5bf16     // bf16
 ```
+
+The float suffixes are `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (`f80` and `f128` only where the target has them, see below), in lower or upper case. A literal is rounded once, to the type it is used at, from its decimal digits: `16777217.0f32` is `16777216.0` and `16777217.0f64` is exact, and `var q: f128 = 0.1` is `0.1` at `f128` precision, not the `f64` value `0.1` widened. An unknown float suffix (`1.5f8`, `1.5xyz`) is [SC074E](/docs/language/diagnostics/).
 
 Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 no crash, no trap. Check for `NaN` explicitly with `std::is_nan()` when needed.
 
@@ -1081,6 +1137,19 @@ var cjk = '漢'
 
 > [!NOTE]
 > `char` is the *decoded* representation of a single codepoint. Strings store text as UTF-8 bytes internally, not as arrays of `char`. See [Strings](#strings) below.
+
+### C's `char`: `std::c_char`
+
+`char` is a Unicode scalar value, which C and C++'s `char` is not. C's plain `char` is `std::c_char` (`import std::c_char`): one byte, a third type beside `signed char` (`i8`) and `unsigned char` (`u8`), signed or not as the target's C is. A C++ `char` imports as `c_char`, so a C string is `*const c_char`, which is `const char*` exactly. It is a character, not a number: `as` converts it to and from the integers, it compares with `==` and `<`, it does no arithmetic, and an integer literal takes it only in 0 through 127, where both signednesses agree. In an f-string a `c_char` prints its code, 0 through 255.
+
+```kairo
+
+
+var c: c_char = 65          // ok: 'A'
+var d = 200u8 as c_char     // the byte 200, whatever the target's char is
+// var e: c_char = 200      // error SC075E: only 0 through 127 fit on every target
+var n = (c as i32) + 1      // arithmetic on the integer
+```
 
 ---
 
@@ -1246,7 +1315,7 @@ The full conversion rules between primitive types are covered in the [Conversion
 
 Literals are **untyped** until a type is assigned. Literal typing is not conversion and does not consult this lattice.
 
-1. If an expected type is available from context (annotation, parameter, return position, the other operand of a binop, aggregate element type), the literal takes that type directly, and the compiler checks the value fits. `var b: u8 = 42` is fine. `var b: u8 = 300` is an error at the literal, with the range in the diagnostic.
+1. If an expected type is available from context (annotation, parameter, return position, the other operand of a binop, aggregate element type), the literal takes that type directly, and the compiler checks the value fits. `var b: u8 = 42` is fine. `var b: u8 = 300` is an error at the literal, with the range in the diagnostic. The other operand of a binop gives its type whichever side the literal is on: `1 + b` and `b + 1` are both `u8` additions, and `300 + b` is the same error as `b + 300`. A shift's result is its left operand's type, so a literal on the left of `<<` / `>>` takes the expected type when there is one (`var m: u16 = 1 << n` is a `u16` shift) and otherwise the count's integer type (`1 << 4u8` is a `u8` shift). When both operands are untyped literals, neither gives the other a type and rule 2 applies (`1 << 4` is `i32`).
 2. With no expected type, the default is `i32` for integer literals and `f64` for float literals. Only if the value does not fit does the "smallest type that holds it" rule from [Integers](#integers) apply.
 
 Rule 1 comes first on purpose. If promotion fired unconditionally, `var x: u32 = 3000000000` would type the literal as `i64` before looking at the annotation, and then fail to narrow it. Expected-type-first removes that whole class of error.
@@ -1408,7 +1477,17 @@ var b: string     // ""
 var d: [i32]      // []
 ```
 
-`bool` has no default value: declaring a `bool` without an initializer is an error. The same applies to a struct or class with no default constructor, including one whose default constructor is explicitly deleted.
+`bool` has no default value: declaring a `bool` without an initializer is an error. The same applies to a struct or class with no default constructor, including one whose default constructor is explicitly deleted, to an [enum with payloads](/docs/language/enums-adt/) (no variant is its default), and to an array of any of these. A class field of such a type is initialized by the constructor instead; see [Classes](/docs/language/classes/#fields-without-a-default).
+
+A struct or class that declares no constructor at all has an implicit default constructor, which builds each base and field from nothing: a field with an initializer takes it, any other field takes its type's default. It exists only when every one of them can be built that way, so a field with no initializer whose type has no default (a `bool`, a record without a default constructor, ...), a `const` field with no initializer, or a base with no default constructor leaves the type with none, and the error names that field or base. Declaring any constructor, a `@copy` or `@move` one included, means there is no implicit one.
+
+```kairo
+struct Point { var x: i32  var y: i32 = 5 }
+var p: Point      // ok: x is 0, y is 5
+
+struct Flag { var on: bool }
+var f: Flag       // error: Flag has no default constructor: field 'on' has no initializer
+```
 
 ```kairo
 var c: bool       // error: c must be initialized
@@ -2436,18 +2515,22 @@ The last arm of a `try` extends as far right as it can, like the last arm of an 
 
 ### `finally`
 
-`finally` defines cleanup code that always runs whether the `try` body completes normally, panics, or returns early.
+`finally` is a scope-exit block, described below. It is not a clause of `try`: a `finally` written after a `try`/`catch` is the same standalone `finally`, so it runs when the enclosing block is left, not when the `try` finishes, and a `return`, `break` or uncaught panic leaving the `try` never reaches it.
 
 ```kairo
-try {
-    acquire_resource()
-    do_work()
-} catch e: IOError {
-    handle_error(e)
-} finally {
-    release_resource()   // always executes
+fn work() {
+    try {
+        do_work()
+    } catch e: IOError {
+        handle_error(e)
+    } finally {            // warning: runs when work() returns
+        release_resource()
+    }
+    log("done")            // runs before release_resource()
 }
 ```
+
+A `finally` directly after a `try`/`catch` is a [warning](/docs/language/diagnostics/#sc001w-finally-runs-when-the-enclosing-block-exits-like-any-finally-not-when-the-try-before-it-finishes) for that reason. To clean up as soon as the `try` is done, on every way out of it, register the `finally` first, in a block of its own: `{ finally { release_resource() } try { ... } catch { ... } }`.
 
 ### Standalone `finally` (scope exit)
 
@@ -3079,7 +3162,7 @@ fn process(x: i32) unsafe -> i32 { /* ... */ }
 
 // Method with modifiers
 class Server {
-    pub fn start(self) async panic { /* ... */ }
+    pub fn start(self) async panic { /* ... */ }   // `async` with `panic`: not supported yet (SC116E)
     pub fn status(const self) -> string { /* ... */ }
     pub static fn default_port() -> i32 = 8080
 }
@@ -3289,6 +3372,9 @@ var divergent = fn () -> ! {
 
 > [!NOTE]
 > Closures cannot be `eval`, `const`, `unsafe`, `virtual`, `override`, `inline`, or `final`.
+
+> [!NOTE]
+> An `async` closure that is also `panic`, like `all_three`, is not supported yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)). See [Status](/docs/status/#not-compiled-yet).
 
 See [Panic](/docs/language/panic/) for the full panic model.
 
@@ -3514,20 +3600,23 @@ class Counter {
 }
 ```
 
-The one exception is a name that denotes a **scope** rather than a value nested types, type aliases, and nested modules. Naming a type is not an access through an object, so it needs no qualifier:
+The one exception is a name that denotes a **scope** rather than a value nested types, type aliases, and nested modules. Naming a type is not an access through an object, so a qualifier is not required. Prefer `Self::Node` anyway: a bare nested type, type alias or associated type of the enclosing type compiles, but the compiler warns and offers a fix-it that inserts `Self::`, because nothing at the use says the name is a member rather than something from the module:
 
 ```kairo
 class Tree {
     struct Node { var value: i32 }
     type Depth = i32
 
-    fn root(self) -> Depth {
-        var n = Node { value: 0 }   // ok: `Node` means `Self::Node`
-        var d: Depth = 0            // ok: alias, same rule
+    fn root(self) -> Self::Depth {
+        var n = Self::Node { value: 0 }   // preferred
+        var m = Node { value: 1 }         // ok, but warns: write `Self::Node`
+        var d: Depth = 0                  // ok, but warns: alias, same rule
         return d
     }
 }
 ```
+
+The warning applies anywhere in the body, a field type or method signature included. It names the innermost type only: inside `Node`, a bare `Depth` (a member of `Tree`, not of `Node`) and `Node` itself are not warned, since `Self::` there would mean `Node::`.
 
 The rule does not depend on where a method is written. It is identical in a `class`, `struct`, `union` or `interface` body, in an [`extend`](/docs/language/extends/) block, in an out-of-line `fn Type::method` definition, and inside a [closure](/docs/language/closures/) in any of those.
 
@@ -3565,10 +3654,21 @@ Visibility modifiers control access to members from outside the class:
 | Keyword | Scope |
 |---|---|
 | `pub` | Accessible from any module |
-| `priv` | Accessible only within the defining class or module |
-| `prot` | Accessible within the defining class, subclasses, and the defining module |
+| `priv` | Accessible within the defining class, and anywhere in the file that declares it, free functions included |
+| `prot` | What `priv` allows, plus every class that derives from the defining class, in any module |
 
 Modifiers are applied per-declaration. There are no visibility blocks (`public:` sections).
+
+Kairo checks visibility itself: using a `priv` member from another file, or a `prot` one outside a subclass, is an error that offers to make the member `pub`. Operators are members like any other: a `priv fn op +` is usable only where a `priv` method would be. A base's members reached through a `derives priv` (or `derives prot`) edge are private (protected) to the deriving class and its file.
+
+A subclass in another file uses a `prot` member the way C++ allows a protected one:
+
+- an instance field or method only through an object of the subclass's own type, or of a type deriving from it (`self.hits`, `other_counter.hits`), not through a `*Base` or a sibling subclass;
+- a `prot` constructor only as the base initializer `Base::Base(self, ...)` at the start of its own constructor, not to build a separate `Base`.
+
+`prot` statics and nested types have no such restriction.
+
+The C++ that Kairo generates keeps these levels: a `priv` member is `private:` and a `prot` one `protected:`, and the class names its file's functions and types as friends. A C++ program that includes the module sees the members as Kairo has them (see [What crosses an include](/docs/language/c-cpp-exposing/#what-crosses-an-include)).
 
 ### Default visibility
 
@@ -3647,6 +3747,53 @@ var cfg = Config(3, 30.0)
 ```
 
 If a `const` member has an initializer at the declaration site, it cannot be reassigned in the constructor.
+
+### Fields without a default
+
+A field with no initializer whose type has no default value (`bool`, an [enum with payloads](/docs/language/enums-adt/), a class with no default constructor, or an array of any of these; see [Variables](/docs/language/variables/#default-initialization)) must be initialized by every constructor, like a `const` member. The constructor's first write of the whole field is its initialization; later writes are ordinary assignments:
+
+```kairo
+enum Frame {
+    Burst { base: i32, count: i32 },
+    Idle,
+}
+
+class Batch {
+    var frames: [Frame; 3]
+    var ready: bool
+
+    fn Batch(self, base: i32) {
+        self.frames = [.Burst { base: base, count: 3 }, .Idle, .Idle]  // initialization
+        self.ready = false
+        self.log()                                                      // the object exists from here
+        self.frames[2] = .Burst { base: 1, count: 1 }                  // ordinary assignment
+    }
+
+    fn log(self) { }
+}
+```
+
+Until every such field is initialized, the object does not exist yet, so the constructor can use `self` only to initialize fields and to read the ones already initialized: no method call, no `return`. A field the constructor leaves uninitialized on some path is an error at the constructor.
+
+An array field can also be built element by element: writing every element once, `self.frames[k] = ...` for each `k` from `0` to `N - 1` with a constant index, initializes it. The writes may come in any order and be spread over branches, as long as every path writes every element exactly once, outside any loop, before the array (or `self`) is read. Each element is built where its write is, so the right-hand sides run in source order with the statements around them. From the last element on, the array exists and further element writes are ordinary assignments:
+
+```kairo
+class Pair {
+    var frames: [Frame; 2]
+
+    fn Pair(self, base: i32) {
+        self.frames[1] = .Idle                              // builds element 1
+        self.frames[0] = .Burst { base: base, count: 2 }    // builds element 0: frames exists from here
+        self.frames[1] = .Burst { base: 1, count: 1 }      // ordinary assignment
+    }
+}
+```
+
+Leaving an element out on some path, writing one twice, an index that is not a constant, a write inside a loop, or reading the array before its last element is an error naming the elements still missing or the offending write. Only whole elements count: a write into an element (`self.toks[0].n = 1`) needs the element to exist already, and an array of arrays cannot be built element by element; assign those whole.
+
+Giving the field an initializer at its declaration (`var frames: [Frame; 3] = [.Idle, .Idle, .Idle]`) lifts the requirement.
+
+An array is not assignable, so an array field's one whole write in a constructor is its initialization: it must happen on every path through the constructor or on none, and never in a loop. A second whole write is an error; write the elements instead.
 
 ### Default and deleted constructors
 
@@ -3751,6 +3898,9 @@ class <T> Stack {
 var s = Stack<i32>()
 s.push(42)
 ```
+
+> [!NOTE]
+> A `panic` method of a generic class, like `pop` here, is not supported yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): a generic body's panic set will be inferred per instantiation. See [Status](/docs/status/#not-compiled-yet).
 
 Generic classes can inherit from other generic classes:
 
@@ -3884,6 +4034,8 @@ class Tree {
     }
 }
 ```
+
+A type nested in a generic class belongs to each instance: `L<i32>::P` and `L<f64>::P` are different types, and a member of `L<i32>::P` typed with `L`'s parameter reads with `i32`. Name it through the instance from outside the class (`var q: L<i32>::P = l.make(7)`, `L<i32>::P { k: 1 }`, `L<i32>::Color::Red`); inside the class, `Self::P` is the current instance's. A generic function can take one and deduce the instance's arguments from it (`fn <T> first(r: L<T>::P) -> T`).
 
 ---
 
@@ -4049,7 +4201,7 @@ class <T impl Comparable> PriorityQueue impl Iterable {
 
     fn PriorityQueue(self) { self.heap = [] }
     fn push(self, item: T) { ... }
-    fn pop(self) panic -> T { ... }
+    fn pop(self) panic -> T { ... }   // `panic` in a generic class: not supported yet (SC116E)
 }
 
 // Final class
@@ -4139,7 +4291,7 @@ var teal = Color::from_hex(0x008080)
 
 ## Visibility
 
-All struct members default to `pub`. You can explicitly mark a member `priv` or `prot`, but the compiler emits a warning if you need access control on fields, a [class](/docs/language/classes/) is the better fit.
+All struct members default to `pub`. You can explicitly mark a member `priv` or `prot`, but the compiler emits a warning if you need access control on fields, a [class](/docs/language/classes/) is the better fit. Kairo enforces a `priv` field, but in the generated C++ a struct's fields stay public: a struct is a plain aggregate with the C layout, and a private field would change how C and MSVC pass it.
 
 ```kairo
 struct Packet {
@@ -4406,6 +4558,18 @@ struct Node {
 }
 ```
 
+A forward declaration and its definition are one type, wherever each sits in the scope (the definition may even come first), and they must use the same keyword: `struct Node` followed by `class Node { ... }` is an error, with a fix-it to the definition's keyword. A type that is only forward-declared and never defined can be used through a pointer only: a field, base or variable holding it by value is an error, since its size is unknown.
+
+Forward declarations also work inside a class body, with or without a trailing `;`:
+
+```kairo
+class Queue {
+    struct Cell;
+    var head: unsafe *Self::Cell
+    struct Cell { var seq: u64 }
+}
+```
+
 ---
 
 ## Structs vs Classes
@@ -4545,6 +4709,7 @@ The fully qualified form (`Direction::North`) always works and is required when 
 - an initializer with a declared type: `var d: Dir = .North`
 - a `return` in a function with a declared return type
 - a call argument, which takes the parameter's type
+- the other operand of `==` or `!=`, on either side: `.North == d` is `d == .North`. Two shorthands compared with each other (`.A == .B`) have no enum to take and are an error (SC123E)
 
 ```kairo
 enum Dir { North, East, South, West }
@@ -4941,6 +5106,18 @@ union Payload {
 }
 ```
 
+A forward declaration and its definition are one type, wherever each sits in the scope (the definition may even come first), and they must use the same keyword: `union Payload` followed by `struct Payload { ... }` is an error, with a fix-it to the definition's keyword. A type that is only forward-declared and never defined can be used through a pointer only: a field, base or variable holding it by value is an error, since its size is unknown.
+
+Forward declarations also work inside a class body, with or without a trailing `;`:
+
+```kairo
+class Queue {
+    struct Cell;
+    var head: unsafe *Self::Cell
+    struct Cell { var seq: u64 }
+}
+```
+
 ---
 
 ## No Extends
@@ -5206,8 +5383,6 @@ See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
 ## Associated Types
 
-> [!NOTE]
-> Associated types are not compiled yet. See [Status](/docs/status/#not-compiled-yet).
 
 An interface can require a type member. A conforming type supplies it with a type alias:
 
@@ -5226,7 +5401,7 @@ class RoadMap impl Graph {
 }
 ```
 
-A generic body names it through its parameter: `T::Node`. Associated types can carry bounds, and can themselves be generic:
+Inside the interface (and inside a conforming type's body), name it `Self::Node`; a bare `Node` resolves too, but warns, with a fix-it that inserts `Self::`. A generic body names it through its parameter: `T::Node`. Associated types can carry bounds, and can themselves be generic:
 
 ```kairo
 interface Store {
@@ -5235,7 +5410,7 @@ interface Store {
 }
 ```
 
-A generic body names a generic associated type with its arguments: `T::Map<K>`.
+A generic body names a generic associated type with its arguments: `T::Map<K>`. A conformer supplies it with a generic alias of the same arity (`type <K> Map = HashMap<K, Self>`); an alias with a different number of parameters does not supply it. An argument must meet the bounds of the parameter it fills (`T::Map<K>` needs `K impl Hashable`).
 
 A bound on an associated type is written with `impl`, and several are separated by commas. The type a conformer supplies must satisfy each of them:
 
@@ -5246,6 +5421,8 @@ interface Catalog {
     fn lookup(const self, k: Self::Key) -> Self::Item
 }
 ```
+
+A generic body uses a value of an associated type through the associated type's own bounds, exactly as it uses a value of a bounded parameter: with `type Item impl Display`, `x.show()` on `x: T::Item` is a call to `Display`'s `show`. The same holds for everything else named through it: a static requirement (`T::Item::make()`), an associated type one of its bounds declares (`T::Item::Inner`, at any depth), an operator (`a == b` needs an `op ==` requirement in one of its bounds) and a conversion or interpolation. A member none of its bounds declares is a compile error, and an associated type with no bound has no members. A bound may name `Self`, another associated type or the interface's own parameter (`type Item impl Has<Self::Key>`); it is read for the type the body named it through (`Has<T::Key>` for `T::Item`).
 
 Associated types are declared only inside an interface. Outside one, a `type` declaration is an alias and needs `=`.
 
@@ -5277,7 +5454,11 @@ A default must satisfy its own bounds. This is checked once, at the interface de
 
 ### Associated types and inheritance
 
-A derived interface may give an inherited associated type a default if it has none. It may not change a default that is already given; otherwise which default applies would depend on the inheritance path.
+A derived interface may give an inherited associated type a default if it has none. It may not change a default that is already given; otherwise which default applies would depend on the inheritance path. For the same reason, a type that declares two interfaces giving one inherited associated type different defaults takes neither: it must declare the type itself, or its conformance is a compile error.
+
+The derived interface's line is the inherited associated type, not a new one: `Self::Node` inside it names the base's, and a type that conforms to the derived interface explicitly gets the default. Restating the inherited type without a default, giving it bounds of its own, or changing a default the base already gives is a compile error.
+
+An associated type inherited from a generic interface is the one at the arguments the derived interface names: in `interface IntSource derives Source<i32>`, `S::Item` for `S impl IntSource` is `Source<i32>`'s `Item`.
 
 ### Name collisions between bounds
 
@@ -5443,7 +5624,10 @@ Inside `fn <T impl Foo>`, a value of type `T` supports exactly what `Foo` (and e
 - A generic method requirement is called with explicit arguments, `x.liz<i32>()`, or with deduced ones.
 - `T(args)` constructs a `T`; it requires a constructor requirement taking those arguments in some bound (see [Constructors in Interfaces](/docs/language/interfaces-requirements/#constructors-in-interfaces)).
 - `var x: T` with no initializer requires a constructor requirement `fn Foo(self)` in some bound.
-- `T::Name` names an [associated type](#associated-types).
+- An operator on `x` (`x == y`, `x + y`, `-x`, `x += y`, `x[i]`, and the `!=`, `<` or `+` derived from `op ==`, `op <=>` or `op +=`), `x as string` and `f"{x}"` resolve against the bounds' requirements (`fn op ==(const self, other: Self) -> bool`, `fn op as(const self) -> string`, `fn repr(const self) -> string`) and call them through the bound. An operator on a `T derives Base` resolves against `Base`'s operators too (its own, its bases' and its extensions'), and calls the base's operator directly. With no requirement that grants it, each is a compile error in the generic (R051E for an unbounded `T`, R025E when no bound declares it), even if every type it is used with has the operator. A base operator whose parameter is the base by value (`fn op ==(self, o: Base)`) does not take a `T`, as it does not take a derived class's value.
+- `T` is never nullable: `x?`, `x == null` and `unwrap!(x)` are errors (write the parameter as `T?`). `===` on a `T?` compares the values with the bounds' `op ==`.
+- `match x` can bind `x` (`case var v`), guard it (`case var v where ...`) or ignore it (`case _`, `default`). A variant, literal, range, tuple or struct pattern is an error: no bound gives `T` variants or values to compare.
+- `T::Name` names an [associated type](#associated-types). A value of it has nothing but what the associated type's own bounds declare. `T::Name()` / `T::Name{}` builds one only through a constructor requirement in one of those bounds (`type Node impl Default`); a field list (`T::Name{x: 1}`) never compiles, since no bound can promise fields.
 
 Nothing else is available, and the body is checked once against its bounds, never per instantiation.
 
@@ -6243,6 +6427,14 @@ fn process(animal: *Animal) {
 }
 ```
 
+On a miss the program writes one line to stderr naming the cast, the target type, the pointer's static type and where the cast is (the source file's full path, line and column), then aborts (`SIGABRT`). The line is built at compile time, so nothing is formatted while crashing:
+
+```text
+animal as *Dog: the object is not a 'Dog' (static type '*Animal') at /home/me/app/app.k:2:16
+```
+
+A null pointer is not a miss: it stays null.
+
 **Checked downcast** returns a [nullable pointer](/docs/language/nullables/#pointers-and-nullability) `*Derived?` (a nullable pointer, `(*Derived)?`), which is null if the runtime type does not match:
 
 ```kairo
@@ -6254,7 +6446,22 @@ fn process(animal: *Animal) {
 }
 ```
 
-Both forms perform a runtime type check using the [vtable](/docs/language/classes-inheritance/#virtual-dispatch) (the class must have at least one `virtual` method). Downcasting a non-polymorphic class is a compile error.
+Both forms perform a runtime type check using the [vtable](/docs/language/classes-inheritance/#virtual-dispatch) (the class must have at least one `virtual` method), compiled to C++'s `dynamic_cast`. Downcasting a non-polymorphic class is a compile error. Inside a generic body, a pointee that is a type parameter works only with the checked form (`a as (*T)?`); the asserting form is an error there for now.
+
+**The CRTP downcast** is the one exception that needs no vtable. Inside a generic base whose parameter is bounded by `derives` on the base itself, `&self as *X` (or `*const X`) is allowed without `unsafe`: the bound proves every `X` derives the base, so the target is known statically, and the cast compiles to C++'s `static_cast`, which also adjusts the pointer when the base is not the first one:
+
+```kairo
+class <X derives Counter<X> impl Weighted> Counter {
+    fn dyn(self) -> *X { return &self as *X }          // static, no vtable
+    fn bump(self) -> i32 { return self.dyn()->weight() }
+}
+
+class Node derives Base, Counter<Node> impl Weighted {
+    fn weight(const self) -> i32 { return 5 }
+}
+```
+
+The bound may also reach the source through a chain of bases (`X derives Stmts<X>`, `Stmts<T> derives Rav<T>` lets a `*Rav<X>` cast down to `*X`). Under a [`: type`](/docs/language/generics/#the-type-regime-transitional) parameter the same cast is written as a `static_cast` and checked by the C++ compiler per instantiation. The cast cannot drop `const`; without such a bound (none, an `impl` bound, or a `derives` bound naming another class) a pointer cast between unrelated types is still an error. As in C++, the cast trusts that the object really is an `X`: a class that names `Counter<Other>` for some other `Other` that derives `Counter<Other>` makes it undefined.
 
 ### Raw pointer cast
 
@@ -6285,7 +6492,7 @@ var ptr: *i32 = &some_value
 var addr = ptr as usize    // ok: numeric address
 ```
 
-`usize` is the only permitted target it is the one integer type guaranteed to hold a full address. Casting a pointer directly to a narrower integer is a compile error, not a warning: silently discarding the high bits of an address is never what the programmer meant.
+`usize` is the only permitted target it is the one integer type guaranteed to hold a full address. Casting a pointer directly to any other integer is a compile error, not a warning, `u64` and `isize` included even on a target where they are as wide ([SC026E](/docs/language/diagnostics/), with a fix-it inserting `usize as`): silently discarding the high bits of an address is never what the programmer meant, and a cast that compiles on one target must not truncate on another.
 
 ```kairo
 // var truncated = ptr as u8       // compile error: cannot cast pointer to u8
@@ -6325,6 +6532,7 @@ Every pointer cast is classified by what it does to *provenance* the compiler's 
 | `unsafe *T as unsafe *U` | Allowed, no `unsafe` | Already absent | Nothing left to lose |
 | `*Derived as *Base` | Implicit | Preserved | Same allocation, adjusted offset |
 | `*Base as *Derived` | Allowed, runtime check | Preserved | Vtable check, crashes (`as *Derived`) or yields null (`as *Derived?`) |
+| `&self as *X` in `class <X derives B<X>> B` | Allowed, no runtime check | Preserved | The `derives` bound proves the relation; compiled to `static_cast` |
 
 The two error rows are deliberate refusals rather than warnings. `ptr as u8` has an honest spelling (`ptr as usize as u8`) that says the same thing in two steps, and `n as *T` has no honest spelling at all a safe pointer's guarantees cannot be reconstructed from a number.
 
@@ -6434,7 +6642,7 @@ var f = temp as f64      // 100.0
 var s = temp as string   // "100.0C"
 ```
 
-`op as` can be overloaded for multiple target types. The compiler selects the overload based on the target type in the `as` expression. `op as` must take only `self` as a parameter and return the target type.
+`op as` can be overloaded for multiple target types. The compiler selects the overload based on the target type in the `as` expression, which must be exactly one overload's result: no second conversion follows a user one, so `x as f64` with only `op as -> i32` declared is an error. Two `op as` with the same target are one member declared twice. `op as` must take only `self` as a parameter and return the target type. In a generic class, `fn op as(self) -> T` converts to whatever the instance binds `T` to (`Wrap<i64> as i64`), and an interface may require several `op as`, one per target.
 
 Marking an `op as` with `@implicit` lets it apply without `as` where its exact result type is wanted. See [Implicit `op as`](/docs/language/operator-overloading/#implicit-op-as).
 
@@ -6638,6 +6846,18 @@ enum <T> Compact
 ```
 
 Type-level constraints are always `requires`. There is no runtime dispatch on type instantiation either the type is valid or it isn't.
+
+### Partial specializations selected by `requires`
+
+A partial specialization may carry a `requires` clause: it is chosen for an instantiation only when its pattern matches and its clause holds there. Its pattern can be the type's own parameters:
+
+```kairo
+struct <T> Store { var value: T }
+struct <P> Store<P> requires sizeof P <= 8 { var small: P }   // Store<i32> is this one
+struct <P> Store<*P> requires sizeof P >= 8 { var wide: *P }  // Store<*i64> is this one
+```
+
+The more specialized pattern wins first (`Store<*P>` over `Store<P>`); between two equal patterns, one with a clause wins over one without, and two with clauses that both hold are ambiguous (an error). The clause is decided at compile time from literals, `sizeof` and `alignof` of builtin types, pointers and arrays of them, arithmetic and comparisons. A clause the compiler cannot decide for an instantiation (the `sizeof` of a struct, an `eval` function) is an error where that instantiation is used, and a conformance (`requires P impl I`) in a partial's clause is not supported yet.
 
 ---
 
@@ -6858,6 +7078,13 @@ fn sign(x: i32) -> i32 where x < 0  { return -1 }   // ok: every i32 is covered
 ```
 
 Overloads with the same parameter types are dispatched together, and must agree on the return type and on receiver `const`-ness. An overload with a different parameter list is an ordinary overload and is not a fallback.
+
+[Generic](/docs/language/generics/) overloads dispatch together when their signatures are the same up to the names of their type parameters, and they must also name those parameters alike and have the same bounds. A condition may read a type parameter (`where sizeof T > 8`); it is tested at run time like any other, and it is the same answer every time for one instantiation:
+
+```kairo
+fn <T> pick(x: T, n: i32) -> i32 where n > 0 { return 1 }
+fn <T> pick(x: T, n: i32) -> i32               { return 2 }
+```
 
 ---
 
@@ -8382,8 +8609,8 @@ URL: https://www.kairolang.org/docs/language/panic/
 
 Unlike [C++ exceptions](/docs/language/c-cpp-exceptions/), panics use no unwinding tables and no runtime. The codegen is zero-cost: every panic site becomes a tagged return value checked with a branch.
 
-> [!WARNING]
-> Panic is parsed but not compiled yet. See [Status](/docs/status/#not-compiled-yet).
+> [!NOTE]
+> Panic is compiled, in generic functions too. Not supported yet: a panic under a [`<T: type>`](/docs/language/generics/#the-type-regime-transitional) parameter, in a generator or an `async` function, a call of a panicking operator, and keeping a caught error in another variable. See [Status](/docs/status/#not-compiled-yet).
 
 ---
 
@@ -8526,6 +8753,8 @@ try {
 }
 ```
 
+A catch-all can bind the error too: `catch e` holds whichever error the earlier arms did not catch. It can be re-panicked with `panic e`, which keeps the original source location. Holding it in another variable (`var copy = e`) is not supported yet.
+
 ### Arms match exact types
 
 A panic set is a set of **exact types**. There is no subtyping between error types: `catch e: Base` does not catch a panic whose type is a class derived from `Base`, and a set that holds both `Base` and `Derived` holds two distinct types, each caught by its own arm.
@@ -8657,7 +8886,7 @@ The list is written right after `panic`, on the same line, wherever the specifie
 fn f() panic(IOError) -> (i32, i32)   // the set, then a tuple return type
 
 fn g() panic -> i32 {
-    panic (IOError { code: 5 })       // the statement, with a parenthesized value
+    panic (IOError { path: "x" })     // the statement, with a parenthesized value
 }
 ```
 
@@ -8687,10 +8916,48 @@ var retry = fn () panic(IOError) -> string { return read_file("data.txt") }
 - An `override` may leave its set inferred, but the set must be a subset of the base method's.
 - A conforming method's set must be a subset of the interface requirement's.
 - A function whose set is `S` converts to a function type whose set is `S'` only when `S` is a subset of `S'`. A function that doesn't panic converts to any panicking function type.
+- A function used as a value (passed, stored, assigned) must declare its set: the value's type carries the set, and an inferred set is only known once the whole program is checked. The compiler's fix-it writes the inferred set.
 
 ### Public functions
 
-An inferred set on a `pub` function is API surface that changes silently when the body changes. When building a library, the compiler warns about a `pub` function whose set is inferred, with a fix-it that writes the set out. The warning is off for executables.
+An inferred set on a `pub` function is API surface that changes silently when the body changes. When building a library, the compiler warns about a `pub` function whose set is inferred, with a fix-it that writes the set out. The warning is off for executables. It applies to generic functions too.
+
+---
+
+## Generic Functions
+
+A generic function, or a method of a generic type, may panic like any other. Its body is checked once, where it is defined, against its [bounds](/docs/language/generics/), never per instantiation, and so is its set. The set of a generic body is:
+
+- every type it panics with, which may be one of its type parameters (`panic x` with `x: T`);
+- the sets of the ordinary functions it calls;
+- the **declared** set of every [interface requirement](/docs/language/interfaces-requirements/#panicking-requirements) it calls through a bound, at the bound's arguments: through `T impl Src<IOError>`, a requirement declared `panic(E)` panics with `IOError`;
+- the set of every generic function it calls, at that call's type arguments.
+
+```kairo
+interface <E> Source {
+    fn read(self) panic(E) -> i32
+}
+
+fn <E, T impl Source<E>> total(a: T, b: T) panic -> i32 {   // panics with E
+    return a.read() + b.read()
+}
+
+fn <T> pick(x: T, first: bool) panic -> i32 {               // panics with T and Missing
+    if first { panic x }
+    panic Missing {}
+}
+```
+
+A caller sees the set at its own arguments: `total<IOError, File>(f, g)` panics with `IOError`, and `pick(ParseError {}, true)` with `ParseError` and `Missing`. When two members of a set are the same type at some arguments (`pick(Missing {}, true)`), they are one: that call panics with `Missing` only.
+
+Everything the body does is checked at the definition, with the bound's types: a requirement's error that is neither caught nor in the function's set is an unhandled panic, and a declared set (`panic(E)`) holds the body to it, whatever the arguments will be. Interface requirements must declare their sets (see [above](#where-a-declared-set-is-required)), so a bound always says what calling through it can raise. A set may name the interface's own type parameters, as `panic(E)` does here.
+
+Two rules need the arguments:
+
+- **Arms that meet at an instance.** `catch e: T` beside `catch e: Missing` are two arms in the generic body, but at `T = Missing` both catch the same type. That is the [duplicate-arm](#dead-arms-and-arm-order) error, reported where that instantiation is used (with the chain of generic calls that reached it, when there is one).
+- **Ever-larger arguments.** A function that calls itself at a bigger type (`f(Box<T> { v: x })` inside `f<T>`) and lets that call's errors through would have a set that never stops growing. That is an error; declare the set, or catch what the recursive call raises.
+
+Not supported yet: a panic, or a panicking call, inside a body under a [`<T: type>`](/docs/language/generics/#the-type-regime-transitional) parameter (its member calls are checked by the C++ compiler per instantiation, so there is no set to compute), a generic closure that panics, and a [function type](/docs/language/functions/#function-pointers) whose set names a generic parameter (`fn() panic(E) -> i32`).
 
 ---
 
@@ -8721,18 +8988,36 @@ See [Control Flow](/docs/language/control-flow/#trycatch-as-an-expression) for t
 
 ## Finally
 
-`finally` defines cleanup code that runs regardless of whether the `try` body succeeds or panics:
+There is one `finally`: a scope-exit block. It runs when control leaves the block it is written in, however it leaves (normal exit, `return`, `break`, `continue`, or a panic), and only if execution reached it. There is no `try`/`finally` clause as in Java, C# or Python: a `finally` written after a `try`/`catch` is the same standalone `finally`, so it does **not** run when the `try` finishes, and a `return`, `break` or uncaught panic leaving the `try` never reaches it.
 
 ```kairo
-try {
-    acquire_lock()
-    do_work()
-} catch e: IOError {
-    handle_error(e)
+fn update() {
+    try {
+        acquire_lock()
+        do_work()
+    } catch e: IOError {
+        handle_error(e)
+    } finally {         // warning: runs when update() returns, not after the try
+        release_lock()
+    }
+    log("done")         // runs before release_lock()
 }
+```
 
-finally { // identical to standalone `finally`
-    release_lock()   // always runs
+Because that is easy to misread, a `finally` that directly follows a `try`/`catch` (on the same line as its closing brace or the next) is a [warning](/docs/language/diagnostics/#sc001w-finally-runs-when-the-enclosing-block-exits-like-any-finally-not-when-the-try-before-it-finishes). To clean up as soon as the `try` is done, on every way out of it, register the `finally` first, in a block of its own:
+
+```kairo
+fn update() {
+    {
+        finally { release_lock() }   // runs at this block's closing brace
+        try {
+            acquire_lock()
+            do_work()
+        } catch e: IOError {
+            handle_error(e)
+        }
+    }
+    log("done")                      // runs after release_lock()
 }
 ```
 
@@ -8780,8 +9065,10 @@ fn main() -> i32 {
 }
 ```
 
+`crash!("why")` writes `why` and a newline to stderr, then aborts; `crash!()` writes nothing. The rest of the crash family ends the program the same way, each with a message the compiler builds (what failed and its `file:line:col`): `unwrap!` on null, a failed checked `as` into a closed enum, and a failed [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) `p as *D`.
+
 > [!NOTE]
-> `crash!` is a macro defined in the builtin library. What it reports before terminating (a message, the source location) is not final; rely only on the fact that it does not return.
+> A crash runs on a program that is already broken, so it does only what a signal handler may: one `write` of an already-built message (at most 4096 bytes) to stderr, then `abort()`, with any `SIGABRT` handler the program installed reset first. No allocation, no locks, no Kairo code runs. `crash!` is a macro defined in the builtin library ([what it may do](/docs/language/macros-builtin/)).
 
 ---
 
@@ -8825,8 +9112,10 @@ A bad cast or a null unwrap is a programmer error, not a recoverable condition. 
 ## Where Panics Are Not Allowed
 
 - **Global initializers.** A `panic`, a `try`, or a call to a panicking function in the initializer of a global variable is a compile error: there is no function for the error to propagate to. A [script](/docs/language/modules/#scripts)'s top-level variables are initialized as part of its top-level code, so they may use `try`.
+- **Constructors and destructors.** No constructor or destructor can panic, and no panic may escape one: handle it inside, or stop with `crash!()`. Construction that can fail belongs in a static factory function. See [Class Lifecycle](/docs/language/classes-lifecycle/#constructors-and-destructors-never-panic).
 - **`eval` functions.** `panic` in a function evaluated at compile time is an error. See [Eval](/docs/language/eval/).
 - **Generators and `async`.** For a [generator](/docs/language/functions-generators/) or an [`async`](/docs/language/concurrency/) function, an error surfaces where the caller resumes it: at the `next()` call (including the hidden one in a `for` loop) or the `await`, which handles or propagates it like any other panicking call. A `panic`, or a panicking call, inside a generator or `async` body is not supported yet.
+- **`<T: type>` bodies.** A `panic` function under a [`<T: type>`](/docs/language/generics/#the-type-regime-transitional) parameter, and a `panic` or a panicking call in such a body, are not supported yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): the C++ compiler checks that body per instantiation, so it has no set to compute. Bounded and unbounded generics are fine; see [Generic Functions](#generic-functions).
 
 ---
 
@@ -8834,9 +9123,13 @@ A bad cast or a null unwrap is a programmer error, not a recoverable condition. 
 
 Panics compile to zero-cost tagged return values. There are no [unwinding tables](/docs/language/attributes/#unwinding), no runtime exception handler, and no stack unwinding. A function marked `panic` returns a tagged union holding either the success value or one of the errors in its set, together with the source location where the error was raised. Every Kairo function, panicking or not, stays `noexcept` in its generated C++.
 
-At a call site, the compiler tests the tag. On success, execution continues with the value. An error the caller doesn't handle is returned to its own caller as it is, keeping its tag and source location. A call in tail position (`return g()`) needs no test at all.
+At a call site, the compiler tests the tag where the call is, so arguments still run left to right and a call on the right of `&&` or `||` still runs only when that side is evaluated. On success, execution continues with the value. An error the caller doesn't handle is returned to its own caller as it is, keeping its tag and source location; the payload is moved, or copied as raw bytes when the two results have the same layout. A call in tail position (`return g()`) needs no test at all.
 
-`try`/`catch` lowers to one tag compare per `catch` arm, in order, with a bare `catch` as the final fallback. An error type's tag is the same in every set that contains it, so passing an error up through callers with larger sets never translates it.
+`try`/`catch` lowers to one tag compare per `catch` arm, in order, with a bare `catch` as the final fallback, and a catch binding refers to the error in place. An error type's tag is the same in every set that contains it, so passing an error up through callers with larger sets never translates it. When a `try` body holds a single panicking call, the arms read that call's result directly. With more than one, the first error is moved into storage that is only ever built on the error path, and moved out again before any arm runs, so every way of leaving an arm (falling through, `return`, `break`, `continue`, a re-panic) destroys it exactly once.
+
+An override of a `virtual` method returns its base method's result type, whatever its own (smaller) set: callers through the base and through the derived type see one function.
+
+A generic function is one C++ template for every instantiation, and its result names its type parameters. The C++ compiler orders that set at each instantiation, removing a type that appears twice, into the same order every other function with that set uses, so a generic function's result and a concrete caller's are one type. The compiler checks that ordering against its own at each instantiation it sees. A function value whose type allows more errors than the function it holds (or any, when the function cannot panic) is wrapped where it is converted.
 
 This means:
 
@@ -8846,7 +9139,9 @@ This means:
 - No Kairo function throws; only a C++ exception can unwind through Kairo code
 
 > [!NOTE]
-> The same `try`/`catch` syntax can also catch an exception thrown by C++ code. That path does use the platform unwinder. See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) in C/C++ Interop.
+> The same `try`/`catch` syntax can also catch an exception thrown by C++ code called inside the `try` (`catch e: cxx::std::exception`). That path does use the platform unwinder: the `try` becomes a C++ `try` inside the still-`noexcept` function. See [Exceptions](/docs/language/c-cpp-exceptions/#c-to-kairo) in C/C++ Interop.
+>
+> C++ code calling a panicking Kairo function gets the tagged union by value and reads it with `::builtin::ok`, `value`, `is<E>`, `error<E>` and `site`, or converts it to an exception with `::builtin::value_or_throw`. See [Kairo to C++](/docs/language/c-cpp-exceptions/#kairo-to-c-kairo-never-throws).
 
 > [!NOTE]
 > The `panic` statement inside a function body (`panic SomeError { ... }`) does not halt the program. It produces the error as the function's return value. The term "panic" refers to the signaling mechanism, not to a crash. Because an error can never reach `main` unhandled, a panic never terminates the program; [`crash!`](#main-and-crash) does.
@@ -8905,6 +9200,9 @@ fn expression_forms(s: string) -> i32 {
 // A closure declares its set
 var risky = fn () panic(DivideByZero) -> i32 { return divide(1, 0) }
 
+// A generic body: its set is the requirement's, at the bound (E)
+fn <E, T impl Source<E>> first(src: T) panic -> i32 { return src.read() }
+
 // Scope exit
 fn with_cleanup() panic {
     var resource = acquire()
@@ -8953,7 +9251,7 @@ eval HEADER_SIZE = sizeof u32 + sizeof u16 + sizeof u8
 
 `eval` bindings are implicitly `const` they cannot be reassigned (writing `eval const` or `const eval` is accepted and means the same). The initializer must be a compile-time evaluable expression.
 
-An `eval` binding or `eval fn` can be declared anywhere a declaration can: at file scope, inside a `module`, as a class member, or in a function body.
+An `eval` binding or `eval fn` can be declared anywhere a declaration can: at file scope, inside a `module`, as a class member, or in a function body. An imported `eval` binding is a compile-time constant in the importing module too (`eval NEXT = lib::N + 1`), and so is it to C++ code that includes the module.
 
 ### Type annotation
 
@@ -9058,7 +9356,7 @@ Eval bodies must be deterministic and free of side effects. The following are no
 | `sizeof`, `alignof` | Type size queries |
 | `typeof` (type position) | Compile-time type resolution |
 | Struct/enum construction (trivial) | Literal aggregate initialization |
-| String literals and operations | Compile-time string manipulation |
+| String literals | `eval NAME = "Kairo"`, `NAME.len`, a `string` parameter or result of an `eval fn` (not f-strings, which format into a heap buffer) |
 | Fixed-size arrays (`[T; N]`) | Stack-like allocation in the evaluator |
 
 ---
@@ -9079,7 +9377,27 @@ eval if defined!(__linux__) {
 
 `eval if` can appear at the top level, in a `module` or in a class body (selecting between declarations) or inside function bodies (selecting between code paths). The declarations of the selected branch belong to the enclosing scope, exactly as if the `eval if` were not there: at file scope and in a module they are the scope's declarations, in a class body a `var` is a field and a `fn` a method, and in a function body the branch's locals are the function's.
 
-Outside a function body the condition decides which declarations exist, so it must be evaluable before names are resolved: literals, `eval` constants (including ones an earlier `eval if` declared), `!`, `&&`, `||`, comparisons, integer arithmetic and [`defined!`](/docs/language/macros-builtin/#conditional). Calling an `eval fn` there is an error. Inside a function body a condition that depends on a generic parameter (`sizeof T`) is decided per instantiation.
+Outside a function body the condition decides which declarations exist. It may use literals, `eval` constants (including ones an earlier `eval if` declared), `!`, `&&`, `||`, comparisons, integer arithmetic, [`defined!`](/docs/language/macros-builtin/#conditional), and type facts: `sizeof` and `alignof` of builtins, pointers, arrays, and plain enums and structs of them, and `is_trivially_copyable!(T)` / `is_trivially_destructible!(T)` of any concrete type. A condition that reads a type fact is decided once types are known, and the compiler checks its answer against C++'s, so the branch kept is the one C++ would keep. Its branches may declare functions, constants and fields, not types. Calling an `eval fn` there is an error, and so is a type fact that depends on a generic parameter: a generic's members are the same for every instantiation, so select a type instead, with a partial specialization chosen by a `requires` clause. Inside a function body a condition that depends on a generic parameter (`sizeof T`) is decided per instantiation.
+
+```kairo
+eval if sizeof usize == 8 {
+    eval WORD_BITS = 64
+} else {
+    eval WORD_BITS = 32
+}
+```
+
+```kairo
+struct Plain { var x: i32 }
+
+class Holder {
+    eval if is_trivially_copyable!(Plain) {
+        var fast: Plain        // the member set is chosen once types are known
+    } else {
+        var slow: *Plain
+    }
+}
+```
 
 ```kairo
 fn <T> process(x: T) -> T {
@@ -9108,6 +9426,9 @@ fn <T> serialize(value: T) -> [byte] {
 ```
 
 The unselected branches are not type-checked, so they can contain code that would be invalid for the current `T`. This is the mechanism for writing type-specialized generic code without separate [overloads](/docs/language/functions-overloading/).
+
+> [!NOTE]
+> Not yet: today a generic body is checked once against its bounds, so both branches are type-checked and the example above does not compile. See [Status](/docs/status/).
 
 See [Control Flow](/docs/language/control-flow/#compile-time-branching) for `eval if` in the context of control flow.
 
@@ -9156,6 +9477,15 @@ fn sum_evens() -> i32 {
 
 An eval generator can only be iterated by an `eval for`.
 
+In each copy the loop variable is a constant, so it can also size an array or be a generic value argument:
+
+```kairo
+eval for i in 0..3 {
+    var row: [i32; i + 1]       // 1, 2, then 3 elements
+    row[i] = 1
+}
+```
+
 Inside an `eval fn` the whole function already runs at compile time, so an `eval for` there is an ordinary loop, and its bounds may be the function's parameters (see `sum_range` in the [Summary](#summary)).
 
 ---
@@ -9173,10 +9503,23 @@ eval X = 42
 eval PI = 3.14159
 eval FLAG = true
 eval INITIAL = 'K'
-eval NAME = "Kairo" // one thing on strings specifically,
-    // if a string is used in an eval context, it must be
-    // a compile-time constant or it will cause a compile error
+eval NAME = "Kairo"
 ```
+
+A string literal is a compile-time value wherever it is used at compile time: an `eval` binding, the body of an `eval fn`, an argument of an `eval fn` called from ordinary code, a field of an eval class. An `eval fn` can take and return a `string`, and an eval class can hold one:
+
+```kairo
+eval fn greet() -> string { return "hi!" }
+eval GREETING = greet()
+
+class Config {
+    pub var label: string
+    eval fn Config(self, label: string) { self.label = label }
+}
+eval DEFAULT = Config("default")
+```
+
+An f-string is not a compile-time value: it formats into a buffer allocated at run time.
 
 ### Fixed-size arrays
 
@@ -9256,6 +9599,8 @@ Inside a class, `eval` marks three different things:
 - **An `eval` field** is a compile-time constant of the class, one value shared by every object (like a `static` field, but computed at compile time). It is read as `ClassName::NAME` and cannot be assigned.
 - **An `eval` method** runs at compile time. It can be called wherever its object and arguments are compile-time values; it takes `const self` to be called on an `eval` object (an `eval` binding is const).
 - **An `eval` constructor** makes the class an *eval class*: its objects can be built at compile time, so an `eval` binding can hold one. The same constructor builds an object at run time too, as long as its arguments are compile-time values.
+
+An `eval` field can be an array length (`[i32; Grid::W]`), also for a field of its own class when its initializer is plain arithmetic over literals and constants. One whose value has to be computed by calling an `eval fn` cannot size a field of its own class: inside its own body the class is still incomplete, so the value does not exist there yet. The compiler reports it (SC116E) and offers to move the constant to module scope, where it can size the field. For the same reason, a field's length may call an `eval fn` (`var a: [i32; size()]`) only when that function does not itself need the class: one that takes `sizeof` of it, builds a local of it or is a method of it is an error.
 
 A class can mix `eval` and regular members; regular methods simply cannot be called from compile-time code. A class with a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) cannot be an `eval` value: a compile-time object is never destroyed.
 
@@ -9618,15 +9963,19 @@ See [Imports](/docs/language/imports/) for import syntax and the `pub import` pa
 
 ## Circular Dependencies
 
-Circular imports are a compile error:
+Modules may import each other in a cycle: `a` imports `b` and `b` imports `a`, a longer chain, or a file that imports itself. A cycle compiles: every file on it sees the others' declarations and macros, functions may call each other across it, and a `pub import` on a cycle re-exports through it. The compiler warns on each cycle ([R001W](/docs/language/diagnostics/#r001w-import-cycle)), because a cycle hinders maintainability: no module on it can be read, built or tested without the others.
 
 ```kairo
 // a.k
 
+pub fn fa(n: i32) -> i32 { return if n <= 0 => 0 else => fb(n - 1) + 1 }
 
 // b.k
 
+pub fn fb(n: i32) -> i32 { return fa(n) }
 ```
+
+`-fno-import-cycles` makes every import cycle an error (R001E) and stops the build. `-Werror` promotes the warning and `-w` silences it, as for any other warning.
 
 **Break circular dependencies** by extracting shared declarations into a third module that both A and B import:
 
@@ -9712,7 +10061,7 @@ Point::origin()  // Point { x: 0.0, y: 0.0 }
 
 Methods added via `extend` are called the same way as methods defined in a class body there is no syntactic distinction at the call site.
 
-An `extend` body is the extended type's scope. Members still need an explicit qualifier `self.x` or `Self::x`, exactly as in a class body (see [Members always need a qualifier](/docs/language/classes/#members-always-need-a-qualifier)) and the same one exception applies: the target's nested types and type aliases are visible unqualified.
+An `extend` body is the extended type's scope. Members still need an explicit qualifier `self.x` or `Self::x`, exactly as in a class body (see [Members always need a qualifier](/docs/language/classes/#members-always-need-a-qualifier)) and the same one exception applies: the target's nested types and type aliases are visible unqualified. As in a class body, the bare form warns; write `Self::Node`.
 
 ```kairo
 class Tree {
@@ -9722,9 +10071,10 @@ class Tree {
 
 extend Tree {
     fn add(self) {
-        var n = Node { value: 0 }   // ok: `Node` means `Self::Node`
-        self.count += 1             // ok
-        // count += 1               // error: needs `self.`
+        var n = Self::Node { value: 0 }   // ok
+        var m = Node { value: 1 }         // ok, but warns: write `Self::Node`
+        self.count += 1                   // ok
+        // count += 1                     // error: needs `self.`
     }
 }
 ```
@@ -10018,7 +10368,8 @@ extend Color impl Drawable {
 A method in the class body and a method in an `extend` block are called the same way, but they are different entities:
 
 - An extension member is not virtual, cannot override, and cannot be a constructor, destructor, or assignment operator.
-- A same-file `extend` can read the type's private members. An `extend ... impl` placed in the interface's file cannot.
+- A same-file `extend` can read the type's private members. An `extend ... impl` placed in the interface's file cannot: its members see only what other code in that file sees.
+- A `priv` or `prot` member satisfies an interface requirement only if the type's own file declares the conformance (`class X impl I`, or an `extend X impl I` in that file). A generic bound met only structurally, from another file, needs the member to be `pub`.
 - C++ code calling a Kairo type sees body methods as member functions, and extension members as static functions of a companion scope.
 
 Put anything that needs [dynamic dispatch](/docs/language/classes-inheritance/#virtual-dispatch), overriding, or [lifecycle behavior](/docs/language/classes-lifecycle/) in the body. Use `extend` for the rest, such as interface conformance kept apart from the core type:
@@ -10636,7 +10987,7 @@ eval ICON = embed!("icon.png")
 var n = count!(a, b, c, d)   // 4
 
 // Diagnostics
-eval if sizeof usize < 8 {
+eval if !defined!(__LP64__) {
     compile_error!("64-bit platform required")
 }
 
@@ -11058,6 +11409,36 @@ Unary `*` on an imported C++ class calls its `operator*`, which is how C++ itera
 
 C and C++ signatures are judged by Kairo's conversion rules, with one addition: a fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or `intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one, whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t` directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the [Conversion Lattice section 4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
 
+### Tags and ordinary names
+
+C and C++ keep struct, class, union and enum names (tags) apart from variables, functions and typedefs, so a header can declare both under one name. glibc does: `struct timezone` in `<sys/time.h>` and `extern long timezone` in `<time.h>`. As in C++, the plain name means the ordinary declaration:
+
+```kairo
+ffi "c++" import "time.h"
+ffi "c++" import "sys/time.h"
+
+fn example() {
+    var west: i64 = timezone      // the variable
+}
+```
+
+The struct is still the type of everything that uses it, such as `gettimeofday`'s second parameter. To name it yourself, declare it with a bodiless `ffi` struct, which refers to the header's `struct timezone` instead of declaring a new type:
+
+```kairo
+ffi "c++" import "time.h"
+ffi "c++" import "sys/time.h"
+ffi "c" struct timezone
+
+fn now(tv: unsafe *timeval, tz: unsafe *timezone) -> i32 {   // the struct
+    var west: i64 = timezone                                  // still the variable
+    return gettimeofday(tv, tz)
+}
+```
+
+In a type, `timezone` is then the struct; in an expression, it is still the variable. `class` and `union` work the same way. Without a matching struct in the imported headers, `ffi "c" struct T` is an ordinary forward declaration.
+
+`typedef struct X X` is one type, not two names. Two different variables or typedefs under one name, which C++ only allows through inline namespaces, are an error where the name is used, not at the import: `ambiguous import: '{name}' names more than one non-function symbol` (R016E), with a note at each candidate.
+
 ---
 
 ## The `ffi` Keyword
@@ -11224,7 +11605,24 @@ fn main() {
 
 ### Strings and `const char*`
 
-A Kairo [`string`](/docs/language/primitives/#strings) cannot yet be passed to a C `const char*` parameter. The underlying pointer is `*u8`, and `*u8` to `*i8` is neither an implicit nor a [safe cast](/docs/language/casting/#pointer-cast-rules). A `string.c_str()` method is planned. Until it lands, use `cxx::std::string` on the Kairo side, or add a small C++ helper that takes a `std::string` and makes the C call.
+C's `char` is [`std::c_char`](/docs/language/primitives/#cs-char-stdc_char), so a C++ `const char*` is `*const c_char` in Kairo, and back: a function returning one can be stored, compared with `&null`, indexed and passed on to any C or C++ parameter of that type. `char`, `signed char` and `unsigned char` are three types, as in C++, so a header that overloads on them gives three Kairo overloads (`c_char`, `i8`, `u8`).
+
+A Kairo [`string`](/docs/language/primitives/#strings) stores UTF-8 bytes (`data` is `*const u8`) with a NUL after the last one, so its bytes are a C string once the pointer is reinterpreted. Bytes and C chars are unrelated types, so that is an `as unsafe *` cast inside an `unsafe` block ([pointer cast rules](/docs/language/casting/#pointer-cast-rules)); passing the `*u8` itself is an error whose fix-it inserts the cast:
+
+```kairo
+
+ffi "c" import "string.h"
+
+fn main() {
+    var s = "hello"
+    unsafe {
+        var n = strlen(s.data as unsafe *const c_char)   // 5
+        // strlen(s.data)   // error SC063E: a C string is '*const c_char'; fix-it: ` as unsafe *const c_char`
+    }
+}
+```
+
+A `*const c_char` in an f-string prints as a pointer (`const c_char @ 0x...`), like any pointer: there is no C-string formatter yet. A `string.c_str()` method is planned.
 
 ---
 
@@ -11281,6 +11679,20 @@ int main() {
 
 `T impl Addable` in Kairo maps directly to `Addable T` in the generated C++. The constraint is preserved across the boundary, not erased.
 
+### Template arguments, pointers and forwarding
+
+Non-type template arguments are written as Kairo values: `cxx::std::array<i32, 4>`, `llvm::SmallVector<*Node, 8>`, `Flag<true>`. An `eval` constant or arithmetic over constants works (`array<i32, N * 2>`). The argument's identity is its integer, so `array<i32, N>` with `eval N: usize = 4` and `array<i32, 4>` are the same type.
+
+A container of Kairo pointers keeps the pointer kind you wrote: `cxx::std::vector<*Node>` hands out `*Node`, `vector<unsafe *Node>` hands out `unsafe *Node`. Both are `std::vector<Node*>` in C++.
+
+Any Kairo type with a C++ spelling may be an argument of an imported class template: builtins, pointers, records and generic records, tuples, plain enums, ADT enums (generic or not), and nullables (`vector<i32?>`, `vector<*Node?>`). The instance's members read back as the Kairo types, so `push_back(null)`, `if x? { ... }`, `v[0] ?? d`, `v[0] = null` and `match` on an element work as for any value. Not yet: a function type (`fn(i32) -> i32`) as an element (calling `v[0](3)` is rejected).
+
+A C++ function template with a forwarding pack (`template <class... Args> void emplace_back(Args&&... args)`) takes any number of arguments; each is passed as written and C++ deduces its reference kind. A `const Ts&...` pack takes any argument, a `Ts&...` pack only variables (lvalues).
+
+Overloaded C++ function templates are chosen as C++ chooses them, SFINAE included: an overload whose `enable_if` condition, `requires` clause, `decltype(...)` return type or `void_t` test fails for the arguments is not a candidate. So `cxx::std::make_unique<i32>(9)`, `make_unique<T[]>(n)` (through a header alias such as `using IntArr = int[];`, since `[T;]` in Kairo is a slice) and `make_shared` work, and `v.assign(n, x)` on a `cxx::std::vector` takes the count overload while `v.assign(a.begin(), a.end())` takes the iterator one. When every overload is removed, the error lists each with C++'s reason (`requirement 'std::is_integral_v<Pair>' was not satisfied`). Only the generic arguments you write are passed (`make_unique<i32>`); C++ deduces the rest from the arguments, so a variable passed through `Args&&` stays a reference to that variable. Inside a generic function, a call whose choice depends on `T` is decided for each instantiation.
+
+A C++ method with a ref-qualifier is called only on the object it accepts: `int q() &` on a variable, `int q() &&` on a temporary (`make().q()`), and with both declared a temporary calls the `&&` one. A method without a ref-qualifier can be called on either.
+
 ## See also
 
 - [C & C++ Interoperability](/docs/language/c-cpp/)
@@ -11313,19 +11725,39 @@ Kairo and C++ signal failure differently, and the two models meet at one place: 
 Kairo can catch C++ exceptions using its standard `try`/`catch` syntax.
 
 ```kairo
-ffi "c++" import "my_code.hh";
+ffi "c++" import "my_code.hh";   // void might_throw(bool); void log_message(const char*)
 
 fn main() {
     try {
         might_throw(true);
     } catch e: cxx::std::exception {
-        std::println(f"Caught: {e.what()}")
+        log_message(e.what())         // e is the C++ exception object
     }
 }
 ```
 
-> [!WARNING]
-> Catching a C++ exception in a Kairo `try`/`catch` is not compiled yet. See [Status](/docs/status/).
+> [!NOTE]
+> Two limits on reading the message from Kairo for now. `e.what()` is a `*const std::c_char` (C's `const char*`), which can be passed on to C or C++ code, as above, or read through C (`strlen(e.what())`), but an f-string prints it as a pointer, `const c_char @ 0x...`, not as text: there is no C-string formatter yet ([Status](/docs/status/#not-compiled-yet)). And on an arm whose class redeclares `what()` (`cxx::std::runtime_error`), the call is reported as ambiguous (SC064E); read the message through a `cxx::std::exception` arm.
+
+A `catch e: T` arm whose `T` is a C++ type that the `try` body cannot [panic](/docs/language/panic/) with catches a C++ exception of type `T`, by C++'s own rules: an exception of a class derived from `T` matches too, and the arms are tried in order. `e` refers to the exception object. Such an arm is never checked against the panic set and never reported as dead. A C++ type that *is* in the body's panic set is an ordinary panic arm.
+
+Which C++ calls are covered is decided by where they are written: a C++ call inside the `try` body, however deeply nested in its expressions and blocks, is covered. The function holding the `try` stays `noexcept`; the `try` is a real C++ `try` inside it. An exception that no arm matches reaches the function's `noexcept` boundary and terminates the program, as one thrown anywhere else in a `noexcept` frame does. A bare `catch` catches panics only, never a C++ exception.
+
+```kairo
+fn read_or_default(x: i32) -> i32 {
+    try {
+        return checked_double(x)
+    } catch e: cxx::std::runtime_error {
+        return 0                          // a std::logic_error here would terminate
+    }
+}
+```
+
+The expression form works the same way: `try checked_double(x) catch e: cxx::std::exception => -1`. C++ arms and panic arms can share one `try`.
+
+`panic e` inside a C++ arm panics a copy of the caught exception (of the arm's type) as a Kairo error, raised at that `panic`.
+
+C++ exception arms need C++ exceptions: in a build with `-fno-exceptions`, or for a target with no OS where they default off, such an arm is an error ([SC001E](/docs/language/diagnostics/)), with a fix-it removing it.
 
 The exception can come from a C++ call several Kairo frames down, but every Kairo frame between the `throw` and the `catch` must let it through: mark each one [`@unwind`](/docs/language/attributes/#unwinding), or build with `-funwind`. A frame that is `noexcept` (the default) stops the exception by terminating the program, before the `catch` is reached. The frame holding the `try` itself does not need `@unwind`: the exception stops there.
 
@@ -11392,26 +11824,26 @@ The API over the result is a set of free function templates in the `::builtin` n
 | `::builtin::value(p)` | The value, by reference; only valid when `ok(p)` |
 | `::builtin::is<E>(p)` | `true` when `p` holds an error of type `E` |
 | `::builtin::error<E>(p)` | The error, as `E&`; only valid when `is<E>(p)` |
-| `::builtin::site(p)` | The source file, line and column where the error was raised |
+| `::builtin::site(p)` | A `::builtin::source_site { file, line, col }`: where the error was raised. `file` is null for a result that holds a value |
 | `::builtin::type_id<E>` | The id of error type `E`, the value stored in the tag |
+| `::builtin::panic_set<P>` | A trait over a result type `P`: `value_type` (`T`), `types` (`::builtin::panic_types<E...>`), `size` (the number of error types) and `payload_offset` (where the value and every error start) |
 
 ```cpp
-#include "config.k"                    // fn load_port(path: string) panic(IOError, RangeError) -> i32
+#include "config.k"                    // pub fn load_port(path: string) panic(IOError, RangeError) -> i32
 
 int port_or_default() {
-    auto r = load_port("port.txt");
+    auto r = config::load_port("port.txt");
     if (::builtin::ok(r))
         return ::builtin::value(r);
-    if (::builtin::is<RangeError>(r))
-        return 0;                      // ::builtin::error<RangeError>(r) is the Kairo error value
+    if (::builtin::is<config::RangeError>(r))
+        return 0;                      // ::builtin::error<config::RangeError>(r) is the Kairo error value
     return 8080;                       // IOError
 }
 ```
 
-A panic set holds exact types (there is no subtyping between error types; see [Panic](/docs/language/panic/#arms-match-exact-types)), so `is<E>` matches only `E` itself.
+A panic set holds exact types (there is no subtyping between error types; see [Panic](/docs/language/panic/#arms-match-exact-types)), so `is<E>` matches only `E` itself. `is<E>` of a type not in the set is `false`; `error<E>` of one does not compile.
 
-> [!WARNING]
-> Panic is not compiled yet, so neither is this C++ view of a panicking function. See [Status](/docs/status/#not-compiled-yet).
+The function is declared `[[nodiscard]]`: dropping the result drops the error with it. A header written with `--emit-headers` declares the same function, includes the headers of its error types, and declares the result type `extern template`, so the C++ that includes several Kairo headers instantiates it once.
 
 #### Converting to an exception
 
@@ -11429,7 +11861,10 @@ try {
 ```
 
 - `::builtin::panic_error<E>` derives from `::builtin::panic_error_base`, which derives from `std::exception`, so `catch (const ::builtin::panic_error_base&)` catches any Kairo error and `catch (const std::exception&)` catches it too. Its `error` member holds the Kairo error value.
-- `what()` is the error's [`op panic`](/docs/language/operator-overloading/#op-panic) message followed by its type and source location: `<message> [<ErrorType> at <file>:<line>:<col>]`, for example `missing config key 'port' [ConfigError at app.k:12:9]`. A type with no `op panic` (it is optional) gives just the type and location: `ConfigError at app.k:12:9`. The string is built once, when the exception is constructed.
+- `what()` is the error's [`op panic`](/docs/language/operator-overloading/#op-panic) message (the type's own, or one an `extend` gives it) followed by its type and source location: `<message> [<ErrorType> at <file>:<line>:<col>]`, for example `missing config key 'port' [ConfigError at app.k:12:9]`. A type with no `op panic` (it is optional) gives just the type and location: `ConfigError at app.k:12:9`. The file is the source file's path as the compiler records it, its full path (`/home/me/app/app.k`). The string is built once, when the exception is constructed, and its copies share it.
+- The location is found only on ELF targets (Linux, the BSDs) so far; elsewhere `site(p)` has a null `file` and `what()` gives the type without a location. A C++ host linked against a Kairo `--shared` library sees only its own sites: an error raised inside the library has no location.
+- `value_or_throw` takes the result by value: a temporary result's value or error is moved out, a named one's is copied. An error type that can only be moved works too; catch its `panic_error<E>` by reference.
+- `panic_error_base`, `panic_error<E>` and `value_or_throw` exist only where the C++ is compiled with exceptions; the value API is always there.
 
 The conversion is **generated C++**. It inspects the tag and throws from the C++ side of the boundary. Kairo itself still never throws, and the real entry point is unaffected. C++ callers who want exceptions get them; callers who want values keep the value API.
 
@@ -11506,7 +11941,7 @@ Hello from Kairo! x = 42
 An included `.k` gives C++ the same interface a Kairo importer sees:
 
 - Its `pub` declarations. A `priv` or `internal` top-level declaration is left out, unless a `pub` `inline` or generic body names it (that body is compiled by the C++ code, so it must see what it calls). C++ has no way to keep a declaration from the rest of its translation unit, so that is the only one that crosses.
-- `priv` class members as `private:` members.
+- Every class member at its own visibility: a `priv` member is `private:`, a `prot` one `protected:`, a `pub` one `public:`. Kairo's `priv` reaches every function of the class's file, which C++ says by making the class befriend that file's functions and types, so the module's own `inline` and generic functions still work when the C++ code compiles them. The C++ code itself cannot read a `priv` field or call a `priv` method. Some members are public in C++ whatever their Kairo visibility: copy and move constructors and destructors (so C++ containers can hold the type), and the fields of a struct, of a union, and of a class with no constructor (these are plain aggregates, built with designated initializers, and a struct keeps the C layout and calling convention). Every base is a public base; a `derives priv` (or `prot`) base's members are private (protected) through the derived class, through using-declarations.
 - The bodies of templates and `inline` functions; every other body stays in the `.k`'s object.
 - Its types' dependencies, from other modules and from the builtin library, declared once per translation unit however many `.k` files include them.
 
@@ -11955,6 +12390,12 @@ class Dog derives Animal {
 }
 ```
 
+A base initializer is a statement of its own among the **first** statements of the constructor, before anything else runs: it builds the base part of `self` before any field. Its first argument is `self`; the other arguments may not use `self` (the object does not exist yet). Each base is initialized at most once, and only a direct base, or a [virtual base](#diamond-and-virtual-inheritance), can be. Calling a constructor by name anywhere else is an error: to build a value, call the type (`Animal("Rex")`).
+
+A base with no default constructor (its constructors all take arguments, or its default constructor is `= delete`) must be initialized by every constructor of a class that derives from it, so such a derived class has to declare a constructor. Declaring only a transfer constructor (`@copy` / `@move`), even a deleted one, removes the implicit default constructor; declare `fn X(self) = default` to keep it.
+
+A derived class's own `@copy` or `@move` constructor initializes its base with the base's transfer constructor: `Base::Base(self, other)` transfers the base part of `other`.
+
 ### Inheritance visibility
 
 By default, inheritance is public. Append `pub`, `prot`, or `priv` after `derives` to control how base members are exposed in the derived class:
@@ -11964,6 +12405,8 @@ class Derived derives pub Base { ... }    // base members keep their visibility
 class Derived derives prot Base { ... }   // all base members become protected
 class Derived derives priv Base { ... }   // all base members become private
 ```
+
+The narrowing applies to members reached through `Derived`. The conversion from `*Derived` to `*Base` stays available everywhere, and through a `*Base` the members have their own visibility again. (In the generated C++ the base is public and the members are narrowed with `private:` / `protected:` using-declarations, so a C++ program sees the same thing.)
 
 ### Multiple inheritance
 
@@ -11994,6 +12437,24 @@ class Derived derives Base {
     }
 }
 ```
+
+The qualified call is not virtual: `Base::method(self)` runs `Base`'s version even when `method` is `virtual` and overridden further down. A derived method with the same parameters (and the same `const self` or plain `self`) overrides or hides the base's, so `d.method()` on a derived value calls the derived one; a base overload with different parameters stays callable on the derived value (Kairo merges the overload sets, as C++ does with a `using` declaration). A C++ class keeps C++'s lookup: a name it declares hides the base's unless its definition says `using Base::name;`.
+
+### Protected members from another file
+
+A subclass declared in a different file than its base reaches a `prot` instance member only through an object of its own type or a type deriving from it, and calls a `prot` constructor only as its base initializer:
+
+```kairo
+class Counter derives Base {
+    fn Counter(self) { Base::Base(self, 2) }       // ok: base initializer
+    fn own(self) -> i32 { return self.hits }        // ok
+    fn other(self, c: *Counter) -> i32 { return c->hits }   // ok
+    fn via_base(self, b: *Base) -> i32 { return b->hits }   // error: through a Base
+    fn standalone(self) { var b = Base(5) }        // error: a separate Base
+}
+```
+
+Code in the base's own file has no such restriction.
 
 ### Destructors and inheritance
 
@@ -12242,6 +12703,20 @@ r.set_new_handle(open_handle())   // safe: previous handle was released
 delete r   // safe: idempotent delete operator
 ```
 
+### Constructors and destructors never panic
+
+No constructor (one with parameters, the default constructor, or a transfer constructor) and no destructor can [panic](/docs/language/panic/). Marking one `panic` is a compile error, and so is a panic that would escape one: an unhandled panicking call or `panic` statement in its body, or in a field default it runs. An object is either built whole or not at all, and a destructor runs on every exit from its scope, where nothing could take an error. Handle the error inside with `try`/`catch`, or stop the program with `crash!()`. Construction that can fail belongs in a static factory function, which may panic and returns the object:
+
+```kairo
+class Conn {
+    var fd: i32
+    fn Conn(self, fd: i32) { self.fd = fd }
+    static fn open(path: string) panic(IOError) -> Conn {
+        return Conn(open_fd(path))   // open_fd may panic; the constructor never does
+    }
+}
+```
+
 ### `delete` does not free
 
 `delete` in kairo does not free memory. It is a **destruction operation** that runs the [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) and any side effects, but does not reclaim the allocation. Meaning if the class can be re-constructed with a separate function call, the memory is still valid and can be reused. The `delete` operation is used to explicitly clean up resources without deallocating the memory, which is useful in certain scenarios where you want to manage memory manually or reuse it.
@@ -12333,6 +12808,8 @@ class X {
 ```
 
 A move is written bare at the call site, `X(h)`, with no marker on the argument.
+
+A transfer constructor written `= default` copies or moves every field, which initializes each of them. One with a body is a constructor like any other: it must initialize every `const` member and every [field without a default](/docs/language/classes/#fields-without-a-default), and its first whole write of such a field is that field's initialization.
 
 A class with no transfer constructor takes the weakest category its bases and fields allow: **COPY** if all of them are COPY, **MOVE** if any is move-only, **NON_TRANSFER** if any cannot be transferred. Its special members are compiler-generated to match.
 
@@ -12478,7 +12955,7 @@ URL: https://www.kairolang.org/docs/language/classes-out-of-line/
 
 # Forward Declarations and Out-of-Line Definitions
 
-A class can be forward-declared without a body sufficient for `*Class` uses, not for `sizeof` or member access:
+A class (and likewise a [struct](/docs/language/structures/#forward-declarations) or [union](/docs/language/unions/#forward-declarations)) can be forward-declared without a body sufficient for `*Class` uses, not for `sizeof`, member access or holding it by value. The forward declaration must use the same keyword as the definition:
 
 ```kairo
 class Parser
@@ -13517,6 +13994,44 @@ fn main() -> i32 {
 
 See [Enums](/docs/language/enums-adt/#construction).
 
+### SC001E: a constructor does not initialize a field that has no default
+
+A field with no initializer whose type has no default (`bool`, an enum with payloads, a class with no default constructor, an array of any of these) is initialized by every constructor, like a `const` member: the constructor's first whole write of it is its initialization, and an array field may instead be built element by element, each element written once with a constant index. See [Classes](/docs/language/classes/#fields-without-a-default). The code is a placeholder until the error gets its own.
+
+```
+constructor of '{C}' does not initialize field '{f}', and {why}
+field '{f}' is not initialized on every path through the constructor of '{C}', and {why}
+'{f}' is written in part before it is initialized, and {why}
+a defaulted constructor of '{C}' cannot initialize field '{f}', and {why}
+array field '{f}' is initialized on some paths through the constructor of '{C}' only; an array is not assignable, so its one initialization must be on every path
+'self' is used before the constructor has initialized its fields
+array field '{f}' is built element by element, but element 1 is (elements 1 and 3 are) not initialized on every path through the constructor of '{C}', and {why}
+element {k} of '{f}' may already be initialized here; each element is initialized exactly once before '{f}' is whole
+the index of an element write that builds '{f}' must be a constant
+index {k} is out of range for '{f}', which has {N} elements
+an element of '{f}' is initialized inside a loop; each element of an array field built element by element is written exactly once, with a constant index
+'{f}' is read before all of its elements are initialized: elements 1 and 2 are not initialized yet on every path
+```
+
+`{why}` says why the type has no default, the same reason a local gets (`'Frame' is an enum with payloads, so no variant is its default`). The note points at the field. Element by element, the messages name the elements still missing, the earlier write of a duplicate, or where the array started being built; a write into an element (`self.toks[0].n = 1`) or into an array of arrays does not build anything, and a note says so.
+
+```kairo
+enum Frame { Burst { base: i32, count: i32 }, Idle }
+
+class Batch {
+    var frames: [Frame; 3]
+
+    fn Batch(self, c: bool) {    // error SC001E: elements 1 and 2 are not initialized on every path
+        self.frames[0] = .Idle
+        if c { self.frames[1] = .Idle }
+    }
+}
+```
+
+**Fix:** build the field on every path before any method call, whole (`self.frames = [.Idle, .Idle, .Idle]`) or one write per element; or give it an initializer at its declaration.
+
+An array field's one whole write in a constructor is its initialization, so a second one, one inside a loop, or one after an element was already built, is SC071E (`an array is not assignable; 'frames' may already be initialized here`).
+
 ---
 
 ## Panic
@@ -13557,7 +14072,19 @@ A `panic` function returns its error to the caller; a `-> !` function never retu
 
 ### SC001E: `{what} cannot panic: it runs where no call is written, so nothing could handle the error`
 
-A destructor (`op delete`), a transfer constructor (`@copy` / `@move`), a default constructor, an `@implicit` conversion and `op panic` are called by the language where no call is written, so an error from them could never be caught. Fix-it: remove `panic`.
+An `@implicit` conversion and `op panic` are called by the language where no call is written, so an error from them could never be caught. Fix-it: remove `panic`.
+
+### SC001E: `a constructor cannot panic` / `a destructor cannot panic`
+
+No constructor (one with parameters, the default constructor, a transfer constructor) and no destructor (`op delete`) can [panic](/docs/language/classes-lifecycle/#constructors-and-destructors-never-panic): an object is built whole or not at all, and a destructor runs on every exit, where nothing could take an error. Marking one `panic` is `a constructor cannot panic: an object is either built whole or not at all` (or the destructor's reason), with a fix-it removing `panic`. A panic that would escape one's body is `a constructor cannot panic: '{f}' may panic with '{E}', which is not handled`, with fix-its handling it there or stopping the program with `crash!()`. For a constructor, a note says that construction which can fail belongs in a static factory function.
+
+```kairo
+class Conn {
+    var fd: i32
+    fn Conn(self, n: i32) { self.fd = open_fd(n) }   // error: a constructor cannot panic
+    static fn open(n: i32) panic -> Conn { return Conn(open_fd(n)) }   // fine
+}
+```
 
 ### SC001E: `type '{T}' cannot be panicked: {why}`
 
@@ -13565,6 +14092,7 @@ An error is returned and propagated by value, so a type a `panic` raises, a decl
 
 ```kairo
 class Pinned {
+    fn Pinned(self) {}
     @move fn Pinned(self, other: Pinned) = delete
 }
 fn f() panic -> i32 { panic Pinned() }   // error: it is not movable
@@ -13574,9 +14102,323 @@ fn f() panic -> i32 { panic Pinned() }   // error: it is not movable
 
 A global's (or static field's) initializer runs at file scope: there is no function for an error to propagate to, and no place for a `try`. Initialize it in a function instead. A field's default and a parameter's default may call a panicking function only inside a `try` that handles everything (`a field's default cannot panic: ...`).
 
+### SC001E: `the panic set of ... must be declared`
+
+A bare `panic` where the set is a contract or has no body to infer from: a [function type](/docs/language/panic/#where-a-declared-set-is-required) (`the panic set of a 'fn' type must be declared`), an interface requirement, a `virtual` method of a base class, or a closure (`a closure's panic set must be declared`). Where there is a body, the fix-it writes the set it was inferred to be (or removes `panic` when nothing panics); otherwise a note says there is no body to infer from.
+
+```kairo
+var retry = fn () panic -> string { return read_file("x") }   // error: write 'panic(IOError)'
+```
+
+### SC001E: `'{E}' is not in the panic set of '{Base::m}', which this overrides` / `implements`
+
+An [override](/docs/language/panic/#subsets)'s set must be a subset of the base method's, and a conforming method's a subset of the interface requirement's. The fix-it adds the type to the base's or the requirement's declared set. Overriding a method that does not panic with one that does is `an override cannot panic when '{Base::m}', which it overrides, does not`. A generic base's or interface's set is read at the arguments the class derives it at or conforms to (`class D derives Base<B>` holds `run` to `Base<T>::run`'s `panic(T, A)` as `panic(B, A)`), and then no fix-it is offered: the base's own list names its parameters.
+
+### SC001E: `'{f}' is used as a value, but its panic set is inferred`
+
+A function value's type carries its panic set (`fn() panic(IOError) -> i32`), and a set inferred from the body is not known when the value's type is given. Declare it; the fix-it writes the inferred set. Converting between function types follows the [subset rule](/docs/language/panic/#subsets): a function whose set is not a subset of the target's is a type mismatch (`cannot convert 'fn () panic(E, F) -> i32' to 'fn () panic(E) -> i32'`).
+
+### SC001W: `the panic set of public function '{f}' is inferred ({E}); declare it ...`
+
+Only when building a library (`--shared`): a `pub` function's inferred set is API surface that changes when the body does. The fix-it writes the set.
+
+### SC001W: `this arm never runs: '{T}' is not in the panic set of its 'try' (...)`
+
+A `catch e: T` whose `T` the `try` body cannot panic with. A warning, not an error, so that a library removing an error from a function's set does not break callers that still catch it. The fix-it removes the arm. Arms match [exact types](/docs/language/panic/#arms-match-exact-types): `catch e: Base` does not catch a `Derived`. A C++ type outside the set is a [C++ exception](/docs/language/c-cpp-exceptions/#exceptions) arm and is never reported.
+
+### SC001W: `'finally' runs when the enclosing block exits, like any 'finally', not when the 'try' before it finishes`
+
+A `finally` written directly after a `try`/`catch`, on the line of its closing brace (`} finally {`) or the next, is the ordinary [scope-exit `finally`](/docs/language/panic/#finally): it runs when the enclosing block is left, after whatever follows it in the block, and a `return`, `break` or uncaught panic leaving the `try` never reaches it, so it does not run on that path. A note points at the closing brace where it runs, another at the `try`. There is no fix-it, since no edit keeps the meaning and silences it. To clean up as soon as the `try` is done and on every way out of it, register the `finally` first, in a block of its own: `{ finally { ... } try { ... } catch { ... } }`.
+
+### SC001W: `'{p as *D}' crashes the program when the object is not a '{D}'; use '{p as *D}?' and test the result for cleaner handling`
+
+Every [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) warns: on the wrong dynamic type it crashes the program (it is not a panic and cannot be caught). The fix-it appends `?`, turning it into the checked downcast, which yields null on a miss.
+
+### SC001E: `a second 'catch' arm for '{T}'` / `no 'catch' arm may follow a bare 'catch'`
+
+Two arms for the same type, or any arm after a bare `catch` (which has already handled everything), are errors with a fix-it removing the arm. In the expression form an arm after the default is a syntax error (S054E).
+
+### SC001E: `two 'catch' arms of one 'try' catch '{T}' in '{f<A>}': the first takes every '{T}', and the second never runs`
+
+In a [generic function](/docs/language/panic/#generic-functions), two arms that name different types in the body (`catch e: T` beside `catch e: Missing`) catch the same type at some instantiation (`T = Missing`). Reported where that instantiation is used, with notes at both arms and, when a generic body reached the instantiation, one note per call in the chain. Catch the parameter's type in its own function, or bound the parameter so the two cannot meet.
+
+### SC001E: `the panic set of '{f}' grows without bound: it calls itself (or a function that calls it) at ever-larger type arguments`
+
+A [generic function](/docs/language/panic/#generic-functions) whose inferred set includes what a recursive call at a larger type raises (`f(Box<T> { v: x })` inside `f<T>` lets `Box<T>` through, which lets `Box<Box<T>>` through, and so on). Declare the set, and catch what the recursive call adds outside it.
+
+### SC001E: `'catch' of the C++ exception '{T}' in a build without C++ exceptions (-fno-exceptions, or a target with no OS)`
+
+A `catch e: T` arm whose `T` is a C++ type outside the `try` body's panic set [catches a C++ exception](/docs/language/c-cpp-exceptions/#c-to-kairo), which needs C++ exceptions. They are off with `-fno-exceptions`, and by default for a target with no OS (or `--freestanding`). A note points at the C++ type; the fix-it removes the arm. The code is a placeholder until the error gets its own.
+
+**Fix:** remove the arm, or build with `-fexceptions`.
+
 ### SC001E: `'op panic' takes 'const self'` / `'op panic' must return 'string'`
 
-[`op panic`](/docs/language/operator-overloading/#op-panic) is optional, but when a type defines it, it is `fn op panic (const self) -> string`. Fix-its insert `const` and write `string`.
+[`op panic`](/docs/language/operator-overloading/#op-panic) is optional, but when a type defines it, it is `fn op panic (const self) -> string`. Fix-its insert `const` and write `string`. An operand besides `self` is SC055E (`'op panic' takes no operand besides the receiver`).
+
+### S055E: `an explicit panic set names at least one error type`
+
+`panic()` with nothing inside, in a function header, a closure or a function type. A bare `panic` already means an inferred set. Fix-it: remove the parentheses.
+
+### SC001E: `'{A}' and '{B}' cannot be in one panic set: both have type id 0x{id}`
+
+Every error type has a 32-bit type id, the tag its errors are stored with, computed from the type's full name so every file agrees on it. Two types whose ids are equal cannot be in one panic set: their errors would be indistinguishable. This is astronomically rare; it is reported where the set is formed, with a note at each type. The code is a placeholder until the error gets its own.
+
+**Fix:** rename one of the two types, or keep them in different sets (handle one of them before the other propagates).
+
+### OPT001R: `'{Panic}' is {n} bytes, so a function returning it returns through memory, not in two registers`
+
+A remark, not a warning. A panicking function's result is returned in two registers while it is at most 16 bytes: the tag and site word, plus a payload of at most 8 bytes. One wider error type (or a wider return type) makes every function with that set return through memory: correct, just slower. The remark names the widest payload. The code is a placeholder until the remark gets its own.
+
+**Fix:** nothing is required. To keep the fast path, panic with a small error (an id, or a pointer to the details).
+
+---
+
+## Imports
+
+### R016E: `ambiguous import: '{name}' names more than one non-function symbol`
+
+One imported name refers to more than one thing that is not a function, for example two types imported from two modules. Functions merge into one overload set; other declarations cannot.
+
+```kairo
+
+
+```
+
+When a Kairo import is involved, the error is reported at the import. When every candidate comes from C or C++ headers, it is reported where the name is used, as C++ does, and a note points at each candidate and says what it is (variable, typedef, struct, ...). Importing such headers is not an error by itself.
+
+A header struct and a variable or function with the same name are not ambiguous: the name means the variable or function, and the struct can be named with `ffi "c" struct T`. See [Tags and ordinary names](/docs/language/c-cpp-calling/#tags-and-ordinary-names).
+
+**Fix:** import one of the conflicting names under an alias (`import Foo::{Bar as FooBar}`), or import a header under an alias (`ffi "c++" import "a.h" as a`) and qualify the name.
+
+---
+
+### R001W: import cycle
+
+`import cycle: {a.k -> b.k -> a.k}; a cycle hinders maintainability: no module on it can be read, built or tested without the others` (for a file that imports itself: `'{s.k}' imports itself; ...`)
+
+Modules import each other in a cycle: `a` imports `b` and `b` imports `a`, a longer chain, or a file that imports itself ([Circular Dependencies](/docs/language/modules/#circular-dependencies)). The cycle compiles; the warning sits on the import that closes it, a note points at each import on the cycle, and a last note suggests a third module. For a self-import, a fix-it removes the import instead: a file sees its own declarations without importing itself. The code is a placeholder until the warning gets its own.
+
+```kairo
+// a.k
+
+// b.k
+
+```
+
+Under `-fno-import-cycles` the same diagnostic is the error **R001E** (`...; import cycles are disabled (-fno-import-cycles)`), and the build stops after parsing. `-Werror` promotes the warning; `-w` silences it.
+
+**Fix:** move what both modules need into a third module that each imports.
+
+---
+
+## Access
+
+### SC001E: `{kind} '{m}' of '{T}' is private` / `... is protected`
+
+Using a `priv` member outside the file that declares its class, or a `prot` member outside that file and outside a subclass. Operators count: `a + b` uses `op +`. The fix-it makes the member `pub`.
+
+### SC001E: `protected {kind} '{m}' of '{B}' is reached here through a '{X}', not through '{D}' or a class deriving from it`
+
+A subclass `D` in another file used an instance `prot` member of its base through an object that is not a `D` (a `*B`, or a sibling subclass):
+
+```kairo
+class Counter derives Base {
+    fn via_base(self, b: *Base) -> i32 { return b->hits }   // error SC001E
+}
+```
+
+Reach it through `self` or another `Counter`, or make the member `pub`.
+
+### SC001E: `this constructor of '{B}' is protected: a class deriving from '{B}' calls it only as a base initializer, not to build a separate '{B}'`
+
+A subclass in another file built a standalone object with a `prot` constructor (`var b = Base(5)`). Only `Base::Base(self, ...)` at the start of the subclass's constructor may call it.
+
+### SC001E: `'{X}' does not conform to '{I}': its '{m}' is not public, and its file declares no 'impl {I}'`
+
+A `priv` or `prot` member satisfies an interface requirement only when its type's own file declares the conformance. Declare `impl I` on the type (or `extend X impl I` in its file), or make the member `pub` (the fix-it).
+
+### I003E: `the emitted C++ refuses an access Kairo accepted ...`
+
+An internal error: Kairo admitted a member access and the generated C++ refused it. It names clang's own message. Please report it with the source; meanwhile making the member `pub` works around it.
+
+---
+
+## Members
+
+### SC001E: `'&null' cannot be stored in '{T}': a safe pointer is never null`
+
+`&null` where a value lands in a safe pointer `*T`: a variable's or field's initializer, an assignment, an argument, a default argument, a `return`, a struct literal's field, an `if` arm or the fallback of `??`. A `*T` always points at something ([Pointers](/docs/language/pointers/)). The code is a placeholder until the error gets its own.
+
+```kairo
+var p: *i32 = &null        // error SC001E
+fn give() -> *i32 { return &null }   // error SC001E
+```
+
+The note points at the declared type of the variable, field, parameter or return and names both ways out; the fix-it makes that type nullable (`*i32?`). A call through a `fn` value has no declaration to point at, and gets the note alone. Comparing a `*T` with `&null` is not this error.
+
+**Fix:** declare the pointer `*T?` if it may be absent (its null is `null`, and `&null` converts to it), or `unsafe *T` for a raw pointer that may hold the null address.
+
+### SC001E: `'{f}' is a named function declared in a body, and cannot use '{x}' from the function around it`
+
+A function declared inside another function's body (a local `fn`, or a method of a local class) uses a local, a parameter, `self` or a `static` local of an enclosing function. A named function captures nothing ([Closures vs Inner Functions](/docs/language/closures/#closures-vs-inner-functions)). Each use is reported once, by the innermost function that makes it. The code is a placeholder until the error gets its own.
+
+```kairo
+fn outer() -> i32 {
+    var x = 10
+    fn inner(y: i32) -> i32 { return y + x }   // error SC001E
+    return inner(1)
+}
+```
+
+The note points at the binding.
+
+**Fix:** pass the value as a parameter, or use a closure.
+
+### SC001W: `nested type '{N}' of '{T}' is named without a qualifier; write 'Self::{N}' so it reads as a member`
+
+A nested type, type alias (`type alias '{N}'`) or associated type (`associated type '{N}'`) of the enclosing type, named bare inside its body. It is legal, the one exception to [Members always need a qualifier](/docs/language/classes/#members-always-need-a-qualifier), but nothing at the use says the name is a member. Warned in type and expression position, in a class, struct, union or interface body, an `extend` block, an out-of-line `fn Type::method` and a closure in any of those. The code is a placeholder until the warning gets its own.
+
+```kairo
+class Tree {
+    struct Node { var value: i32 }
+
+    fn root(self) -> i32 {
+        var n = Node { value: 0 }   // warning SC001W: write 'Self::Node'
+        return n.value
+    }
+}
+```
+
+The note points at the declaration, and a fix-it inserts `Self::`. Only the innermost type counts: inside a nested type, its own name and the members of the type around it are not warned. Nested modules are not warned.
+
+**Fix:** write `Self::Node`.
+
+### SC001E: `'{f}' is a static requirement; it takes no 'self' and is called through the type, not a value`
+
+A static [interface requirement](/docs/language/interfaces-requirements/) (one with no `self`) called through a value: `y.make(2)` on `y: T` with `<T impl I>`. The same error reads `static extension member` for a static method added by an [`extend`](/docs/language/extends/) block. A requirement dispatches on the type, so a value names nothing to call it on. A plain class's `static` method called through a value is not an error. The code is a placeholder until the error gets its own.
+
+```kairo
+interface I { fn make(x: i32) -> i32 }
+
+fn <T impl I> f(y: T) -> i32 {
+    return y.make(2)    // error SC001E: write 'T::make(2)'
+}
+```
+
+The note points at the declaration, and a fix-it replaces the receiver with its type: `T::make(2)`.
+
+**Fix:** call it through the type.
+
+## Generics
+
+### SC001E: `'{T}: type' needs -fduck-generics: a generic body is checked against its bounds, not per instance`
+
+A [`: type`](/docs/language/generics/#the-type-regime-transitional) generic parameter in a build with `-fno-duck-generics`. `: type` is a transitional regime in which the C++ compiler checks the body per instantiation instead of Kairo checking it against bounds. It is on by default until the compiler compiles itself; `-fno-duck-generics` turns it off. The label is on `: type`. The code is a placeholder until the error gets its own.
+
+```kairo
+fn <T: type> show(t: T) -> i32 { return t.value() }   // error SC001E; note at 't.value'
+fn <T: type> same(t: T) -> T { return t }             // error SC001E; fix-it deletes ': type'
+```
+
+If the body uses no member of `T`, a fix-it deletes `: type`, since an unbounded `T` accepts the same body. If it does, a note points at the first member use instead. Deleting the bound there would only lead to R051E (an unbounded parameter has no members).
+
+**Fix:** bound the parameter with an interface that declares the members the body uses (`<T impl Valued>`), or drop `-fno-duck-generics` while the code is being migrated.
+
+### R051E / R025E: `'{op}' on '{T}' needs a bound that declares '{requirement}'`
+
+A generic body uses an operator, a conversion or an interpolation on a value of a type parameter that nothing grants. The body is [checked once against its bounds](/docs/language/generics/#type-parameter-constraints), so the error is at the use, in the generic, whatever the generic is later used with. R051E when the parameter has no bound at all (a note points at it: `'T' is declared with no bound`); R025E, ending `; none of the bounds of 'T' does`, when it has bounds and none declares the requirement. The forms: `'==' on 'T' needs a bound that declares 'op =='` (`!=` names `op !=` or `op ==`, a relational `op <=>`, `+` `op +=`, `+=` `op +`), `'===' on 'T?' compares the values with 'op ==', so it needs a bound on 'T' that declares 'op =='`, `'as string' on 'T' needs a bound that declares 'op as' returning 'string'`, and `formatting a 'T' needs a bound that declares 'fn repr(self) -> string' or 'op as' returning 'string'`.
+
+```kairo
+fn <T> eq(a: T, b: T) -> bool = a == b              // error R051E
+interface Same { fn op ==(const self, other: Self) -> bool }
+fn <T impl Same> eq2(a: T, b: T) -> bool = a == b   // ok: the bound's 'op =='
+```
+
+A `<T: type>` parameter is exempt: C++ checks its operators per instance. A null test on a `T` (`t?`, `t == null`) is the ordinary "is not nullable" error: a `T` is never null.
+
+**Fix:** bound the parameter with an interface that declares the operator, or take the value at its concrete type.
+
+### SC001E: `a value of type '{T}' can only be matched by a binding, '_' or 'default' (with a 'where' guard)`
+
+A `match` pattern other than a binding or `_` on a value of a type parameter. No bound gives `T` variants, fields or values a literal could equal; a note points at the parameter. The code is a placeholder until the error gets its own.
+
+**Fix:** bind the value and test it in a `where` guard through a bound's requirement, or match on a type whose variants are known (a generic ADT `Rep<T>` is fine).
+
+### SC001E: `'{X}' does not conform to '{I}'`, in an instance a generic reached
+
+A bound is checked where it meets a concrete argument, including in an instance that only another generic's body asks for: `outer<Metric>` calling `inner(Wrap<T> { item: a })` instantiates `inner<Wrap<Metric>>`, and its `U impl Named` bound is checked with `U = Wrap<Metric>`. The error is at the use that started the chain, the one written in your code. Notes name the bound and the missing requirement, then one note per step of the chain, innermost first, at the call in the generic's body that needed the instance:
+
+```kairo
+pub fn <U impl Named> inner(a: U) -> i32 { return a.name_len() }
+pub fn <T impl Scalable> outer(a: T) -> i32 {
+    return inner(Wrap<T> { item: a })      // note: in instantiation of 'inner<Wrap<Metric>>' required here
+}
+fn main() -> i32 {
+    return outer(Metric { base: 3 })      // error SC001E: 'Wrap<Metric>' does not conform to 'Named'
+}
+```
+
+A chain longer than five steps shows the innermost three, a note counting the steps left out, and the outermost two. `--cmax-generic-backtrace=N` changes the five; `0` shows every step. An instance that fails is reported once, at the first use that needs it. The code is a placeholder until the error gets its own.
+
+**Fix:** make the argument conform (an extension can add the missing member to `Wrap`), or bound the outer generic so the call cannot be made with it.
+
+### SC001E: `cannot decide whether a partial specialization of '{X}' applies to these arguments`
+
+A [partial specialization selected by `requires`](/docs/language/requires/#partial-specializations-selected-by-requires) matches an instantiation by its pattern, but its clause needs something the compiler does not compute while choosing (the `sizeof` of a struct, an `eval` function). It is not chosen, and the use is an error; a note points at the partial. Two partials that both apply with neither more specialized are `ambiguous partial specializations of '{X}' for these arguments`. The codes are placeholders until each gets its own.
+
+**Fix:** select by the pattern instead, or test a builtin type's size.
+
+### SC001E: `every overload in the 'where' dispatch of '{f}' must have the same {what}; C++ sees them as one function`
+
+Besides the return type and `const self`, a [`where` group of generic functions](/docs/language/where/#fallback-requirement) must agree on its type parameters' names and its bounds (`generic parameter names`, `bounds`). A second overload with no `where` clause is R029E, a redefinition.
+
+### SC001E: `instantiation depth exceeds {n}: ...`
+
+Each instance a generic body reaches can reach more. A chain that never ends, such as a function that calls itself with its argument wrapped once more, is reported once it is longer than `--cmax-generic-depth` (128 by default), at the use that started it. The message names the first three and the last three instances of the chain, and a note points at the call that would have gone one step deeper.
+
+```kairo
+pub fn <T> f(x: T) -> i32 {
+    return f(Wrap<T> { item: x })   // note: 'f<Wrap<...<i32>...>>' is required here, instantiation 129 of the chain
+}
+fn main() -> i32 {
+    return f(1)   // error SC001E: instantiation depth exceeds 128: 'f<i32>' -> 'f<Wrap<i32>>' -> ...
+}
+```
+
+A pointer to the class itself at a bigger argument (`var p: *L<Wrap<T>>` in `L<T>`) is reported the same way today, although following a pointer instantiates nothing. The code is a placeholder until the error gets its own.
+
+**Fix:** end the recursion at a fixed type (dispatch on a value instead of a type, or stop wrapping), or raise the limit with `--cmax-generic-depth=N` when the chain is finite and just long.
+
+## Compile-Time Values
+
+The errors of [array lengths and generic value arguments](/docs/language/generics/#computed-lengths-and-arguments) that are computed at compile time. The codes are placeholders until each gets its own.
+
+### SC001E: `an array length can call only 'eval' functions; '{f}' is not 'eval'`
+
+A length or value argument is computed at compile time, so a function it calls must be `eval`. A note points at the function; when it is yours, the fix-it adds `eval`. (`a generic value argument can call ...` is the same for an argument.)
+
+### SC001E: `'{T}' cannot be the type of a generic value parameter: {why}`
+
+An [eval class](/docs/language/generics/#eval-classes-as-value-parameters) used as a value parameter's type must be structural: `{why}` names the first field that is not `pub`, is `mutable` or points to mutable memory (through nested fields: `its field 'inner' is a 'Hidden', and its field 'secret' is not 'pub'`), or the first of its constructors that is not `eval`, or a destructor. A note points at it.
+
+### SC132E: a declaration-scope `eval if` depends on a type parameter
+
+An [`eval if`](/docs/language/eval/#eval-if) outside a function body chooses which declarations exist. A generic is emitted as one C++ template for every instance, and C++ has no `if constexpr` at class scope, so a generic's members cannot differ from one instance to another. A condition that reads a type parameter (`is_trivially_copyable!(T)`, `sizeof T`) would need exactly that.
+
+```kairo
+class <T> Holder {
+    eval if is_trivially_copyable!(T) {   // error SC132E: depends on T
+        var fast: T
+    } else {
+        var slow: *T
+    }
+}
+```
+
+A condition inside a generic that names no parameter (`is_trivially_copyable!(Plain)`, `sizeof usize < 8`) is decided once, after types are resolved. The note (SC132N) spells the partial specialization to write instead.
+
+**Fix:** select a type: declare each member set as a partial specialization chosen by a `requires` clause (`class <T> Holder<T> requires <condition>`). In a function body an `eval if` on a type parameter is `if constexpr` and needs no change.
 
 ---
 
@@ -13596,32 +14438,37 @@ It is reported for:
 - `label!` and `jump!` in user code
 - matching a string against a pattern that isn't a string literal or a constant initialized with one
 - matching a record value against a literal-style pattern
-- a non-generic payload enum whose payload holds a type whose copy, move and destruction are not known until instantiation
-- an initializer on an `eval` or array-typed field
+- an initializer on an `eval` field, and one on an array-typed field that is `static`, an array of arrays, or not a list literal
+- in a constructor that initializes a `const` field or a field without a default: a generic constructor or one with an expression body; `try`, `finally`, an `inline` block, `label!` or `jump!` before the last such initialization; a `static` or array local declared before it and used after it; initializing an array field of arrays, or one whose length is a generic parameter
+- a vector, set, map or f-string in an `eval` context (`a vector in an eval context is not yet supported`); a string literal is fine
+- an array length computed by C++ from an `eval` constant of the field's own class (`an array length computed by C++ from 'J', an 'eval' constant of the field's own class, is not supported`): inside its own body the class is incomplete. A note points at the constant; the fix-it moves it to module scope
+- an array length or generic value argument that calls an `eval fn` (or reads an `eval` constant computed by one) in a declaration's type, a field or a signature (`... is not yet supported in a declaration's type; write it inside a function body, or make the constant fold`); inside a function body it is accepted
+- a generic value parameter whose type is neither an integer nor an eval class (`<eval B: bool>`)
 - a generic record's field default that reads another field
 - an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
 - building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
-- a generic [`panic`](/docs/language/panic/) function (or one inside a generic type), a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside a generic function, a generator, or an `async` body
-- [`where` dispatch](/docs/language/where/) on a generic function, a `panic` function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
+- naming the panic result type `Panic<T, E...>` in source (`a panic result type cannot be named yet`): a panicking call's result is handled with `try` or propagated, not stored
+- keeping a panic result in a variable (`a stored panic result is not yet supported`), such as `var copy = e` for a bare `catch e`'s binding (re-panicking it with `panic e` is fine), and a function type whose panic set names a generic parameter
+- a call of a panicking operator (`a call of a panicking operator is not yet supported`)
+- a [`panic`](/docs/language/panic/) function under a [`<T: type>`](/docs/language/generics/#the-type-regime-transitional) parameter, a generic `panic` closure, a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside such a body (bounded and unbounded generics are [supported](/docs/language/panic/#generic-functions))
+- a call whose callee's panic set names a generic parameter the call does not bind (no bound declares the requirement it calls)
+- a `fn`, class, struct, union or enum declared in a function body that uses a generic parameter of the function or class around it (`'echo' is declared in a body and uses 'T', a generic parameter of 'wraps'; that is not yet supported`); a note points at the parameter. One that is generic in its own right, or names no outer parameter, compiles
+- an `extend` in a function body
+- [`where` dispatch](/docs/language/where/) on a generic function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
 ```kairo
-class <T> Box { pub var v: T }
+struct P { var x: i32  var y: i32 }
 
-enum W { Has { b: Box<i32> }, Empty }   // error SC116E
+fn by_name(p: P) -> i32 {
+    var {x, y} = p        // error SC116E
+    return x + y
+}
 ```
 
 > [!NOTE]
-> For the payload enum case, make the variant generic over the payload type:
->
-> ```kairo
-> class <T> Box { pub var v: T }
->
-> enum <T> W { Has { b: Box<T> }, Empty }
->
-> var w: W<i32> = .Empty
-> ```
+> For struct destructuring, read the fields one by one: `var x = p.x`.
 
 **Fix:** rewrite around the construct for now. See [Status](/docs/status/).
 
@@ -13964,9 +14811,6 @@ enum <T> ParseResult {
 
 Variants without a payload (`EndOfInput` above) are plain discriminants. Variants with a payload carry an anonymous struct alongside the discriminant. A single enum can freely mix both.
 
-> [!NOTE]
-> A non-generic payload enum whose payload holds a type whose copy, move and destruction are not known until instantiation (such as `Box<i32>` for a generic class `Box`) is not compiled yet. See [Status](/docs/status/#not-compiled-yet).
-
 ## Construction
 
 There are three construction forms:
@@ -14164,8 +15008,11 @@ A construction picks the expansion whose payload type is the value's type exactl
 ```kairo
 var a: Parsed = .Err { error: "bad digit" }   // Err { error: string }
 var b: Parsed = .Err { error: 0.5 }           // Err { error: f64 }
-var c: Parsed = .Err { error: 1 }             // error: an i32 fits neither exactly, and both by conversion
+var c: Parsed = .Err { error: 1 }             // Err { error: f64 }: an i32 matches neither exactly, and converts only to f64
+var d: Parsed = .Err { error: true }          // error: no Err holds a bool
 ```
+
+A value that converts to more than one expansion is an error too: in `Outcome<i32, i64, f64>`, an `i32` fits both `Err { error: i64 }` and `Err { error: f64 }`, so the payload's type must pick one.
 
 A pattern picks one by the type written on the binder of the pack field. With a single expansion the type may be left out. Each expansion is its own case for [exhaustiveness](/docs/language/pattern-matching/#exhaustiveness):
 
@@ -14552,7 +15399,7 @@ When a definition follows a forward declaration, the two must match exactly:
 - Visibility (`pub`, `priv`, `prot`)
 - ABI linkage (`ffi "c"`, `ffi "c++"`, `static`, `virtual`, `override`)
 
-Parameter names may differ; the definition's names are used in the body. Defaults are not part of the match: each parameter's default may be written on any one declaration, and it applies to every call (see [Defaults apply to the whole function](/docs/language/functions-parameters/#defaults-apply-to-the-whole-function)).
+Parameter names may differ; the definition's names are used in the body. So may the names of generic parameters: `fn <T impl Graph> g(x: T) -> i32` and a later `fn <U impl Graph> g(x: U) -> i32 { ... }` are one function. Their bounds may not: a declaration and its definition must name the same bounds for each generic parameter. (Two generic functions that both have bodies and differ only in their bounds are two overloads.) Defaults are not part of the match: each parameter's default may be written on any one declaration, and it applies to every call (see [Defaults apply to the whole function](/docs/language/functions-parameters/#defaults-apply-to-the-whole-function)).
 
 A mismatch in any other element is a compile error.
 
@@ -15154,7 +16001,9 @@ How type parameters of [generic classes](/docs/language/classes/#generic-classes
 
 ## Type parameter constraints
 
-A generic body may use only what its bounds grant. The body is checked once, where it is defined, against its bounds, never per instantiation. Calling a method no bound declares, copying a `T` without a copy bound, or declaring `var x: T` without a constructor bound is a compile error in the generic itself.
+A generic body may use only what its bounds grant. The body is checked once, where it is defined, against its bounds, never per instantiation. Calling a method no bound declares, copying a `T` without a copy bound, or declaring `var x: T` without a constructor bound is a compile error in the generic itself. So is an operator, a conversion or an interpolation on a `T` (`a == b`, `a + b`, `a as string`, `f"{a}"`) that no bound declares, a null test on a `T` (only a `T?` can be null), and a `match` pattern other than a binding or `_` on a `T`; a bound that declares the operator (`fn op ==(const self, other: Self) -> bool`) makes it a call through the bound, and a `derives` bound whose base declares it makes it a call of the base's operator. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
+
+A generic type at a dependent argument is not opaque: a `match` on a `Rep<T>` names `Rep`'s variants, and `==` on two `Rep<T>` compares their variants, as for any [ADT](/docs/language/enums-adt/).
 
 **Implicit capabilities.** Every type parameter may be destroyed and moved without saying so. Instantiating with a type whose `op delete` is `= delete`, or whose category is NON_TRANSFER, is an error at the instantiation site. It names the generic's implicit requirement, not a line inside its body. (Opt-out syntax: TBD.)
 
@@ -15186,6 +16035,37 @@ fn <T impl Copyable> store(item: T) -> T { ... }
 
 See [Requires Clauses](/docs/language/requires/) for the full constraint system.
 
+## The `: type` regime (transitional)
+
+`<T: type>` opts a parameter out of the rule above. The compiler does not check the body against bounds. It types the body as written and emits it as an unconstrained C++ template, and the C++ compiler checks each instantiation. These are C++ template semantics. The regime exists so that code written for the bootstrap compiler keeps compiling while it is migrated to interface bounds. The main case is CRTP mixins that call into the class deriving from them.
+
+It is on by default until the compiler compiles itself, since the bootstrap compiler's own code is written in it. To turn it off, build with `-fno-duck-generics`: `: type` is then an error (SC001E). If the body uses no member of `T`, the error carries a fix-it that deletes `: type`. If it does, a note points at the first member use and suggests an interface bound instead.
+
+```kairo
+// kairo main.k   (with -fno-duck-generics: error SC001E at ': type')
+class <X: type> Mixin {
+    fn doubled(const self) -> i32 {
+        var d = &self as *const X      // static_cast, checked per instance by C++
+        return d->value() * 2          // checked per instance by C++
+    }
+}
+
+class Seven derives Mixin<Seven> {
+    fn value(const self) -> i32 { return 7 }
+}
+```
+
+Limits while it lasts:
+
+- Errors in the body are reported per instantiation, as C++ errors, at the instance that breaks. A body that is never instantiated is never checked.
+- A member use is emitted exactly as written: `x.f(args)`, `p->f(args)`, `x.template f<A>(args)`, `T::f(args)`. An [extension](/docs/language/extends/) member is not a C++ member, so calling one through `T` fails in C++.
+- A call the compiler knows can panic is not yet supported inside such a body (SC116E), nor is a `panic` function under a `: type` parameter. (A bounded or unbounded generic body [may panic](/docs/language/panic/#generic-functions).) A member call through `T` names no known callee, so its panics are not tracked. If it is used as a value, C++ rejects the type. If its result is discarded, the panic is dropped and only a C++ `nodiscard` warning reports it.
+- Operators, `===`, null tests and `match` patterns on a value of type `T` are left to C++ as well (none of the definition-time errors above); `x as string` and `f"{x}"` on it are still rejected.
+
+`&self as *X` in such a mixin is C++'s `static_cast`, never a reinterpretation, so a mixin that is not a class's first base still finds the right object. The bounded spelling, `class <X derives Mixin<X> impl Impl> Mixin`, compiles too: the `impl` bound is checked once the deriving class is complete.
+
+The regime and its flag will be removed once those mixins carry `<T impl Interface>` bounds. Use an interface bound in new code.
+
 ## Value parameters
 
 A generic parameter can be a compile-time **value** instead of a type: `eval N: T`. Its argument must be [evaluable at compile time](/docs/language/eval/), a literal, an `eval` constant, or arithmetic over them, and inside the generic `N` is a constant of type `T`, usable as an array length:
@@ -15205,6 +16085,53 @@ var s = scaled<4>()               // 8
 ```
 
 A function's value parameter is given explicitly (`scaled<4>()`) or deduced from an array argument's length (`fn <eval N: usize> sum(const a: [i32; N])` called with a `[i32; 3]`). A `const` binding is not evaluable at compile time, so it cannot be a value argument; `const N: T` is not a parameter spelling either (write `eval N: T`).
+
+### Computed lengths and arguments
+
+An array length or value argument can be computed from value parameters, `eval` constants and calls of `eval` functions:
+
+```kairo
+eval fn twice(x: usize) -> usize { return x * 2 }
+
+class <eval N: usize> Buf {
+    var data: [i32; N + 1]          // one spare slot
+}
+
+fn <eval M: usize> make() -> Buf<M * 2> { return Buf<M * 2>() }
+
+fn table() {
+    var t: [i32; twice(3)]          // six elements
+}
+```
+
+Once the parameters have values the length is a number again: `Buf<3>`'s `data` is a `[i32; 4]`, the same type as any other `[i32; 4]`. A length the compiler does not compute itself, because it calls an `eval fn` or reads an `eval` constant that does, is identified by how it is written: `[i32; twice(3)]` is one type wherever it is written, but it is not `[i32; 6]`, even though `twice(3)` is 6 (as in C++, where a dependent expression is compared by its form). A computed length is not deduced: `fn <eval N: usize> f(a: [i32; N + 1])` needs `N` from somewhere else, such as `f<3>(a)`.
+
+A computed length or argument works in any type: a local's, a field's, a parameter's or return type, a file-scope variable's (`var a: [i32; twice(2)]` as a field). The functions and constants it reads are compiled ahead of the declaration that uses them. What cannot work is a cycle: a field of `R` whose length calls an `eval fn` that itself needs `R` complete (`sizeof R`, a local `R`, a method of `R`) is an error, since `R` does not exist yet where its own field is laid out.
+
+### Eval classes as value parameters
+
+A value parameter can also have the type of an [eval class](/docs/language/eval/#eval-in-classes), when every field is `pub`, no field points to mutable memory, and every constructor is `eval`:
+
+```kairo
+struct Config {
+    pub var size: i32
+    pub var label: string
+    eval fn Config(self, size: i32, label: string) {
+        self.size = size
+        self.label = label
+    }
+}
+
+eval SMALL = Config(4, "small")
+
+class <eval C: Config> Widget {
+    fn size(const self) -> i32 { return C.size }
+}
+
+var w = Widget<SMALL>()
+```
+
+The argument is an `eval` binding of the class or a call of its `eval` constructor (`Grid<Pt(2, 3)>`, `Widget<Config(4, "small")>`, string literals included). Two arguments with the same value are the same type: `Widget<Config(4, "small")>` is `Widget<SMALL>`, because `SMALL` is that same constructor call over the same literals. A binding computed by an `eval fn` is compared by its name instead, as a computed length is. A class that breaks a rule is an error naming the first field or constructor at fault.
 
 ---
 
@@ -15507,7 +16434,7 @@ class Config impl Defaultable {
 }
 ```
 
-Only the conforming type's own constructors count; a base class's constructors do not. A type that declares no constructor at all has the implicit one, so it satisfies a requirement with no parameters (`fn Defaultable(self)`) and nothing else. Built-in types such as `i32` and `bool` satisfy no constructor requirement, because `i32()` is not a call in Kairo; use `x as i32` to convert.
+Only the conforming type's own constructors count; a base class's constructors do not. A type that declares no constructor at all has the implicit one (when every field can be built from nothing; see [Default Initialization](/docs/language/variables/#default-initialization)), so it satisfies a requirement with no parameters (`fn Defaultable(self)`) and nothing else. Built-in types such as `i32` and `bool` satisfy no constructor requirement, because `i32()` is not a call in Kairo; use `x as i32` to convert.
 
 Inside a generic body, `T(args)` constructs a `T` when one of `T`'s bounds has a constructor requirement taking that many arguments:
 
@@ -15657,6 +16584,22 @@ class Memory impl Source {
 
 A conforming method may infer its set, but the set must be a subset of the requirement's. Panicking with a type outside it is an error at the conformer.
 
+A generic interface's requirement may name the interface's own type parameters in its set. A conformer is held to it at the arguments it conforms to, and a [generic body](/docs/language/panic/#generic-functions) calling it through a bound panics with it at the bound's arguments:
+
+```kairo
+interface <E> Source {
+    fn read(self) panic(E) -> i32
+}
+
+class File impl Source<IOError> {
+    fn read(self) panic(IOError) -> i32 { ... }        // ok: E = IOError
+}
+
+fn <T impl Source<IOError>> twice(src: T) panic -> i32 {   // panics with IOError
+    return src.read() + src.read()
+}
+```
+
 ---
 
 ## See also
@@ -15780,7 +16723,9 @@ fn process() -> Config {
 
 `todo!()` and `unreachable!()` are SAFE: both crash at runtime if reached, like [`crash!()`](/docs/language/panic/#main-and-crash) (neither is a [panic](/docs/language/panic/): they join no panic set, so `fn process() -> Config { todo!(...) }` needs no `panic` specifier), with `unreachable!()` signaling a logic error rather than missing code. `unreachable_unchecked!()` is the unsafe variant: it is a hard assertion to the optimizer that the path is dead, and reaching it at runtime is undefined behavior. Reach for `unreachable_unchecked!` only when the crash branch of `unreachable!` shows up in a profile.
 
-`crash!` is not a compiler intrinsic: it is an ordinary `pub macro` declared in the builtin library, and every file sees it without an import, the way it sees the builtin types. It expands to a call to a function that returns [`!`](/docs/language/panic/#panic-and-no-return-), so the compiler knows nothing after it runs: a function returning `T` may end in `crash!()` with no `return` after it. Like `todo!()`, it is not a [panic](/docs/language/panic/): it joins no panic set and no `try` catches it, and `main` may call it. Because it is a library macro rather than a reserved name, a macro named `crash!` that a file declares or imports itself takes precedence. What it reports before aborting is not final; rely only on the fact that it does not return.
+`crash!` is not a compiler intrinsic: it is an ordinary `pub macro` declared in the builtin library, and every file sees it without an import, the way it sees the builtin types. It expands to a call to a function that returns [`!`](/docs/language/panic/#panic-and-no-return-), so the compiler knows nothing after it runs: a function returning `T` may end in `crash!()` with no `return` after it. Like `todo!()`, it is not a [panic](/docs/language/panic/): it joins no panic set and no `try` catches it, and `main` may call it. Because it is a library macro rather than a reserved name, a macro named `crash!` that a file declares or imports itself takes precedence.
+
+What a crash may do is deliberately small, because it runs on a program that has just proved itself wrong (its stack or heap may be damaged). It behaves like a signal handler: it writes the message and a newline to stderr in a single `write`, then aborts, and does nothing else. It never allocates, takes no lock, and runs no Kairo code, so `msg` is not formatted at crash time. A literal costs nothing; a runtime `string` is fine too, but only its bytes are written, as they are, and at most 4096 of them. A crash during a crash ends the process at once. Any `SIGABRT` handler the program installed is reset before the abort, so the process always dies of `SIGABRT` (exit status 134 from a shell). `unwrap!` on null, a failed checked `as` into a closed enum, and a failed [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) end the program the same way, with a message the compiler writes (the expression, and its `file:line:col`).
 
 Untagged, `unique_id!` produces a fresh identifier on every invocation. The tagged form `unique_id!(tag)` is stable within one dynamic macro expansion: every `unique_id!(guard)` inside the same expansion instance yields the SAME identifier, letting a macro body refer to one generated name in several places, while separate invocations of the macro still get distinct names.
 
@@ -15821,6 +16766,8 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 | `label!(name)` | Declare a jump target | [Control Flow](/docs/language/control-flow/#jumps) |
 | `jump!(name)` | Unconditional jump to a label | [Control Flow](/docs/language/control-flow/#jumps) |
 | `forget!(ptr)` | Drop a pointer from Tether tracking | [Unsafe](/docs/language/unsafe/#forget) |
+| `is_trivially_copyable!(T)` | `true` when a `T` is copied as its bytes (C++ `__is_trivially_copyable`) | [Eval](/docs/language/eval/) |
+| `is_trivially_destructible!(T)` | `true` when destroying a `T` runs no code | [Eval](/docs/language/eval/) |
 | `unwrap!(expr)` | Force-unwrap a nullable; aborts the program on null | [Nullables](/docs/language/nullables/#force-unwrap) |
 | `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence/) |
 
@@ -16056,7 +17003,7 @@ var port = env_port() ?? file_port() ?? 80 // i32
 
 ### Null-aware equality (`===`)
 
-`a === b` is true when both are non-null and their values are equal: `(a? && b?) && a == b`. A non-nullable operand needs no test, so `a === 5` is `a? && a == 5`. The `==` is the values' own, a user `op ==` included. On nullable pointers it compares what they point to, one level down. At least one operand must be nullable, and `x === null` is an error (it is never true; write `!x?`). Like the conjunction it reads as, a true `a === b` narrows both: in `if a === b { ... }`, `a` and `b` are non-null. See [Operators](/docs/language/operators/#comparison).
+`a === b` is true when both are non-null and their values are equal: `(a? && b?) && a == b`. A non-nullable operand needs no test, so `a === 5` is `a? && a == 5`. The `==` is the values' own, a user `op ==` included. On nullable pointers it compares what they point to, one level down. In a [generic](/docs/language/generics/#type-parameter-constraints) body, `===` on a `T?` compares with the `op ==` a bound on `T` declares (without one it is an error), and a `T` is never a pointer there: a `*i32` passed as `T` is compared as an address by its `==`; write `(*T)?` to compare pointees. At least one operand must be nullable, and `x === null` is an error (it is never true; write `!x?`). Like the conjunction it reads as, a true `a === b` narrows both: in `if a === b { ... }`, `a` and `b` are non-null. See [Operators](/docs/language/operators/#comparison).
 
 ### Force unwrap
 
@@ -16137,6 +17084,8 @@ URL: https://www.kairolang.org/docs/language/operator-overloading/
 # Operator Overloading
 
 Operators are overloaded by defining `fn op` methods on a [class](/docs/language/classes/) or [struct](/docs/language/structures/), or in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may declare any overloadable operator except `as`, `[]`, `->` and `delete`, which are **member-only**: they must be declared in the type's own body.
+
+The built-in types follow the same rules. `[T]`, `{T}`, `{K: V}`, `[T;]` and `string` are ordinary types to the compiler, so an operator they declare (for example `fn op in (self) -> yield T`, or `fn op [] (self, i: usize) -> *T`) is the one a `for` loop or a subscript calls. Only when such a type declares no operator of that kind does the compiler fall back to the built-in behavior.
 
 ## All Overload-able Operators for User-Defined Types
 
@@ -16685,6 +17634,8 @@ The compiler verifies that all possible values are covered:
 | Nullable `T?` | `case null` first, then the rule for `T` |
 
 A `default` case matches any value not covered by preceding cases. It must be the last case.
+
+In a [generic](/docs/language/generics/#type-parameter-constraints) body, a match on a generic ADT at a dependent argument (`r: Rep<T>`) is checked like any other: its variants are known, and missing one is an error. A match on a value of a type parameter `T` itself can only bind it, guard it or ignore it (`case var v where v_ok(k)`, `case _`, `default`): `T` has no variants or values a pattern could test, so any other pattern is an error, and the match is exhaustive only when an unguarded binding, `_` or `default` ends it.
 
 A match whose arms are all `=>` is an expression, wherever it appears.
 
