@@ -362,7 +362,7 @@ int main() {
 }
 ```
 
-`T impl Addable` in Kairo maps directly to `Addable T` in the generated C++. The constraint is preserved across the boundary, not erased.
+`T impl Addable` in Kairo becomes a `requires` clause on the generated C++ template, naming a concept the compiler emits over the imported one (`requires(Addable_c<T>)`). The constraint is preserved across the boundary, not erased. A bound on a Kairo interface works the same way; a bound on a generic class or struct is not translated (see [Generics](/docs/language/c-cpp-exposing/#generics)).
 
 ### Template arguments, pointers and forwarding
 
