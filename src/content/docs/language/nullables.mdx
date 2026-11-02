@@ -156,7 +156,7 @@ if c? { use(c.value) }
 
 #### Closures and stored pointers
 
-A [closure](/docs/language/closures/) that captures by copy needs no special care: its copy starts in the state the variable had when the closure was made, unless the closure assigns its copy, which keeps its value from one call to the next. Inside a closure that captures `x` by pointer, `*x` is not tracked: copy it to a local and check that. A closure that captures by non-`const` pointer, or a pointer value such as `var *p = &x`, can write `x` behind the compiler's back, so the compiler follows it:
+A [closure](/docs/language/closures/) that captures by copy needs no special care: its copy starts in the state the variable had when the closure was made, unless the closure assigns its copy, which keeps its value from one call to the next. Inside a closure that captures `x` by pointer, `*x` is checked like any other nullable: `if (*x)? { use((*x).value) }` narrows it. It starts out maybe null, since the closure can run at any point, and any call, or a write through another pointer, makes it maybe null again, because anything else holding a pointer to `x` could change it. A closure that captures by non-`const` pointer, or a pointer value such as `var *p = &x`, can write `x` behind the compiler's back, so the compiler follows it:
 
 - calling a closure that captured `x` by pointer, or writing through `p`, makes `x` maybe null;
 - once that closure or pointer escapes (passed to a function that can keep it, stored in a field, a global or a container, or returned), **every** call from then until `x` goes out of scope makes `x` maybe null, since any call might run it. A check still narrows `x` until the next call.
