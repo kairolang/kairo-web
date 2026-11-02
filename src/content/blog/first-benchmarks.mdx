@@ -1,0 +1,111 @@
+---
+title: "First Benchmarks: Kairo vs C++ and Rust"
+description: "Three classic micro-benchmarks, four toolchains, one machine: where Kairo lands today, and what each result does and doesn't mean."
+pubDate: 2026-11-02
+author: dhruvan
+tags: [performance, benchmarks]
+---
+
+import BenchChart from '../../components/blog/BenchChart.astro';
+
+# First Benchmarks: Kairo vs C++ and Rust
+
+I ran Kairo's benchmark corpus on my machine for the first time against GCC, Clang and Rust. This post shows the numbers and explains each one, including the result that looks too good.
+
+Short version: Kairo is in the same range as C++ and Rust on the two compute-bound benchmarks. It's well ahead on the allocation-heavy one, and that lead comes from the allocator, not the code generator.
+
+## Results at a glance
+
+Speed relative to GCC on each benchmark (higher is faster, GCC = 1.00×):
+
+| Benchmark | Kairo | GCC | Clang | Rust |
+|---|---:|---:|---:|---:|
+| nbody | 0.94× | 1.00× | 0.79× | **1.50×** |
+| btree | **3.40×** | 1.00× | 0.90× | 0.86× |
+| fannkuch | **1.12×** | 1.00× | 1.06× | 1.04× |
+
+Raw medians, in seconds:
+
+| Benchmark | Kairo | GCC | Clang | Rust |
+|---|---:|---:|---:|---:|
+| nbody (N = 30,000,000) | 1.266 | 1.189 | 1.499 | 0.792 |
+| btree (N = 20) | 1.600 | 5.438 | 6.047 | 6.301 |
+| fannkuch (N = 11) | 1.595 | 1.782 | 1.676 | 1.709 |
+
+The charts below draw the same numbers. Each bar is the median of five runs, the thin tick marks the fastest run, and the right column is speed against GCC. Hover or focus a row for the details.
+
+## nbody: floating-point loops
+
+<BenchChart
+  name="nbody"
+  n="30000000"
+  rows={[
+    { label: 'rust',  median: 0.792, min: 0.786 },
+    { label: 'gcc',   median: 1.189, min: 1.183 },
+    { label: 'kairo', median: 1.266, min: 1.255 },
+    { label: 'clang', median: 1.499, min: 1.484 },
+  ]}
+/>
+
+nbody simulates five planets for 30 million steps: a fixed array of structs, a double loop, and one `sqrt` per pair. Nothing is allocated, so this measures how well each compiler turns plain arithmetic loops into machine code.
+
+Rust wins clearly, about 1.5× faster than GCC. Kairo is 6% behind GCC and about 18% faster than Clang. The runs barely varied (the fastest run and the median are within 1% for every toolchain), so this ordering is real on this machine and not noise.
+
+I don't count this one as a win. Rust's lead shows there's more to get out of this loop, and finding out why rustc's output is faster is next on the list.
+
+## btree: allocation, and an honest asterisk
+
+<BenchChart
+  name="btree"
+  n="20"
+  rows={[
+    { label: 'kairo', median: 1.600, min: 1.551 },
+    { label: 'gcc',   median: 5.438, min: 5.376 },
+    { label: 'clang', median: 6.047, min: 6.038 },
+    { label: 'rust',  median: 6.301, min: 6.205 },
+  ]}
+  caption="Most of this gap is the allocator. Kairo's runtime ships mimalloc as the default heap; the C++ and Rust builds here use glibc malloc."
+/>
+
+btree builds and frees millions of small binary trees. Each node is one heap allocation, so the benchmark is almost entirely `malloc` and `free`. The tree code is trivial.
+
+Kairo finishes in 1.6 s and everything else takes 5.4 to 6.3 s, about 3.4× faster than GCC. That's real for what you get by default. `@create` in Kairo goes to the [global allocator](/docs/language/allocators/#global-allocator), which is the runtime's bundled [mimalloc](https://github.com/microsoft/mimalloc). The C++ and Rust programs use glibc's `malloc` because that's their default on Linux.
+
+So this result says Kairo's default heap is much faster than glibc's for this workload. It does not say Kairo's code generation beats GCC by 3.4×. A C++ or Rust program can link mimalloc too, and with it I'd expect the four to land close together. I haven't run that comparison yet. It's the next one I want to publish.
+
+## fannkuch: integer work on small arrays
+
+<BenchChart
+  name="fannkuch"
+  n="11"
+  rows={[
+    { label: 'kairo', median: 1.595, min: 1.517 },
+    { label: 'clang', median: 1.676, min: 1.593 },
+    { label: 'rust',  median: 1.709, min: 1.701 },
+    { label: 'gcc',   median: 1.782, min: 1.775 },
+  ]}
+/>
+
+fannkuch walks every permutation of 11 elements and counts how many prefix reversals each one needs. It's tight integer loops over arrays of 16 `i32`s on the stack, with no allocation and no floating point.
+
+All four are within about 12% of each other. Kairo has the lowest median (1.595 s) and the fastest single run (1.517 s). Kairo and Clang varied the most between runs, about 5% between fastest and median, so read this as "Kairo is in the pack, probably at the front" and not as a decisive win.
+
+## How the numbers were made
+
+The benchmark code is public in [`Tests/bench`](https://github.com/kairolang/kairo/tree/main/Tests/bench) in the Kairo repository. Every program is a straight port of the same algorithm to each language, and none of them is hand-tuned for any one compiler.
+
+- **Builds:** `kairo -O3`, `g++ -O3 -std=c++20`, `clang++ -O3 -std=c++20`, `rustc -C opt-level=3 -C codegen-units=1`. No `-march=native`, no LTO, no PGO for anyone.
+- **Timing:** `run.fish 5` builds everything, then `timing.py` runs each binary five times. The runs are **interleaved** (every binary once, then every binary again) so a thermal or background-load swing hits all toolchains equally instead of landing on one.
+- **What's measured:** wall-clock time for the whole process, startup and output included. For these sizes startup is a rounding error.
+- **Correctness:** every run checks that all toolchains print the same output (nbody compared to nine digits, since the languages format floats differently). All three benchmarks reported `outputs agree: True`.
+- **Machine:** AMD Ryzen 9 7900X (12 cores / 24 threads), Linux 7.2.11-zen1, GCC 16.2.1, Clang 23.1.3, rustc 1.98.1, and the Kairo compiler built from `main`.
+
+## What this doesn't tell you
+
+These are three micro-benchmarks on one desktop. They're a sanity check that Kairo's output is in the same class as mature native toolchains, not a ranking of languages. Some caveats:
+
+- **Five runs is a small sample.** The medians are stable here, but differences under about 5% (most of fannkuch) shouldn't be read as meaningful.
+- **Defaults, not best effort.** Each language ran with its default allocator and standard library. That's the fair comparison for "what you get out of the box," and it's exactly why btree looks the way it does.
+- **Single-threaded only.** None of these touches threads, I/O, or large programs, where compile-time and runtime behaviour can look very different.
+
+If you run the suite on your own hardware and get different results, I'd like to see them, especially on ARM.
