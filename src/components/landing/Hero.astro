@@ -39,7 +39,7 @@ test "dot product of two vectors" {
 
 // The reflowing text wall around the figure (and under the resizable window):
 // the dot_product.k source flattened into one continuous line of text.
-const flowText = heroCode.replace(/\s+/g, ' ').trim() + '  // EOF dot_product.k  ';
+const flowText = heroCode.replace(/\s+/g, ' ').trim();
 const codeLines = heroCode.split('\n').length;
 
 const logoArt = renderFiglet('KAIRO');
@@ -148,31 +148,8 @@ const logoCols = artSize(logoArt).cols;
         </div>
       </div>
 
-      <!-- The Penrose triangle lives here; the canvas spans the whole band -->
-      <div class="hero-stage" id="hero-stage" data-flow-text={flowText} aria-hidden="true">
-        <span class="hero-stage-cap">fig.01 &nbsp;penrose_triangle()</span>
-      </div>
-    </div>
-  </div>
 
-  <!-- dot_product.k -->
-  <div class="container hero-code-wrap" id="hero-code-wrap" data-snap>
-    <figure class="ascii-frame ascii-frame--fill hero-code" id="hero-code">
-      <span class="ascii-frame-title">dot_product.k</span>
-      <span class="ascii-frame-meta">kairo</span>
-      <div class="hero-code-body">
-        <Code code={heroCode} lang={kairoLang} themes={{ dark: 'github-dark-default', light: 'github-light-default' }} defaultColor={false} />
-      </div>
-      <figcaption class="hero-code-status">
-        <span class="hero-code-mode">-- KAIRO --</span>
-        <span>dot_product.k</span>
-        <span class="hero-code-dim" aria-hidden="true">·</span>
-        <span>{codeLines} lines</span>
-        <span class="hero-code-dim" aria-hidden="true">·</span>
-        <span>utf-8</span>
-        <span class="hero-code-end">EOF</span>
-      </figcaption>
-    </figure>
+    </div>
   </div>
 </section>
 
