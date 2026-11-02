@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-11-01T00:09:14.183Z
+> Generated: 2026-11-02T04:58:39.690Z
 
 ---
 
@@ -607,7 +607,7 @@ What this means concretely:
 - All four basic arithmetic operations (`+`, `-`, `*`, `/`), `sqrt`, and `fma` produce correctly rounded results in round-to-nearest-even mode (the IEEE default). The result is the representable value closest to the infinitely precise result, with ties going to even.
 - Every operation is rounded on its own. The compiler never fuses a multiply and an add into one FMA by default (FP contraction is `off`), so `a * b + c` rounds twice, exactly as written. Opt in with `--fp-contract=on` (fuse within an expression) or `--fp-contract=fast`; results can then differ in the last bit from the unfused form. Call `fma` explicitly when you want one rounding.
 - Math functions never set `errno`. A Kairo call to `sqrt`, `pow`, and the rest reports a domain or range error through its result (`NaN`, `inf`) only, so the compiler is free to use the hardware instruction.
-- Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754; no crash, no trap. Check for `NaN` explicitly with `std::is_nan()` when needed.
+- Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754; no crash, no trap. Test for `NaN` with `x != x` (`x == f64::NAN` is always `false`); the infinities are [`f64::INFINITY` and `f64::NEG_INFINITY`](/docs/language/primitives/#limits).
 - NaN payload bits are not guaranteed to be preserved across arithmetic operations and are not guaranteed to be portable across architectures. Inspecting NaN bit patterns is explicitly unsupported behavior. If you need NaN payloads, use `f32::from_bits` / `f64::from_bits` and document why.
 - The 2019 standard deprecated the non-associative `minNum`/`maxNum` operations from 2008 and replaced them with `minimum`/`maximum` which have well-defined NaN handling. Kairo's `min`/`max` builtins follow the 2019 semantics.
 - Subnormal (denormal) numbers are handled per IEEE spec by default. Flush-to-zero mode is not enabled unless you explicitly opt in with `--fp-model=fast` or the `@float_mode(fast)` block annotation.
@@ -961,7 +961,6 @@ A [closure](/docs/language/closures/#tether-and-lifetime-safety) that captures a
 ## Language Gaps
 
 - A Kairo `string` reaches a C `const char*` parameter only through an `unsafe` cast of its bytes (`s.data as unsafe *const std::c_char`); `string.c_str()` is planned. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
-- Evaluation order is left to right for arguments, except for calls returning a C++ reference or class object and for primitive operators whose two operands both have side effects. See [Operators](/docs/language/operators/#evaluation-order).
 
 ---
 
@@ -1022,12 +1021,20 @@ The integer suffixes are `i8` `i16` `i32` `i64` `i128`, `u8` `u16` `u32` `u64` `
 
 ### Overflow behavior
 
-Unsigned integer overflow wraps around (modular arithmetic). Signed integer overflow behavior depends on the build mode:
+Integer arithmetic wraps around: `+`, `-`, `*`, unary `-`, `~`, `++`, `--`, the shifts and the matching compound assignments compute modulo 2<sup>N</sup> of the operand's type, two's complement, signed or not, in every build. The result has the operand's type, with no promotion: `~x` on a `u8` is a `u8`, and `a * b` on two `u16` values never overflows an `i32` on the way.
 
-- **Debug:** crashes with a diagnostic.
-- **Release:** wraps around silently.
+```kairo
+var a: i32 = 2147483647
+var b = a + 1           // -2147483648
+var p: u16 = 65535
+var q = p * p           // 1
+var z: u8 = 0
+var n = ~z              // 255
+```
 
-This matches Rust's overflow model and catches bugs during development without paying for checks in production.
+A shift count is taken modulo the register width: 32 for types up to 32 bits, else the type's width: with `n` a runtime 33, `1i32 << n` is `2`; with `n` a runtime 9, `1u8 << n` is `0`, since a narrow type shifts in 32 bits and then truncates. A constant count must be below the width. See [Bitwise operators](/docs/language/operators/#bitwise). Division and remainder by zero crash the program (like [`crash!()`](/docs/language/panic/#main-and-crash), not a panic). `MIN / -1` is `MIN` and `MIN % -1` is `0`.
+
+Overflow is never undefined behavior, and the checks cost nothing where the plain operator would not overflow: the compiled code is the same as C++'s for those inputs. Code imported from C or C++ keeps its own rules. Kairo code writing an imported value follows Kairo's: `++` on a C struct's `uint8_t` field, or `+=` on an `int&` returned by a C++ `operator[]`, wraps. A C bit-field wraps at the field's own width.
 
 ### Extended-width integers (u128-u512, i128-i512)
 
@@ -1061,7 +1068,7 @@ var b = 1.5bf16     // bf16
 
 The float suffixes are `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (`f80` and `f128` only where the target has them, see below), in lower or upper case. A literal is rounded once, to the type it is used at, from its decimal digits: `16777217.0f32` is `16777216.0` and `16777217.0f64` is exact, and `var q: f128 = 0.1` is `0.1` at `f128` precision, not the `f64` value `0.1` widened. An unknown float suffix (`1.5f8`, `1.5xyz`) is [SC074E](/docs/language/diagnostics/).
 
-Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 no crash, no trap. Check for `NaN` explicitly with `std::is_nan()` when needed.
+Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 no crash, no trap. Test for `NaN` with `x != x`: a `NaN` compares unequal to everything, itself included, so `x == f64::NAN` is always `false`. An infinity is an ordinary value to compare with: `x == f64::INFINITY`. See [Limits](#limits).
 
 > [!NOTE]
 > `f256` and `f512` are not natively supported on any current hardware and are implemented entirely in software, using SIMD instructions when available. Like extended-width integers, they are stack-allocated value types. Expect significantly lower performance compared to hardware-backed float types.
@@ -1264,6 +1271,104 @@ Arrays, slices, vectors, list literals, maps, sets, tuples and function pointers
 | 64-bit | 8 bytes |
 | 32-bit | 4 bytes |
 | 16-bit | 2 bytes |
+
+---
+
+## Limits
+
+Every numeric primitive has a fixed set of associated constants, the Kairo answer to C++'s `std::numeric_limits<T>` and C's `<limits.h>` / `<float.h>`. They are spelled like a class's `eval` members, `Type::NAME`:
+
+```kairo
+var lo  = i32::MIN               // -2147483648
+var hi  = u8::MAX                // 255
+var eps = f64::EPSILON           // 2.220446049250313e-16
+var inf = f32::INFINITY
+var buf: [u8; u16::MAX as usize + 1]   // a constant: legal in an array length
+```
+
+Each one is a constant of its own type, exactly as a suffixed literal is: `u64::MAX` is a `u64` in any context, `var x: u8 = i32::MAX` is the usual narrowing error ([SC028E](/docs/language/diagnostics/)), and `u8::MAX + 1` wraps to `0` like any `u8`. They are constants wherever a constant is needed: an array length, an `eval` binding, `eval if`, a generic value argument. The descriptive ones (`BITS`, `MANTISSA_DIGITS`, the exponents) are `u32` or `i32`, as listed.
+
+### Integers
+
+`u8` through `u128`, `i8` through `i128`, `usize`, `isize`:
+
+| Name | Type | Value |
+|---|---|---|
+| `MIN` | the type | the smallest value (`0` for unsigned) |
+| `MAX` | the type | the largest value |
+| `BITS` | `u32` | the width in bits |
+
+`usize` and `isize` take the target's width: `usize::MAX` on a 32-bit target is `4294967295`. `BITS` exists for the 256- and 512-bit integers too; their `MIN` and `MAX` are not supported yet.
+
+### Floating point
+
+`f8e4m3`, `f8e5m2`, `f16`, `bf16`, `f32`, `f64`, `f80`, `f128`:
+
+| Name | Type | Meaning | C++ |
+|---|---|---|---|
+| `MIN` | the type | most negative finite value (`-MAX`) | `lowest()` |
+| `MAX` | the type | largest finite value | `max()` |
+| `MIN_POSITIVE` | the type | smallest positive normal value | `min()` |
+| `MIN_SUBNORMAL` | the type | smallest positive subnormal value | `denorm_min()` |
+| `EPSILON` | the type | the next value after `1.0`, minus `1.0` | `epsilon()` |
+| `INFINITY` | the type | positive infinity | `infinity()` |
+| `NEG_INFINITY` | the type | negative infinity | `-infinity()` |
+| `NAN` | the type | a quiet `NaN` | `quiet_NaN()` |
+| `MANTISSA_DIGITS` | `u32` | significand bits, the implicit bit included | `digits` |
+| `DIGITS` | `u32` | decimal digits that survive text to float to text | `digits10` |
+| `MAX_DIGITS` | `u32` | decimal digits float to text to float needs | `max_digits10` |
+| `MIN_EXP` | `i32` | one more than the smallest normal binary exponent | `min_exponent` |
+| `MAX_EXP` | `i32` | one more than the largest binary exponent | `max_exponent` |
+| `MIN_10_EXP` | `i32` | smallest `n` with `10^n` normal | `min_exponent10` |
+| `MAX_10_EXP` | `i32` | largest `n` with `10^n` finite | `max_exponent10` |
+| `RADIX` | `u32` | always `2` | `radix` |
+| `BITS` | `u32` | storage width in bits | `sizeof(T) * CHAR_BIT` |
+
+> [!WARNING]
+> **`MIN` is not C++'s `min()`.** `std::numeric_limits<double>::min()` is the smallest positive normal value. Kairo's `f64::MIN` is the most negative finite value, spelled the same way as `i32::MIN`, so `T::MIN` is the bottom of the range for every numeric type. C++'s `min()` is `MIN_POSITIVE`.
+
+| | `MANTISSA_DIGITS` | `EPSILON` | `MAX` | `MIN_POSITIVE` | `MIN_SUBNORMAL` | `DIGITS` | `MAX_DIGITS` | `MIN_EXP` | `MAX_EXP` | `MIN_10_EXP` | `MAX_10_EXP` |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `f8e4m3` | 4 | 2⁻³ | 448 | 2⁻⁶ | 2⁻⁹ | 0 | 3 | −5 | 9 | −1 | 2 |
+| `f8e5m2` | 3 | 2⁻² | 57344 | 2⁻¹⁴ | 2⁻¹⁶ | 0 | 2 | −13 | 16 | −4 | 4 |
+| `f16` | 11 | 2⁻¹⁰ | 65504 | 2⁻¹⁴ | 2⁻²⁴ | 3 | 5 | −13 | 16 | −4 | 4 |
+| `bf16` | 8 | 2⁻⁷ | ≈3.39·10³⁸ | 2⁻¹²⁶ | 2⁻¹³³ | 2 | 4 | −125 | 128 | −37 | 38 |
+| `f32` | 24 | 2⁻²³ | ≈3.40·10³⁸ | 2⁻¹²⁶ | 2⁻¹⁴⁹ | 6 | 9 | −125 | 128 | −37 | 38 |
+| `f64` | 53 | 2⁻⁵² | ≈1.80·10³⁰⁸ | 2⁻¹⁰²² | 2⁻¹⁰⁷⁴ | 15 | 17 | −1021 | 1024 | −307 | 308 |
+| `f80` | 64 | 2⁻⁶³ | ≈1.19·10⁴⁹³² | 2⁻¹⁶³⁸² | 2⁻¹⁶⁴⁴⁵ | 18 | 21 | −16381 | 16384 | −4931 | 4932 |
+| `f128` | 113 | 2⁻¹¹² | ≈1.19·10⁴⁹³² | 2⁻¹⁶³⁸² | 2⁻¹⁶⁴⁹⁴ | 33 | 36 | −16381 | 16384 | −4931 | 4932 |
+
+The values are the formats' own (IEEE 754 for `f16`, `f32`, `f64` and `f128`; bfloat16; x87 extended; OCP FP8 E4M3FN and E5M2), computed by the compiler from each format's layout, never read from the host's `<float.h>`. Every finite one is exact.
+
+Comparing with an infinity works as with any value; comparing with `NAN` never does, because a `NaN` is unequal to everything, itself included:
+
+```kairo
+if x == f64::INFINITY { }    // true for +infinity
+if x != x { }                // true exactly for a NaN
+if x == f64::NAN { }         // always false
+```
+
+### Limits a type does not have
+
+A limit a format does not have is not defined, and naming it is an error ([R024E](/docs/language/diagnostics/)), never a substitute value:
+
+- `f8e4m3` is the FN format: it has no infinity, and overflow saturates to 448. `f8e4m3::INFINITY` and `f8e4m3::NEG_INFINITY` are errors; it has a `NAN`.
+- `f80` exists only where the target's `long double` is x87 extended. Elsewhere, `f80::MAX` is the same [P003E](/docs/language/diagnostics/) as spelling `f80` at all.
+- `f256` and `f512` have no limits until they have a fixed representation.
+- The float limits (`EPSILON`, `INFINITY`, ...) are not defined on integers.
+
+### `char`, `byte`, `bool`
+
+| Type | Members |
+|---|---|
+| `char` | `MIN` = `'\0'`, `MAX` = `'\U0010FFFF'`, `BITS` = 32 |
+| `byte` | `BITS` = 8. No `MIN` or `MAX`: a byte is not a number. |
+| `bool` | none |
+
+`char::MAX` is the largest Unicode scalar value. The range between `MIN` and `MAX` is not contiguous (the surrogates U+D800 to U+DFFF are not `char`s); the constants name the ends.
+
+> [!NOTE]
+> `T::MAX` on a generic parameter `T` is not supported yet.
 
 ---
 
@@ -1846,16 +1951,13 @@ var d = 2 ^^ 0.5      // error: the exponent must be an integer
 
 ### Integer overflow
 
-Unsigned overflow wraps around (modular arithmetic). Signed overflow depends on the build mode:
-
-- **Debug:** crashes with a diagnostic.
-- **Release:** wraps around silently.
+Integer arithmetic wraps around, signed and unsigned, in every build: `+`, `-`, `*`, unary `-`, `~`, `++`, `--`, the shifts and their compound assignments compute modulo 2<sup>N</sup> of the operand's type. Overflow is never undefined behavior and never a crash. Division and remainder by zero crash the program.
 
 See [Primitives](/docs/language/primitives/#overflow-behavior) for full details on numeric type behavior.
 
 ### Floating-point overflow
 
-Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 no crash, no trap. Check explicitly with `std::is_nan()`.
+Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 no crash, no trap. Test for `NaN` with `x != x`; `x == f64::NAN` is always `false`. See [Primitives](/docs/language/primitives/#limits).
 
 ---
 
@@ -1923,7 +2025,31 @@ Short-circuit evaluation applies: `&&` does not evaluate the right operand if th
 | `<<` | Left shift | `a << 2` |
 | `>>` | Right shift | `a >> 2` |
 
-Right shift is arithmetic (sign-extending) for signed types and logical (zero-filling) for unsigned types.
+A shift's result has its left operand's type `T`, of width `W`. The count `n` may be any integer type; it is taken modulo the **register width** `R`, which is 32 for types up to 32 bits, 64 for 64-bit types and 128 for 128-bit types. A negative count counts as a large unsigned one, so `x << -1` is `x << (R - 1)`.
+
+| Operator | Result |
+|---|---|
+| `x << n` | `x` shifted left by `n mod R`, computed in `R` bits, truncated to `T` |
+| `x >> n`, unsigned `T` | logical (zero-filling) shift right by `n mod R` |
+| `x >> n`, signed `T` | arithmetic (sign-filling) shift right by `n mod R` |
+| `x <<= n`, `x >>= n` | the same, with `x` evaluated once |
+
+A type narrower than 32 bits shifts in 32 bits and then truncates, so a count from `W` up to 31 moves every bit out:
+
+```kairo
+var b: u8 = 1
+var n: i32 = 9
+var x = b << n          // 0: the bit left the byte
+var s: i8 = -127
+var y = s >> n          // -1: sign fill
+var m: i32 = 33
+var z = 1i32 << m       // 2: 33 mod 32 is 1
+var w = b << m          // 2
+```
+
+Every type, value and count has exactly one result, on every target, at every optimization level and in `eval`. A shift count that is a constant must be below the width: `x << 8` on a `u8`, `y >> 32` on an `i32` and `y << -1` are compile errors.
+
+**Cost.** x86, AArch64 and RISC-V take a shift count modulo the register width in hardware, so the rule costs nothing there. 32-bit ARM shifts by the count's low byte instead and pays one instruction per shift whose count is not known to be in range (two on ARMv6-M / ARMv8-M Baseline, which must load the 31 first); in a loop the mask is hoisted and paid once per loop entry. A shift costs nothing on any target when its count is a constant, is masked by the program itself (`n & 31`, or `n % 32` on an unsigned `n`), or is the variable of a range loop that stays below the width (`for i in 0..32 { m |= x << i }`). `-Wshift-count-unproven` names every shift that pays for its mask on an ARM32 target.
 
 ---
 
@@ -1949,9 +2075,7 @@ On primitives, `x op= y` behaves like `x = x op y` with `x` evaluated once. For 
 | `--x` | Prefix decrement | Decrements `x`, returns the new value |
 | `x--` | Postfix decrement | Returns the current value, then decrements `x` |
 
-> [!WARNING]
-> Expressions that modify a variable multiple times without a sequence point (e.g., `i = i++ + ++i`) are
-> **undefined behavior**. This is inherited from C++ evaluation order semantics. Avoid combining multiple side effects on the same variable in a single expression.
+Every operand is evaluated left to right (see [Evaluation Order](#evaluation-order)), so an expression that changes a variable more than once, such as `i = i++ + ++i`, has one defined result. It is still hard to read; prefer one change per statement.
 
 ---
 
@@ -2164,10 +2288,9 @@ Named arguments follow the same rule: they run in the order written, not paramet
 
 `&&` and `||` are also left to right, with short-circuiting. See [Control Flow](/docs/language/control-flow/#short-circuit-evaluation).
 
-The operands of a primitive operator follow C++ and their order is unspecified: in `a() + b()`, either call may run first.
+The same holds for every operator and every place: a binary operator's left operand runs before its right (`a() + b()` calls `a` first), a subscript's base before its index, and an initializer's fields in the order written. An assignment evaluates its target first, then the value, then stores: in `arr[i()] = v()`, `i()` runs before `v()`. A compound assignment evaluates its target once.
 
-> [!WARNING]
-> Do not rely on the order of operands with side effects. Split the side effects into separate statements.
+This order is guaranteed, not an implementation detail. Code inside an imported C or C++ header (an inline function or a macro) keeps C++'s own rules. Keeping one side effect per statement is still easier to read.
 
 ---
 
@@ -2746,6 +2869,55 @@ Kairo provides [attributes](/docs/language/attributes/#branch-hints) to communic
 | `@unlikely` | The condition is expected to be false in the common case |
 | `@unreachable` | The branch should never execute if it does, behavior is undefined |
 
+### Hints on `else` and `else if`
+
+The hint on the first `if` goes in front of it. A hint for a later branch goes in front of the `else` that opens it: each one is for the branch it precedes.
+
+```kairo
+@likely if a {
+    ...
+} @unlikely else if b {
+    ...
+} @unlikely else {
+    ...
+}
+```
+
+`@unlikely else if b` is the hint for the `else if` branch; `@unlikely else` is the hint for the final block. A newline may separate the `}` from the attribute, so this is the same chain:
+
+```kairo
+@likely if a {
+    ...
+}
+@unlikely else if b {
+    ...
+}
+@unlikely else {
+    ...
+}
+```
+
+Only `@likely` and `@unlikely` may precede `else`; any other attribute there is an error. An attribute that is not followed by `else` is not taken: it belongs to the next statement.
+
+### `@assume`
+
+`@assume(cond)` tells the optimizer that `cond` is true at that point, so it can drop checks and pick better code for everything after. It is a statement of its own, alone on its line (a trailing `;` is fine), and attaches to nothing.
+
+```kairo
+fn sum(xs: *i32, n: usize) -> i32 {
+    @assume(n > 0)          // the loop below runs at least once
+    var total = 0
+    for var i: usize = 0; i < n; ++i {
+        total += xs[i]
+    }
+    return total
+}
+```
+
+`@assume(x > y) foo()` on one line is an error, with a fix-it that puts `foo()` on its own line: the attribute form would suggest the assumption applies to `foo()`, and it does not. The condition must be a `bool`, and `@assume` takes exactly one.
+
+A false assumption is undefined behavior. The compiler does not check it and may build code that is wrong for every input that breaks it; use [`assert`](/docs/language/control-flow/) when you want a check that is verified at run time.
+
 `@unreachable` is a hard assertion to the optimizer that the marked branch is dead code. If execution reaches an `@unreachable` branch at runtime, the behavior is undefined the compiler is free to eliminate the branch entirely and may miscompile surrounding code under that assumption.
 
 ```kairo
@@ -3083,6 +3255,14 @@ f = sub
 f(10, 3)  // 7
 ```
 
+A `fn(...)` value holds a function or a [closure](/docs/language/closures/), including one that captures variables. Where only a plain function pointer will do (a C callback, a table of functions called often), write the raw type `unsafe fn(ParamTypes) -> ReturnType`. It is one machine word and is called directly, and a named function or a closure that captures nothing converts to it. A raw pointer converts to a `fn(...)` value, but a `fn(...)` value does not convert back. See [Function Types](/docs/language/type-system/#function-types).
+
+```kairo
+struct Handlers {
+    var on_alloc: unsafe fn(usize, usize) -> unsafe *u8
+}
+```
+
 A function type for a function that may [panic](/docs/language/panic/) must declare its panic set: `fn(string) panic(IOError) -> i32`, not a bare `panic`, since a type has no body to infer the set from. A function converts to such a type when its own set is a subset of the declared one; a function that doesn't panic converts to any panicking function type. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
 
 Functions can be nested [inner functions](/docs/language/closures/#closures-vs-inner-functions) are scoped to the enclosing function:
@@ -3211,7 +3391,7 @@ add(3, 4)     // 7
 double(10)    // 20
 ```
 
-Closures have the same type as [function pointers](/docs/language/functions/#function-pointers) `fn(ParamTypes) -> ReturnType`. There is no separate closure type:
+Closures have the same type as [function pointers](/docs/language/functions/#function-pointers) `fn(ParamTypes) -> ReturnType`. There is no separate closure type. The one exception is the raw function pointer `unsafe fn(ParamTypes) -> ReturnType` (a plain C function pointer): a closure that captures nothing converts to it, and a closure that captures does not, since it has no function pointer to give. See [Function Types](/docs/language/type-system/#function-types).
 
 ```kairo
 var opr: fn(i32, i32) -> i32 = fn (a: i32, b: i32) -> i32 { return a + b }
@@ -3450,7 +3630,7 @@ If you need to reference enclosing variables by pointer, use a closure. If you d
 
 ## Passing Closures to Functions
 
-Since closures share the `fn` pointer type, they can be passed to any function expecting a function pointer:
+Since closures share the `fn` pointer type, they can be passed to any function expecting a function pointer. A parameter of the raw type `unsafe fn(...)`, such as a C callback, takes only a closure that captures nothing:
 
 ```kairo
 fn apply(f: fn(i32) -> i32, x: i32) -> i32 {
@@ -6124,7 +6304,25 @@ try {
 
 A function converts to a panicking function type when its own set is a subset of the type's; a function that doesn't panic converts to any of them. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
 
-No other modifiers (`const`, `async`, `eval`, `unsafe`) are valid on function pointer types. `const` is a property of methods (it constrains `self`), not of the function signature. `unsafe` selects a different overload namespace, not a different type. `async` and `eval` require named function declarations.
+`unsafe` before `fn` makes the type a **raw function pointer**: `unsafe fn(ParamTypes) -> ReturnType` is a plain C function pointer, one machine word, called directly. A `fn(...)` value can also hold a closure that captures variables; a raw one cannot, so only a named function or a closure that captures nothing converts to it:
+
+```kairo
+fn twice(x: i32) -> i32 { return x * 2 }
+
+var raw: unsafe fn(i32) -> i32 = twice                        // ok
+var lit: unsafe fn(i32) -> i32 = fn (x: i32) -> i32 { return x + 1 }   // ok: captures nothing
+
+var k = 3
+// var bad: unsafe fn(i32) -> i32 = fn (x: i32) -> i32 { return x * k }
+//     compile error: this closure captures, so it has no function pointer
+
+var f: fn(i32) -> i32 = raw    // ok: a raw pointer converts to a fn value
+// var back: unsafe fn(i32) -> i32 = f   // compile error: a fn value may hold a capturing closure
+```
+
+Function pointer types imported from C and C++ are raw, and so are the `fn` parameters and result of an [`ffi "c"` function](/docs/language/c-cpp-exposing/).
+
+No other modifiers (`const`, `async`, `eval`) are valid on function pointer types. `const` is a property of methods (it constrains `self`), not of the function signature. `async` and `eval` require named function declarations.
 
 See [Functions](/docs/language/functions/#function-pointers) and [Closures](/docs/language/closures/) for function pointer usage.
 
@@ -6467,6 +6665,8 @@ The bound may also reach the source through a chain of bases (`X derives Stmts<X
 
 Casting to `unsafe *T` reinterprets the pointer with no type checking equivalent to C++'s `reinterpret_cast`. The compiler performs no validation.
 
+The one exception is a cast between a class and one of its bases, in either direction (`unsafe *Derived as unsafe *Base`, or back). There the cast moves the pointer to the base subobject, exactly as the implicit upcast does, and compiles to C++'s `static_cast`. A first base usually sits at offset 0, so a plain reinterpret would happen to work for it; for any other base it would point into the wrong fields. The downcast is still unchecked: the caller vouches that the object really is the derived class.
+
 Casting a safe pointer to a raw pointer `*T as unsafe *U` requires an [`unsafe` block](/docs/language/unsafe/#unsafe-blocks). This is the point where [Tether](/docs/language/tether-bounds/#provenance-and-epochs) loses provenance: after the cast the compiler can no longer relate the pointer to the allocation it came from, so the loss is made visible at the source:
 
 ```kairo
@@ -6478,7 +6678,7 @@ unsafe {
 }
 ```
 
-Casting between `unsafe *T` types needs no `unsafe` block there is no provenance left to lose. The result is the same pointer value with a different type no runtime check, no adjustment.
+Casting between `unsafe *T` types needs no `unsafe` block there is no provenance left to lose. The result is the same pointer value with a different type no runtime check, and no adjustment unless the two pointees are a class and its base (above).
 
 > [!CAUTION]
 > Raw pointer casts bypass Tether's safety guarantees. Casting to `unsafe *void` erases type information permanently the compiler cannot verify the correctness of a subsequent cast back. Use only for [C/C++ interop](/docs/language/c-cpp/), custom allocators, and other low-level scenarios.
@@ -6530,6 +6730,7 @@ Every pointer cast is classified by what it does to *provenance* the compiler's 
 | `n as *T` | **Compile error** | | Safe pointers require provenance an integer cannot supply |
 | `*T as unsafe *U` | Allowed, requires `unsafe` block | Lost | The provenance-loss point keep it visible |
 | `unsafe *T as unsafe *U` | Allowed, no `unsafe` | Already absent | Nothing left to lose |
+| `unsafe *Derived as unsafe *Base` (or back) | Allowed, as above | As above | Adjusted to the base subobject (`static_cast`), not reinterpreted |
 | `*Derived as *Base` | Implicit | Preserved | Same allocation, adjusted offset |
 | `*Base as *Derived` | Allowed, runtime check | Preserved | Vtable check, crashes (`as *Derived`) or yields null (`as *Derived?`) |
 | `&self as *X` in `class <X derives B<X>> B` | Allowed, no runtime check | Preserved | The `derives` bound proves the relation; compiled to `static_cast` |
@@ -6686,6 +6887,7 @@ If the source type declares `op as` for `T` and `T` also has a matching construc
 | Base-to-derived ptr (checked) | `ptr as *Derived?` | Runtime check | Returns null |
 | Safe to raw pointer | `ptr as unsafe *T` | Requires `unsafe` block | Provenance loss |
 | Raw to raw pointer | `raw as unsafe *T` | No check | Reinterpret |
+| Raw pointer between class and base | `raw as unsafe *Base` | No check | Offset adjusted, like the implicit upcast |
 | Pointer to `usize` | `ptr as usize` | Safe | Address value |
 | Pointer to narrower int | `ptr as u8` | Compile error | Use `ptr as usize as u8` |
 | Integer to pointer | `n as unsafe *T` | Requires `unsafe` block | Fabricated provenance |
@@ -7444,13 +7646,16 @@ var p: *i32 = &arr[0]
 
 var second = *(p + 1)    // 20
 var third = *(p + 2)     // 30
-p = p - 1                // ok: reposition pointer
+p = p + 4                // ok: one past the end, may be compared but not dereferenced
+p = p - 1                // ok: back to the last element
 ```
+
+A safe pointer must always stay within its allocation or exactly one past its end. Forming one outside that range (`&arr[0] - 1`, `&arr[0] + 5`) is a compile error when Tether can see it statically, and a runtime check at the arithmetic when the offset is runtime data. See [Forming versus dereferencing](/docs/language/tether-bounds/#forming-versus-dereferencing-and-one-past-the-end).
 
 Pointer-to-pointer arithmetic (`p1 - p2`) is not permitted on safe pointers use `unsafe *T` for that.
 
 > [!CAUTION]
-> Safe pointer arithmetic is bounds-checked by [Tether](/docs/language/tether-bounds/#pointer-arithmetic) only when provenance is trackable. If the pointer originates from a context where Tether cannot determine the allocation bounds, the arithmetic compiles but bounds safety is not guaranteed. Prefer array/vector indexing over pointer arithmetic when possible.
+> Safe pointer arithmetic needs provenance [Tether](/docs/language/tether-bounds/#pointer-arithmetic) can track. A safe pointer whose allocation Tether cannot determine (for example, one that came from C++ untracked) cannot be offset or dereferenced in safe code; use an `unsafe` block. Prefer array/vector indexing over pointer arithmetic when possible.
 
 ### On raw pointers (`unsafe *T`)
 
@@ -7581,6 +7786,7 @@ See [Tether](/docs/language/tether/) for how allocation interacts with lifetime 
 |---|---|
 | `==` | Compares addresses do both pointers point to the same location? |
 | `!=` | Negation of `==` |
+| `<` `<=` `>` `>=` | Address order. On safe pointers, both operands must point into the same allocation (one-past included); otherwise it is a compile error |
 | `===` | Null-aware equality on nullable pointers (`*T?`): true when both are non-null and the values they point to are equal (one level: on `(**T)?` it compares the `*T` addresses) |
 
 ```kairo
@@ -7881,7 +8087,7 @@ std::println(*q)   // 100 defined behavior
 ```
 
 > [!IMPORTANT]
-> This freedom is single-threaded only. The moment an allocation is shared across a thread boundary (captured into a [`spawn`](/docs/language/concurrency/#spawn)/`thread`), Tether switches to a stricter rule: one writer, or many readers, never both. Arbitrary mutable aliasing is permitted within one thread because a single-threaded race is impossible; across threads it is undefined behavior that no runtime check can rule out, so the rule tightens exactly at the boundary. See [Tether Threading](/docs/language/tether-threading/#threading).
+> This freedom is single-threaded only. The moment an allocation is shared across a thread boundary (captured into a [`spawn`](/docs/language/concurrency/#spawn)ed task), Tether switches to a stricter rule: one writer, or many readers, never both. Arbitrary mutable aliasing is permitted within one thread because a single-threaded race is impossible; across threads it is undefined behavior that no runtime check can rule out, so the rule tightens exactly at the boundary. See [Tether Threading](/docs/language/tether-threading/#threading).
 
 This applies uniformly regardless of `const`:
 
@@ -7939,7 +8145,7 @@ fn make() -> *i32 {
 A stack escape of a heap-promotable value is **debug-transformable / release-error** Tether can lift `x` to the heap, which turns the escape into a legal ownership transfer. A stack escape with *no value to lift* (a borrow with no owner, an escape into an opaque sink where Tether cannot establish the heap-allocation pattern) is a hard error in both modes there is nothing to transform. This is the split the [Tether Stack Pointers](/docs/language/tether-promotion/#stack-pointers) section details in full. Either way, the fix in release is to allocate explicitly or restructure.
 
 > [!NOTE]
-> **Data-race detection across threads** is enforced by Tether's strict threading mode. When an allocation is shared across a `spawn`/`thread` boundary, Tether requires a single writer (or read-only sharing) and treats a second writer, or any unsynchronized write+read, as a hard error. The synchronization primitives that discharge these obligations depend on Kairo's concurrency runtime, which is not yet finalized the analysis shape is fixed, the runtime seam is not. See [Tether Threading](/docs/language/tether-threading/#threading) and [Concurrency](/docs/language/concurrency/).
+> **Data-race detection across threads** is enforced by Tether's strict threading mode. When an allocation is shared across a `spawn` boundary, Tether requires a single writer (or read-only sharing) and treats a second writer, or any unsynchronized write+read, as a hard error. The synchronization primitives that discharge these obligations depend on Kairo's concurrency runtime, which is not yet finalized the analysis shape is fixed, the runtime seam is not. See [Tether Threading](/docs/language/tether-threading/#threading) and [Concurrency](/docs/language/concurrency/).
 
 ### What Tether does not enforce
 
@@ -8206,6 +8412,8 @@ Tether operates on [safe pointers](/docs/language/pointers/#safe-pointers-t) (`*
 
 Where Tether places a value's destruction depends on whether the destructor is observable.
 
+A destructor is **timing-insensitive** if and only if it does nothing but free memory the value owns and run destructors that are themselves timing-insensitive (fields, bases, owned pointees). Everything else is **observable**: a destructor that touches a global or `thread` variable, does I/O, takes or releases a lock, changes a reference count, calls C or C++, or calls any function not known to be timing-insensitive. This is a different property from being trivially destructible: a destructor with a body that only frees an owned buffer is not trivial, but it is timing-insensitive. In the rest of this section, "trivial" means timing-insensitive.
+
 **Trivial destructors** (no observable side effect just memory to reclaim) run at **last use**. Tether places the `@destroy`/`@free` as early as the final use permits, since reclaiming memory after the last use is indistinguishable from reclaiming it at the scope brace:
 
 ```kairo
@@ -8236,7 +8444,7 @@ Arena memory is freed wholesale at scope end; see [Scoped allocator](/docs/langu
 
 ## Copy Elision
 
-For [COPY types](/docs/language/ownership/#copy-types), Tether may emit a move instead of a copy when it proves the source is unused after the transfer **and** the elision is unobservable. Elision means the source's destructor runs at the transfer point instead of at its own scope exit; Tether performs it only when the destructor's observable effects do not depend on that timing trivial destructors, or effects (a `free`, a refcount decrement) that produce identical observable behavior either way.
+For [COPY types](/docs/language/ownership/#copy-types), Tether may emit a move instead of a copy when it proves the source is unused after the transfer **and** the elision is unobservable. Elision means the source's destructor runs at the transfer point instead of at its own scope exit; Tether performs it only when the source's destructor is [timing-insensitive](#destruction-timing). A `Shared` source is never elided this way: its decrement can be the one that reaches zero and runs the pointee's destructor, so it counts as observable.
 
 If the destructor has timing-sensitive side effects a flush, a lock release, a log line Tether does not elide. The copy is preserved and the source is destroyed at its lexical scope exit as written. Elision is silent precisely because it is only applied where it cannot be observed. The programmer neither opts in nor controls it, and it is never applied if the move constructor is deleted.
 
@@ -8259,6 +8467,9 @@ The whole system, in one table maps each clause's residual to its response:
 | Residual                                         | Response                                     | Tier |
 |--------------------------------------------------|----------------------------------------------|------|
 | bounds (range)                                   | hoisted/local check, both modes              | R    |
+| formation range, unprovable                      | hoisted/local check at the arithmetic        | R    |
+| formation outside `[base, base+count]` (static)  | compile error                                | N    |
+| `<` across allocations / unprovable provenance   | compile error                                | N    |
 | UAF (provenance intact)                          | epoch compare, both modes                    | R    |
 | UAF (provenance lost)                            | hard error                                   | N    |
 | nullability                                      | compile error, both modes                    | N    |
@@ -9065,7 +9276,7 @@ fn main() -> i32 {
 }
 ```
 
-`crash!("why")` writes `why` and a newline to stderr, then aborts; `crash!()` writes nothing. The rest of the crash family ends the program the same way, each with a message the compiler builds (what failed and its `file:line:col`): `unwrap!` on null, a failed checked `as` into a closed enum, and a failed [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) `p as *D`.
+`crash!("why")` writes `why` and a newline to stderr, then aborts; `crash!()` writes nothing. The rest of the crash family ends the program the same way, each with a message the compiler builds (what failed and its `file:line:col`): `unwrap!` on null, a failed checked `as` into a closed enum, and a failed [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) `p as *D`. Integer division or remainder by zero crashes the same way, with the message `kairo: division by zero`.
 
 > [!NOTE]
 > A crash runs on a program that is already broken, so it does only what a signal handler may: one `write` of an already-built message (at most 4096 bytes) to stderr, then `abort()`, with any `SIGABRT` handler the program installed reset first. No allocation, no locks, no Kairo code runs. `crash!` is a macro defined in the builtin library ([what it may do](/docs/language/macros-builtin/)).
@@ -9104,6 +9315,7 @@ Some failures stop the program instead of producing an error value. None of them
 - `crash!()`.
 - [`unwrap!`](/docs/language/nullables/) on a null value.
 - A failing [asserting downcast](/docs/language/casting/#downcasting-base-to-derived), `p as *Derived`. The compiler warns on every asserting downcast and suggests the checked form `p as *Derived?`, which yields null instead.
+- Integer division or remainder by zero ([overflow behavior](/docs/language/primitives/#overflow-behavior)).
 
 A bad cast or a null unwrap is a programmer error, not a recoverable condition. Making it a panic would add an error type to every function that downcasts, and to every caller above it.
 
@@ -9520,6 +9732,8 @@ eval DEFAULT = Config("default")
 ```
 
 An f-string is not a compile-time value: it formats into a buffer allocated at run time.
+
+The primitives' [limits](/docs/language/primitives/#limits) are compile-time values too: `eval BIG = u32::MAX`, `eval TINY = f64::MIN_POSITIVE`, and `eval if usize::BITS == 64 { ... }`.
 
 ### Fixed-size arrays
 
@@ -10461,6 +10675,8 @@ Attributes are compile-time AST transformations. They modify the structure of de
 
 ## Defining Attributes
 
+> Attribute macros parse, but the compiler does not expand them yet: using one is rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) rather than doing nothing. See [Status](/docs/status/).
+
 Attributes are defined with the `macro` keyword followed by `@name` and a parameter list. The first parameter is always a pointer to the AST node being transformed:
 
 ```kairo
@@ -10620,7 +10836,18 @@ Kairo provides built-in attributes that are handled directly by the compiler:
 | Attribute | Description | Applies to |
 |---|---|---|
 | `@packed` | Remove padding between members | Classes, structs, unions |
-| `@align(N)` | Set minimum alignment to N bytes | Classes, structs, unions |
+| `@align(N)` | Set minimum alignment to N bytes | Classes, structs, unions, fields, variables |
+
+`@packed` lays the members out back to back at alignment 1, with no padding between them or at the end, as C's `__attribute__((packed))` does. `@align(N)` raises the alignment to N (it never lowers it below the natural alignment), and the size rounds up to a multiple of it. N is an integer literal, a power of two, at most 2^28; anything else is an error. On a field or a variable, `@align(N)` raises that member's or variable's alignment the same way. Together on one record, `@packed @align(N)` packs the members and aligns the whole to N, like `__attribute__((packed, aligned(N)))`.
+
+```kairo
+@packed struct P { var a: u8; var b: u32 }      // sizeof 5, alignof 1
+@align(16) struct Q { var a: u8 }               // sizeof 16, alignof 16
+@packed @align(4) struct PA { var a: u8; var b: u32 }   // sizeof 8, alignof 4
+struct F { var a: u8; @align(8) var b: u8 }     // b at offset 8; sizeof 16
+```
+
+The layout the compiler computes for `sizeof` and `alignof` in a declaration-scope `eval if` is the same one the generated C++ has, so a branch chosen on a record's size matches the size at run time. A heap allocation of an `@align(N)` type through `create` is N-aligned: it asks the allocator for `alignof T`.
 
 See [Classes](/docs/language/classes/#memory-layout-and-allocation) and [Structures](/docs/language/structures/#memory-layout) for layout details.
 
@@ -10630,7 +10857,23 @@ See [Classes](/docs/language/classes/#memory-layout-and-allocation) and [Structu
 |---|---|---|
 | `@likely` | Condition is expected to be true | `if` statements |
 | `@unlikely` | Condition is expected to be false | `if` statements |
-| `@unreachable` | Branch should never execute (UB if reached) | `match`/`if` branches |
+| `@unreachable` | Branch should never execute (UB if reached). Not implemented yet: rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | `match`/`if` branches |
+| `@likely` / `@unlikely` before `else` | Hint for the `else` or `else if` branch that follows | `else`, `else if` |
+| `@assume(cond)` | The optimizer may take `cond` as true from here on (UB if it is false) | A statement of its own |
+
+`@likely` and `@unlikely` also go between a branch's closing `}` and the `else` after it; each hint is for the branch it precedes. `@assume(cond)` is not an attribute on anything: it is a statement on its own line.
+
+```kairo
+@likely if a {
+    fast()
+} @unlikely else if b {
+    rare()
+} @unlikely else {
+    rarer()
+}
+
+@assume(n > 0)
+```
 
 See [Control Flow](/docs/language/control-flow/#branch-hints) for branch prediction hints.
 
@@ -10640,6 +10883,22 @@ See [Control Flow](/docs/language/control-flow/#branch-hints) for branch predict
 |---|---|---|
 | `@no_warn(CODE)` | Suppress a specific compiler warning | Any declaration |
 | `@deprecated(msg)` | Mark a declaration as deprecated | Any declaration |
+
+`@deprecated` (with no argument) or `@deprecated("message")` makes every use of the declaration a warning that names it and the message, with a note at the attribute. The declaration itself is not reported, and neither is a use inside it.
+
+```kairo
+@deprecated("use read_all instead")
+fn read() -> i32 { return 0 }
+
+fn main() -> i32 { return read() }   // warning: 'read' is deprecated: use read_all instead
+```
+
+`@no_warn(CODE, ...)` drops those warnings wherever they are reported inside the declaration, by any stage of the compiler. Each code must be a warning code (`SC031W`): an unknown code is an error, and so is an error code, since an error cannot be suppressed.
+
+```kairo
+@no_warn(SC031W)
+fn f() -> i32 { var y: i32 = 1 as i32; return y }   // no redundant-cast warning
+```
 
 ### Unwinding
 
@@ -10670,6 +10929,41 @@ A closure cannot carry `@unwind` yet: written before a closure, it is an express
 
 See [Exceptions](/docs/language/c-cpp-exceptions/#exceptions) for how C++ exceptions move through Kairo code.
 
+### Function hints
+
+| Attribute | Description | C++ | Applies to |
+|---|---|---|---|
+| `@hot_path` | The function runs often: optimize it for speed and keep it close to other hot code | `[[gnu::hot]]` | Functions, methods |
+| `@cold_path` | The function runs rarely (error handling, setup): optimize it for size and keep it out of the way | `[[gnu::cold]]` | Functions, methods |
+| `@pure` | The function's result depends only on its inputs and memory it can read, and it writes nothing else | `[[gnu::pure]]` | Functions, methods |
+| `@no_inline` | Never inline the function: it keeps its own symbol and its own code, as for a benchmark kernel or a rarely taken path kept out of its caller | `__attribute__((noinline))` | Functions, methods |
+
+```kairo
+@hot_path fn next(state: *Rng) -> u64 { /* ... */ }
+@cold_path fn report_failure(code: i32) { /* ... */ }
+@pure fn length(v: *Vec3) -> f64 { return sqrt(v->x * v->x + v->y * v->y + v->z * v->z) }
+```
+
+Each is a promise to the optimizer, written on the function and checked where the compiler can. `@hot_path` together with `@cold_path` on one function is an error, and any of the three on something that is not a function ('`@hot_path` applies only to a function') is an error with a fix-it that removes it.
+
+`@pure` is checked. In its body the compiler reports:
+
+- a write to a global or `static` variable;
+- an assignment through a pointer (`*p = x`, `p->field = x`, `p[i] = x`);
+- a call to anything that is not a const function, another `@pure` function, an `eval fn` or a compiler intrinsic.
+
+Reading globals and reading through pointers is allowed; that is the difference between `@pure` and a [const function](/docs/language/functions-declarations/#const-functions), which may read only its own inputs. A `@pure` function whose result changes between calls with the same arguments because something else wrote the memory it reads is fine: the optimizer only merges calls when no write could have happened in between.
+
+### Calling conventions
+
+| Attribute | Description | C++ | Applies to |
+|---|---|---|---|
+| `@preserve_most` | The callee saves nearly every general-purpose register: for a rarely taken slow path called from hot integer code | `__attribute__((preserve_most))` | `priv` functions and methods |
+| `@preserve_all` | As `@preserve_most`, and the callee also saves the floating-point and vector registers | `__attribute__((preserve_all))` | `priv` functions and methods |
+| `@preserve_none` | The callee saves nothing: for tail-call-heavy dispatch, such as an interpreter's opcode handlers | `__attribute__((preserve_none))` | `priv` functions and methods |
+
+At most one per function, never on a function C or C++ can see, and only on x86-64 and AArch64. See [Calling conventions](/docs/language/functions-declarations/#calling-conventions) for the rules and the register table.
+
 ### Enums
 
 | Attribute | Description | Applies to |
@@ -10690,9 +10984,13 @@ See [Implicit `op as`](/docs/language/operator-overloading/#implicit-op-as) for 
 
 | Attribute | Description | Applies to |
 |---|---|---|
-| `@core::where_handler` | Custom handler for where-clause failures | Functions |
+| `@core::where_handler` | Custom handler for where-clause failures. Not implemented yet | Functions |
 
 See [Where Clauses](/docs/language/where/) for the where handler system.
+
+### Unknown and misplaced attributes
+
+An attribute is never accepted and ignored. An attribute name the compiler does not know is an error, `unknown attribute '@name'`, with a fix-it that removes it and a suggestion when the name is close to a built-in one (`@pakced`: did you mean `@packed`?). A built-in attribute written where it does not apply is an error that says where it does (`'@packed' applies only to a class, struct or union`), also with a fix-it that removes it. A [user-defined attribute](#defining-attributes) is rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) for now: attribute macros parse, but they are not expanded yet.
 
 ---
 
@@ -11037,7 +11335,7 @@ Functions with a `yield T` return type are generators: they produce values coope
 
 ### `spawn`
 
-Launching concurrent work. Syntax and runtime model (green threads, OS threads, or event loop) are being finalized.
+`spawn f(args)` starts an `async` function as a concurrent task and returns its future. `await` on the future joins the task; a task whose future is never awaited is detached. The runtime model (green threads, OS threads, or event loop) is being finalized. See [Threading](/docs/language/tether-threading/) for how Tether analyzes what a task captures.
 
 ### Atomic Types (`atomic T`)
 
@@ -11057,7 +11355,8 @@ Classes can define `fn <T> op await(self, obj: std::forward<T>) -> T` to customi
 
 ```kairo
 await async_fn()       // syntax sugar for a state machine
-spawn some_async_fn()  // syntax sugar for detaching a thread
+var fut = spawn some_async_fn()  // start a concurrent task
+await fut                        // join it; never awaiting detaches it
 yield some_value       // syntax sugar for a coroutine, function must have yield on return type
 
 fn get_tokens() -> yield string {
@@ -11069,7 +11368,7 @@ fn get_tokens() -> yield string {
 `op await` is overloadable: `fn op await (self) -> T` for custom async types.
 
 - `await async_fn()` syntax sugar for state machine
-- `spawn some_async_fn()` syntax sugar for detaching a thread
+- `spawn some_async_fn()` starts a concurrent task and returns its future; never awaiting it detaches the task
 - `yield some_value` coroutine syntax, function must have `-> yield T` return type
 - `fn op await (self) -> T` overloadable for custom async types
 - `atomic T` thread-safe wrapper type
@@ -11162,9 +11461,25 @@ Allocation goes through [`@create T()`](/docs/language/pointers/#heap-allocation
 
 ### Global allocator
 
-The default for [`@create T()`](/docs/language/pointers/#heap-allocation) and all standard-library heap operations. Overridable with `@mem::set_allocator(MyAllocator)` at the top of a file.
+The default for [`@create T()`](/docs/language/pointers/#heap-allocation) and all standard-library heap operations. Out of the box it is `System`, the platform's `malloc`. A program replaces it with `@set_global_allocator`, on a line of its own at file scope:
 
-**Intentional friction**: the override must appear at the top of *every file in the dependency graph* it affects. A library that sets a global allocator forces the annotation onto every transitive dependent. This keeps global-allocator changes visible and pushes library authors toward scoped allocators.
+```kairo
+class Arena {
+    static fn alloc(size: usize, align: usize) -> unsafe *u8 { ... }
+    static fn free(ptr: unsafe *u8, size: usize, align: usize) { ... }
+    static fn resize(ptr: unsafe *u8, old_size: usize, new_size: usize, align: usize) -> bool { ... }
+    static fn realloc(ptr: unsafe *u8, old_size: usize, new_size: usize, align: usize) -> unsafe *u8 { ... }
+    static fn alloc_zeroed(size: usize, align: usize) -> unsafe *u8 { ... }
+}
+
+@set_global_allocator(Arena)
+```
+
+The choice is made when the program **links**, not per file: every file's allocations, and those of every library linked in, go to `Arena` without any of them mentioning it. The argument must be a class or struct with the five static functions above (the `FullAllocator` interface); a missing one is an error at the attribute.
+
+**One per program.** Exactly one linked file may set it. A second in the same file, or in another file of the same build, is a compile error naming both; two objects compiled separately that each set it are a link error naming both objects. A library should not set the global allocator: that decision belongs to the program. Libraries that want their own memory use a [scoped allocator](#scoped-allocator) or the `_in` functions with an allocator of their own.
+
+How it works, and what is fixed for compatibility, is under [The global allocator ABI](#the-global-allocator-abi).
 
 ### Scoped allocator
 
@@ -11189,7 +11504,7 @@ A scoped-allocator variant for embedded and bare-metal targets, conforming throu
 
 ## The Allocator Interface
 
-A type passed to `@mem::set_allocator` or `@mem::set_scoped_allocator`, or used as a freestanding allocator, must satisfy `Allocator`. Conformance is [structural](/docs/language/interfaces/#structural-conformance) and goes through static functions only, so an allocator carries no instance state and no vtable:
+A type passed to `@set_global_allocator` or `@mem::set_scoped_allocator`, or used as a freestanding allocator, must satisfy `Allocator` (and `@set_global_allocator` needs the whole `FullAllocator`: `Resizer`, `Reallocator` and `ZeroAllocator` too). Conformance is [structural](/docs/language/interfaces/#structural-conformance) and goes through static functions only, so an allocator carries no instance state and no vtable:
 
 ```kairo
 interface Allocator {
@@ -11205,6 +11520,43 @@ interface Reallocator derives Allocator {
 An allocator that does not conform to `Reallocator` is grown with `alloc`, a copy, and `free`.
 
 This is not the same thing as the `Heap` example on the Interfaces page. That is a [virtual interface](/docs/language/interfaces/#virtual-interfaces): instance-based, called through a pointer with dynamic dispatch. `Allocator` is static and resolved at compile time.
+
+---
+
+## The global allocator ABI
+
+The global allocator is five C symbols. The builtin's `Global` calls them; which allocator answers is decided by the linker:
+
+```c
+unsigned char *kairo_global_alloc(size_t size, size_t align);
+void           kairo_global_free(unsigned char *ptr, size_t size, size_t align);
+bool           kairo_global_resize(unsigned char *ptr, size_t old_size, size_t new_size, size_t align);
+unsigned char *kairo_global_realloc(unsigned char *ptr, size_t old_size, size_t new_size, size_t align);
+unsigned char *kairo_global_alloc_zeroed(size_t size, size_t align);
+```
+
+- The runtime defines all five **weakly**, as `System`: `malloc`, `free`, `realloc` and `calloc` up to an alignment of `2 * sizeof(void *)`, the platform's aligned allocation past it. `resize` grows nothing and keeps any shrink.
+- The file that writes `@set_global_allocator(A)` defines all five **strongly**, each a forwarder to `A`'s static function of the same name. A strong definition beats a weak one, so the program gets `A`. Two strong definitions are the duplicate-symbol error described above.
+- C or C++ code can supply the global allocator the same way: define the five symbols (with C linkage) in any object of the link.
+- Without LTO, a call through `Global` is one direct call to the symbol. With LTO the forwarder, and `A`'s functions where they are inline, inline into the caller.
+
+The contract is `Allocator`'s: `align` is a power of two and `size` is never 0 (the front end handles both before an allocator is reached); `free` gets the size and alignment the block was made with, or the new size of its last successful `resize`/`realloc`; failure is a null return, never an abort; a failed `resize` or `realloc` leaves the block as it was; every function is thread-safe. `resize` never moves the block (`false`: nothing changed); `realloc` may (null: nothing changed). The names, the argument order and these types are fixed across compiler versions, so objects built by different Kairo releases, and hand-written C, link together.
+
+### `ScopeFrame`
+
+A [scoped allocator](#scoped-allocator) in effect is one `ScopeFrame` on the stack of the function that opened it, linked into a per-thread stack (`scope_top`; a plain global on targets with no threads). Allocation goes to the top frame; `free` goes to the frame whose range holds the address, or to the global allocator when none does. Code built by different compiler versions shares this stack, so the frame's layout is ABI: seven pointer-sized fields, in this order, with no padding between them:
+
+| # | Field     | Type                                                          |
+|---|-----------|---------------------------------------------------------------|
+| 0 | `alloc`   | `unsigned char *(*)(size_t size, size_t align)`                |
+| 1 | `free`    | `void (*)(unsigned char *ptr, size_t size, size_t align)`      |
+| 2 | `resize`  | `bool (*)(unsigned char *ptr, size_t old, size_t new, size_t align)` |
+| 3 | `realloc` | `unsigned char *(*)(unsigned char *ptr, size_t old, size_t new, size_t align)` |
+| 4 | `lo`      | `unsigned char *`, the first address the allocator hands out   |
+| 5 | `hi`      | `unsigned char *`, one past the last                           |
+| 6 | `prev`    | `ScopeFrame *`, the frame below, or null                       |
+
+The four functions are the allocator's static functions, with the same contract as the global symbols. `lo`/`hi` are the allocator's `range()` when the scope opened. Reordering, removing or retyping a field is an ABI break between objects built by different compiler versions.
 
 ---
 
@@ -11236,6 +11588,7 @@ Every object produced by `kairo` or `kcc` carries an ABI note section recording:
 - the set of ABI-affecting settings that were in effect, canonicalized and sorted
 - a hash of that set, for fast comparison
 - a format version
+- the calling conventions the object defines or calls (`@preserve_most`, `@preserve_all`, `@preserve_none`), and, when it uses any, the LLVM major that generated it. LLVM does not keep these conventions stable across releases, so `kld` rejects a link in which two objects that use them were built by different LLVM majors (see [Calling conventions](/docs/language/functions-declarations/#calling-conventions)). Objects that use none of them never take part in this check.
 
 At link time, `kld` compares hashes. A mismatch is a clean link error naming the specific flag:
 
@@ -11624,6 +11977,24 @@ fn main() {
 
 A `*const c_char` in an f-string prints as a pointer (`const c_char @ 0x...`), like any pointer: there is no C-string formatter yet. A `string.c_str()` method is planned.
 
+### Function pointers and callbacks
+
+A C or C++ function pointer type (`int (*)(int)`) imports as the raw Kairo type `unsafe fn(i32) -> i32`. A named Kairo function or a closure that captures nothing can be passed there. A closure that captures, or a `fn(...)` value (which may hold one), is a compile error, because C has nowhere to keep the captured variables:
+
+```kairo
+ffi "c" import "callbacks.h"     // int c_apply(int (*f)(int), int x);
+
+fn twice(x: i32) -> i32 { return x * 2 }
+
+fn main() -> i32 {
+    var k = 3
+    var a = c_apply(twice, 4)                                   // 8
+    var b = c_apply(fn (v: i32) -> i32 { return v + 1 }, 4)     // 5
+    // c_apply(fn (v: i32) -> i32 { return v * k }, 4)   // error: the closure captures 'k'
+    return a + b
+}
+```
+
 ---
 
 ## Templates and Concepts
@@ -11980,6 +12351,11 @@ A module that defines nothing (only comments, or only [`pub import` re-exports](
 | `@inout x: T`, `@move x: T` | `T&`, `T&&` |
 | `type Name = T` inside a class | `using Name = T;` member, under the same access level |
 | `@no_unwind fn f()` | `void f() noexcept` |
+| `f: fn(i32) -> i32` | `::__kairo_fn<std::int32_t(std::int32_t)>`, a function or closure value |
+| `f: unsafe fn(i32) -> i32` | `std::int32_t (*)(std::int32_t)`, a plain function pointer |
+| `ffi "c" fn apply(f: fn(i32) -> i32, x: i32) -> i32` | `extern "C" std::int32_t apply(std::int32_t (*f)(std::int32_t), std::int32_t x)` |
+
+An `ffi "c"` function's `fn` parameters and result are raw function pointers whether or not they are written `unsafe fn`, because C passes and expects a plain function pointer. A Kairo caller can pass a named function or a closure that captures nothing; passing a capturing closure is a compile error.
 
 Extension methods are not C++ member functions. Kairo keeps a class's C++ definition identical everywhere it appears, so a method added by [`extend`](/docs/language/extends/), even in the same file, is a free function taking the receiver as its first parameter. Call it as `geo::vec::len(&v)`.
 
@@ -12111,10 +12487,10 @@ These are what the [ownership annotations](#ownership-annotations-in-generated-h
 For code that wants Kairo's *own* allocations to follow C++'s allocation path, so that a global `operator new` override does apply to them, `core` provides `CxxNewAllocator`:
 
 ```kairo
-@mem::set_allocator(core::CxxNewAllocator)
+@set_global_allocator(core::CxxNewAllocator)
 ```
 
-This is the unusual case, not the default. The [intentional friction](/docs/language/allocators/#global-allocator) rule applies: the annotation must appear at the top of every file in the affected dependency graph.
+This is the unusual case, not the default. Like any [global allocator](/docs/language/allocators/#global-allocator) it is chosen once per program: one file sets it, and every file and library linked in follows.
 
 ### Ownership annotations in generated headers
 
@@ -12196,7 +12572,7 @@ The same applies to the C++ standard library. A program that uses libc++ must li
 
 ### Cross-compilation
 
-Both `kairo` and `kcc` are full native cross-compilers. Targets are selected by triple, and system libraries come from **curated sysroots** hosted for download rather than from the host machine:
+Both `kairo` and `kcc` are full native cross-compilers. Targets are selected by triple, and system libraries come from **curated sysroots** hosted for download rather than from the host machine. A `--target` build is hermetic; a build without one also searches the host's system directories, after the sysroot (see [Host headers and libraries](#host-headers-and-libraries)):
 
 ```sh
 kcc --target=x86_64-pc-windows-msvc foo.cc
@@ -12212,6 +12588,78 @@ How `--target` finds its sysroot:
 - `-m32` / `-m64` look up the architecture they switch to: `--target=x86_64-linux-musl -m32` uses `i686-linux-musl`.
 - A bundled sysroot takes precedence over `--sysroot`. With no matching folder, `--sysroot` is used if given; otherwise there are no system headers.
 - A matching folder without a loadable `SYSROOT.toml` is an error: [P007E](/docs/language/diagnostics/#p007e-bundled-sysroot-for-the-target-is-malformed) "bundled sysroot for the target is malformed".
+
+### Host headers and libraries
+
+A build sees the machine it runs on in one of three ways, decided by the flags:
+
+| Mode | Flags | C library | Host headers and libraries |
+|---|---|---|---|
+| Default | no `--target`, no `--sysroot` | The bundled sysroot for this host (glibc 2.31 on a glibc Linux host, musl on a musl host) | Searched **after** the sysroot |
+| Native | `--native` | The host's own | Searched as clang does natively |
+| Hermetic | `--target=<triple>` (or `--sysroot`) | The bundled sysroot for the triple | Never |
+
+**Default.** On a glibc Linux host a plain `kairo main.k` builds for `<arch>-unknown-linux-gnu` against the bundled glibc 2.31 sysroot, the *glibc floor*. The program then runs on any Linux with glibc 2.31 or newer. On top of the floor, the host's system directories are searched last:
+
+- Headers: the bundled libc++, then Clang's builtin headers, then the floor's glibc headers, and only then the host's `/usr/local/include`, `/usr/include/<multiarch>` and `/usr/include` (as `-idirafter`). `<stdio.h>` always comes from the floor. Only a header the floor lacks, such as `zlib.h` or `curl/curl.h`, comes from the host.
+- Libraries: the sysroot's library directory, then the host's `/usr/local/lib`, `/usr/lib/<multiarch>`, `/usr/lib64`, `/usr/lib`, `/lib/<multiarch>`, `/lib64` and `/lib`. `libc` and `libm` always come from the floor.
+
+So installed C libraries work without extra flags beyond naming them:
+
+```kairo
+ffi "c" import "curl/curl.h"
+
+fn main() -> i32 {
+    var unsafe *v = curl_version()
+    return 0
+}
+```
+
+```sh
+kairo main.k --pkg-config libcurl -o main
+```
+
+`kairo --print-clang-args main.k` shows the header search order, and `kairo --print-dirs main.k` the library search order (the host's directories are listed under `host library search`).
+
+**What raises the floor.** A host library was built against the host's glibc, which is usually newer than 2.31. Linking one can make the program need that newer glibc:
+
+- A host **shared** library is linked with `--allow-shlib-undefined`, because the floor's `libc.so` lacks the newer symbol versions it uses. After the link, Kairo reads the library's version needs and warns when one is above the floor:
+  `warning [L001W]: 'libcurl.so.4' needs GLIBC_2.43, so this program needs glibc 2.43 or newer to run (the floor is 2.31)`.
+  The program runs on this machine. To run it on an older one, ship it with that library (or one built against an older glibc).
+- A host **static** archive (`.a`) from a host directory gets a warning too: once it is linked in, nothing can see what it needs from glibc, so it can raise the floor silently.
+
+The floor is Linux-only. On macOS and Windows the default build uses the bundled SDK or MinGW-w64 sysroot as before.
+
+**Native: `--native`.** Builds against the host's own C library, headers and libraries, in Clang's normal native search order, like Zig's native mode. There is no sysroot. The bundled libc++, libunwind and compiler-rt are still used (linked by path, so the host's `libc` is the one linked). The program needs the host's glibc version, with no floor. `--native` cannot be combined with `--target`: one names this machine, the other a triple built hermetically. `--native` is implemented for Linux hosts so far.
+
+**Hermetic: `--target`.** A `--target` build uses the bundled sysroot only. No host directory and no host environment search path is ever consulted, so a cross build gives the same result on every machine. Naming a root with `--sysroot`, or building `--freestanding`, is hermetic too.
+
+#### `--pkg-config`
+
+`--pkg-config <name>` (repeatable) runs `pkg-config --cflags --libs <name>` and applies the result:
+
+- `-I`, `-isystem`, `-D` and `-U` go to Clang, for `ffi` headers and C/C++ inputs.
+- `-L`, `-l`, `-pthread` and `-Wl,...` go to the link.
+- A `-I` or `-L` naming a host system directory is dropped, because those are already searched after the sysroot. As a `-I` it would come before the sysroot, and `-I/usr/include` ahead of libc++ breaks `<cstring>`.
+
+pkg-config reads `PKG_CONFIG_PATH`, `PKG_CONFIG_LIBDIR` and `PKG_CONFIG_SYSROOT_DIR` itself, and `PKG_CONFIG` names a different program. A missing pkg-config, or a package it does not know, is an error naming the package. With `--target`, `--pkg-config` is an error unless `PKG_CONFIG_SYSROOT_DIR` or `PKG_CONFIG_LIBDIR` is set, because the host's `.pc` files describe the host, not the target.
+
+#### Environment variables
+
+In the default and native modes, Kairo honors the variables Clang's driver reads, in the same positions:
+
+| Variable | Effect |
+|---|---|
+| `CPATH` | Like `-I`, after the command line's own `-I` |
+| `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH` | System include directories for C and C++, searched after the sysroot's headers |
+| `LIBRARY_PATH` | Library directories, after the sysroot's and before the host's defaults |
+| `NIX_CFLAGS_COMPILE`, `NIX_LDFLAGS` | Their `-isystem` / `-idirafter`, `-L` and `-rpath` words, as on Nix |
+
+A `--target` build ignores all of them.
+
+#### C++ libraries from the host
+
+Kairo links its own libc++. A host C++ library built against GCC's libstdc++ is not ABI-compatible with it wherever `std::` types cross the boundary (`std::string`, containers, exceptions). Host C libraries are fine. For a C++ library, build it with the toolchain (`kcc`) or use its C API.
 
 > [!NOTE]
 > Cross-compiling to a GCC or MSVC target does not mean invoking GCC or MSVC. `kairo` and `kcc` produce object code for those platforms' ABIs directly, using the pinned Clang and the curated sysroot.
@@ -13856,6 +14304,17 @@ The note points at the enum. When the enum is declared in the same file, a fix-i
 
 The fix-it removes the attribute.
 
+### SC001E: an unknown or misplaced attribute
+
+```
+unknown attribute '@fast_call'
+'@packed' applies only to a class, struct or union
+'@align' expects one integer literal that is a power of two, at most 268435456: '@align(16)'
+'@no_warn' 'SC001E' is an error; only a warning can be suppressed
+```
+
+No [attribute](/docs/language/attributes/#unknown-and-misplaced-attributes) is accepted and ignored: a name the compiler does not know, a built-in attribute where it does not apply, and a bad argument are errors. A note suggests a close built-in name; the fix-it removes the attribute.
+
 ### SC001E: a pack-expanded variant is malformed
 
 A [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) `V { e: E }...` must have a payload that names the enum's type pack, must be the enum's last variant, and must be its only one. A pack named in a variant without `...` is the same error. The code is a placeholder until the error gets its own.
@@ -14446,6 +14905,7 @@ It is reported for:
 - a generic value parameter whose type is neither an integer nor an eval class (`<eval B: bool>`)
 - a generic record's field default that reads another field
 - an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
+- `@unreachable`, and a user-defined attribute macro (`the attribute macro '@trace' is not yet supported: attribute macros are not expanded yet`)
 - building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
 - naming the panic result type `Panic<T, E...>` in source (`a panic result type cannot be named yet`): a panicking call's result is handled with `try` or propagated, not stored
 - keeping a panic result in a variable (`a stored panic result is not yet supported`), such as `var copy = e` for a bare `catch e`'s binding (re-panicking it with `panic e` is fine), and a function type whose panic set names a generic parameter
@@ -14780,6 +15240,89 @@ Messages:
 ##### how to fix
 
 delete the `=>`; the fix-it does this. to keep a nested `if` as the final arm on purpose, parenthesize it: `else => (if c => a else => b)`.
+
+## Calling Conventions
+
+The rules these enforce are in [Calling conventions](/docs/language/functions-declarations/#calling-conventions). A forward declaration or out-of-line definition whose convention differs from the other declaration is R039E (redeclared with a different qualifier), with the convention named in the error and the note.
+
+### SC133E: two calling conventions on one function
+
+```
+'@preserve_most' and '@preserve_all' cannot both be on one function; a function has one calling convention
+```
+
+```kairo
+@preserve_most @preserve_all     // error SC133E
+priv fn slow_path(n: usize) { }
+```
+
+**Fix:** keep one: `@preserve_all` when callers keep floating-point or vector values live across the call, `@preserve_most` when they keep only integers. The fix-it removes the second.
+
+### SC134E: a calling convention on a function that cannot have one
+
+```
+a calling convention cannot be set on {kind}
+```
+
+`{kind}` is a constructor, a destructor, an operator, `'main'`, a generator, an `'async'` function, a closure or an `'eval fn'`. Code Kairo does not write calls each of these (C++ object lifetime, the C runtime, the coroutine machinery, a lambda's call operator, the constant evaluator), and it always calls with the C convention.
+
+```kairo
+priv class Buffer {
+    @preserve_most          // error SC134E: a constructor
+    fn Buffer(self) { }
+}
+```
+
+**Fix:** move the slow work into a `priv` free function that carries the convention, and call it from here.
+
+### SC135E: an override disagrees with the convention of the method it overrides
+
+```
+'{m}' has {convention}, but the method it overrides has {convention}
+```
+
+A call through a base reference uses the base method's convention, whichever override it reaches, so every method of one override set needs the same convention (or none).
+
+```kairo
+priv class Base {
+    @preserve_most virtual fn tick(self) { }
+}
+priv class Derived derives Base {
+    override fn tick(self) { }     // error SC135E
+}
+```
+
+**Fix:** write the same convention on every method of the set, or on none.
+
+### SC136E: a calling convention cannot cross the C/C++ boundary
+
+```
+'@preserve_most' cannot cross the C/C++ boundary: GCC cannot call it
+```
+
+GCC has no spelling for these conventions. An `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv` (functions are `pub` by default), is in the module's emitted C++ header and its `#include "x.k"` interface, where code GCC compiled could call it.
+
+```kairo
+@preserve_most
+fn grow(n: usize) { }            // error SC136E: pub by default
+
+@preserve_most
+priv fn grow_slow(n: usize) { }  // fine
+```
+
+**Fix:** make the function `priv`, or give the public entry point the default convention and have it call a `priv` function that carries one.
+
+### SC137E: the calling convention is not available on the target
+
+```
+'@preserve_most' is not available on {triple}
+```
+
+LLVM implements the three conventions on x86-64 and AArch64 only (any operating system). Elsewhere clang would drop the attribute with a warning and call with the C convention, so Kairo makes it an error.
+
+**Fix:** remove the attribute, or keep the declaration that carries it in code built only for x86-64 and AArch64.
+
+---
 
 ## See also
 
@@ -15254,7 +15797,7 @@ fn background() async -> Data          { /* ... */ }
 
 | Modifier | Free functions | Methods | Description |
 |---|---|---|---|
-| `const` | | Yes | Method does not modify `self`. See [Variables](/docs/language/variables/#the-const-binding-rule) |
+| `const` | `fn f(...) const` (after the parameters) | `const self` | A method does not modify `self` (see [Variables](/docs/language/variables/#the-const-binding-rule)); a free const function reads only its inputs (see [Const functions](#const-functions)) |
 | `volatile` | Yes | Yes | Prevents certain compiler optimizations; for hardware interaction |
 | `unsafe` | Yes | Yes | [Separate overload namespace](/docs/language/unsafe/#unsafe-function-overloads) for alternative implementations |
 | `eval` | Yes | Yes | Must be evaluable at compile time. See [Eval](/docs/language/eval/) |
@@ -15276,6 +15819,37 @@ Every module that can see the declaration gets the definition and compiles it, s
 - An `inline` function must have a body, in the same file as its declaration (an in-class declaration may be defined out of line in that file). An `inline` declaration with no body is an error.
 - Every declaration of the function must agree on `inline`.
 - Unused `inline` bodies cost parse time only: no code is generated for one nothing calls.
+
+### Const functions
+
+A free function marked `const` after its parameters, `fn f(...) const`, reads strictly its inputs: no global memory, nothing through a pointer. It is a function in the mathematical sense, like `sin` or `abs`, and the compiler may merge two calls with the same arguments, hoist a call out of a loop, or drop one whose result is unused. In the generated C++ it is `[[gnu::const]]`.
+
+```kairo
+fn hypot(a: f64, b: f64) const -> f64 {
+    return __builtin_sqrt(a * a + b * b)
+}
+```
+
+Because the optimizer acts on the promise without looking, the compiler checks it. In the body of a const function these are errors:
+
+- reading or writing a global or `static` variable (an [`eval`](/docs/language/eval/) constant is a compile-time value, not memory, and is allowed);
+- dereferencing a pointer: `*p`, `p->field`, or indexing a pointer with `p[i]`;
+- calling a function that is not itself const, an `eval fn` or a compiler intrinsic.
+
+Each error carries a note on the function's head: `'hypot' is const: it may read only its own inputs`.
+
+A const function is a free function. A method says the weaker thing, that it does not change its object, with `const self`; a trailing `const` on a method is an error. The leading spelling `const fn f()` is an error too, with a fix-it: `const` before a name reads as a binding.
+
+```kairo
+class Vec2 {
+    var x: f64
+    var y: f64
+    fn len(const self) -> f64 { /* a const method: reads self, changes nothing */ }
+    // fn len2(self) const -> f64 { ... }   // error: write 'fn len2(const self)'
+}
+```
+
+A function that may read globals or pointed-to memory, but writes nothing, is [`@pure`](/docs/language/attributes/#function-hints) instead.
 
 ### Modifier compatibility
 
@@ -15398,10 +15972,74 @@ When a definition follows a forward declaration, the two must match exactly:
 - Parameter types, return type, and all function modifiers (`const`, `unsafe`, `panic`, `eval`, `async`, `inline`, `final`, `volatile`)
 - Visibility (`pub`, `priv`, `prot`)
 - ABI linkage (`ffi "c"`, `ffi "c++"`, `static`, `virtual`, `override`)
+- Calling convention (`@preserve_most`, `@preserve_all`, `@preserve_none`, or none); see [Calling conventions](#calling-conventions)
 
 Parameter names may differ; the definition's names are used in the body. So may the names of generic parameters: `fn <T impl Graph> g(x: T) -> i32` and a later `fn <U impl Graph> g(x: U) -> i32 { ... }` are one function. Their bounds may not: a declaration and its definition must name the same bounds for each generic parameter. (Two generic functions that both have bodies and differ only in their bounds are two overloads.) Defaults are not part of the match: each parameter's default may be written on any one declaration, and it applies to every call (see [Defaults apply to the whole function](/docs/language/functions-parameters/#defaults-apply-to-the-whole-function)).
 
 A mismatch in any other element is a compile error.
+
+## Calling conventions
+
+A calling convention decides which registers a call may clobber. Every function uses the platform's C convention unless it carries one of three attributes, each an LLVM calling convention:
+
+| Attribute | LLVM | clang |
+|---|---|---|
+| `@preserve_most` | `preserve_mostcc` | `[[clang::preserve_most]]` |
+| `@preserve_all` | `preserve_allcc` | `[[clang::preserve_all]]` |
+| `@preserve_none` | `preserve_nonecc` | `[[clang::preserve_none]]` |
+
+`@preserve_most` and `@preserve_all` pass arguments and return values exactly as the C convention does; only the set of registers the callee must save changes. `@preserve_none` also passes arguments in more registers than C does, which only matters to code that is not Kairo (and none can call it; see below).
+
+```kairo
+@preserve_most
+priv fn grow_slow(v: *Buffer, need: usize) { /* rare: reallocate and copy */ }
+
+fn push(v: *Buffer, x: u8) {
+    if v->len == v->cap { grow_slow(v, 1) }   // the hot caller keeps its registers
+    v->data[v->len] = x
+    v->len += 1
+}
+```
+
+### Who saves what
+
+| | x86-64 | AArch64 |
+|---|---|---|
+| C convention (callee saves) | `rbx`, `rbp`, `r12`-`r15` (Windows adds `rdi`, `rsi`, `xmm6`-`xmm15`) | `x19`-`x28`, `x29`, `x30`, low 64 bits of `v8`-`v15` |
+| `@preserve_most` | every general-purpose register except `r11` and the return registers; floating-point and vector registers stay caller-saved | every general-purpose register except `x0`-`x8` and `x16`-`x18` (adds `x9`-`x15` to C's set); floating-point and vector registers as in C |
+| `@preserve_all` | as `@preserve_most`, plus every XMM/YMM register | as `@preserve_most`, plus the floating-point and SIMD registers |
+| `@preserve_none` | nothing but `rsp` and `rbp` | nothing but the frame pointer, link register and `sp` |
+
+### When to use each
+
+- **`@preserve_most`**: a rarely taken slow path (growing a buffer, refilling a cache, reporting an error) called from hot integer code. The hot caller keeps its values in the registers they are already in instead of saving them around the call; the slow path pays for the saves instead.
+- **`@preserve_all`**: the same, when the hot caller also keeps floating-point or SIMD values live across the call.
+- **`@preserve_none`**: tail-call-heavy dispatch, such as an interpreter's opcode handlers, where each handler jumps to the next and nothing needs to survive a call.
+
+None of them changes inlining: the optimizer may still inline the function, and the convention then applies only to the calls that remain.
+
+### Rules
+
+- **One per function.** Two different conventions on one function is an error naming both ([SC133E](/docs/language/diagnostics/#sc133e)).
+- **Every declaration agrees.** A forward declaration and its definition, or an in-class declaration and its out-of-line definition, carry the same convention ([Signature matching](#signature-matching)). A convention alone never makes two declarations distinct overloads: the same signature with a different convention is a redeclaration error.
+- **Not on functions called by code Kairo does not write**: a constructor, a destructor (`op delete`), any operator, `main`, a generator, an `async` function, a closure or an `eval fn` ([SC134E](/docs/language/diagnostics/#sc134e)).
+- **One convention per override set.** A `virtual` or `override` method may carry a convention only if every method it overrides or is overridden by carries the same one ([SC135E](/docs/language/diagnostics/#sc135e)).
+- **Not across the C/C++ boundary.** GCC has no spelling for these conventions, so a function C or C++ can see may not carry one: an `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv` (it is in the module's emitted C++ header and its `#include "x.k"` interface). A `priv` or local function is fine ([SC136E](/docs/language/diagnostics/#sc136e)).
+- **x86-64 and AArch64 only**, on any operating system. On any other target the attribute is an error, never silently ignored ([SC137E](/docs/language/diagnostics/#sc137e)).
+
+### In a function type
+
+The convention is part of a function's type: `fn(usize, usize) @preserve_most -> unsafe *u8` (the attribute after the parameter list, before the modifiers and `->`). A function with a convention converts only to a `fn` type with the same convention, in either direction; converting to or from the default convention is a type mismatch. Because closures cannot have a convention, a value of such a type always holds a named function, and it is a plain function pointer, called directly. An interface requirement may carry a convention, and a conforming method must match it exactly.
+
+### Stability across LLVM versions
+
+LLVM documents these conventions as not stable across releases. Every object that defines or calls a function with one records which conventions it uses and the LLVM major that compiled it in its [ABI note](/docs/language/c-cpp-abi/#link-time-abi-verification), and `kld` refuses to link two such objects built by different LLVM majors:
+
+```
+error: '@preserve_most' is used by a.o (LLVM 22) and b.o (LLVM 23); this calling convention is not stable across LLVM versions; rebuild both
+```
+
+Objects that use none of the conventions are never compared.
 
 ## See also
 
@@ -16351,6 +16989,25 @@ ffi "c++" {
 
 Declarations inside an `ffi` block are parsed normally but stamped with C/C++ linkage. See [C/C++ Interop](/docs/language/c-cpp-calling/#constraints-and-safety) for details on FFI constraints and capabilities.
 
+## Import Cycles
+
+Imports may form a cycle: `a` imports `b` while `b` imports `a`, a longer chain, or a file that imports itself. An import never needs to come "first", so the order of `import` lines and of files does not matter. Every module on a cycle sees the others' public declarations, so functions can call each other across it, a type can name a type from the other side, and a `pub import` re-exports through it:
+
+```kairo
+// node.k
+
+pub struct Node { pub var owner: unsafe *Tree; pub var v: i32 }
+
+// tree.k
+pub import node::*
+pub struct Tree { pub var root: unsafe *Node; pub var n: i32 }
+
+// main.k
+
+```
+
+A cycle compiles with a warning, [R001W](/docs/language/diagnostics/#r001w-import-cycle), on the import that closes it. The warning names the cycle and suggests moving the shared declarations into a third module. A file that imports itself gets the same warning, with a fix-it removing the import, since a file always sees its own declarations. `-fno-import-cycles` turns every cycle into the error R001E. See [Circular Dependencies](/docs/language/modules/#circular-dependencies).
+
 ## Import Reference
 
 | Form | Resolves to | Notes |
@@ -16364,9 +17021,13 @@ Declarations inside an `ffi` block are parsed normally but stamped with C/C++ li
 | `ffi "c++" import "h.hh"` | C++ header | Optional `as` namespace |
 | `ffi "c++" fn foo(...)` | Single decl with C++ linkage | |
 | `ffi "c++" { ... }` | Block of decls with C++ linkage | |
+
+Imports may form cycles; see [Import Cycles](#import-cycles).
+
 ## See also
 
 - [Modules](/docs/language/modules/)
+- [Circular Dependencies](/docs/language/modules/#circular-dependencies)
 - [Library Entry Files](/docs/language/modules/#library-entry-files)
 - [Module Visibility](/docs/language/modules/#module-visibility)
 - [C & C++ Interoperability](/docs/language/c-cpp/)
@@ -16725,7 +17386,7 @@ fn process() -> Config {
 
 `crash!` is not a compiler intrinsic: it is an ordinary `pub macro` declared in the builtin library, and every file sees it without an import, the way it sees the builtin types. It expands to a call to a function that returns [`!`](/docs/language/panic/#panic-and-no-return-), so the compiler knows nothing after it runs: a function returning `T` may end in `crash!()` with no `return` after it. Like `todo!()`, it is not a [panic](/docs/language/panic/): it joins no panic set and no `try` catches it, and `main` may call it. Because it is a library macro rather than a reserved name, a macro named `crash!` that a file declares or imports itself takes precedence.
 
-What a crash may do is deliberately small, because it runs on a program that has just proved itself wrong (its stack or heap may be damaged). It behaves like a signal handler: it writes the message and a newline to stderr in a single `write`, then aborts, and does nothing else. It never allocates, takes no lock, and runs no Kairo code, so `msg` is not formatted at crash time. A literal costs nothing; a runtime `string` is fine too, but only its bytes are written, as they are, and at most 4096 of them. A crash during a crash ends the process at once. Any `SIGABRT` handler the program installed is reset before the abort, so the process always dies of `SIGABRT` (exit status 134 from a shell). `unwrap!` on null, a failed checked `as` into a closed enum, and a failed [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) end the program the same way, with a message the compiler writes (the expression, and its `file:line:col`).
+What a crash may do is deliberately small, because it runs on a program that has just proved itself wrong (its stack or heap may be damaged). It behaves like a signal handler: it writes the message and a newline to stderr in a single `write`, then aborts, and does nothing else. It never allocates, takes no lock, and runs no Kairo code, so `msg` is not formatted at crash time. A literal costs nothing; a runtime `string` is fine too, but only its bytes are written, as they are, and at most 4096 of them. A crash during a crash ends the process at once. Any `SIGABRT` handler the program installed is reset before the abort, so the process always dies of `SIGABRT` (exit status 134 from a shell). `unwrap!` on null, a failed checked `as` into a closed enum, and a failed [asserting downcast](/docs/language/casting/#downcasting-base-to-derived) end the program the same way, with a message the compiler writes (the expression, and its `file:line:col`). Integer division or remainder by zero does too, with the message `kairo: division by zero`.
 
 Untagged, `unique_id!` produces a fresh identifier on every invocation. The tagged form `unique_id!(tag)` is stable within one dynamic macro expansion: every `unique_id!(guard)` inside the same expansion instance yields the SAME identifier, letting a macro body refer to one generated name in several places, while separate invocations of the macro still get distinct names.
 
@@ -17731,7 +18392,7 @@ for i in 0..<120
     *(a + i) = 0
 ```
 
-Tether proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure. The bounds clause is `HoistableResidual` if it is the only residual -> `PROVEN_RANGE`. The per-iteration check is lifted to a single check before the loop:
+Tether proves `0 <= i < 120` holds for the entire loop body from the loop's induction structure (see [the numeric domain](/docs/language/tether-proof-model/#the-numeric-domain)). The bounds clause is `HoistableResidual` if it is the only residual -> `PROVEN_RANGE`. The per-iteration check is lifted to a single check before the loop:
 
 ```asm
 loop:
@@ -17759,9 +18420,19 @@ One branch (or zero), discharging millions of accesses. This is the same class o
 
 ### Forming versus dereferencing, and one-past-the-end
 
-`var *q = a + i` produces a pointer value and emits no code, regardless of whether `i` is in range. The obligation attaches to `*q`, not to the formation of `q`.
+The range obligation is split between formation and dereference.
 
-Forming a pointer anywhere in `[base, base + count]` inclusive of the one-past-the-end address is legal and emits nothing. This is required: idiomatic range loops compare against a one-past pointer (`while p < end`), and that pointer must be formable and comparable without being undefined. Forming a pointer *beyond* one-past carries a "not dereferenceable" mark in its provenance; the pointer value is defined and may be compared, but any attempt to dereference it fails C3. Comparison of two pointers is defined when they share provenance, or when both lie in `[base, base + count]`.
+**Formation.** `var *q = a + i` must land in `[base, base + count]`, inclusive of the one-past-the-end address: `0 <= off(q) <= size(alloc)`. One-past is required because idiomatic range loops compare against it (`while p < end`), so it must be formable and comparable. Formation follows the same proof rules as a dereference:
+
+- proven in range: emits nothing
+- statically out of range (below `base`, or past one-past): compile error, both modes
+- unprovable (runtime `i`): Tier R, one check at the arithmetic, hoisted like any bounds check
+
+No pointer value outside `[base, base + count]` ever exists in a safe program, so there is no "formed but not dereferenceable" state beyond one-past.
+
+**Dereference.** `*q` then needs the room for one element, `off(q) + sizeof T <= size(alloc)` (C3), which excludes one-past itself. When `q` came from a checked formation, the dereference check reduces to `off(q) != size(alloc)` or is proven away.
+
+**Comparison.** `==` and `!=` are defined on any two safe pointers. The relational operators (`<`, `<=`, `>`, `>=`) are defined only when both operands share provenance (point into the same allocation, one-past included). A relational comparison between pointers into different allocations is a compile error; when Tether cannot prove the operands share an allocation, it is a compile error too. Compare addresses through `as usize` if a cross-allocation ordering is genuinely wanted.
 
 This is a larger expressiveness envelope than safe Rust, which routes all of this through slices and iterators. The safety **guarantee** is the same no out-of-bounds access reaches memory but the cost model is pay-only-when-unprovable rather than always-checked-unless-elided, and the surface syntax is C-style arithmetic rather than slice methods.
 
@@ -17778,6 +18449,7 @@ Every allocation carries a **generation** (an epoch) in its provenance fact. Any
 - explicit `@destroy` or `@free`
 - scope exit of the owning binding
 - [ownership transfer](/docs/language/ownership/#transfer-semantics) (move) out of the owning binding
+- assignment *into* the binding (copy or move assignment), which replaces the contents a derived pointer was looking at
 - reallocation (e.g. a `Vec` growing its backing buffer)
 - the close of a [scoped allocator](/docs/language/allocators/#scoped-allocator) that owns the allocation
 
@@ -17792,6 +18464,11 @@ realloc(buf)        // increments buf's epoch
 
 If provenance is intact (Tether still knows which allocation and can read the live epoch), C1 residual is **Tier R**: an epoch comparison at the dereference, in both modes. If provenance has been lost entirely (the pointer was laundered through an untracked path and Tether no longer knows the allocation), there is nothing to compare against and it is **Tier N**: a hard error.
 
+Epochs are 64-bit. A generation counter that wraps lets a stale pointer whose epoch has come back around pass the comparison; at 64 bits the wrap is unreachable in practice.
+
+> [!NOTE]
+> `PROVEN_STATIC` needs no metadata. A Tier R check does: the bounds check reads `size(alloc)` and the epoch check reads `live_epoch(alloc)` at run time, for a pointer that may have arrived as a parameter with a runtime offset. Where those values come from (pointer representation, allocator lookup, or caller-supplied facts) is not decided yet, and the choice affects the pointer ABI. Whatever is chosen, the epoch word must remain readable after the allocation is freed, since reading it out of freed memory would itself be a use-after-free.
+
 Folding UAF into the same obligation as bounds is what makes the architecture scale: there is one analysis, one lattice, one residual table, and "use-after-free detection" is not a bolted-on sanitizer but a clause that is either proven away or checked like any other.
 
 ---
@@ -17800,7 +18477,7 @@ Folding UAF into the same obligation as bounds is what makes the architecture sc
 
 `foo.bar.baz` is `PROVEN_STATIC` when `foo` is non-null and the field offsets are static: the access inherits `foo`'s provenance with a constant offset, and its obligation is exactly `foo`'s obligation.
 
-Taking an interior pointer `var *p = &foo.bar` creates a new pointer whose provenance is derived from `foo`'s allocation at `foo`'s current epoch. Dropping or moving `foo` increments that epoch, so a later `*p` fails C1 by the same mechanism as any other use-after-free. Interior pointers are not special-cased; they reuse the epoch machinery.
+Taking an interior pointer `var *p = &foo.bar` creates a new pointer whose provenance is derived from `foo`'s allocation at `foo`'s current epoch. Dropping `foo`, moving out of it, or assigning a new value into it increments that epoch, so a later `*p` fails C1 by the same mechanism as any other use-after-free. Interior pointers are not special-cased; they reuse the epoch machinery.
 
 ## See also
 
@@ -17851,6 +18528,8 @@ A mismatch between Tether's promotion and the C++ signature is a compile error.
 ### Raw-pointer parameters and shallow analysis
 
 C++ functions taking raw pointers (`T*`, `void*`) require an `unsafe` block; Tether does not track across the boundary. For raw FFI calls where the C++ source is visible via the imported header, Tether performs a **one-level** heuristic: if the function only dereferences the pointer without aliasing, storing, or forwarding it, the call may be classified safe without `unsafe`. The analysis does not recurse. If the body is not visible (forward-declared, compiled library), all raw-pointer parameters are opaque and `unsafe` is required.
+
+Reading a C++ body is outside what Tether can prove, so a call classified safe this way rests on an **assumption**, not a proof: the build records it in its [unchecked assumptions](#unchecked-assumptions) as "`foo` treated as non-retaining by body inspection".
 
 ---
 
@@ -17911,6 +18590,16 @@ Tether makes a strong claim `PROVEN_STATIC` means an access is safe with no runt
 > If a dereference classifies as `PROVEN_STATIC`, then no clause of its obligation can fail at runtime for any execution.
 
 This is what licenses emitting a bare `mov`. The full proof belongs in the Tether paper, not here; the property to hold against is that the static classification is an under-approximation of safety the analysis only proves a clause when it is genuinely discharged, and every uncertainty is resolved toward residual (the monotone "take the weaker state at a merge" rule). Failing closed at every boundary interop, threads, summary gaps, non-convergent recursion is what keeps the under-approximation honest: optimism is what would make the property false, and Tether is never optimistic at a boundary.
+
+### Unchecked assumptions
+
+Some facts Tether uses cannot be proven from Kairo source. Each one is recorded in a list the build emits next to its output, so the soundness claim for a program is exactly "safe, given these assumptions" and the assumptions are visible:
+
+- a raw-pointer C++ call classified safe by the [one-level body heuristic](#raw-pointer-parameters-and-shallow-analysis)
+- a function [declared single-threaded](/docs/language/tether-threading/#entry-from-c-and-c) although C++ can reach it
+- an `assume`/launder that transfers responsibility for a tainted pointer to the programmer
+
+An empty list means the proof covers the whole program.
 
 ### Paranoid mode the empirical falsifier
 
@@ -18106,7 +18795,13 @@ Where:
 
 Each clause is a distinct **proof domain** with its own analysis. Tether discharges as many clauses as it can statically. The clauses that remain (the **residual**) determine what is generated. The mapping from a residual clause to a code-generation response is the entire specification of Tether's behavior, and it is given in [The Residual Table](#the-residual-table).
 
-The critical design point: the obligation is checked at the **dereference**, never at pointer arithmetic. Forming a pointer value (`var *q = p + i`) computes a new provenance fact and emits no code. Only `*q` discharges the obligation against that provenance. This lets Tether carry symbolic offset information through arbitrarily many SSA transformations and discharge or eliminate the obligation as late as possible (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
+The obligation is split across formation and dereference. Forming a pointer value (`var *q = p + i`) carries one obligation of its own, the **formation range**:
+
+$$
+0 \le \operatorname{byte\_offset}(q) \le \operatorname{size}(\operatorname{alloc}(\operatorname{prov}(q)))
+$$
+
+that is, `q` lies in the allocation or exactly one past its end. A formation proven in range emits nothing; one statically out of range is a compile error; an unprovable one is a Tier R check at the arithmetic, discharged and hoisted by the same bounds machinery as C3. Because every safe pointer value satisfies the formation range, C2 holds for every formed pointer, and at `*q` only C3's extra `sizeof T` of room (and the other clauses) remain. Tether still carries symbolic offsets through SSA and discharges both obligations as late and as rarely as it can; adjacent formation and dereference checks fuse into one (see [Pointer Arithmetic](/docs/language/tether-bounds/#pointer-arithmetic)).
 
 ---
 
@@ -18152,7 +18847,21 @@ $$
 
 ordered componentwise. The product of finite-height lattices is itself a finite-height lattice; the height of $$L$$ is the sum of the component heights, which is a small constant (independent of program size). The transfer functions for each IR operation are **monotone** with respect to $$\sqsubseteq$$: an operation never increases the proof strength of a clause it has no evidence for, and joining facts at control-flow merge points takes the weaker (less proven) state.
 
-Monotone transfer functions over a finite-height lattice means the Kleene iteration reaches a fixed point in a bounded number of passes (bounded by the lattice height times the number of program points). **The analysis always terminates.** This is the only termination argument Tether needs; there is no widening, no heuristic iteration cap required for soundness. (A pass ceiling exists for *interprocedural* recursion, but it degrades precision, never soundness: hitting it demotes clauses to Residual, which is always safe. See [Summaries](/docs/language/tether-internals/#amt-summaries).)
+Monotone transfer functions over a finite-height lattice means the Kleene iteration over the classification reaches a fixed point in a bounded number of passes (bounded by the lattice height times the number of program points). (A pass ceiling exists for *interprocedural* recursion, but it degrades precision, never soundness: hitting it demotes clauses to Residual, which is always safe. See [Summaries](/docs/language/tether-internals/#amt-summaries).)
+
+This argument covers the classification lattice only. Deciding *which* state a clause is in needs the numeric facts underneath, and that domain is not finite-height.
+
+### The numeric domain
+
+Proving `0 <= i < 120` from a loop, or `loop_bound == allocation_count` from an allocation site, needs facts about integer values, not only proof states. Underneath the lattice, Tether keeps a relational numeric domain over SSA values:
+
+- **intervals** per integer value (`i ∈ [0, n)`)
+- **SSA equalities and symbolic offsets** (`n == count(a)`, `off(q) == off(p) + 4·k`)
+- **induction-variable recognition**: loops with a recognizable induction variable (`for i in 0..<n`, a pointer stepped by a constant until it reaches `end`) get their bounds from the loop's structure directly, without fixpoint iteration
+
+Intervals over loops that are *not* recognized structurally do not stabilize on their own, so the numeric domain uses **widening** at loop headers. Widening is sound (it only loses precision), and the result is what guarantees termination: the numeric iteration stabilizes after a bounded number of widening steps, and the classification above is then computed over its stable facts. A fact lost to widening makes the clause residual, never proven.
+
+Every invariant Tether relies on (a range at a loop header, an equality between a bound and an allocation count) must be **inductive**: it holds on loop entry and is preserved by one iteration of the body. Checking that a stated invariant is inductive is decidable and much simpler than inferring it, which is what lets the inference stay heuristic while the soundness claim rests only on the check.
 
 ### Classifying a dereference
 
@@ -18176,6 +18885,9 @@ A residual clause does not have a uniform response. Bounds falls back to a runti
 | Residual clause / condition                                  | Response                                              | Tier |
 |--------------------------------------------------------------|-------------------------------------------------------|------|
 | **C3 bounds**, range residual                                | hoisted or local bounds check, **both modes**        | R    |
+| **Formation range**, unprovable                              | hoisted or local check at the arithmetic, both modes  | R    |
+| **Formation range**, statically outside `[base, base+count]` | compile error, both modes                             | N    |
+| **Relational compare**, operands not provably same allocation| compile error, both modes                             | N    |
 | **C1 epoch (UAF)**, provenance intact                        | epoch comparison at deref, **both modes**            | R    |
 | **C1 epoch (UAF)**, provenance lost                          | hard error, both modes                                | N    |
 | **C4 nullability**                                           | compile error, both modes: check it in source         | N    |
@@ -18226,17 +18938,27 @@ URL: https://www.kairolang.org/docs/language/tether-threading/
 
 # Threading
 
-Kairo owns its threading runtime. All [concurrency](/docs/language/concurrency/) flows through `thread` and `spawn`, and **only functions marked `async` may be threaded or spawned**. `await` operates on the result of a `thread` or `spawn` call and is the join point.
+Kairo owns its threading runtime. All [concurrency](/docs/language/concurrency/) in Kairo code flows through `spawn`, and **only functions marked `async` may be spawned**. `spawn f(args)` starts the task and returns its future; `await` on that future is the join point. A spawned task whose future is never awaited is **detached**. (`thread` is unrelated: it is the [thread-local storage class](/docs/language/variables/#thread-local-variables).)
 
-This is what makes static race-freedom tractable. Every concurrent edge in the program is a syntactic `thread`/`spawn` call site there are no hidden threads, no callbacks invoked from another thread, no library spawning work behind your back. Tether knows exactly where every thread boundary is, which is the precondition for proving the absence of races rather than checking for them at runtime.
+This is what makes static race-freedom tractable. Within Kairo code, every concurrent edge is a syntactic `spawn` site, so Tether knows exactly where every thread boundary Kairo creates is. That is the precondition for proving the absence of races rather than checking for them at runtime.
 
 > [!NOTE]
-> The precise distinction between `thread` and `spawn`, and the synchronization primitives that establish happens-before, depend on Kairo's concurrency runtime, which is not yet finalized. The
+> The synchronization primitives that establish happens-before depend on Kairo's concurrency runtime, which is not yet finalized. The
 > **analysis shape below is fixed**; the runtime seam is marked where it occurs. A synchronization primitive, when it lands, is anything that injects a happens-before edge Tether can observe; crossing one re-permits an otherwise-forbidden access.
+
+## Entry from C and C++
+
+Threads that C or C++ creates are invisible to Tether: `std::thread`, a thread pool, a networking library invoking a callback. Any Kairo function C++ can reach is therefore treated as **possibly entered from an unknown thread**. That covers:
+
+- a function [exposed to C/C++](/docs/language/c-cpp-exposing/)
+- a function value or closure passed out to C++
+- a method that overrides a C++ virtual
+
+For such an entry point, every global, `static`, and captured allocation it can reach is a shared allocation for the whole program, analyzed under the rules below with no `await` to end the extent. The alternative is to declare the function single-threaded as a stated contract (it is only ever entered from one thread). That contract is an assumption Tether cannot check: it is listed among the build's unchecked assumptions rather than proven.
 
 ## Strict mode
 
-Between a `thread`/`spawn` and its corresponding `await` (the task's **extent**), Tether enters a stricter analysis mode. Any allocation reachable by a pointer captured into the task is a **shared allocation** for that extent, and every access to it is analyzed under the rules below instead of the single-threaded rules.
+Between a `spawn` and its corresponding `await` (the task's **extent**), Tether enters a stricter analysis mode. Any allocation reachable by a pointer captured into the task is a **shared allocation** for that extent, and every access to it is analyzed under the rules below instead of the single-threaded rules.
 
 The defining rule of strict mode: **Tier R collapses into Tier N for shared mutable allocations.** A runtime check reads metadata the allocation's size, its epoch tag and in a threaded extent that metadata can be mutated by another thread, so the check *itself* races. You cannot check your way to safety across threads. A clause that would fall back to a runtime check in single-threaded code must instead be proven statically for a shared mutable allocation, or it is a hard error.
 
@@ -18270,13 +18992,13 @@ fn foo(a: *const i32) async -> i32 {
     return *a + 1
 }
 
-var fut = thread foo(&x)    // begins executing immediately
+var fut = spawn foo(&x)     // begins executing immediately
 var res = await fut         // join point, happens-before edge; x is read-only over the extent
 ```
 
 Here `x`'s allocation is shared read-only for the extent of `fut` (because `foo`'s parameter is `*const i32`), so the parent reading `x` during the extent is sound. Had `foo` taken `a: *i32` and written through it, `x` would be a shared *mutable* allocation and the parent touching `x` before the `await` would be a hard error under rule 2.
 
-The borrow is live from the `thread`/`spawn` call to the matching `await`. Parent access to a shared-*written* allocation inside that window is a hard error this is the core threading rule, and the single-writer and reader/writer rules are its consequences.
+The borrow is live from the `spawn` to the matching `await`. Parent access to a shared-*written* allocation inside that window is a hard error this is the core threading rule, and the single-writer and reader/writer rules are its consequences.
 
 ## See also
 
