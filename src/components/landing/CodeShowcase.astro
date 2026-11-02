@@ -9,25 +9,24 @@ const examples = [
     id: 'syntax',
     label: 'Printing to the console',
     filename: 'hello.k',
-    code: `import std  // import only what you need
+    code: `import std::io::println  // import only what you need
 
-// No main() required top-level code runs immediately
-// or is callable when imported as a module.
+// No main() required: a file with top-level code is a script, run top to bottom.
 const name  = "Kairo"
 var   count = 0
 
 for i in 0..5 {
-    std::print(f"Hello, {name}! Count is {count}.")
+    println(f"Hello, {name}! {i} squared is {i * i}.")
     count++
 }
 
-std::println(f"Ran {count} times.")`,
+println(f"Ran {count} times.")`,
     blurb: {
       heading: 'Simple, clean syntax',
       points: [
-        { label: 'Type inference', body: 'Write `var count = 0` the compiler knows it\'s an integer. Annotate when you want to, not because you have to.' },
-        { label: 'String interpolation', body: '`f""` strings let you embed expressions directly. No concatenation, no format specifiers.' },
-        { label: 'Top-level code', body: 'Skip the `main()` boilerplate. Code at the top level runs on execution and can still be imported as a module.' },
+        { label: 'Type inference', body: 'Write `var count = 0` and the compiler knows it\'s an integer. Annotate when you want to, not because you have to.' },
+        { label: 'String interpolation', body: '`f""` strings embed any expression directly, `{i * i}` included. No concatenation, no format specifiers.' },
+        { label: 'Top-level code', body: 'Skip the `main()` boilerplate. A file with top-level statements is a script: they run in order, as the program.' },
       ],
     },
   },
@@ -35,32 +34,37 @@ std::println(f"Ran {count} times.")`,
     id: 'cpp-in-kairo',
     label: 'C++ in Kairo',
     filename: 'ffi.k',
-    code: ` // Call C++ code directly from Kairo with perfect ABI compatibility.
- // my_cpp_lib.hpp contains:
- //
- // int add(int a, int b) { return a + b; }
- // namespace my_cpp_lib {
- //     std::string greet(std::string name) { return "Hello, " + name + "!"; }
- // }
- //
- // C++ namespaces map directly to Kairo module syntax.
- // Functions with no namespace are callable without qualification.
+    code: `// Call C++ directly from Kairo: no bindings, no wrappers, no glue code.
+// my_cpp_lib.hpp contains:
+//   inline int add(int a, int b) { return a + b; }
+//   namespace my_cpp_lib {
+//       struct Vec2 { double x, y; double dot(Vec2 o) const { return x * o.x + y * o.y; } };
+//       template <class T> T clamp(T v, T lo, T hi) { return v < lo ? lo : hi < v ? hi : v; }
+//   }
+// C++ namespaces map directly to Kairo module syntax; add() has none, so it's unqualified.
 
- ffi "c++" import "my_cpp_lib.hpp"  // import a C++ header directly as a module.
-                                    // no wrapper generation, no binding step.
+import std::io::println
 
- const sum      = add(3, 4)  // direct call, zero overhead.
- var   greeting = my_cpp_lib::greet("Kairo")
+ffi "c++" import "my_cpp_lib.hpp"  // the bundled clang parses it: classes, templates, all of it.
+ffi "c++" import "vector"          // the C++ standard library is just another header.
 
- greeting += " Welcome to seamless interop!"  // C++ std::string, manipulated
-                                              // directly in Kairo, no conversion.
+var points: cxx::std::vector<my_cpp_lib::Vec2>  // a C++ template, instantiated from Kairo.
 
- std::println(greeting)  // Hello, Kairo! Welcome to seamless interop!`,
+points.push_back(my_cpp_lib::Vec2 { x: 3.0, y: 4.0 })
+points.push_back(my_cpp_lib::Vec2 { x: 6.0, y: 8.0 })
+
+var total = 0
+
+for p in points {  // C++ iterators drive a Kairo for loop.
+    total = add(total, my_cpp_lib::clamp(p.dot(p) as i32, 0, 50))  // clamp<int>, deduced.
+}
+
+println(f"{points.size()} points, total {total}")  // 2 points, total 75`,
     blurb: {
       heading: 'Drop in, not rewrite',
       points: [
-        { label: 'No binding step', body: 'Point Kairo at a C++ header and call it. Full type and ABI compatibility, no generated wrappers, no intermediate layer.' },
-        { label: 'Namespaces just work', body: 'C++ namespaces map to Kairo module syntax automatically. Your existing library surface stays exactly as you designed it.' },
+        { label: 'No binding step', body: 'Point Kairo at a C++ header and call it. Classes, methods and templates arrive as native Kairo symbols, with no generated wrappers and no intermediate layer.' },
+        { label: 'Namespaces and templates just work', body: 'C++ namespaces map to Kairo module syntax, and `cxx::std::vector<my_cpp_lib::Vec2>` instantiates a C++ template from Kairo. Your existing library surface stays exactly as you designed it.' },
         { label: 'Migrate at your own pace', body: 'Move files to Kairo one at a time while the rest of your codebase stays in C++. There\'s no cutover point, no rewrite cliff.' },
       ],
     },
@@ -69,37 +73,39 @@ std::println(f"Ran {count} times.")`,
     id: 'kairo-in-cpp',
     label: 'Kairo in C++',
     filename: 'kairo_ffi.cpp',
-    code: `// Call Kairo functions directly from C++ with full ABI compatibility.
-// KCC (Kairo C++ Compiler) is the tool that allows you to include Kairo modules directly in C++.
-//   \`kcc kairo_ffi.cpp\` - kcc is a drop-in clang-compatible driver that can include Kairo files.
-// Without -cc, use \`kairo kairo_ffi.k -c -o kairo_ffi -xc++ -header kairo_ffi.hh\` to generate C++ or C headers
-// for shipping a Kairo library to C++ consumers.
-//
+    code: `// Include a Kairo module straight from C++ with kcc, a drop-in clang-compatible driver:
+//   \`kcc kairo_ffi.cpp -o app\` finds kairo_ffi.k, compiles it and links it in.
+// Shipping a library? \`kairo kairo_ffi.k -c --emit-headers include/\` writes the headers.
 // kairo_ffi.k:
-//   import std
-//   fn add(a: i32, b: i32) -> i32 { return a + b }
-//   fn greet(name: string) -> string { return f"Hello, {name}!" }
-//
-// Kairo wraps the module under its filename as the exposed C++ namespace.
+//   pub struct Vec2 { var x: f64; var y: f64 }
+//   pub fn dot(a: Vec2, b: Vec2) -> f64 { return a.x * b.x + a.y * b.y }
+//   pub struct Overdrawn { var short_by: i64 }
+//   pub fn withdraw(balance: i64, amount: i64) panic -> i64 {
+//       if amount > balance { panic Overdrawn { short_by: amount - balance } }
+//       return balance - amount
+//   }
+// The module's C++ namespace is its file name: kairo_ffi.
 
-#include "kairo_ffi.k"  // include the Kairo module directly.
+#include "kairo_ffi.k"
 #include <iostream>
 
 int main() {
-    int sum = kairo_ffi::add(3, 4);  // direct call, no overhead.
-    std::string greeting = kairo_ffi::greet("C++");
+    kairo_ffi::Vec2 v{3.0, 4.0};      // a Kairo struct is a plain C++ aggregate.
+    std::cout << kairo_ffi::dot(v, v) << std::endl;  // 25
 
-    greeting += " Welcome to seamless interop!";
-
-    std::cout << greeting << std::endl;  // Hello, C++! Welcome to seamless interop!
-    return 0;
+    try {   // a Kairo panic is a value; value_or_throw turns it into a C++ exception.
+        auto left = builtin::value_or_throw(kairo_ffi::withdraw(100, 30));  // 70
+        builtin::value_or_throw(kairo_ffi::withdraw(left, 500));
+    } catch (const builtin::panic_error<kairo_ffi::Overdrawn>& e) {
+        std::cout << "short by " << e.error.short_by << std::endl;  // 430
+    }
 }`,
     blurb: {
       heading: 'Adopt Kairo incrementally',
       points: [
-        { label: 'Include like any header', body: 'With `kcc`, your Kairo module is includable directly from C++. Only one change to your build systems default c++ compiler.' },
-        { label: 'Full ABI compatibility', body: 'Kairo functions are callable from C++ with perfect type fidelity. The module is exposed under its filename as a C++ namespace, no surprises.' },
-        { label: 'Ship Kairo as a C++ library', body: 'Use `kairo -c` to compile into a lib and `kairo -xc++ -header` to generate C++ headers. Consumers see a normal library.' },
+        { label: 'Include like any header', body: 'With `kcc`, a Kairo module is `#include`-able directly from C++. The only change to your build is the C++ compiler it calls.' },
+        { label: 'Native C++ types', body: 'Kairo structs are plain C++ aggregates and functions are ordinary C++ calls, under a namespace named after the file. A panic is a value; `builtin::value_or_throw` turns it into a C++ exception when you want one.' },
+        { label: 'Ship Kairo as a C++ library', body: 'Use `kairo -c` to compile the module and `--emit-headers` to generate its C++ headers. Consumers see a normal library.' },
       ],
     },
   },
@@ -107,48 +113,46 @@ int main() {
     id: 'memory',
     label: 'Memory Safety',
     filename: 'memory.k',
-    code: ` import std
+    code: `import std::io::println
+import std::System
 
- struct Buffer {
-     const size: usize
-     var   data: *byte  // safe pointer to a heap allocation
+// The whole program's heap is yours: five static functions, no vtable, no indirection.
+// Every allocation in the program, the standard library's included, comes here.
+class Counting {
+    static live: i64 = 0
+    static fn alloc(n: usize, a: usize) -> unsafe *u8 { Self::live += 1; return System::alloc(n, a) }
+    static fn free(p: unsafe *u8, n: usize, a: usize) { Self::live -= 1; System::free(p, n, a) }
+    static fn resize(p: unsafe *u8, o: usize, n: usize, a: usize) -> bool { return System::resize(p, o, n, a) }
+    static fn realloc(p: unsafe *u8, o: usize, n: usize, a: usize) -> unsafe *u8 { return System::realloc(p, o, n, a) }
+    static fn alloc_zeroed(n: usize, a: usize) -> unsafe *u8 { Self::live += 1; return System::alloc_zeroed(n, a) }
+}
 
-     fn op new (self, size: usize) {
-         self.data = std::Memory::alloc(size)
-         self.size = size // only the constructor can set size.
-     }
+@set_global_allocator(Counting)  // System is the default heap: the bundled mimalloc.
 
-     fn op delete (self) {
-         std::Memory::free(self.data)
-         // compiler hard errors, if we do not free the memory.
-         // Even though the compiler proves and has enough information
-         // to add the free automatically, it does not, for explicitness
-         // and code clarity.
-     }
+class Node { var value: i32; fn Node(self, v: i32) { self.value = v } }
 
-     fn op [](self, i: usize) panic -> *u8 {
-         if i >= self.size {
-             var x = 0
-             return &x // since this is a stack pointer, in debug builds,
-                       // Tether changes the decl of x to a unique or shared
-                       // pointer, so theres no undefined behavior.
-                       // In release builds, hard error with a fix:
-                       // var *x = std::Unique<u8>(0)
-         }
-         return self.data + i
-     }
- }
+class Owner {
+    var node: *Node
+    fn Owner(self, v: i32) { self.node = @create Node(v) }  // on the heap, because you said so.
+    @copy fn Owner(self, other: Self) = delete                // one owner, so no double free.
+    fn op delete(self) { @destroy self.node }                // the destructor.
+}
 
- var buf = Buffer(1024)  // 1KB on the heap.
-                         // destructor runs automatically when buf goes out of scope.
- buf[0] = 42
- `,
+fn work() {
+    var a = Owner(1)
+    var b = Owner(2)
+    // var c = a   // compile error: Owner cannot be copied.
+    println(f"inside: {Counting::live} live allocations")  // inside: 2 live allocations
+}   // b, then a: destructors run here, on every path out of the scope.
+
+work()
+println(f"after: {Counting::live} live allocations")  // after: 0 live allocations`,
     blurb: {
       heading: 'Control without the footguns',
       points: [
-        { label: 'Manual allocation', body: 'You decide what goes on the heap. No GC, no hidden allocations, no surprises at runtime.' },
-        { label: 'Automatic cleanup', body: 'Kairo tracks ownership and places the destructor exactly where `buf` goes out of scope, or earlier if the function returns or panics. No leaks, no double frees, no annotations required.' },
-        { label: 'Opt out when you need to', body: 'Safety features can be disabled per-module or per-type. When you need raw performance or bare-metal access, you\'re not fighting the language to get it.' },
+        { label: 'Manual allocation', body: 'You decide what goes on the heap: `@create` and `@destroy`, no GC, no hidden allocations. The default heap is the bundled mimalloc.' },
+        { label: 'Your allocator, everywhere', body: '`@set_global_allocator` swaps the heap for the whole program, the standard library included. An allocator is five static functions, with no vtable.' },
+        { label: 'Automatic cleanup', body: 'Destructors run where each value goes out of scope, in reverse order, on every path out. Delete the copy constructor and an accidental copy, the classic double free, is a compile error.' },
       ],
     },
   },
@@ -156,61 +160,60 @@ int main() {
     id: 'error-handling',
     label: 'Error Handling',
     filename: 'errors.k',
-    code: `import std
-import json // imagine this is a complex JSON library
+    code: `import std::io::println
 
-@json::Serializable
-struct Config {
-    var host:    string;
-    var port:    u16;
-    var workers: u32 = 4;
+struct InUse   { var port: i32 }   // any type can be panicked:
+struct Denied  { var port: i32 }   // no base class, no exception hierarchy.
+struct BadPort { var port: i32 }
+struct Socket  { var port: i32 }
+
+// A declared panic set is a contract: panicking anything else is a compile error.
+fn open(port: i32) panic(InUse, Denied) -> Socket {
+    if port < 1024  { panic Denied { port: port } }  // privileged
+    if port == 8080 { panic InUse { port: port } }   // already listening
+    
+    return Socket { port: port }
 }
 
-fn <T impl json::Serializable> json_parse(raw: string) panic -> T;
-// imagine this has a complex implementation that can panic with Json::Error::Parse
-
-fn read_file(path: string) panic -> string;
-// imagine this has a complex implementation that can panic with Fs::Error::NotFound,
-// or Fs::Error::PermissionDenied
-
-fn parse_config(path: string) panic -> Config {
-    var raw: string
-
-    raw = read_file(path)
-    return json_parse(raw)
-
-    catch _: Fs::Error::NotFound {
-        std::println(f"Config file not found: {path}")
-        return Config { host: "localhost", port: 8080 }  // recover with a default.
-    } catch e: Json::Error::Parse {
-        std::println(f"Failed to parse config with error: {e}")
-        return Config { host: "localhost", port: 8080 }  // recover with a default.
-    } catch e { // We don't care about Fs::Error::PermissionDenied thats the
-                // caller\'s problem, if we don't catch all possible panics,
-                // the compiler will error, we can catch it and re-panic.
-        panic e // propagate unexpected errors without wrapping or losing context.
+fn listen(port: i32) panic -> Socket {  // set inferred: Denied, BadPort.
+    if port > 65535 { panic BadPort { port: port } }
+    
+    try {
+        return open(port)
+    } catch e: InUse {
+        println(f"{e.port} is already ours, reusing it")
+        return Socket { port: e.port }
+    } catch e {  // Denied is the caller's problem: re-panic it, original site intact.
+        panic e
     }
 }
 
-fn start_server(path: string) -> Config {
+// No \`panic\` here: every error listen() can raise is handled below.
+// Delete either arm and this function no longer compiles; add a \`catch e: InUse\`
+// and the compiler flags it as dead: InUse can never reach this scope.
+fn serve(port: i32) -> Socket {
     try {
-        const config = parse_config(path)
-        // parse_config is marked \`panic\`, so we must catch its errors that
-        // can reach this scope (in this case, Fs::Error::PermissionDenied).
-        std::println(f"Starting {config.host}:{config.port} {config.workers}workers...")
-        return config
-    } catch _: Fs::Error::PermissionDenied {
-        std::println(f"Permission denied when reading config file: {path}")
-        return Config { host: "localhost", port: 8080 }  // recover with a default.
-    } // every reachable panic is handled, no panic is needed in this function.
-}     // callers of start_server need no error handling at all.`,
+        return listen(port)
+    } catch e: Denied {
+        println(f"{e.port} needs root, using 3000")
+    } catch e: BadPort {
+        println(f"{e.port} is not a port, using 3000")
+    }
+
+    return Socket { port: 3000 }
+}
+
+for port in [8080, 80, 99999, 4000] {
+    const s = serve(port)  // callers of serve() need no error handling at all.
+    println(f"listening on {s.port}")
+}`,
     blurb: {
       heading: 'The compiler knows what can fail',
       points: [
-        { label: '`panic` on the signature', body: 'Mark a function `panic` and the compiler traces every failure reachable in its entire call graph. Nothing hidden, nothing implicit.' },
-        { label: 'Exhaustive catch blocks', body: 'Catch blocks work like a match on an enum. Handle every reachable panic type and the compiler clears your function\'s signature. Your callers inherit the guarantee automatically, no annotations, no propagation to think about.' },
+        { label: '`panic` on the signature', body: 'Mark a function `panic` and the compiler infers its panic set from everything it can reach. Declare the set, `panic(InUse, Denied)`, and it becomes a contract the compiler enforces.' },
+        { label: 'Exhaustive catch blocks', body: 'Catch blocks work like a match on an enum. Handle every reachable panic type and the function needs no `panic` at all, so its callers need no error handling.' },
         { label: 'Propagate what you don\'t own', body: 'Use `catch e { panic e }` to handle what you care about and push the rest upstream. The original panic travels intact, no wrapping, no lost context.' },
-        { label: 'Dead catches are flagged too', body: 'If a catch block handles a panic type that can\'t actually reach that scope, the compiler tells you. Catch blocks stay honest as code changes over time.' },
+        { label: 'Dead catches are flagged too', body: 'If a catch block handles a panic type that can\'t actually reach that scope, the compiler warns and offers to remove it. Catch blocks stay honest as code changes over time.' },
       ],
     },
   },
