@@ -11,37 +11,6 @@ try {
   if (res.ok) kairoLang = await res.json();
 } catch {}
 
-const heroCode = `import std::Parallel
-import std::Error::DimensionError
-import std::Interfaces::Numeric
-
-fn <T impl Numeric> dot(a: [T], b: [T]) -> T {
-    if a.length() != b.length() {
-        panic DimensionError("dot requires equal lengths")
-    }
-
-    var result = Parallel::reduce(
-        policy:  Parallel::Policy::SIMD,
-        range:   0..(a.length()),
-        init:    T(),
-        step:    fn (i: usize)   -> T = a[i] * b[i],
-        combine: fn (x: T, y: T) -> T = x + y
-    )
-
-    return result
-}
-
-test "dot product of two vectors" {
-    var a, b = [1, 2, 3, 4, 5], [6, 7, 8, 9, 10]
-    var result = dot(a, b)
-    assert result == 130, f"expected 130, got {result}"
-}`;
-
-// The reflowing text wall around the figure (and under the resizable window):
-// the dot_product.k source flattened into one continuous line of text.
-const flowText = heroCode.replace(/\s+/g, ' ').trim();
-const codeLines = heroCode.split('\n').length;
-
 const logoArt = renderFiglet('KAIRO');
 const logoCols = artSize(logoArt).cols;
 ---

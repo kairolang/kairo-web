@@ -1,0 +1,127 @@
+---
+/**
+ * Diverging bar chart: per benchmark, Kairo's median against the fastest
+ * median of every other toolchain. Log scale centred on 1× so "2× faster"
+ * and "2× slower" are the same length. Right of centre = Kairo faster.
+ *
+ *   <BenchSummary rows={[{ name: 'btree', kairo: 1.598, best: 2.275, by: 'kcc' }, ...]} />
+ */
+interface Row { name: string; kairo: number; best: number; by: string }
+interface Props { rows: Row[]; limit?: number }
+
+const { rows, limit = 3 } = Astro.props;
+const data = rows
+  .map(r => ({ ...r, ratio: r.best / r.kairo }))
+  .sort((a, b) => b.ratio - a.ratio);
+const half = (r: number) => `${(Math.min(Math.abs(Math.log(r)), Math.log(limit)) / Math.log(limit)) * 50}%`;
+const word = (r: number) => (r >= 1 ? `${r.toFixed(2)}× faster` : `${(1 / r).toFixed(2)}× slower`);
+const ticks = [1 / 3, 1 / 2, 1, 2, 3].filter(t => t >= 1 / limit && t <= limit);
+const pos = (t: number) => `${50 + (Math.log(t) / Math.log(limit)) * 50}%`;
+const tickLabel = (t: number) => (t === 1 ? 'even' : t > 1 ? `${t}×` : `${Math.round(1 / t)}×`);
+---
+<figure class="bsum" aria-labelledby="bsum-t">
+  <figcaption class="bsum-head">
+    <span class="bsum-title" id="bsum-t">Kairo vs the fastest other toolchain</span>
+    <span class="bsum-unit">median time · log scale</span>
+  </figcaption>
+  <div class="bsum-side" aria-hidden="true">
+    <span></span>
+    <span class="bsum-sides"><span>← <i>Kairo </i>slower</span><span><i>Kairo </i>faster →</span></span>
+    <span></span>
+  </div>
+  <ol class="bsum-rows">
+    {data.map(r => (
+      <li
+        class:list={['bsum-row', r.ratio >= 1 ? 'is-win' : 'is-loss']}
+        tabindex="0"
+        aria-label={`${r.name}: Kairo ${r.kairo.toFixed(3)} seconds, fastest other ${r.by} ${r.best.toFixed(3)} seconds, Kairo ${word(r.ratio)}`}
+      >
+        <span class="bsum-name">{r.name}</span>
+        <span class="bsum-track">
+          <span class="bsum-bar" style={r.ratio >= 1 ? `left:50%;width:${half(r.ratio)}` : `right:50%;width:${half(r.ratio)}`}></span>
+          <span class="bsum-tip" role="tooltip" aria-hidden="true">
+            <b>{r.name}</b>
+            <span>kairo <em>{r.kairo.toFixed(3)}s</em></span>
+            <span>{r.by} <em>{r.best.toFixed(3)}s</em></span>
+          </span>
+        </span>
+        <span class="bsum-val">{word(r.ratio)}<span class="bsum-by"> vs {r.by}</span></span>
+      </li>
+    ))}
+  </ol>
+  <div class="bsum-axis" aria-hidden="true">
+    <span></span>
+    <span class="bsum-ticks">{ticks.map(t => <span style={`left:${pos(t)}`}>{tickLabel(t)}</span>)}</span>
+    <span></span>
+  </div>
+</figure>
+
+<style>
+  .bsum {
+    --win: var(--red);
+    --loss: color-mix(in srgb, var(--text-2) 55%, var(--bg-2));
+    margin: 2rem 0;
+    padding: 1.1rem 1.25rem 0.9rem;
+    border: 1px solid var(--border-hi);
+    background: var(--bg-2);
+    font-family: var(--font-mono);
+  }
+  .bsum-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.9rem; margin-bottom: 0.9rem; }
+  .bsum-title { color: var(--text); font-weight: 600; font-size: 0.95rem; }
+  .bsum-unit { color: var(--text-2); font-size: 0.72rem; margin-left: auto; }
+
+  .bsum-row, .bsum-axis, .bsum-side {
+    display: grid;
+    grid-template-columns: 5.2rem 1fr 12.5rem;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .bsum-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .bsum-row { margin: 0; padding: 0.22rem 0; outline: none; }
+  .bsum-row::marker { content: none; }
+  .bsum-name { color: var(--text-2); font-size: 0.8rem; text-align: right; }
+  .bsum-track {
+    position: relative; height: 16px;
+    background: linear-gradient(to right, transparent calc(50% - 0.5px), var(--border-hi) calc(50% - 0.5px), var(--border-hi) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+  }
+  .bsum-bar { position: absolute; top: 0; bottom: 0; transition: filter var(--dur-fast) var(--ease); }
+  .is-win .bsum-bar { background: var(--win); }
+  .is-loss .bsum-bar { background: var(--loss); }
+  .bsum-row:hover .bsum-bar, .bsum-row:focus-visible .bsum-bar { filter: brightness(1.18); }
+  .bsum-row:focus-visible .bsum-track { outline: 1px solid var(--accent); outline-offset: 3px; }
+  .bsum-val { color: var(--text-2); font-size: 0.76rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .is-win .bsum-val { color: var(--text); }
+  .bsum-by { color: var(--text-2); opacity: 0.8; }
+
+  .bsum-side { margin-bottom: 0.35rem; }
+  .bsum-sides i { font-style: normal; }
+  .bsum-sides { display: flex; justify-content: space-between; color: var(--text-2); font-size: 0.68rem; }
+
+  .bsum-axis { margin-top: 0.35rem; }
+  .bsum-ticks { position: relative; height: 1rem; border-top: 1px solid var(--border-hi); }
+  .bsum-ticks span { position: absolute; top: 0.2rem; transform: translateX(-50%); color: var(--text-2); font-size: 0.68rem; white-space: nowrap; }
+  .bsum-ticks span:first-child { transform: none; }
+  .bsum-ticks span:last-child { transform: translateX(-100%); }
+
+  .bsum-tip {
+    position: absolute; z-index: 5; bottom: calc(100% + 8px); left: 50%; transform: translate(-50%, 4px);
+    display: grid; gap: 2px; min-width: 10rem;
+    padding: 0.5rem 0.65rem;
+    background: var(--bg-3); border: 1px solid var(--border-hi);
+    color: var(--text-2); font-size: 0.72rem;
+    pointer-events: none; opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  }
+  .bsum-tip b { color: var(--text); font-weight: 600; margin-bottom: 2px; }
+  .bsum-tip span { display: flex; justify-content: space-between; gap: 1rem; }
+  .bsum-tip em { font-style: normal; color: var(--text); font-variant-numeric: tabular-nums; }
+  .bsum-row:hover .bsum-tip, .bsum-row:focus-visible .bsum-tip { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 560px) {
+    .bsum { padding: 0.9rem 0.8rem 0.75rem; }
+    .bsum-row, .bsum-axis, .bsum-side { grid-template-columns: 4.2rem 1fr 6.6rem; gap: 0.5rem; }
+    .bsum-by, .bsum-sides i { display: none; }
+    .bsum-unit { margin-left: 0; width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { .bsum-bar, .bsum-tip { transition: none; } }
+</style>
