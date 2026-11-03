@@ -1,6 +1,6 @@
 ---
 title: "Kairo Benchmarks: 16 Programs vs C++ and Rust"
-description: "Sixteen small programs, five toolchains, one machine: where Kairo is ahead, where it's behind, and which results need an asterisk."
+description: "Sixteen small programs timed with five toolchains on one machine, with notes on which Kairo results need a closer look."
 pubDate: 2026-11-02
 author: dhruvan
 tags: [performance, benchmarks]
@@ -11,247 +11,247 @@ import BenchSummary from '../../components/blog/BenchSummary.astro';
 
 # Kairo Benchmarks: 16 Programs vs C++ and Rust
 
-I wrote the same sixteen small programs in Kairo, C++ and Rust and timed them on my machine. This post shows every result, including the ones where Kairo loses badly, and explains which wins come from the language and which come from something else.
+I wrote the same sixteen small programs in Kairo, C++ and Rust and timed them on my machine. Every result is here, including the ones where Kairo loses badly, along with my best read of which wins come from the language and which come from something else, like the allocator.
 
-Short version: on most compute-bound programs Kairo is within 10% of the best C++ or Rust build. It's well ahead wherever the heap or error handling dominates. It's clearly behind on three: virtual dispatch, generators, and nbody.
+On most compute-bound programs Kairo is within 10% of the best C++ or Rust build. It's well ahead wherever the heap or error handling dominates, and clearly behind on nbody and, against GCC only, on virtual dispatch.
 
 ## The toolchains
 
 - **kairo**: the Kairo compiler at `-O3`.
 - **gcc** and **clang**: the C++ version built by the system's GCC and Clang.
-- **kcc**: the *same* C++ source built by Kairo's C++ driver, which links Kairo's runtime, including its [mimalloc](https://github.com/microsoft/mimalloc) heap. kcc is the control: when kcc closes the gap between Kairo and plain C++, the gap came from the runtime, not from Kairo's code generation.
+- **kcc**: the *same* C++ source built by Kairo's C++ driver, which links Kairo's runtime, including its [mimalloc](https://github.com/microsoft/mimalloc) heap. That makes it a control: when kcc closes the gap between Kairo and plain C++, the runtime was responsible for it.
 - **rust**: the Rust version built by `rustc`.
 
-In the charts, Kairo is red, kcc is dimmed red, and everything else is gray. Every row is labelled, so you don't need the colours to read them.
+In the charts, Kairo is red, kcc is dimmed red, and everything else is gray. Every row is labelled as well.
 
 ## Results at a glance
 
-This chart compares Kairo with the **fastest other toolchain on each benchmark**, whichever one that is. That's the strictest comparison: Kairo has to beat the best of four. Bars right of centre mean Kairo is faster. The scale is logarithmic, so 2× faster and 2× slower are the same length.
+This chart compares Kairo with the fastest other toolchain on each benchmark, whichever one that is, so Kairo has to beat the best of four. Bars right of centre mean Kairo is faster. The scale is logarithmic, so 2× faster and 2× slower are the same length.
 
 <BenchSummary rows={[
-  { name: 'nbody',    kairo: 1.251, best: 0.787, by: 'rust' },
-  { name: 'btree',    kairo: 1.598, best: 2.275, by: 'kcc' },
-  { name: 'fannkuch', kairo: 1.661, best: 1.592, by: 'clang' },
-  { name: 'gsort',    kairo: 1.039, best: 1.009, by: 'gcc' },
-  { name: 'gen',      kairo: 1.124, best: 0.670, by: 'kcc' },
-  { name: 'errpath',  kairo: 0.226, best: 0.568, by: 'rust' },
+  { name: 'nbody',    kairo: 1.254, best: 0.785, by: 'rust' },
+  { name: 'btree',    kairo: 2.230, best: 3.342, by: 'kcc' },
+  { name: 'fannkuch', kairo: 1.602, best: 1.590, by: 'clang' },
+  { name: 'gsort',    kairo: 1.027, best: 1.005, by: 'gcc' },
+  { name: 'gen',      kairo: 0.560, best: 0.661, by: 'kcc' },
+  { name: 'errpath',  kairo: 0.222, best: 0.564, by: 'rust' },
   { name: 'alloc',    kairo: 0.121, best: 0.126, by: 'kcc-malloc' },
-  { name: 'interp',   kairo: 1.224, best: 1.089, by: 'rust' },
-  { name: 'closures', kairo: 0.740, best: 0.778, by: 'rust' },
-  { name: 'dispatch', kairo: 2.187, best: 0.827, by: 'gcc' },
-  { name: 'wideint',  kairo: 0.994, best: 0.924, by: 'gcc' },
-  { name: 'fmt',      kairo: 0.129, best: 0.248, by: 'kcc' },
-  { name: 'spectral', kairo: 1.125, best: 1.049, by: 'gcc' },
-  { name: 'slices',   kairo: 1.289, best: 1.296, by: 'kcc' },
-  { name: 'nullable', kairo: 0.508, best: 0.570, by: 'kcc' },
+  { name: 'interp',   kairo: 1.100, best: 1.102, by: 'rust' },
+  { name: 'closures', kairo: 0.735, best: 0.777, by: 'rust' },
+  { name: 'dispatch', kairo: 2.029, best: 0.813, by: 'gcc' },
+  { name: 'wideint',  kairo: 0.980, best: 0.922, by: 'gcc' },
+  { name: 'fmt',      kairo: 0.110, best: 0.247, by: 'kcc' },
+  { name: 'spectral', kairo: 1.125, best: 1.053, by: 'gcc' },
+  { name: 'slices',   kairo: 1.265, best: 1.271, by: 'rust' },
+  { name: 'nullable', kairo: 0.542, best: 0.563, by: 'kcc' },
 ]} />
 
-Kairo has the fastest median on 7 of these 15 and loses 8. Seven are within 10% either way, which is close to noise for a sample this small. The big gaps are the interesting part, and each one gets a section below.
+Kairo has the fastest median on 9 of these 15 and loses 6. Nine are within 10% either way, which is close to noise for a sample this small.
 
-The per-benchmark charts show each toolchain's median of four runs as a bar, with a thin tick at its best run. The right column is speed relative to GCC. Hover or focus a row for the exact numbers.
+The per-benchmark charts show each toolchain's median of eight runs as a bar, with a thin tick at its best run. The right column is speed relative to Clang. Hover or focus a row for the exact numbers.
 
 ## Numeric loops
 
 These benchmarks don't allocate. They measure how well each compiler turns plain arithmetic and array loops into machine code, and this is where Kairo has the least to show yet.
 
 <BenchChart name="nbody" n="30000000" rows={[
-  { label: 'rust',  median: 0.787, min: 0.785 },
-  { label: 'gcc',   median: 1.185, min: 1.179 },
-  { label: 'kairo', median: 1.251, min: 1.247 },
-  { label: 'kcc',   median: 1.376, min: 1.366 },
-  { label: 'clang', median: 1.483, min: 1.474 },
+  { label: 'rust',  median: 0.785, min: 0.780 },
+  { label: 'gcc',   median: 1.180, min: 1.175 },
+  { label: 'kairo', median: 1.254, min: 1.248 },
+  { label: 'kcc',   median: 1.365, min: 1.358 },
+  { label: 'clang', median: 1.478, min: 1.472 },
 ]} />
 
-**nbody** simulates five planets for 30 million steps: `f64` math on a fixed array of structs. Rust is 1.5× faster than GCC, and Kairo is about 5% slower than GCC. This is Kairo's third-worst result. It has been stable across runs, so it's a real gap, and finding out what rustc does with this loop is near the top of my list.
+nbody simulates five planets for 30 million steps: `f64` math on a fixed array of structs. Rust is 1.9× faster than Clang. Kairo is 1.18× faster than Clang and about 6% slower than GCC. This is Kairo's second-worst result. It has been stable across runs, so it's a real gap, and finding out what rustc does with this loop is near the top of my list.
 
 <BenchChart name="fannkuch" n="11" rows={[
-  { label: 'clang', median: 1.592, min: 1.586 },
-  { label: 'kcc',   median: 1.627, min: 1.618 },
-  { label: 'kairo', median: 1.661, min: 1.651 },
-  { label: 'rust',  median: 1.697, min: 1.691 },
-  { label: 'gcc',   median: 1.771, min: 1.765 },
+  { label: 'clang', median: 1.590, min: 1.584 },
+  { label: 'kairo', median: 1.602, min: 1.189 },
+  { label: 'kcc',   median: 1.617, min: 1.614 },
+  { label: 'rust',  median: 1.694, min: 1.689 },
+  { label: 'gcc',   median: 1.768, min: 1.759 },
 ]} />
 
-**fannkuch** does permutations and prefix reversals over a 16-element integer array. All five are within 11%. In an earlier run Kairo had the lowest median here; this time Clang does. Differences this small flip from run to run.
+fannkuch does permutations and prefix reversals over a 16-element integer array. All five are within 11%, and Clang leads Kairo by under 1%. One of Kairo's eight runs finished in 1.189 s, 26% under its median, which is why its best-run tick sits so far from the end of its bar. Every other toolchain's best run is within 1% of its median. I don't know the cause yet, so I'm going by the median.
 
 <BenchChart name="spectral" n="5500" rows={[
-  { label: 'gcc',   median: 1.049, min: 1.046 },
-  { label: 'kcc',   median: 1.117, min: 1.112 },
-  { label: 'clang', median: 1.119, min: 1.108 },
-  { label: 'rust',  median: 1.121, min: 1.117 },
-  { label: 'kairo', median: 1.125, min: 1.121 },
+  { label: 'gcc',   median: 1.053, min: 1.042 },
+  { label: 'clang', median: 1.117, min: 1.115 },
+  { label: 'kcc',   median: 1.122, min: 1.118 },
+  { label: 'kairo', median: 1.125, min: 1.117 },
+  { label: 'rust',  median: 1.125, min: 1.121 },
 ]} />
 
 <BenchChart name="wideint" n="10000000" rows={[
-  { label: 'gcc',   median: 0.924, min: 0.918 },
-  { label: 'rust',  median: 0.924, min: 0.919 },
-  { label: 'clang', median: 0.927, min: 0.923 },
-  { label: 'kcc',   median: 0.971, min: 0.964 },
-  { label: 'kairo', median: 0.994, min: 0.984 },
+  { label: 'gcc',   median: 0.922, min: 0.918 },
+  { label: 'rust',  median: 0.926, min: 0.922 },
+  { label: 'clang', median: 0.934, min: 0.928 },
+  { label: 'kcc',   median: 0.970, min: 0.963 },
+  { label: 'kairo', median: 0.980, min: 0.977 },
 ]} />
 
 <BenchChart name="slices" n="1000" rows={[
-  { label: 'kairo', median: 1.289, min: 1.262 },
-  { label: 'kcc',   median: 1.296, min: 1.289 },
-  { label: 'rust',  median: 1.298, min: 1.283 },
-  { label: 'clang', median: 1.315, min: 1.288 },
-  { label: 'gcc',   median: 1.327, min: 1.300 },
+  { label: 'kairo', median: 1.265, min: 1.261 },
+  { label: 'rust',  median: 1.271, min: 1.268 },
+  { label: 'kcc',   median: 1.271, min: 1.269 },
+  { label: 'clang', median: 1.273, min: 1.269 },
+  { label: 'gcc',   median: 1.298, min: 1.293 },
 ]} />
 
-**spectral** (spectral norm, `f64`), **wideint** (64-bit Miller–Rabin with 128-bit multiply-mod) and **slices** (sum, dot product and filter over a million `f64`s) are effectively ties. The spread is 7%, 8% and 3%. Kairo comes last in the first two and first in the third, all by margins I wouldn't put weight on.
+spectral (spectral norm, `f64`), wideint (64-bit Miller–Rabin with 128-bit multiply-mod) and slices (sum, dot product and filter over a million `f64`s) are effectively ties. The spread is 7%, 6% and 3%. Kairo comes last in the first two (tied with Rust in spectral) and first in the third, all by margins I wouldn't put weight on.
 
 ## Memory
 
-This is where Kairo's numbers look best. It's also where the kcc column matters most.
+This is where Kairo's numbers look best, and where the kcc column matters most.
 
 <BenchChart name="btree" n="20" rows={[
-  { label: 'kairo', median: 1.598, min: 1.588 },
-  { label: 'kcc',   median: 2.275, min: 2.261 },
-  { label: 'gcc',   median: 5.587, min: 5.439 },
-  { label: 'clang', median: 6.095, min: 5.988 },
-  { label: 'rust',  median: 6.382, min: 6.186 },
-]} caption="kcc builds the same C++ as gcc and clang but links Kairo's runtime heap. That alone takes it from 5.6 s to 2.3 s." />
+  { label: 'kairo', median: 2.230, min: 2.214 },
+  { label: 'kcc',   median: 3.342, min: 3.334 },
+  { label: 'gcc',   median: 5.323, min: 5.286 },
+  { label: 'clang', median: 5.965, min: 5.878 },
+  { label: 'rust',  median: 6.200, min: 6.137 },
+]} caption="kcc builds the same C++ as gcc and clang but links Kairo's runtime heap. That alone takes it from 5.3 s to 3.3 s." />
 
-**btree** builds and frees millions of small binary trees, one heap allocation per node. Kairo is 3.5× faster than GCC, but most of that is the allocator. `@create` goes to the [global allocator](/docs/language/allocators/#global-allocator), which is the runtime's bundled mimalloc, while the GCC, Clang and Rust builds use glibc's `malloc`.
+btree builds and frees millions of small binary trees, one heap allocation per node. Kairo is 2.7× faster than Clang, but most of that is the allocator. `@create` goes to the [global allocator](/docs/language/allocators/#global-allocator), which is the runtime's bundled mimalloc, while the GCC, Clang and Rust builds use glibc's `malloc`.
 
-kcc separates the two effects. The identical C++ program, linked against Kairo's runtime, drops from 5.6 s to 2.3 s. Most of the gap is the heap. Kairo is still 1.4× faster than kcc, though. In a first draft of this post I guessed that with mimalloc on both sides the gap would mostly disappear. It didn't, and I don't yet know where the remaining 1.4× comes from.
+kcc separates the two effects. The identical C++ program, linked against Kairo's runtime, drops from 5.3 s to 3.3 s, so most of the gap is the heap. Kairo is still 1.5× faster than kcc, though. In a first draft of this post I guessed that with mimalloc on both sides the gap would mostly disappear. It didn't, and I don't yet know where the remaining 1.5× comes from.
 
-<BenchChart name="alloc" n="50000000" baseline="gcc-malloc" rows={[
-  { label: 'kairo',        median: 0.121, min: 0.116 },
-  { label: 'kcc-malloc',   median: 0.126, min: 0.124 },
-  { label: 'kcc-new',      median: 0.137, min: 0.136 },
-  { label: 'gcc-malloc',   median: 0.201, min: 0.200 },
-  { label: 'clang-malloc', median: 0.202, min: 0.201 },
-  { label: 'rust',         median: 0.261, min: 0.257 },
-  { label: 'clang-new',    median: 0.273, min: 0.267 },
-  { label: 'gcc-new',      median: 0.274, min: 0.269 },
+<BenchChart name="alloc" n="50000000" baseline="clang-malloc" rows={[
+  { label: 'kairo',        median: 0.121, min: 0.119 },
+  { label: 'kcc-malloc',   median: 0.126, min: 0.125 },
+  { label: 'kcc-new',      median: 0.135, min: 0.130 },
+  { label: 'clang-malloc', median: 0.201, min: 0.200 },
+  { label: 'gcc-malloc',   median: 0.202, min: 0.200 },
+  { label: 'rust',         median: 0.256, min: 0.255 },
+  { label: 'gcc-new',      median: 0.269, min: 0.265 },
+  { label: 'clang-new',    median: 0.272, min: 0.266 },
 ]} />
 
-**alloc** creates and destroys one 16-byte object, 50 million times. The C++ is built twice, once with `new`/`delete` and once with `malloc`/`free`. This is the cleanest allocator comparison in the set, and it agrees with btree: Kairo and kcc with `malloc` are within 4% of each other, about 1.6× faster than glibc's `malloc`. Through glibc, `new`/`delete` costs another 35% on top of `malloc`. Through Kairo's runtime it costs about 9%.
+alloc creates and destroys one 16-byte object, 50 million times. The C++ is built twice, once with `new`/`delete` and once with `malloc`/`free`. This is the cleanest allocator comparison in the set, and it agrees with btree: Kairo and kcc with `malloc` are within 4% of each other, about 1.6× faster than glibc's `malloc`. Through glibc, `new`/`delete` costs about a third more than `malloc`. Through Kairo's runtime it costs about 7% more.
 
 <BenchChart name="nullable" n="10000000" rows={[
-  { label: 'kairo', median: 0.508, min: 0.504 },
-  { label: 'kcc',   median: 0.570, min: 0.566 },
-  { label: 'rust',  median: 0.847, min: 0.824 },
-  { label: 'gcc',   median: 0.852, min: 0.834 },
-  { label: 'clang', median: 0.872, min: 0.861 },
+  { label: 'kairo', median: 0.542, min: 0.538 },
+  { label: 'kcc',   median: 0.563, min: 0.560 },
+  { label: 'rust',  median: 0.814, min: 0.806 },
+  { label: 'gcc',   median: 0.820, min: 0.808 },
+  { label: 'clang', median: 0.840, min: 0.835 },
 ]} />
 
-**nullable** builds a 10-million-node linked list with nullable `next` links, walks and searches it 50 times, then frees it. It looks like btree: kcc gets most of the way there, and Kairo is 12% ahead of kcc and 1.7× ahead of the rest.
+nullable builds a 10-million-node linked list with nullable `next` links, walks and searches it 50 times, then frees it. Here kcc gets almost all the way there: Kairo is 4% ahead of kcc and 1.5× ahead of the rest.
 
 ## Abstractions
 
 These measure what common abstractions cost: stored closures, virtual calls, generators, generic code, and an interpreter loop built on `match`.
 
 <BenchChart name="closures" n="1000000000" rows={[
-  { label: 'kairo', median: 0.740, min: 0.729 },
-  { label: 'rust',  median: 0.778, min: 0.773 },
-  { label: 'clang', median: 2.488, min: 2.473 },
-  { label: 'kcc',   median: 2.675, min: 2.671 },
-  { label: 'gcc',   median: 5.437, min: 5.386 },
+  { label: 'kairo', median: 0.735, min: 0.731 },
+  { label: 'rust',  median: 0.777, min: 0.775 },
+  { label: 'clang', median: 2.466, min: 2.461 },
+  { label: 'kcc',   median: 2.656, min: 2.646 },
+  { label: 'gcc',   median: 5.370, min: 5.355 },
 ]} />
 
-**closures** applies three capturing callbacks stored in an array, a billion times. Kairo's `fn` values and Rust's `Box<dyn Fn>` are close: Kairo is 5% faster. The C++ version uses `std::function`, which is what C++ code reaches for when a callback has to be stored, and it's 3.4× slower with Clang and 7.3× slower with GCC. A C++ template taking the lambda directly would inline and be much faster, but that isn't a stored callback any more.
+closures applies three capturing callbacks stored in an array, a billion times. Kairo's `fn` values and Rust's `Box<dyn Fn>` are close: Kairo is 6% faster. The C++ version uses `std::function`, which is what C++ code reaches for when a callback has to be stored, and it's 3.4× slower with Clang and 7.3× slower with GCC. A C++ template taking the lambda directly would inline and be much faster, but that isn't a stored callback any more.
 
 <BenchChart name="dispatch" n="1500000" rows={[
-  { label: 'gcc',   median: 0.827, min: 0.813 },
-  { label: 'clang', median: 2.031, min: 2.028 },
-  { label: 'rust',  median: 2.045, min: 2.037 },
-  { label: 'kairo', median: 2.187, min: 2.118 },
-  { label: 'kcc',   median: 2.320, min: 2.312 },
+  { label: 'gcc',   median: 0.813, min: 0.807 },
+  { label: 'kairo', median: 2.029, min: 2.021 },
+  { label: 'rust',  median: 2.030, min: 2.027 },
+  { label: 'clang', median: 2.030, min: 2.025 },
+  { label: 'kcc',   median: 2.316, min: 2.309 },
 ]} />
 
-**dispatch** makes virtual calls over a mixed array of 1,024 shapes. This is Kairo's worst result: GCC is 2.6× faster than Kairo. But GCC is also 2.5× faster than Clang and Rust, so this is GCC doing something nobody else does, not Kairo doing something wrong. The C++ classes are marked `final`, and the likely explanation is GCC's speculative devirtualization: with only three possible targets, it can turn the virtual call into a type check and an inlined body. Against Clang and Rust, Kairo is 7–8% behind.
+dispatch makes virtual calls over a mixed array of 1,024 shapes. This is Kairo's worst result: GCC is 2.5× faster than Kairo. But GCC is also 2.5× faster than Clang and Rust, so GCC is the outlier here. The C++ classes are marked `final`, and the likely explanation is GCC's speculative devirtualization: with only three possible targets, it can turn the virtual call into a type check and an inlined body. Kairo, Clang and Rust all finish in 2.03 s.
 
 <BenchChart name="gen" n="1000000000" rows={[
-  { label: 'kcc',   median: 0.670, min: 0.664 },
-  { label: 'clang', median: 0.676, min: 0.674 },
-  { label: 'rust',  median: 0.936, min: 0.930 },
-  { label: 'kairo', median: 1.124, min: 1.107 },
-  { label: 'gcc',   median: 3.811, min: 3.677 },
+  { label: 'kairo', median: 0.560, min: 0.451 },
+  { label: 'kcc',   median: 0.661, min: 0.657 },
+  { label: 'clang', median: 0.670, min: 0.666 },
+  { label: 'rust',  median: 0.931, min: 0.928 },
+  { label: 'gcc',   median: 3.698, min: 3.641 },
 ]} />
 
-**gen** is a three-stage pipeline of nested generators (`-> yield T` in Kairo, C++20 coroutines, iterators in Rust), a billion values deep. Clang's C++ coroutines are the fastest here, and Kairo is 1.7× behind them. It's well ahead of GCC's coroutines (3.4×), but I'd want Kairo's generators at least level with Rust's iterators, and they're 20% behind.
+gen is a three-stage pipeline of nested generators (`-> yield T` in Kairo, C++20 coroutines, iterators in Rust), a billion values deep. Kairo is fastest: 1.2× ahead of Clang's C++ coroutines, 1.7× ahead of Rust's iterators, and 6.6× ahead of GCC's coroutines. Like fannkuch, it has one unusually fast run (0.451 s, 20% under the median), so the median is the number to go by.
 
 <BenchChart name="gsort" n="10000000" rows={[
-  { label: 'gcc',   median: 1.009, min: 1.001 },
-  { label: 'kcc',   median: 1.034, min: 1.027 },
-  { label: 'clang', median: 1.034, min: 1.032 },
-  { label: 'kairo', median: 1.039, min: 1.037 },
-  { label: 'rust',  median: 1.040, min: 1.035 },
+  { label: 'gcc',   median: 1.005, min: 1.001 },
+  { label: 'kairo', median: 1.027, min: 1.023 },
+  { label: 'clang', median: 1.028, min: 1.025 },
+  { label: 'kcc',   median: 1.030, min: 1.023 },
+  { label: 'rust',  median: 1.035, min: 1.032 },
 ]} />
 
 <BenchChart name="gsort-lib" n="10000000" rows={[
-  { label: 'rust',  median: 0.354, min: 0.348 },
-  { label: 'kcc',   median: 0.970, min: 0.967 },
-  { label: 'gcc',   median: 0.991, min: 0.983 },
-  { label: 'clang', median: 1.002, min: 0.997 },
+  { label: 'rust',  median: 0.338, min: 0.332 },
+  { label: 'kcc',   median: 0.967, min: 0.962 },
+  { label: 'gcc',   median: 0.986, min: 0.979 },
+  { label: 'clang', median: 0.995, min: 0.991 },
 ]} caption="For reference only: each language's library sort. Kairo has no library sort yet, so it has no row." />
 
-**gsort** is a hand-written generic sort over a comparison bound, with closures for the key. All five land within 3%, so generic code over an interface bound costs Kairo nothing extra. **gsort-lib** swaps in each language's own library sort for reference. Rust's `sort_unstable` is 2.8× faster than `std::sort`, which is a good bar for when Kairo's standard library gets one.
+gsort is a hand-written generic sort over a comparison bound, with closures for the key. All five land within 3%, so generic code over an interface bound costs Kairo nothing extra. gsort-lib swaps in each language's own library sort for reference. Rust's `sort_unstable` is 2.9× faster than `std::sort`, which is a good bar for when Kairo's standard library gets one.
 
 <BenchChart name="interp" n="250000000" rows={[
-  { label: 'rust',  median: 1.089, min: 1.077 },
-  { label: 'kairo', median: 1.224, min: 1.211 },
-  { label: 'gcc',   median: 1.389, min: 1.375 },
-  { label: 'clang', median: 1.459, min: 1.423 },
-  { label: 'kcc',   median: 1.541, min: 1.528 },
+  { label: 'kairo', median: 1.100, min: 1.092 },
+  { label: 'rust',  median: 1.102, min: 1.079 },
+  { label: 'gcc',   median: 1.375, min: 1.318 },
+  { label: 'clang', median: 1.493, min: 1.433 },
+  { label: 'kcc',   median: 1.529, min: 1.520 },
 ]} />
 
-**interp** runs a small bytecode loop: an ADT enum and `match` in Kairo and Rust, a tagged struct and `switch` in C++. Kairo is second, 12% behind Rust and ahead of every C++ build.
+interp runs a small bytecode loop: an ADT enum and `match` in Kairo and Rust, a tagged struct and `switch` in C++. Kairo and Rust are tied, and both are at least 1.25× faster than every C++ build.
 
 ## Errors and text
 
-The two biggest wins, and the two I trust least until I've looked closer.
+These are Kairo's two biggest wins, and also the two I trust least.
 
 <BenchChart name="errpath" n="500000000" rows={[
-  { label: 'kairo', median: 0.226, min: 0.221 },
-  { label: 'rust',  median: 0.568, min: 0.563 },
-  { label: 'clang', median: 2.255, min: 2.221 },
-  { label: 'gcc',   median: 2.347, min: 2.318 },
-  { label: 'kcc',   median: 8.080, min: 7.992 },
+  { label: 'kairo', median: 0.222, min: 0.220 },
+  { label: 'rust',  median: 0.564, min: 0.562 },
+  { label: 'clang', median: 2.262, min: 2.237 },
+  { label: 'gcc',   median: 2.341, min: 2.317 },
+  { label: 'kcc',   median: 8.209, min: 8.140 },
 ]} />
 
-**errpath** makes 500 million calls, 1% of which fail: `panic`/`try`/`catch` in Kairo, exceptions in C++, `Result` in Rust. Kairo is 10× faster than C++ exceptions, so whatever `panic` does, it isn't C++ unwinding. More surprising, it's also 2.5× faster than Rust's `Result`, which is about the cheapest error path there is. All five agree on the output, so the work is being done. But I want to see the generated code before claiming a 2.5× advantage over Rust. The kcc row needs a look too: the same exceptions code is 3.4× slower with Kairo's runtime than with GCC's.
+errpath makes 500 million calls, 1% of which fail: `panic`/`try`/`catch` in Kairo, exceptions in C++, `Result` in Rust. Kairo is 10× faster than C++ exceptions, so whatever `panic` does, it isn't C++ unwinding. More surprising, it's also 2.5× faster than Rust's `Result`, which is about the cheapest error path there is. All five agree on the output, so the work is being done. But I want to see the generated code before claiming a 2.5× advantage over Rust. The kcc row needs a look too: the same exceptions code is 3.5× slower with Kairo's runtime than with GCC's.
 
 <BenchChart name="fmt" n="10000000" rows={[
-  { label: 'kairo', median: 0.129, min: 0.102 },
-  { label: 'kcc',   median: 0.248, min: 0.245 },
-  { label: 'clang', median: 0.327, min: 0.324 },
-  { label: 'gcc',   median: 0.334, min: 0.332 },
-  { label: 'rust',  median: 0.587, min: 0.586 },
+  { label: 'kairo', median: 0.110, min: 0.107 },
+  { label: 'kcc',   median: 0.247, min: 0.246 },
+  { label: 'clang', median: 0.326, min: 0.321 },
+  { label: 'gcc',   median: 0.336, min: 0.331 },
+  { label: 'rust',  median: 0.589, min: 0.580 },
 ]} />
 
-**fmt** turns 10 million `f64`s and 10 million `i64`s into text: f-strings in Kairo, `std::to_chars` in C++, `write!` in Rust. Kairo's median is 1.9× faster than kcc and 2.6× faster than GCC. It's also the noisiest result in the set, with the best run 21% under the median. Kairo builds a new string for every number, while `to_chars` writes into a stack buffer, so a 2× lead is not what I'd have predicted. As with errpath, I'll check what the compiler made of the loop before leaning on it.
+fmt turns 10 million `f64`s and 10 million `i64`s into text: f-strings in Kairo, `std::to_chars` in C++, `write!` in Rust. Kairo is 2.2× faster than kcc and 3.0× faster than Clang. Kairo builds a new string for every number, while `to_chars` writes into a stack buffer, so a lead this size is not what I'd have predicted. As with errpath, I'll check what the compiler made of the loop before leaning on it.
 
 ## Scoped allocators (Kairo only)
 
-**scopes** has no C++ or Rust version, because it measures a Kairo feature: the [scoped allocator](/docs/language/allocators/#scoped-allocator) stack. It opens `DEPTH` nested allocator scopes, then runs 50 million operations at the innermost level. Times are per operation:
+scopes has no C++ or Rust version, because it measures a Kairo feature: the [scoped allocator](/docs/language/allocators/#scoped-allocator) stack. It opens `DEPTH` nested allocator scopes, then runs 50 million operations at the innermost level. Times are per operation:
 
 | Operation | depth 1 | depth 16 | depth 64 |
 |---|---:|---:|---:|
-| allocate + free in the innermost scope | 2.4 ns | 2.4 ns | 2.4 ns |
-| free a global block inside the scopes | 3.0 ns | 2.9 ns | 2.9 ns |
-| free a block from the outermost scope | 1.2 ns | 8.2 ns | 28.1 ns |
-| open and close one more scope | 5.3 ns | 5.9 ns | 6.1 ns |
+| allocate + free in the innermost scope | 2.5 ns | 2.5 ns | 2.7 ns |
+| free a global block inside the scopes | 3.1 ns | 3.1 ns | 3.1 ns |
+| free a block from the outermost scope | 1.4 ns | 7.2 ns | 21.6 ns |
+| open and close one more scope | 6.2 ns | 6.6 ns | 6.6 ns |
 
-Three of the four operations cost the same at any depth, including freeing a global block while scopes are open. Freeing a block that belongs to the *outermost* scope doesn't: `free` has to find the scope that owns the address, and that costs roughly 0.45 ns for every scope opened above it. At realistic depths that's a few nanoseconds. At 64 scopes deep it's 28. Now that cost has a number.
+Three of the four operations cost nearly the same at any depth, including freeing a global block while scopes are open. Freeing a block that belongs to the *outermost* scope doesn't: `free` has to find the scope that owns the address, and that costs roughly 0.3 to 0.4 ns for every scope opened above it. At realistic depths that's a few nanoseconds. At 64 scopes deep it's 22.
 
 ## How the numbers were made
 
 The code is in [`Tests/bench`](https://github.com/kairolang/kairo/tree/main/Tests/bench) in the Kairo repository. Each program is written idiomatically in each language, with the README listing what each version uses (`std::function` vs `Box<dyn Fn>`, exceptions vs `Result`, and so on), and none is tuned for one compiler.
 
 - **Builds:** `-O3` for Kairo, GCC, Clang and kcc (`-std=c++20` for C++), and `-C opt-level=3 -C codegen-units=1` for Rust. No `-march=native`, LTO or PGO for anyone.
-- **Timing:** `bench-seq.fish 4` builds and times one benchmark at a time. Within a benchmark, the toolchains are interleaved (each binary once, then each again) for four rounds, so a background-load swing hits all of them equally.
+- **Timing:** `bench-seq.fish 8` builds and times one benchmark at a time. Within a benchmark, the toolchains are interleaved (each binary once, then each again) for eight rounds, so a background-load swing hits all of them equally.
 - **What's measured:** wall-clock time for the whole process, startup and output included.
 - **Correctness:** each benchmark prints a checksum, and the harness checks that every toolchain prints the same one. All sixteen agreed.
 - **Machine:** AMD Ryzen 9 7900X (12 cores / 24 threads), Linux 7.2.11-zen1, GCC 16.2.1, Clang 23.1.3, rustc 1.98.1, and a local build of the Kairo compiler and kcc.
 
 ## What this doesn't tell you
 
-- **Four runs is a small sample.** Most medians sit within 1–2% of the best run, but anything under about 5% shouldn't be read as a ranking.
-- **Defaults, not best effort.** Each language uses its default allocator and standard library, because that's what you get when you write the obvious code. That's exactly why btree, alloc and nullable look the way they do. kcc is there to show how much of that is the heap.
-- **Some Kairo sources carry workarounds** for compiler bugs still open: `gsort.k` wraps `i64` in a `Key` struct, `gen.k` yields only named variables, and `spectral.k` avoids one parameter name. None should change the timing much, but they're listed in the README.
-- **Single-threaded micro-benchmarks only.** None of this covers threads, I/O, or large programs.
+- Eight runs is a small sample. Most medians sit within 1 to 2% of the best run (Kairo's fannkuch and gen are the exceptions), but don't read a difference under about 5% as a ranking.
+- Each language uses its default allocator and standard library, because that's what you get when you write the obvious code. That's why btree, alloc and nullable look the way they do, and kcc is there to show how much of it is the heap.
+- Some Kairo sources carry workarounds for compiler bugs that are still open: `gsort.k` wraps `i64` in a `Key` struct, `gen.k` yields only named variables, and `spectral.k` avoids one parameter name. None should change the timing much, but they're listed in the README.
+- These are single-threaded micro-benchmarks. None of them covers threads, I/O, or large programs.
 
 If you run the suite on your own hardware and get different results, I'd like to see them, especially on ARM.
