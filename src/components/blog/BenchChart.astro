@@ -1,14 +1,15 @@
 ---
 /**
  * Horizontal bar chart for one benchmark: one row per compiler, sorted
- * fastest first, bar = median wall time, tick = fastest run.
+ * fastest first, bar = median wall time, tick = best run.
  *
  *   <BenchChart name="nbody" n="30000000" baseline="gcc" rows={[
  *     { label: 'kairo', median: 1.266, min: 1.255 }, ...
  *   ]} />
  *
- * Kairo's row is drawn in brand red, every other toolchain in neutral gray,
- * so the chart reads "where does Kairo land" at a glance. Identity never
+ * Kairo's row is drawn in brand red, kcc rows (C++ built with Kairo's
+ * toolchain and runtime) in a dimmed red, every other toolchain in neutral
+ * gray, so the chart reads "where does Kairo land" at a glance. Identity never
  * rides on colour alone: every row is labelled with its toolchain name.
  */
 interface Row { label: string; median: number; min: number }
@@ -20,23 +21,28 @@ interface Props {
   baseline?: string;
   /** the row drawn as the highlighted series */
   highlight?: string;
+  /** label prefix for rows drawn in the secondary (dimmed brand) tone */
+  secondary?: string;
   caption?: string;
 }
 
-const { name, n, rows, baseline = 'gcc', highlight = 'kairo', caption } = Astro.props;
+const { name, n, rows, baseline = 'gcc', highlight = 'kairo', secondary = 'kcc', caption } = Astro.props;
 const sorted = [...rows].sort((a, b) => a.median - b.median);
-const base = rows.find(r => r.label === baseline)?.median ?? sorted[0].median;
+const baseRow = rows.find(r => r.label === baseline);
+const base = baseRow?.median ?? sorted[0].median;
+const showRatio = !!baseRow;
 
 // Clean axis with at most 6 labels (fits a phone-width track). Headroom of
 // 20% keeps the value label at the longest bar's end inside the track.
 const top = Math.max(...rows.map(r => r.median)) * 1.2;
-const step = [0.5, 1, 2, 5, 10].find(s => Math.ceil(top / s) <= 5) ?? 10;
+const step = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10].find(s => Math.ceil(top / s) <= 5) ?? 10;
 const max = Math.ceil(top / step) * step;
 const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => +(i * step).toFixed(2));
+const longest = Math.max(...rows.map(r => r.label.length));
 const pct = (v: number) => `${(v / max) * 100}%`;
 const fmtX = (v: number) => `${v.toFixed(2)}×`;
 ---
-<figure class="bench" aria-labelledby={`bench-${name}-t`}>
+<figure class="bench" style={longest > 5 ? `--label-w:${longest * 0.62 + 0.4}rem;--label-w-sm:${longest * 0.56 + 0.2}rem` : undefined} aria-labelledby={`bench-${name}-t`}>
   <figcaption class="bench-head">
     <span class="bench-title" id={`bench-${name}-t`}>{name}</span>
     <span class="bench-n">N = {Number(n).toLocaleString('en-US')}</span>
@@ -48,9 +54,9 @@ const fmtX = (v: number) => `${v.toFixed(2)}×`;
       const ratio = base / r.median;
       return (
         <li
-          class:list={['bench-row', { 'is-hl': r.label === highlight, 'is-first': i === 0 }]}
+          class:list={['bench-row', { 'is-hl': r.label === highlight, 'is-hl2': r.label.startsWith(secondary), 'is-first': i === 0 }]}
           tabindex="0"
-          aria-label={`${r.label}: median ${r.median.toFixed(3)} seconds, fastest run ${r.min.toFixed(3)} seconds, ${fmtX(ratio)} the speed of ${baseline}`}
+          aria-label={`${r.label}: median ${r.median.toFixed(3)} seconds, best run ${r.min.toFixed(3)} seconds${showRatio ? `, ${fmtX(ratio)} the speed of ${baseline}` : ''}`}
         >
           <span class="bench-label">{r.label}</span>
           <span class="bench-track" style={`--ticks:${ticks.length - 1}`}>
@@ -60,11 +66,11 @@ const fmtX = (v: number) => `${v.toFixed(2)}×`;
             <span class="bench-tip" role="tooltip" aria-hidden="true">
               <b>{r.label}</b>
               <span>median <em>{r.median.toFixed(3)}s</em></span>
-              <span>fastest <em>{r.min.toFixed(3)}s</em></span>
-              <span>vs {baseline} <em>{r.label === baseline ? '—' : fmtX(ratio)}</em></span>
+              <span>best run <em>{r.min.toFixed(3)}s</em></span>
+              {showRatio && <span>vs {baseline} <em>{r.label === baseline ? '—' : fmtX(ratio)}</em></span>}
             </span>
           </span>
-          <span class="bench-ratio">{r.label === baseline ? 'base' : fmtX(ratio)}</span>
+          <span class="bench-ratio">{showRatio ? (r.label === baseline ? 'base' : fmtX(ratio)) : ''}</span>
         </li>
       );
     })}
@@ -75,7 +81,7 @@ const fmtX = (v: number) => `${v.toFixed(2)}×`;
     <span class="bench-ticks">
       {ticks.map(t => <span class="bench-tick" style={`left:${pct(t)}`}>{t}s</span>)}
     </span>
-    <span class="bench-ratio">vs {baseline}</span>
+    <span class="bench-ratio">{showRatio ? `vs ${baseline}` : ''}</span>
   </div>
 
   {caption && <p class="bench-note">{caption}</p>}
@@ -85,6 +91,7 @@ const fmtX = (v: number) => `${v.toFixed(2)}×`;
   .bench {
     --bench-hl: var(--red);
     --bench-mute: color-mix(in srgb, var(--text-2) 55%, var(--bg-2));
+    --bench-hl2: color-mix(in srgb, var(--red) 42%, var(--bg-2));
     --bench-grid: var(--border);
     margin: 2rem 0;
     padding: 1.1rem 1.25rem 0.9rem;
@@ -106,7 +113,7 @@ const fmtX = (v: number) => `${v.toFixed(2)}×`;
   .bench-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
   .bench-row, .bench-axis {
     display: grid;
-    grid-template-columns: 3.75rem 1fr 3.4rem;
+    grid-template-columns: var(--label-w, 3.75rem) 1fr 3.4rem;
     align-items: center;
     gap: 0.75rem;
   }
@@ -128,6 +135,7 @@ const fmtX = (v: number) => `${v.toFixed(2)}×`;
     transition: filter var(--dur-fast) var(--ease);
   }
   .bench-row.is-hl .bench-bar { background: var(--bench-hl); }
+  .bench-row.is-hl2 .bench-bar { background: var(--bench-hl2); }
   .bench-row:hover .bench-bar,
   .bench-row:focus-visible .bench-bar { filter: brightness(1.18); }
   .bench-row:focus-visible .bench-track { outline: 1px solid var(--accent); outline-offset: 3px; }
@@ -178,7 +186,7 @@ const fmtX = (v: number) => `${v.toFixed(2)}×`;
 
   @media (max-width: 560px) {
     .bench { padding: 0.9rem 0.8rem 0.75rem; }
-    .bench-row, .bench-axis { grid-template-columns: 3rem 1fr 2.9rem; gap: 0.5rem; }
+    .bench-row, .bench-axis { grid-template-columns: var(--label-w-sm, 3rem) 1fr 2.9rem; gap: 0.5rem; }
     .bench-unit { margin-left: 0; width: 100%; }
   }
   @media (prefers-reduced-motion: reduce) {
