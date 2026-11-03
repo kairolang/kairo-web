@@ -3,7 +3,7 @@
  * Horizontal bar chart for one benchmark: one row per compiler, sorted
  * fastest first, bar = median wall time, tick = best run.
  *
- *   <BenchChart name="nbody" n="30000000" baseline="gcc" rows={[
+ *   <BenchChart name="nbody" n="30000000" baseline="clang" rows={[
  *     { label: 'kairo', median: 1.266, min: 1.255 }, ...
  *   ]} />
  *
@@ -26,7 +26,7 @@ interface Props {
   caption?: string;
 }
 
-const { name, n, rows, baseline = 'gcc', highlight = 'kairo', secondary = 'kcc', caption } = Astro.props;
+const { name, n, rows, baseline = 'clang', highlight = 'kairo', secondary = 'kcc', caption } = Astro.props;
 const sorted = [...rows].sort((a, b) => a.median - b.median);
 const baseRow = rows.find(r => r.label === baseline);
 const base = baseRow?.median ?? sorted[0].median;
