@@ -176,6 +176,8 @@ A forwarded pack must meet the bounds of the pack it is forwarded to, through it
 
 Each element is passed by its own type's transfer rules, as any argument is (see [Ownership](/docs/language/ownership/#function-parameters)): a COPY element is copied and stays live, a MOVE element is moved. So a body may expand the same pack more than once when its elements are COPY; the last expansion may move instead of copying, since nothing reads the elements after it.
 
+A pack parameter takes no passing mode yet: `@inout ...args: T` and `@move ...args: T` are compile errors ("'@inout' on pack parameter 'args' is not supported yet").
+
 An expansion is written only as a call argument, and only of a pack parameter. The same postfix form appears in type position for pack-typed signatures (`-> Outcome<i32, T...>`, `derives Base<T...>`). The split mirrors the [token-macro splat](/docs/language/macros/#variadic-macros-and-pack-expansion): `...` before a name declares a pack, `...` after an expression expands one.
 
 

@@ -274,22 +274,31 @@ fn main() {
 
 C's `char` is [`std::c_char`](/docs/language/primitives/#cs-char-stdc_char), so a C++ `const char*` is `*const c_char` in Kairo, and back: a function returning one can be stored, compared with `&null`, indexed and passed on to any C or C++ parameter of that type. `char`, `signed char` and `unsigned char` are three types, as in C++, so a header that overloads on them gives three Kairo overloads (`c_char`, `i8`, `u8`).
 
-A Kairo [`string`](/docs/language/primitives/#strings) stores UTF-8 bytes (`data` is `*const u8`) with a NUL after the last one, so its bytes are a C string once the pointer is reinterpreted. Bytes and C chars are unrelated types, so that is an `as unsafe *` cast inside an `unsafe` block ([pointer cast rules](/docs/language/casting/#pointer-cast-rules)); passing the `*u8` itself is an error whose fix-it inserts the cast:
+A string **literal** passed to an imported C or C++ function's `const char*` parameter (`*const c_char`, safe or `unsafe`) is the C string itself: the compiler passes the literal's static, NUL-terminated bytes, and no `string` is made. The same holds for a `const unsigned char*` (`*const u8`) parameter and for the `...` of a variadic C function such as `printf`. The parameter must be `const`: a literal's bytes are read-only, so a `char*` parameter does not take one.
+
+Any other [`string`](/docs/language/primitives/#strings) passes its bytes with `s.c_str()`, which returns `unsafe *const c_char`. It costs nothing: a Kairo string keeps a NUL after its last byte, a literal's and an owned string's alike. The pointer is valid until the string is next changed or destroyed. Passing the `string` itself is an error whose fix-it inserts `.c_str()`:
 
 ```kairo
-import std::c_char
 ffi "c" import "string.h"
+ffi "c" import "stdlib.h"
+ffi "c" import "stdio.h"
 
 fn main() {
+    var n = strlen("hello")                 // 5: the literal is the C string
+    var unsafe *home = getenv("HOME")
+    printf("%s %zu\n", "count", n)          // literals through C's `...` too
+
     var s = "hello"
-    unsafe {
-        var n = strlen(s.data as unsafe *const c_char)   // 5
-        // strlen(s.data)   // error SC063E: a C string is '*const c_char'; fix-it: ` as unsafe *const c_char`
-    }
+    s += ", world"
+    var m = strlen(s.c_str())               // 12
+    // strlen(s)          // error SC063E: a string other than a literal passes its bytes with '.c_str()'; fix-it: `.c_str()`
+    // printf("%s\n", s)  // error: a 'string' cannot pass through C's '...'; fix-it: `.c_str()`
 }
 ```
 
-A `*const c_char` in an f-string prints as a pointer (`const c_char @ 0x...`), like any pointer: there is no C-string formatter yet. A `string.c_str()` method is planned.
+The `string`'s bytes are also `data` (`*const u8`). Bytes and C chars are unrelated types, so passing `data` to a `const char*` parameter needs an `as unsafe *const c_char` cast inside an `unsafe` block ([pointer cast rules](/docs/language/casting/#pointer-cast-rules)); passing the `*u8` itself is an error whose fix-it inserts the cast.
+
+A `*const c_char` in an f-string prints as a pointer (`const c_char @ 0x...`), like any pointer: there is no C-string formatter yet.
 
 ### Function pointers and callbacks
 
@@ -370,7 +379,7 @@ Non-type template arguments are written as Kairo values: `cxx::std::array<i32, 4
 
 A container of Kairo pointers keeps the pointer kind you wrote: `cxx::std::vector<*Node>` hands out `*Node`, `vector<unsafe *Node>` hands out `unsafe *Node`. Both are `std::vector<Node*>` in C++.
 
-Any Kairo type with a C++ spelling may be an argument of an imported class template: builtins, pointers, records and generic records, tuples, plain enums, ADT enums (generic or not), and nullables (`vector<i32?>`, `vector<*Node?>`). The instance's members read back as the Kairo types, so `push_back(null)`, `if x? { ... }`, `v[0] ?? d`, `v[0] = null` and `match` on an element work as for any value. Not yet: a function type (`fn(i32) -> i32`) as an element (calling `v[0](3)` is rejected).
+Any Kairo type with a C++ spelling may be an argument of an imported class template: builtins, pointers, records and generic records, tuples, plain enums, ADT enums (generic or not), and nullables (`vector<i32?>`, `vector<*Node?>`). The instance's members read back as the Kairo types, so `push_back(null)`, `if x? { ... }`, `v[0] ?? d`, `v[0] = null` and `match` on an element work as for any value. A written `fn(i32) -> i32` as a template argument is the C++ function type `i32(i32)`, so `function_ref<fn(i32) -> bool>(closure)` names the same instance as a C++ `function_ref<bool(int)>` parameter; a raw `unsafe fn(i32) -> i32` is the function pointer `R(*)(A)`, a different instance. Not yet: calling a function-type element (`v[0](3)` is rejected).
 
 A C++ function template with a forwarding pack (`template <class... Args> void emplace_back(Args&&... args)`) takes any number of arguments; each is passed as written and C++ deduces its reference kind. A `const Ts&...` pack takes any argument, a `Ts&...` pack only variables (lvalues).
 

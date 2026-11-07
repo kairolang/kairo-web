@@ -33,7 +33,7 @@ jobs:
       - name: Copy and convert language docs
         run: |
           set -euo pipefail
-          dst=kairo/Spec/Docs
+          dst=kairo/Docs
 
           # Drop old docs; __convert.py and README stay
           find "$dst" -maxdepth 1 \( -name '*.md' -o -name '*.mdx' \) -delete
@@ -51,7 +51,7 @@ jobs:
         run: |
           git config user.name "kairo-docs-bot"
           git config user.email "docs@kairolang.org"
-          git add -A Spec/Docs
+          git add -A Docs
           git diff --staged --quiet || {
             git commit -m "[docs] sync language docs from kairo-web@${GITHUB_SHA:0:7}"
             git push

@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-11-02T23:34:44.335Z
+> Generated: 2026-11-07T19:26:42.274Z
 
 ---
 
@@ -961,7 +961,7 @@ A [closure](/docs/language/closures/#tether-and-lifetime-safety) that captures a
 
 ## Language Gaps
 
-- A Kairo `string` reaches a C `const char*` parameter only through an `unsafe` cast of its bytes (`s.data as unsafe *const std::c_char`); `string.c_str()` is planned. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
+- A string literal passes to a C `const char*` parameter as it is, and any other Kairo `string` through `s.c_str()`. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
 
 ---
 
@@ -1136,6 +1136,8 @@ var other = false
 | `char` | 4 bytes | Unicode scalar value (U+0000-U+10FFFF) | `char32_t` |
 
 A `char` holds a single decoded Unicode codepoint. It is always 4 bytes regardless of which codepoint it represents.
+
+A `char` converts implicitly to and from an integer only when the target is equal or wider: `char` to `u32`, `u64`, `u128`, `i64`, `i128`, and `u8`, `u16`, `u32` to `char`. Everything else (`char` to `u8`, `u16`, `i8`, `i16`, `i32`; `i8`, `i16`, `i32`, `i64`, `i128`, `u64`, `u128` to `char`) needs `as`. An integer literal takes `char` when it is a Unicode scalar value, and `0xD800` or `0x110000` is an error. See the [conversion lattice](/docs/language/conversion-lattice/#4-non-numeric-primitives-rationale).
 
 ```kairo
 var letter = 'A'
@@ -7650,7 +7652,18 @@ var second = *(p + 1)    // 20
 var third = *(p + 2)     // 30
 p = p + 4                // ok: one past the end, may be compared but not dereferenced
 p = p - 1                // ok: back to the last element
+--p                      // ok: `p -= 1`; `++p`, `p++` and `p--` step the same way
 ```
+
+`++` and `--` on a pointer move it by one element, as `p += 1` and `p -= 1` do, on both kinds of pointer. That is how a C++-style iterator loop is written:
+
+```kairo
+var v: [i32] = [1, 2, 3]
+var sum = 0
+for var *it = v.begin(); it != v.end(); ++it { sum += *it }   // 6
+```
+
+A pointer to `void` has no element size and cannot be stepped. A nullable pointer (`*T?`) must be checked first.
 
 A safe pointer must always stay within its allocation or exactly one past its end. Forming one outside that range (`&arr[0] - 1`, `&arr[0] + 5`) is a compile error when Tether can see it statically, and a runtime check at the arithmetic when the offset is runtime data. See [Forming versus dereferencing](/docs/language/tether-bounds/#forming-versus-dereferencing-and-one-past-the-end).
 
@@ -11455,10 +11468,10 @@ Each direction cell holds one of:
 | C++ references (`T&`, `const T&`, `T&&`) | ✅ | ✅ | Reference parameters are the [parameter modes](/docs/language/functions-parameter-modes/) `@inout x: T`, `x: T` and `@move x: T`, in both directions. A call returning a reference is usable as an operand and as an assignment target ([Reference returns](/docs/language/functions-parameter-modes/#reference-returns-from-c)). `const T&&` can be called, not declared |
 | C++ smart pointers (`unique_ptr`, `shared_ptr`, `weak_ptr`) | ◐ | ? | Usable as imported class templates (`cxx::std::make_unique<i32>(9)`). Their automatic mapping to `std::Unique` / `Shared` / `Weak` ([Smart Pointer Promotion](/docs/language/pointers/#smart-pointer-promotion)) is part of [Tether](/docs/language/tether-internals/#cc-interop), which is not in this release. How Kairo's own smart pointers look to C++ is not documented |
 | Function pointers | ✅ | ✅ | `int (*)(int)` imports as `unsafe fn(i32) -> i32` and takes a named function or a closure that captures nothing. A Kairo `unsafe fn` is a plain C function pointer, and so is every `fn` parameter of an `ffi "c"` function. See [Function pointers and callbacks](/docs/language/c-cpp-calling/#function-pointers-and-callbacks) |
-| Closures and `fn` values | ? | ◐ | A `fn(i32) -> i32` value is `::__kairo_fn<std::int32_t(std::int32_t)>` in C++. A capturing closure, or any `fn` value, passed where a C function pointer is expected is a compile error. Not yet: generic closures, and a function type as a C++ template's element. Passing a C++ lambda or `std::function` into Kairo is not documented. See [Closures](/docs/language/closures/) |
+| Closures and `fn` values | ? | ◐ | A `fn(i32) -> i32` value is `::__kairo_fn<std::int32_t(std::int32_t)>` in C++. A capturing closure, or any `fn` value, passed where a C function pointer is expected is a compile error. Not yet: generic closures. As a C++ template argument a written `fn(A) -> R` is the C++ function type `R(A)` (`function_ref<bool(int)>`), while a raw `unsafe fn(A) -> R` is the pointer `R(*)(A)`. Passing a C++ lambda or `std::function` into Kairo is not documented. See [Closures](/docs/language/closures/) |
 | Arrays (`[T; N]`, C arrays) | ? | ? | Not documented. `cxx::std::array<i32, 4>` works as an imported template. See [Collections](/docs/language/collections/#arrays-t-n) |
 | Slices, vectors, maps, sets | — | ? | **Kairo-only.** Their C++ form is not documented. Not yet: vector literals do not link, set and map literals are not compiled. C++ containers are used through `cxx::std::`. See [Collections](/docs/language/collections/) |
-| Strings | ◐ | ◐ | A `const char*` is `*const c_char`. A Kairo `string` reaches a `const char*` parameter only through an `unsafe` cast of its bytes; `string.c_str()` is planned ([Strings and `const char*`](/docs/language/c-cpp-calling/#strings-and-const-char)). `std::string` is an imported class. To C++, a Kairo `string` is a class, but its C++ API is not documented |
+| Strings | ◐ | ◐ | A `const char*` is `*const c_char`. A string literal is a C string at a `const char*` parameter (and through C's `...`); any other Kairo `string` passes `s.c_str()` ([Strings and `const char*`](/docs/language/c-cpp-calling/#strings-and-const-char)). `std::string` is an imported class. To C++, a Kairo `string` is a class, but its C++ API is not documented |
 | f-strings | — | — | **Kairo-only.** A `*const c_char` prints as a pointer: there is no C-string formatter yet. See [Status](/docs/status/#not-compiled-yet) |
 | Type aliases | ✅ | ✅ | C and C++ typedefs and `using` aliases import (`typedef struct X X` is one type). A Kairo member `type` alias is a C++ member `using` at the same access; top-level aliases are not documented. See [Type Aliases](/docs/language/type-aliases/) |
 | **Functions** | | | |
@@ -12038,22 +12051,31 @@ fn main() {
 
 C's `char` is [`std::c_char`](/docs/language/primitives/#cs-char-stdc_char), so a C++ `const char*` is `*const c_char` in Kairo, and back: a function returning one can be stored, compared with `&null`, indexed and passed on to any C or C++ parameter of that type. `char`, `signed char` and `unsigned char` are three types, as in C++, so a header that overloads on them gives three Kairo overloads (`c_char`, `i8`, `u8`).
 
-A Kairo [`string`](/docs/language/primitives/#strings) stores UTF-8 bytes (`data` is `*const u8`) with a NUL after the last one, so its bytes are a C string once the pointer is reinterpreted. Bytes and C chars are unrelated types, so that is an `as unsafe *` cast inside an `unsafe` block ([pointer cast rules](/docs/language/casting/#pointer-cast-rules)); passing the `*u8` itself is an error whose fix-it inserts the cast:
+A string **literal** passed to an imported C or C++ function's `const char*` parameter (`*const c_char`, safe or `unsafe`) is the C string itself: the compiler passes the literal's static, NUL-terminated bytes, and no `string` is made. The same holds for a `const unsigned char*` (`*const u8`) parameter and for the `...` of a variadic C function such as `printf`. The parameter must be `const`: a literal's bytes are read-only, so a `char*` parameter does not take one.
+
+Any other [`string`](/docs/language/primitives/#strings) passes its bytes with `s.c_str()`, which returns `unsafe *const c_char`. It costs nothing: a Kairo string keeps a NUL after its last byte, a literal's and an owned string's alike. The pointer is valid until the string is next changed or destroyed. Passing the `string` itself is an error whose fix-it inserts `.c_str()`:
 
 ```kairo
-
 ffi "c" import "string.h"
+ffi "c" import "stdlib.h"
+ffi "c" import "stdio.h"
 
 fn main() {
+    var n = strlen("hello")                 // 5: the literal is the C string
+    var unsafe *home = getenv("HOME")
+    printf("%s %zu\n", "count", n)          // literals through C's `...` too
+
     var s = "hello"
-    unsafe {
-        var n = strlen(s.data as unsafe *const c_char)   // 5
-        // strlen(s.data)   // error SC063E: a C string is '*const c_char'; fix-it: ` as unsafe *const c_char`
-    }
+    s += ", world"
+    var m = strlen(s.c_str())               // 12
+    // strlen(s)          // error SC063E: a string other than a literal passes its bytes with '.c_str()'; fix-it: `.c_str()`
+    // printf("%s\n", s)  // error: a 'string' cannot pass through C's '...'; fix-it: `.c_str()`
 }
 ```
 
-A `*const c_char` in an f-string prints as a pointer (`const c_char @ 0x...`), like any pointer: there is no C-string formatter yet. A `string.c_str()` method is planned.
+The `string`'s bytes are also `data` (`*const u8`). Bytes and C chars are unrelated types, so passing `data` to a `const char*` parameter needs an `as unsafe *const c_char` cast inside an `unsafe` block ([pointer cast rules](/docs/language/casting/#pointer-cast-rules)); passing the `*u8` itself is an error whose fix-it inserts the cast.
+
+A `*const c_char` in an f-string prints as a pointer (`const c_char @ 0x...`), like any pointer: there is no C-string formatter yet.
 
 ### Function pointers and callbacks
 
@@ -12134,7 +12156,7 @@ Non-type template arguments are written as Kairo values: `cxx::std::array<i32, 4
 
 A container of Kairo pointers keeps the pointer kind you wrote: `cxx::std::vector<*Node>` hands out `*Node`, `vector<unsafe *Node>` hands out `unsafe *Node`. Both are `std::vector<Node*>` in C++.
 
-Any Kairo type with a C++ spelling may be an argument of an imported class template: builtins, pointers, records and generic records, tuples, plain enums, ADT enums (generic or not), and nullables (`vector<i32?>`, `vector<*Node?>`). The instance's members read back as the Kairo types, so `push_back(null)`, `if x? { ... }`, `v[0] ?? d`, `v[0] = null` and `match` on an element work as for any value. Not yet: a function type (`fn(i32) -> i32`) as an element (calling `v[0](3)` is rejected).
+Any Kairo type with a C++ spelling may be an argument of an imported class template: builtins, pointers, records and generic records, tuples, plain enums, ADT enums (generic or not), and nullables (`vector<i32?>`, `vector<*Node?>`). The instance's members read back as the Kairo types, so `push_back(null)`, `if x? { ... }`, `v[0] ?? d`, `v[0] = null` and `match` on an element work as for any value. A written `fn(i32) -> i32` as a template argument is the C++ function type `i32(i32)`, so `function_ref<fn(i32) -> bool>(closure)` names the same instance as a C++ `function_ref<bool(int)>` parameter; a raw `unsafe fn(i32) -> i32` is the function pointer `R(*)(A)`, a different instance. Not yet: calling a function-type element (`v[0](3)` is rejected).
 
 A C++ function template with a forwarding pack (`template <class... Args> void emplace_back(Args&&... args)`) takes any number of arguments; each is passed as written and C++ deduces its reference kind. A `const Ts&...` pack takes any argument, a `Ts&...` pack only variables (lvalues).
 
@@ -12763,7 +12785,9 @@ kcc -c y.k         # writes y.o, and nothing for what y.k imports
 kcc x.o y.o -o main
 ```
 
-`-c` writes objects only for the files the command line names. What they import is compiled by its own `kcc -c`, as a C++ source would be. The final link needs Kairo's builtin library, the standard library and the runtime, which no `-c` run wrote: `kcc` links them from the toolchain's library, built on first use for the target and code-generation options and cached under `$KAIRO_CACHE_DIR` (default `$XDG_CACHE_HOME/kairo`, then `~/.cache/kairo`). It is rebuilt when the compiler or a library source changes, and a library no link has used for 30 days is removed. It is linked like an archive, so only what the objects use is pulled in.
+`-c` writes objects only for the files the command line names. What they import is compiled by its own `kcc -c`, as a C++ source would be. The final link needs Kairo's builtin library, the standard library and the runtime, which no `-c` run wrote: `kcc` links them from the toolchain's library, built on first use for the target and code-generation options and cached under `$KAIRO_CACHE_DIR` (default `$XDG_CACHE_HOME/kairo`, then `~/.cache/kairo`, then `%LOCALAPPDATA%\kairo`). It is rebuilt when the compiler or a library source changes, and a library no link has used for 30 days is removed. It is linked like an archive, so only what the objects use is pulled in.
+
+Every link, with `kcc` or `kairo`, also caches the runtime's C objects (the allocator and the runtime support code) in the same directory, under `rt/`. An object is reused only when its exact compile line (target, optimization level, sanitizers and every other flag that reaches it) and every runtime source it is built from, the compiler itself included, are unchanged; anything else rebuilds it. `--force-recompile` rebuilds them for one run, and `-v` reports a hit or miss for each.
 
 A template instance used on both sides is instantiated by each, and the linker keeps one: the include carries no `extern template`, because the C++ object and the Kairo object may come from different runs.
 
@@ -13010,11 +13034,20 @@ Code in the base's own file has no such restriction.
 
 ### Destructors and inheritance
 
-A class with a non-trivial destructor (its own `op delete` with a body, or any field or base that has one) may only derive from a class whose destructor is `virtual`. Otherwise deleting the derived object through a `*Base` runs only the base's destructor and leaks the rest. This is a compile error at the derived class.
+A class with a non-trivial destructor (its own `op delete` with a body, or any field or base that has one) may only derive from a **polymorphic** class (one with any `virtual` method, or a `derives virtual` base) if that class's destructor is `virtual`. Otherwise deleting the derived object through a `*Base` runs only the base's destructor and leaks the rest. This is a compile error at the derived class.
 
 ```kairo
-class Base { fn op delete(self) { } }
+class Base { virtual fn name(self) -> string { return "base" } fn op delete(self) { } }
 class Derived derives Base {          // error: 'Base' has no virtual destructor
+    fn op delete(self) { }
+}
+```
+
+A base with no virtual methods is exempt: it is not used through a base pointer for dispatch, so a mixin or plain data base needs no vtable just for its destructor.
+
+```kairo
+class Counted { var refs: i32 = 0 }   // not polymorphic
+class Node derives Counted {          // ok
     fn op delete(self) { }
 }
 ```
@@ -13931,16 +13964,16 @@ Read the shape: the unsigned block is upper-triangular, the signed block is uppe
 
 | S \ T | `f16` | `f32` | `f64` | `f128`+ | any int | `bool` | `char` | `byte` |
 |---|---|---|---|---|---|---|---|---|
-| `u8`/`i8`   | W | W | W | E | see section 3 | E | E | E |
-| `u16`/`i16` | E | W | W | E | see section 3 | E | E | E |
-| `u32`/`i32` | E | E | W | E | see section 3 | E | E | E |
+| `u8`/`i8`   | W | W | W | E | see section 3 | E | `u8`: W, `i8`: E | E |
+| `u16`/`i16` | E | W | W | E | see section 3 | E | `u16`: W, `i16`: E | E |
+| `u32`/`i32` | E | E | W | E | see section 3 | E | `u32`: W, `i32`: E | E |
 | `u64`/`i64` | E | E | E | E | see section 3 | E | E | E |
 | `f16` | I | W | W | E | E | X | X | X |
 | `f32` | E | I | W | E | E | X | X | X |
 | `f64` | E | E | I | E | E | X | X | X |
 | `f128`+ | E | E | E | E/I | E | X | X | X |
 | `bool` | X | X | X | X | E | I | X | X |
-| `char` | X | X | X | X | E | X | I | X |
+| `char` | X | X | X | X | see below | X | I | X |
 | `byte` | X | X | X | X | E | X | X | I |
 | `string` | X | X | X | X | X | X | X | X |
 | `void` | X | X | X | X | X | X | X | X |
@@ -13955,7 +13988,16 @@ Float-to-int is E in all cases. The cast truncates toward zero and saturates on 
 
 **`byte`.** No W conversion to or from `u8`. `byte` is restricted to bitwise operations ([Byte](/docs/language/primitives/#byte)); if `byte -> u8` were implicit then `b + mask` would succeed by converting both operands and the restriction would be decorative. E in both directions.
 
-**`char`.** `char -> u32` is bit-identical and technically widening-free, but a codepoint is not a number. E. `u32 -> char` is E and range-checks: surrogates and values above `0x10FFFF` are not scalar values, and an invalid `char` never exists. Whether the failed check traps or yields a `char?` is not yet specified.
+**`char`.** A `char` is a 32-bit Unicode scalar value. It converts implicitly to and from an integer only when the **target is equal or wider**; everything else needs `as`. Signed 32-bit and narrower types never convert implicitly, in either direction.
+
+| Direction | W (implicit) | E (`as` required) |
+|---|---|---|
+| `char -> int` | `u32`, `u64`, `u128`, `i64`, `i128` | `u8`, `u16`, `i8`, `i16`, `i32`, `usize`, `isize` |
+| `int -> char` | `u8`, `u16`, `u32` | `i8`, `i16`, `i32`, `i64`, `i128`, `u64`, `u128`, `usize`, `isize` |
+
+This is the one place R5 does not apply: `char -> u128` and `char -> i128` are W because the source is a fixed 32-bit value and the widening is exact. Signed targets must be *strictly* wider (`char -> i32` is E, as `u32 -> i32` is). `usize`/`isize` stay E as everywhere else.
+
+`u8`/`u16`/`u32 -> char` is W even though a `u32` can hold a surrogate or a value above `0x10FFFF`, which are not scalar values and so never exist as a `char`. The conversion is **unchecked**: it does not trap and does not yield a `char?`. An out-of-range value produces a `char` that is not a scalar value, which can only show up as wrong text, never as a memory-safety violation, so it is a logic error in the program, not undefined behavior. Because `char -> u32` is also W, mixing a `char` and a `u32` in one binary operation (`c + n`, `c == n`) is ambiguous and is an error: write `as` on one side. An **untyped integer literal** takes `char` exactly when its value is a scalar value (`0` to `0xD7FF` or `0xE000` to `0x10FFFF`); `0xD800`, `0x110000` and `-1` are error SC075E.
 
 **`bool`.** E in both directions. [Bool](/docs/language/primitives/#bool) already forbids implicit conversion from integers; the reverse is forbidden too. `int -> bool` is E with `!= 0` semantics.
 
@@ -16275,11 +16317,12 @@ fn add(a: string, b: string) -> string = a + b
 
 Parameter modes also participate in overloading. See [Overloading on mode](#overloading-on-mode).
 
-A candidate either matches an argument exactly or through a conversion, and there is no ordering among conversions: if two candidates both need one, the call is ambiguous (`call to 'f' is ambiguous: more than one candidate matches at the same rank`). Before a tie at the same rank is declared ambiguous, three tie-breaks run, in C++'s order:
+A candidate either matches an argument exactly or through a conversion, and there is no ordering among conversions: if two candidates both need one, the call is ambiguous (`call to 'f' is ambiguous: more than one candidate matches at the same rank`). Before a tie at the same rank is declared ambiguous, four tie-breaks run, in C++'s order:
 
 1. **Reference binding.** An rvalue argument prefers a `T&&` parameter to `const T&`; a non-const lvalue prefers `T&` to `const T&`; a non-const receiver prefers the non-const method.
-2. **Non-generic over generic.** A non-generic candidate beats a generic one.
-3. **Most specialized generic.** Among generic candidates still tied, the most specialized wins: `fn <T> f(a: Box<T>, b: Box<T>)` beats `fn <A, B> f(a: Box<A>, b: Box<B>)` for `f(x, y)` with two `Box<i32>`.
+2. **Float literal.** An untyped float literal is a double, as in C++: against candidates that differ by float type it prefers `f64`, so `cxx::std::sqrt(16.0)` calls the `double` overload and `f(1.5)` picks `fn f(x: f64)` over `fn f(x: f32)`. A lone `f32` parameter still takes the literal. Integer literals are not ordered this way (C++ converts an integer to every float type alike), and neither are typed arguments.
+3. **Non-generic over generic.** A non-generic candidate beats a generic one.
+4. **Most specialized generic.** Among generic candidates still tied, the most specialized wins: `fn <T> f(a: Box<T>, b: Box<T>)` beats `fn <A, B> f(a: Box<A>, b: Box<B>)` for `f(x, y)` with two `Box<i32>`.
 
 These tie-breaks never order conversions. For a list literal argument, a `[T; N]` parameter with the same element count is an exact match, while `[T;]` and `[T]` parameters both need a conversion:
 
@@ -16452,7 +16495,19 @@ var @inout y: i32  // compile error
 
 ## How `x: T` is passed
 
-For a plain `x: T` parameter of a Kairo function, the compiler picks between passing by value and passing by `const T&`. Small trivially-copyable types go by value; everything else goes by reference. Callers can't observe the difference, since the callee can't modify the argument either way. This is why Kairo has no separate mode for `const T&`.
+For a plain `x: T` parameter of a Kairo function, the compiler picks between passing by value and passing by `const T&`. Scalars, pointers, `fn` values and trivially copyable records go by value. A record that is not trivially copyable (a `string`, a vector, a map, a class with a copy constructor) goes by `const T&` when the function never mutates the parameter: no assignment to it or a field of it, no non-`const` method call on it, no `&x`, no `@inout` or `@move` argument, no `return x`, no use in a closure. A parameter the body does mutate gets its own copy, as before, and a `@move` class always goes by value, since taking ownership is the point. This is why Kairo has no separate mode for `const T&`.
+
+When the compiler passes a parameter by reference this way, it warns that the parameter is never mutated and offers a fix-it that adds `const`:
+
+```kairo
+fn length(s: string) -> usize { return s.length() }
+//        ^ warning: parameter 's' is never mutated; declare it 'const'
+fn length(const s: string) -> usize { return s.length() }   // same code, no warning
+```
+
+A `const` parameter is a reference to the caller's object for the whole call. If the function changes that object some other way while the call runs, through `self` or a pointer, the parameter sees the change. A by-value copy would not.
+
+Some functions keep the by-value signature because something else fixes it, and the compiler neither infers the reference nor warns for them: `virtual` and `override` methods (and every method of a class with a polymorphic base), interface members, `ffi "c"` / `ffi "c++"` functions and functions with a calling convention, generic functions and members of generic types, generators and `async` functions, `-> !` and `@cold_path` functions, and `main`. The warning is not reported for the builtin and standard libraries.
 
 For a function declared in an [imported C++ header](/docs/language/c-cpp-calling/), the compiler doesn't choose. The parameter is passed exactly as the header declares it.
 
@@ -16738,6 +16793,8 @@ A forwarded pack must meet the bounds of the pack it is forwarded to, through it
 
 Each element is passed by its own type's transfer rules, as any argument is (see [Ownership](/docs/language/ownership/#function-parameters)): a COPY element is copied and stays live, a MOVE element is moved. So a body may expand the same pack more than once when its elements are COPY; the last expansion may move instead of copying, since nothing reads the elements after it.
 
+A pack parameter takes no passing mode yet: `@inout ...args: T` and `@move ...args: T` are compile errors ("'@inout' on pack parameter 'args' is not supported yet").
+
 An expansion is written only as a call argument, and only of a pack parameter. The same postfix form appears in type position for pack-typed signatures (`-> Outcome<i32, T...>`, `derives Base<T...>`). The split mirrors the [token-macro splat](/docs/language/macros/#variadic-macros-and-pack-expansion): `...` before a name declares a pack, `...` after an expression expands one.
 
 
@@ -16763,7 +16820,15 @@ How type parameters of [generic classes](/docs/language/classes/#generic-classes
 
 ## Type parameter constraints
 
-A generic body may use only what its bounds grant. The body is checked once, where it is defined, against its bounds, never per instantiation. Calling a method no bound declares, copying a `T` without a copy bound, or declaring `var x: T` without a constructor bound is a compile error in the generic itself. So is an operator, a conversion or an interpolation on a `T` (`a == b`, `a + b`, `a as string`, `f"{a}"`) that no bound declares, a null test on a `T` (only a `T?` can be null), and a `match` pattern other than a binding or `_` on a `T`. So is passing a `T` (or forwarding a pack) to a generic whose bound it does not carry: in `fn <T> fwd(x: T) = one(x)` with `fn <T impl Named> one(x: T)`, `fwd`'s `T` must be bounded by `Named` or by an interface that derives it (R051E when `T` has no bound, with a fix-it adding it; R025E when its bounds do not include one). A bound that declares the operator (`fn op ==(const self, other: Self) -> bool`) makes it a call through the bound, and a `derives` bound whose base declares it makes it a call of the base's operator. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
+A generic body may use only what its bounds grant. The body is checked once, where it is defined, against its bounds, never per instantiation. Calling a method no bound declares, copying a `T` without a copy bound, or declaring `var x: T` without a constructor bound is a compile error in the generic itself. So is an operator or a conversion on a `T` (`a == b`, `a + b`, `a as string`) that no bound declares, a null test on a `T` (only a `T?` can be null), and a `match` pattern other than a binding or `_` on a `T`. So is passing a `T` (or forwarding a pack) to a generic whose bound it does not carry: in `fn <T> fwd(x: T) = one(x)` with `fn <T impl Named> one(x: T)`, `fwd`'s `T` must be bounded by `Named` or by an interface that derives it (R051E when `T` has no bound, with a fix-it adding it; R025E when its bounds do not include one). A bound that declares the operator (`fn op ==(const self, other: Self) -> bool`) makes it a call through the bound, and a `derives` bound whose base declares it makes it a call of the base's operator. See [Generic Bodies](/docs/language/interfaces/#generic-bodies).
+
+An f-string is the exception: a hole on a value whose type only the instantiation knows (a `T`, or a member reached through one) is formatted per instance, with the same rules as a concrete value (builtin types, strings, pointers, plain enums, `repr()`, an `op as` to `string`). An instance whose type has no way to format is an error at that instance. A format spec on such a hole (`f"{x:>4}"`) is not supported yet.
+
+```kairo
+fn <T> show(x: T) -> string { return f"value: {x}" }   // formatted per instance
+show(42)        // "value: 42"
+show("hi")      // "value: hi"
+```
 
 A generic type at a dependent argument is not opaque: a `match` on a `Rep<T>` names `Rep`'s variants, and `==` on two `Rep<T>` compares their variants, as for any [ADT](/docs/language/enums-adt/).
 
@@ -16822,7 +16887,7 @@ Limits while it lasts:
 - Errors in the body are reported per instantiation, as C++ errors, at the instance that breaks. A body that is never instantiated is never checked.
 - A member use is emitted exactly as written: `x.f(args)`, `p->f(args)`, `x.template f<A>(args)`, `T::f(args)`. An [extension](/docs/language/extends/) member is not a C++ member, so calling one through `T` fails in C++.
 - A call the compiler knows can panic is not yet supported inside such a body (SC116E), nor is a `panic` function under a `: type` parameter. (A bounded or unbounded generic body [may panic](/docs/language/panic/#generic-functions).) A member call through `T` names no known callee, so the compiler cannot see whether it panics. An instantiation where it does is a C++ error (a static assertion naming the call), whether its result is used or discarded.
-- Operators, `===`, null tests and `match` patterns on a value of type `T` are left to C++ as well (none of the definition-time errors above); `x as string` and `f"{x}"` on it are still rejected.
+- Operators, `===`, null tests and `match` patterns on a value of type `T` are left to C++ as well (none of the definition-time errors above); `x as string` on it is still rejected.
 
 `&self as *X` in such a mixin is C++'s `static_cast`, never a reinterpretation, so a mixin that is not a class's first base still finds the right object. The bounded spelling, `class <X derives Mixin<X> impl Impl> Mixin`, compiles too: the `impl` bound is checked once the deriving class is complete.
 

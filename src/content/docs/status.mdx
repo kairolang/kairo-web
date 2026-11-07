@@ -118,4 +118,4 @@ A [closure](/docs/language/closures/#tether-and-lifetime-safety) that captures a
 
 ## Language Gaps
 
-- A Kairo `string` reaches a C `const char*` parameter only through an `unsafe` cast of its bytes (`s.data as unsafe *const std::c_char`); `string.c_str()` is planned. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).
+- A string literal passes to a C `const char*` parameter as it is, and any other Kairo `string` through `s.c_str()`. See [C & C++ Interoperability](/docs/language/c-cpp-calling/#strings-and-const-char).

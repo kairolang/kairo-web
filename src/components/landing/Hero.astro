@@ -11,6 +11,10 @@ try {
   if (res.ok) kairoLang = await res.json();
 } catch {}
 
+// The reflowing text wall around the Penrose figure: a Kairo snippet
+// flattened into one continuous line of text.
+const flowText = `import std::Parallel import std::Error::DimensionError import std::Interfaces::Numeric fn <T impl Numeric> dot(a: [T], b: [T]) -> T { if a.length() != b.length() { panic DimensionError("dot requires equal lengths") } var result = Parallel::reduce( policy: Parallel::Policy::SIMD, range: 0..(a.length()), init: T(), step: fn (i: usize) -> T = a[i] * b[i], combine: fn (x: T, y: T) -> T = x + y ) return result } test "dot product of two vectors" { var a, b = [1, 2, 3, 4, 5], [6, 7, 8, 9, 10] var result = dot(a, b) assert result == 130, f"expected 130, got {result}" }`;
+
 const logoArt = renderFiglet('KAIRO');
 const logoCols = artSize(logoArt).cols;
 ---
@@ -117,7 +121,10 @@ const logoCols = artSize(logoArt).cols;
         </div>
       </div>
 
-
+      <!-- The Penrose triangle lives here; the canvas spans the whole band -->
+      <div class="hero-stage" id="hero-stage" data-flow-text={flowText} aria-hidden="true">
+        <span class="hero-stage-cap">fig.01 &nbsp;penrose_triangle()</span>
+      </div>
     </div>
   </div>
 </section>
