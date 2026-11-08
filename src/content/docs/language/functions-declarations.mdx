@@ -54,18 +54,25 @@ Every module that can see the declaration gets the definition and compiles it, s
 A free function marked `const` after its parameters, `fn f(...) const`, reads strictly its inputs: no global memory, nothing through a pointer. It is a function in the mathematical sense, like `sin` or `abs`, and the compiler may merge two calls with the same arguments, hoist a call out of a loop, or drop one whose result is unused. In the generated C++ it is `[[gnu::const]]`.
 
 ```kairo
-fn hypot(a: f64, b: f64) const -> f64 {
-    return __builtin_sqrt(a * a + b * b)
+fn lerp(a: f64, b: f64, t: f64) const -> f64 {
+    return a + (b - a) * t
 }
 ```
 
-Because the optimizer acts on the promise without looking, the compiler checks it. In the body of a const function these are errors:
+Because the optimizer acts on the promise without looking, the compiler checks it. A const function must return a value (on a function without a result the promise means nothing, and the compiler offers to remove it), must not be `-> !` or `@unwind`, and its result type must not own memory (a `string`, a vector, a record holding one). In its body these are errors:
 
 - reading or writing a global or `static` variable (an [`eval`](/docs/language/eval/) constant is a compile-time value, not memory, and is allowed);
 - dereferencing a pointer: `*p`, `p->field`, or indexing a pointer with `p[i]`;
-- calling a function that is not itself const, an `eval fn` or a compiler intrinsic.
+- reading a parameter passed by reference: `@inout`, `@move`, or a `const` parameter of a class or struct type. A by-value parameter is a copy and may be read, fields included;
+- calling a function that is not itself const, an `eval fn` or a side-effect-free compiler intrinsic (a hint such as `__builtin_expect`; not `__builtin_trap` or the memory and atomic intrinsics). A user operator is a call too, and so is a call through a function value or an interface requirement, which is always an error;
+- making a value that owns memory: a `string` (a string literal or an f-string included), a vector or a map, a local of such a type, or a by-value copy of one passed to another function;
+- anything that can stop the program instead of returning: `assert`, `unwrap!`, an asserting downcast, `crash!()`;
+- a `for ... in` loop over anything but a range (`0..n`) or a fixed-size array: the iterator calls it makes are not checked;
+- `delete`, inline C++, `spawn`, `thread` and `await`.
 
-Each error carries a note on the function's head: `'hypot' is const: it may read only its own inputs`.
+[`panic`](/docs/language/panic/) is allowed: it returns an error value, it does not unwind.
+
+Each error carries a note on the function's head: `'lerp' is const: it may read only its own inputs`.
 
 A const function is a free function. A method says the weaker thing, that it does not change its object, with `const self`; a trailing `const` on a method is an error. The leading spelling `const fn f()` is an error too, with a fix-it: `const` before a name reads as a binding.
 

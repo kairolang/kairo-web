@@ -791,19 +791,6 @@ The note points at the declaration, and a fix-it replaces the receiver with its 
 
 ## Generics
 
-### SC001E: `'{T}: type' needs -fduck-generics: a generic body is checked against its bounds, not per instance`
-
-A [`: type`](/docs/language/generics/#the-type-regime-transitional) generic parameter in a build with `-fno-duck-generics`. `: type` is a transitional regime in which the C++ compiler checks the body per instantiation instead of Kairo checking it against bounds. It is on by default until the compiler compiles itself; `-fno-duck-generics` turns it off. The label is on `: type`. The code is a placeholder until the error gets its own.
-
-```kairo
-fn <T: type> show(t: T) -> i32 { return t.value() }   // error SC001E; note at 't.value'
-fn <T: type> same(t: T) -> T { return t }             // error SC001E; fix-it deletes ': type'
-```
-
-If the body uses no member of `T`, a fix-it deletes `: type`, since an unbounded `T` accepts the same body. If it does, a note points at the first member use instead. Deleting the bound there would only lead to R051E (an unbounded parameter has no members).
-
-**Fix:** bound the parameter with an interface that declares the members the body uses (`<T impl Valued>`), or drop `-fno-duck-generics` while the code is being migrated.
-
 ### R051E / R025E: `'{op}' on '{T}' needs a bound that declares '{requirement}'`
 
 A generic body uses an operator, a conversion or an interpolation on a value of a type parameter that nothing grants. The body is [checked once against its bounds](/docs/language/generics/#type-parameter-constraints), so the error is at the use, in the generic, whatever the generic is later used with. R051E when the parameter has no bound at all (a note points at it: `'T' is declared with no bound`); R025E, ending `; none of the bounds of 'T' does`, when it has bounds and none declares the requirement. The forms: `'==' on 'T' needs a bound that declares 'op =='` (`!=` names `op !=` or `op ==`, a relational `op <=>`, `+` `op +=`, `+=` `op +`), `'===' on 'T?' compares the values with 'op ==', so it needs a bound on 'T' that declares 'op =='`, `'as string' on 'T' needs a bound that declares 'op as' returning 'string'`, and `formatting a 'T' needs a bound that declares 'fn repr(self) -> string' or 'op as' returning 'string'`.
@@ -814,7 +801,7 @@ interface Same { fn op ==(const self, other: Self) -> bool }
 fn <T impl Same> eq2(a: T, b: T) -> bool = a == b   // ok: the bound's 'op =='
 ```
 
-A `<T: type>` parameter is exempt: C++ checks its operators per instance. A null test on a `T` (`t?`, `t == null`) is the ordinary "is not nullable" error: a `T` is never null.
+A null test on a `T` (`t?`, `t == null`) is the ordinary "is not nullable" error: a `T` is never null.
 
 **Fix:** bound the parameter with an interface that declares the operator, or take the value at its concrete type.
 
@@ -940,7 +927,7 @@ It is reported for:
 - a `for` loop over a panicking `op in`, a call of a panicking `op []` that returns a pointer (`a call of a panicking place operator ('op []' returning a pointer) is not yet supported`), a cast through a panicking `op as` (`a call of a panicking 'op as' is not yet supported`), and `===` through a panicking `op ==`. Any other panicking operator is called like a function, its derived forms (`!=` from `==`, `<` from `<=>`, `+=` from `+`) included
 - a method that implements two interface requirements, or overrides a method and implements a requirement, whose panic sets differ (`a method meeting both 'Source::read' and 'Stream::read', whose panic sets differ, is not yet supported`), with a note at each. Equal sets, written in any order, are fine
 - a panicking interface requirement whose result names `Self` (`fn add(const self, o: Self) panic(E) -> Self`: `a panicking interface requirement whose result names 'Self' ('add') is not yet supported`); a requirement with a concrete result works, through a bound too
-- a [`panic`](/docs/language/panic/) function under a [`<T: type>`](/docs/language/generics/#the-type-regime-transitional) parameter, a generic `panic` closure, a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside such a body (bounded and unbounded generics are [supported](/docs/language/panic/#generic-functions))
+- a generic `panic` closure, a `panic` generator or `async` function or closure, and a `panic` statement or a call that may panic inside such a body (bounded and unbounded generics are [supported](/docs/language/panic/#generic-functions))
 - a call whose callee's panic set names a generic parameter the call does not bind (no bound declares the requirement it calls)
 - a `fn`, class, struct, union or enum declared in a function body that uses a generic parameter of the function or class around it (`'echo' is declared in a body and uses 'T', a generic parameter of 'wraps'; that is not yet supported`); a note points at the parameter. One that is generic in its own right, or names no outer parameter, compiles
 - an `extend` in a function body

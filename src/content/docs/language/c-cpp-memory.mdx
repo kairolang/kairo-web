@@ -14,7 +14,7 @@ Heap ownership crosses the boundary in both directions, using the mechanism C++ 
 
 ### Class-specific `operator new` and `operator delete`
 
-Every exported Kairo class carries its own allocation operators, bound to Kairo's [global allocator](/docs/language/allocators/#global-allocator). The compiler defines all four; Kairo code cannot define or overload them. A class defines only its constructors and its destructor ([`op delete`](/docs/language/operator-overloading/#delete-operator), which is the C++ destructor, not an allocation function). Not yet: the operators are not emitted yet, so a C++ `new` of a Kairo class uses C++'s global `operator new` for now ([Status](/docs/status/#not-compiled-yet)).
+Every exported Kairo class carries its own allocation operators, bound to Kairo's [global allocator](/docs/language/allocators/#global-allocator). The compiler defines all four; Kairo code cannot define or overload them. A class defines only its constructors and its destructor ([`op delete`](/docs/language/operator-overloading/#delete-operator), which is the C++ destructor, not an allocation function). Not yet: the operators are not emitted yet. A C++ `new` of a Kairo class uses the global `operator new`, which in a `kcc` program is the runtime's (mimalloc), and the class text in an included `.k` or an `--emit-headers` header declares none ([Status](/docs/status/#not-compiled-yet)). The rest of this page describes the intended design except where a note says otherwise.
 
 ```cpp
 class MyKairoClass {
@@ -40,11 +40,14 @@ Pointer parameters and return values stay raw `*T`. There is no wrapper type, no
 
 ### Global `operator new` overrides do not affect Kairo objects
 
+> [!NOTE]
+> Not yet: today a program built with `kcc` links the runtime's own global `operator new` and `operator delete`, so a C++ file that defines `::operator new` fails to link with `duplicate symbol: operator new(unsigned long)` (L001E), whether or not it includes a `.k`. Global overrides cannot be used with `kcc` until the class-specific operators exist.
+
 A class-specific `operator new` takes precedence over a global replacement. A C++ translation unit that overrides global `new`/`delete` (for a pool, an instrumented heap, a leak tracker) therefore does not touch Kairo allocations. The isolation is structural, not a restriction.
 
 ### The operators bind to the *global* allocator, always
 
-Kairo's [scoped allocator](/docs/language/allocators/#scoped-allocator) mechanism works by swapping the allocator the process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that indirection and address the global allocator directly.
+Kairo's [scoped allocator](/docs/language/allocators/#scoped-allocator) mechanism (not yet implemented: `@mem::set_scoped_allocator` does not resolve today) works by swapping the allocator the process is currently using. The emitted `operator new` and `operator delete` deliberately **bypass** that indirection and address the global allocator directly.
 
 This matters. Consider a C++ `delete` that happens while a Kairo scoped allocator is active:
 
@@ -71,17 +74,20 @@ These are what the [ownership annotations](#ownership-annotations-in-generated-h
 
 ### `CxxNewAllocator`
 
-For code that wants Kairo's *own* allocations to follow C++'s allocation path, so that a global `operator new` override does apply to them, `core` provides `CxxNewAllocator`:
+For code that wants Kairo's *own* allocations to follow C++'s allocation path, so that a global `operator new` override does apply to them, `core` is to provide `CxxNewAllocator`. Not yet: it does not exist. `core::CxxNewAllocator` is an unknown name today (R021E); only a stub sits in a draft file of the standard library.
 
 ```kairo
 @set_global_allocator(core::CxxNewAllocator)
 ```
 
-This is the unusual case, not the default. Like any [global allocator](/docs/language/allocators/#global-allocator) it is chosen once per program: one file sets it, and every file and library linked in follows.
+This will be the unusual case, not the default. A global allocator that does exist is a class with the static allocator functions of `builtin::base::alloc` (`alloc`, `free`, `resize`, `realloc`, `alloc_zeroed`). `@set_global_allocator` with such a class works and routes `create` and `destroy` (the functions behind `@create` and `@destroy`) through it. Like any [global allocator](/docs/language/allocators/#global-allocator) it is chosen once per program: one file sets it, and every file and library linked in follows.
 
 ### Ownership annotations in generated headers
 
-Declarations emitted for the C++ side carry Clang's ownership attributes, tagged with the Kairo allocator identity:
+> [!NOTE]
+> Not yet: no emitted declaration carries these attributes today, and the `kairo_alloc` / `kairo_free` functions below are the intended shape, not names that exist. The same holds for the lifetime annotations further down.
+
+Declarations emitted for the C++ side are to carry Clang's ownership attributes, tagged with the Kairo allocator identity:
 
 ```cpp
 void *kairo_alloc(size_t) __attribute__((ownership_returns(kairo_global)));
@@ -97,7 +103,7 @@ Kairo's own semantic analysis enforces the same rule independently and produces 
 
 ### Lifetime annotations
 
-Emitted declarations carry `[[clang::lifetimebound]]` and the `[[gsl::Owner]]` / `[[gsl::Pointer]]` pair where the Kairo side can prove the relationship. Unlike the ownership attributes, these are diagnosed during ordinary compilation via `-Wdangling`, so a lifetime relationship proven on the Kairo side becomes a real compile-time warning on the C++ side.
+Emitted declarations are to carry `[[clang::lifetimebound]]` and the `[[gsl::Owner]]` / `[[gsl::Pointer]]` pair where the Kairo side can prove the relationship. Unlike the ownership attributes, these are diagnosed during ordinary compilation via `-Wdangling`, so a lifetime relationship proven on the Kairo side becomes a real compile-time warning on the C++ side.
 
 ## See also
 

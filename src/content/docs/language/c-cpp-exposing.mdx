@@ -14,18 +14,20 @@ Use the **`kcc`** driver, which makes `#include "file.k"` work transparently in 
 
 ```kairo
 // my_code.k
-fn my_kairo_function(x: i32) {
-    std::println(f"Hello from Kairo! x = {x}")
+import std::io
+
+pub fn my_kairo_function(x: i32) {
+    io::println(f"Hello from Kairo! x = {x}")
 }
 
-class MyKairoClass {
+pub class MyKairoClass {
     pub var name: string
 
-    fn MyKairoClass(self, name: string) {
+    pub fn MyKairoClass(self, name: string) {
         self.name = name
     }
 
-    fn get_name(self) -> string {
+    pub fn get_name(self) -> string {
         return self.name
     }
 }
@@ -37,8 +39,11 @@ class MyKairoClass {
 #include <iostream>
 
 int main() {
-    my_code::MyKairoClass obj("C++");
-    std::cout << "name = " << obj.get_name() << std::endl;
+    // A Kairo string is ::builtin::string::string; it is built from
+    // `const unsigned char*`, not from a C++ string literal directly.
+    ::builtin::string::string name((const unsigned char*)"C++");
+    my_code::MyKairoClass obj(name);
+    std::cout << "name = " << obj.get_name().c_str() << std::endl;
     my_code::my_kairo_function(42);
     return 0;
 }
@@ -120,11 +125,11 @@ Kairo [generics](/docs/language/generics/) are C++ templates in the header, bodi
 
 ## Tuples Across the Boundary
 
-Kairo [tuples](/docs/language/collections/#tuples-t1-t2-) such as `(i32, f32)` are emitted as ordinary named structs in a reserved namespace, one per distinct element-type list. Field order is source order, and `.0` lowers to a plain member access.
+Kairo [tuples](/docs/language/collections/#tuples-t1-t2-) such as `(i32, f32)` are emitted as the struct template `::builtin::TupleN<T0, T1, ...>` (`::builtin::Tuple2<int, float>`), one instance per distinct element-type list. Field order is source order: the fields are `_0`, `_1`, ..., and `.0` lowers to a plain member access.
 
 This makes tuples first-class across the boundary: a C++ TU can name the type, take a reference to it, return it, and specialize on it.
 
-The struct's name is a **structural** function of its element types, not an ordinal. Two translation units that use `(i32, f32)` produce the same type and the same symbol, regardless of declaration order or which other tuple shapes appear in each TU. This is required for linking and is a departure from C++'s anonymous-type mangling, which is deliberately TU-local.
+The type is a **structural** function of its element types, not an ordinal. Two translation units that use `(i32, f32)` produce the same type and the same symbol, regardless of declaration order or which other tuple shapes appear in each TU. This is required for linking and is a departure from C++'s anonymous-type mangling, which is deliberately TU-local.
 
 > [!NOTE]
 > The exact structural encoding is part of the ABI and is specified separately. It is injective across all type constructors that can appear in a tuple, and unambiguous under nesting.
