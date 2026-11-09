@@ -1,0 +1,22 @@
+---
+title: kcc
+description: "kcc, the Kairo C and C++ driver: a drop-in for clang and clang++ that can also #include .k files and link Kairo and C++ in one build."
+---
+
+# kcc
+
+`kcc` is a drop-in replacement for `clang` / `clang++` that understands Kairo. It takes clang's command line (C, C++, Objective-C and Objective-C++ sources, `.k` files, objects and archives) and runs clang in-process: the release ships no `clang` binary.
+
+```sh
+kcc main.cc -o app                 # a plain C++ build
+kcc main.cc foo.k -o app           # C++ and Kairo in one link
+```
+
+Two additions over clang:
+
+- **`#include "foo.k"`** works in a C++ (or Objective-C++) file. The preprocessor reads the Kairo file's interface as C++ tokens, so the C++ side uses Kairo types and functions directly. Only `pub` declarations, and `prot` ones for a C++ file inside the same module, are visible.
+- **`.k` inputs** are compiled by the Kairo compiler and linked with everything else.
+
+An option that Kairo has its own flag for becomes that flag; any other option reaches clang unchanged. `kcc --help` and `kcc --version` describe `kcc`, and `-###` prints each compile job and the link without running them.
+
+`kcc` is the supported way to compile C++ in a Kairo project. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/) for the toolchain model, sysroots, separate compilation and incremental builds, and [Using Kairo in C++](/docs/language/c-cpp-exposing/) for what a C++ file sees.

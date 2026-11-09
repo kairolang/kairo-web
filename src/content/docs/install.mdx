@@ -1,96 +1,128 @@
 ---
 order: 2
 title: Installation
-description: Install the Kairo compiler from a prebuilt package or build it from source on Linux, macOS, Windows and the BSDs.
+description: Install the Kairo compiler from the prebuilt Linux x86_64 package or build it from source.
 section: Getting Started
 ---
 
 # Installation
 
-Kairo ships as a **prebuilt package** for each supported target. Download one, extract it and add its `bin` directory to your `PATH`. Most users want this.
+Kairo 0.2.0 ships as a **prebuilt package** for 14 host platforms: Linux (static musl, runs on any distribution), Windows, macOS and the BSDs. Pick your archive in the table below, or let the install script choose it. A host without an archive can [build from source](#building-from-source).
 
-The compiler, `kairo`, is written in Kairo and compiles itself. A package holds everything it needs: `kairo` and `kcc`, the pinned Clang and lld it drives, `compiler-rt`, and the `builtin` and `std` libraries. You do not need a system C or C++ toolchain.
+The compiler, `kairo`, is written in Kairo and compiles itself. The package holds everything it needs: `kairo`, `kcc`, `kld`, `kfmt`, the `builtin`, `std` and `rt` libraries, `compiler-rt` and prebuilt cross-compile sysroots. Clang and LLD run inside `kairo`, `kcc` and `kld`, so no separate `clang` or `lld` binaries ship. You do not need a system C or C++ toolchain.
 
 ---
 
-## Prebuilt Packages
+## Prebuilt Package
 
-Download the package for your platform from the [release page](https://github.com/kairolang/kairo/releases), extract it, and add the `bin` directory to your `PATH`.
+### Quick install
+
+Linux, macOS, FreeBSD and NetBSD (any shell, fish included):
+
+```bash
+curl -fsSL https://kairolang.org/install.sh | sh
+```
+
+Windows (PowerShell 5.1 or 7):
+
+```powershell
+irm https://kairolang.org/install.ps1 | iex
+```
+
+Both are the same script. It detects your OS and CPU, downloads the matching archive and `SHA256SUMS`, verifies the checksum before unpacking, and never needs root or administrator rights. On Linux, macOS and the BSDs it unpacks to `~/.local/share/kairo/<version>` and links the tools into `~/.local/bin`. On Windows it unpacks to `%LOCALAPPDATA%\Kairo\<version>` and adds that `bin` directory to your user `Path`. It honours `KAIRO_VERSION`, `KAIRO_PREFIX`, `KAIRO_BASE_URL` and `KAIRO_TRIPLE`; set `KAIRO_TRIPLE` to pick a different archive from the table (for example `armv7-windows-gnu`).
+
+### Manual download
+
+Download the archive and `SHA256SUMS` from the [release page](https://github.com/kairolang/kairo/releases/tag/v0.2.0), verify it, extract it, and add `bin` to your `PATH`.
 
 | Platform | Architecture | File |
 |---|---|---|
-| Linux (static, musl) | x86_64 | `kairo-<version>-x86_64-linux-musl.tar.xz` |
-| Linux (static, musl) | i686 | `kairo-<version>-i686-linux-musl.tar.xz` |
-| Linux (static, musl) | aarch64 | `kairo-<version>-aarch64-linux-musl.tar.xz` |
-| Linux (static, musl) | armv7 | `kairo-<version>-armv7-linux-musl.tar.xz` |
-| Linux (static, musl) | riscv64 | `kairo-<version>-riscv64-linux-musl.tar.xz` |
-| macOS 10.15 or newer | x86_64 | `kairo-<version>-x86_64-apple-macosx10.15.zip` |
-| macOS 11 or newer | arm64 (Apple Silicon) | `kairo-<version>-arm64-apple-macosx11.0.zip` |
-| Windows (MinGW) | x86_64 | `kairo-<version>-x86_64-windows-gnu.zip` |
-| Windows (MinGW) | i686 | `kairo-<version>-i686-windows-gnu.zip` |
-| Windows (MinGW) | aarch64 | `kairo-<version>-aarch64-windows-gnu.zip` |
-| Windows (MinGW) | armv7 | `kairo-<version>-armv7-windows-gnu.zip` |
-| FreeBSD | x86_64 | `kairo-<version>-x86_64-unknown-freebsd.tar.xz` |
-| FreeBSD | aarch64 | `kairo-<version>-aarch64-unknown-freebsd.tar.xz` |
-| NetBSD | x86_64 | `kairo-<version>-x86_64-unknown-netbsd.tar.xz` |
+| Linux (static, musl) | x86_64 | `kairo-0.2.0-x86_64-linux-musl.tar.xz` |
+| Linux (static, musl) | aarch64 | `kairo-0.2.0-aarch64-linux-musl.tar.xz` |
+| Linux (static, musl) | armv7 | `kairo-0.2.0-armv7-linux-musl.tar.xz` |
+| Linux (static, musl) | i686 | `kairo-0.2.0-i686-linux-musl.tar.xz` |
+| Linux (static, musl) | riscv64 | `kairo-0.2.0-riscv64-linux-musl.tar.xz` |
+| Windows (MinGW) | x86_64 | `kairo-0.2.0-x86_64-windows-gnu.zip` |
+| Windows (MinGW) | aarch64 | `kairo-0.2.0-aarch64-windows-gnu.zip` |
+| Windows (MinGW) | armv7 | `kairo-0.2.0-armv7-windows-gnu.zip` |
+| Windows (MinGW) | i686 | `kairo-0.2.0-i686-windows-gnu.zip` |
+| macOS 11+ | arm64 | `kairo-0.2.0-arm64-apple-macosx11.0.zip` |
+| macOS 10.15+ | x86_64 | `kairo-0.2.0-x86_64-apple-macosx10.15.zip` |
+| FreeBSD | x86_64 | `kairo-0.2.0-x86_64-unknown-freebsd.tar.xz` |
+| FreeBSD | aarch64 | `kairo-0.2.0-aarch64-unknown-freebsd.tar.xz` |
+| NetBSD | x86_64 | `kairo-0.2.0-x86_64-unknown-netbsd.tar.xz` |
 
-The compiler bundles an LLVM 22 toolchain (Clang, lld, compiler-rt) built from Kairo's [patched fork](https://github.com/kairolang/llvm-project).
+```bash
+sha256sum -c --ignore-missing SHA256SUMS
+tar -xJf kairo-0.2.0-x86_64-linux-musl.tar.xz
+```
+
+The archive contains:
+
+- `bin/`: `kairo`, `kcc`, `kld`, `kfmt`, `llvm-symbolizer`, `llvm-ar`, `llvm-ranlib`, `llvm-lib`
+- `lib/`: the clang resource directory, `builtin`, `std` and `rt`
+- `sysroot/`: prebuilt cross-compile sysroots (below)
+- `scripts/`: `msvc-sysroot.sh` / `msvc-sysroot.ps1` and `darwin-sysroot.sh`, which build the macOS and MSVC sysroots from your own SDK ([below](#macos-and-msvc-targets))
+- `share/kairo/runtimes/`: the LLVM runtimes source (libc++, compiler-rt builtins) those scripts compile
+- `LICENSE.txt`, `LICENSES/`, `THIRD-PARTY-NOTICES`
+
+The compiler is built on an LLVM 22 toolchain from Kairo's [patched fork](https://github.com/kairolang/llvm-project), linked in-process.
 
 > [!NOTE]
-> The test suite runs on x86_64 Linux only. The other packages are built and cross-checked from it, but they have not been through the suite on their own platforms.
+> The test suite runs on x86_64 Linux only. Cross-compiled output for other targets has not been through the suite on those platforms.
 
 ### Sysroots
 
-The packages do not include the target sysroots (C library, headers and runtime libraries). They come in one separate archive, `kairo-<version>-sysroots.tar.xz`, that holds the sysroot for every target the compiler can build for. Extract it inside the package, so that `sysroot/` sits next to `bin/`:
+A sysroot is the C library, headers and runtime libraries of a target. The package bundles 18, so it is also the cross-compiler for those targets with no extra download:
+
+- Linux musl and glibc 2.31: x86_64, aarch64, i686, riscv64, armv7
+- Windows (MinGW): x86_64, aarch64, i686, armv7 (`*-windows-gnu`)
+- FreeBSD: x86_64, aarch64; NetBSD: x86_64
+- WebAssembly: wasm32-wasi
+
+Pass `--target=<triple>` to pick one. Sysroots are not generated on demand in 0.2.0 (that is planned for a later release). For a target without a bundled sysroot, `--sysroot=<dir>` names one you have, and `--freestanding` compiles without system headers and libraries. Without a sysroot the compiler warns (`P008W`) and names the flag to pass.
+
+Apple's SDK and Microsoft's MSVC / Windows SDK are never shipped, on any host. To target macOS or MSVC-ABI Windows, build that sysroot once with the scripts in `scripts/` (next section): they read the SDK you have installed and put the result under `sysroot/`, where Kairo finds it with no flags. Without one, `--target` for those triples stops with an error naming `--sysroot`. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/).
+
+### macOS and MSVC targets
+
+Apple's and Microsoft's licenses forbid redistributing their SDKs, so the package cannot include `*-apple-macosx` or `*-windows-msvc` sysroots. Instead it ships two scripts in `scripts/` that build them from your own copy. They compile libc++ and compiler-rt from the LLVM source in `share/kairo/runtimes` using the package's own `kcc` and `kld`, and write the root to `sysroot/<target>`, where `kairo --target` finds it with no flags. You need `cmake`, `ninja` and `python3`.
+
+For MSVC on Linux, macOS or WSL, fetch the CRT and Windows SDK with [xwin](https://github.com/Jake-Shadle/xwin). Running it with `--accept-license` is where you accept Microsoft's license:
 
 ```bash
-tar xf kairo-<version>-x86_64-linux-musl.tar.xz
-tar xf kairo-<version>-sysroots.tar.xz -C kairo-<version>-x86_64-linux-musl
+xwin --accept-license --arch x86_64,aarch64,x86 splat --output ~/xwin
+XWIN=~/xwin <install>/scripts/msvc-sysroot.sh x86_64
 ```
 
-Without a sysroot the compiler warns (`P008W`) and names the flag to pass, `--sysroot=<dir>`, or `--freestanding` to compile without system headers and libraries. The sysroots take about 5 GB unpacked; you can delete the ones for targets you never build for.
+On Windows, the same script uses the installed Visual Studio (the "Desktop development with C++" workload) and Windows SDK:
 
-Every package can build for every sysroot target: the compiler you download for your machine is also the cross-compiler. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/).
+```powershell
+powershell -ExecutionPolicy Bypass -File <install>\scripts\msvc-sysroot.ps1 x86_64
+```
+
+For macOS, on a Mac with the Command Line Tools installed (`xcode-select --install`):
+
+```bash
+<install>/scripts/darwin-sysroot.sh arm64
+```
+
+Each script accepts several architectures at once (`x86_64 aarch64 i686`, or `arm64 x86_64 arm64e`). Keep the generated roots on your machine: they contain Apple's or Microsoft's files.
 
 ### System requirements
 
-- **Linux:** any x86_64, i686, aarch64, armv7 or riscv64 distribution. The compiler is statically linked against musl and needs no system libc, libc++ or libunwind.
-- **macOS:** 10.15 (Catalina) or newer on Intel, 11 (Big Sur) or newer on Apple Silicon.
-- **Windows:** the compiler is built with MinGW and has no Visual C++ Redistributable dependency.
-- **FreeBSD, NetBSD:** x86_64 (and aarch64 on FreeBSD).
-
-> [!CAUTION]
-> On macOS, a downloaded binary is quarantined and Gatekeeper will refuse to run it ("cannot verify this app is free of malware"), because the release binaries are not yet notarized. Clear the quarantine flag on the extracted package before first run:
->
-> ```bash
-> xattr -dr com.apple.quarantine ./kairo-<version>-arm64-apple-macosx11.0
-> ```
->
-> This applies only to packages downloaded from the release page; builds from source are unaffected.
+- **Linux x86_64:** any distribution. The compiler is statically linked against musl and needs no system libc, libc++ or libunwind.
+- **Windows:** the native `*-windows-gnu` archives need no extra runtime; they are MinGW builds.
 
 ### Add to PATH
 
-**Linux / macOS:**
+If you used the install script, add `~/.local/bin` to your `PATH` if it is not already there. For a manual extract:
 
 ```bash
-export PATH="$PATH:/path/to/kairo-<version>-<triple>/bin"
+export PATH="$PATH:/path/to/kairo-0.2.0-x86_64-linux-musl/bin"
 ```
 
 Add that line to your `~/.bashrc` or `~/.zshrc` to make it permanent.
-
-**Windows (PowerShell):**
-
-```powershell
-$env:Path += ";C:\path\to\kairo-<version>-x86_64-windows-gnu\bin"
-```
-
-This sets `PATH` for the current session. To persist it across sessions:
-
-```powershell
-[Environment]::SetEnvironmentVariable("Path", "$env:Path;C:\path\to\kairo-<version>-x86_64-windows-gnu\bin", "User")
-```
-
-For Command Prompt, add the path via System Properties -> Environment Variables.
 
 ### Validate
 
@@ -126,13 +158,14 @@ The executable targets the machine you compile on. On Linux that is the host's g
 
 ## Building from Source
 
-Build from source if you need unreleased changes or are developing Kairo itself. The compiler is written in Kairo, so building it needs an existing Kairo compiler: a prebuilt package from above.
+Build from source if you need unreleased changes or are developing Kairo itself. The compiler is written in Kairo, so building it needs a seed: a prebuilt Kairo release (0.2.0 or newer) from above. Building without a seed is not possible.
 
 ### Requirements
 
-- A prebuilt Kairo package, as the bootstrap compiler
+- A prebuilt Kairo release (0.2.0+) as the seed, with its `bin/` on your `PATH` (or named with `--kairo`)
 - **git** and **Python 3**
-- Disk space and time for the patched LLVM, which is built once and reused
+- **CMake** and **Ninja**, used once to build the patched LLVM
+- About 30 GB of free disk and plenty of RAM for the first build; the patched LLVM is built once and reused
 
 You do not need a system Clang or xmake. The earlier C++ bootstrap compiler, Stage 0, is retired.
 
@@ -142,18 +175,20 @@ You do not need a system Clang or xmake. The earlier C++ bootstrap compiler, Sta
 git clone https://github.com/kairolang/kairo/
 cd kairo
 git submodule update --init --recursive   # pulls the patched LLVM (large download)
-python3 build.py --release --kairo /path/to/kairo-<version>-<triple>/bin/kairo kairo kcc
+python3 build.py --release --kairo /path/to/kairo-0.2.0-x86_64-linux-musl/bin/kairo kairo kcc kld kfmt kld kfmt
 ```
 
 The first build also builds the patched LLVM (once; later builds reuse it). `--kairo` names the bootstrap compiler; it can be left out when that `kairo` is on your `PATH`, and later builds use the last one they produced.
 
-`build.py` builds the compiler with the bootstrap compiler, rebuilds it with the result (so the final compiler is built by itself), and stages a self-contained package in `build/<triple>/release/`, where `<triple>` is your host's static musl triple (`x86_64-linux-musl` on x86-64 Linux): `bin/` holds `kairo` and `kcc` beside the bundled `clang` and `lld`, and `lib/` holds the clang resource directory, the `builtin`, `std` and `rt` libraries and every shared library the binaries need. The compiler finds all of it from its own location, so it runs with no flags:
+`build.py` builds the compiler with the bootstrap compiler, rebuilds it with the result (so the final compiler is built by itself), and stages a self-contained package in `build/<triple>/release/`, where `<triple>` is your host's static musl triple (`x86_64-linux-musl` on x86-64 Linux): `bin/` holds `kairo` and `kcc` beside `kld`, `kfmt`, `llvm-symbolizer` and the `llvm-ar` family (there are no `clang` or `clang++` binaries: `kairo` and `kcc` run clang in-process and `kld` runs lld in-process), and `lib/` holds the clang resource directory, the `builtin`, `std` and `rt` libraries and every shared library the binaries need. The compiler finds all of it from its own location, so it runs with no flags:
 
 ```bash
 build/x86_64-linux-musl/release/bin/kairo main.k -o main
 ```
 
 `--debug` builds an unoptimized compiler that is quicker to rebuild. `--resource-dir`, `--builtins-dir`, `--std-dir` and `--sysroot` override what the compiler finds. If one of them cannot be found the compiler warns, naming the path it searched and the flag to pass. Not having a sysroot is a warning too, unless you pass `--freestanding`.
+
+To run the compiler's test suite: `build/llvm/bin/llvm-lit Tests -s` (it tests the most recently built compiler; set `KAIRO_BIN` to pick one).
 
 `Scripts/package_release.py` turns a built tree into a release archive.
 
@@ -200,12 +235,8 @@ Both work with `fn main()` or `fn Test()` entry points.
 
 ## Troubleshooting
 
-**macOS: "cannot verify this app is free of malware" when running a downloaded package.** Release binaries are not yet notarized. Clear the quarantine flag:
+**`warning [P008W]: no sysroot found for target ...`.** The target has no bundled sysroot (or the `sysroot/` directory is not next to `bin/`). Pass `--sysroot=<dir>`; see [Sysroots](#sysroots).
 
-```bash
-xattr -dr com.apple.quarantine ./kairo-<version>-arm64-apple-macosx11.0
-```
+**`error [P008E]: no sysroot found for target ...` (a `*-apple-macosx` or `*-windows-msvc` target).** These sysroots are never bundled; build one with the scripts in `scripts/`, see [macOS and MSVC targets](#macos-and-msvc-targets).
 
-This does not affect source builds, only packages downloaded from the release page.
-
-**`warning [P008W]: no sysroot found for target ...`.** The sysroots archive is not extracted next to `bin/`. See [Sysroots](#sysroots), or pass `--sysroot=<dir>`.
+**The install script says the archive "is not listed in SHA256SUMS".** Your OS/CPU has no prebuilt archive (the error lists the ones that exist). Build from source, see [Building from Source](#building-from-source).

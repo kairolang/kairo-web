@@ -6,9 +6,25 @@ order: 3
 
 # Implementation Status
 
-The language reference describes Kairo as designed. This page lists where the compiler, version 0.2.0, falls short of it. The compiler is written in Kairo and compiles itself. Each entry is removed when the gap closes.
+The language reference describes Kairo as designed. This page lists where the compiler, version 0.2.0, falls short of it. Each entry is removed when the gap closes.
 
-Prebuilt packages exist for Linux, macOS, Windows, FreeBSD and NetBSD. See [Installation](/docs/install/). Only x86_64 Linux is covered by the test suite.
+## What 0.2.0 is
+
+0.2.0 is the first self-hosted release. The compiler (Stage 1) is written in Kairo and has built itself since 2026-11-06; the C++ transpiler it was bootstrapped from (Stage 0) is retired. The test suite is about 2,066 lit tests, of which 49 are expected failures that name the feature they wait on and 3 are known failures. Only x86_64 Linux is covered by the suite; prebuilt packages exist for Linux, macOS, Windows, FreeBSD and NetBSD ([Installation](/docs/install/)).
+
+Built and working: the lexer, preprocessor, parser, name and type resolution, the semantic checks (including purity inference and the [visibility levels](/docs/language/modules/)), generics, classes with the copy / move model, nullables, panics, closures, generators, `eval`, pattern matching, C and C++ interop in both directions (`ffi` imports and `kcc`), parallel Sema and code generation, `--emit-headers`, and [incremental compilation](/docs/language/c-cpp-toolchain/) phase 1 (unchanged files skip code generation).
+
+Not built yet:
+
+- [Tether](/docs/language/tether/), the lifetime and memory-safety analysis, is Stage 2 work. Using a moved-from value is already an error; the rest of Tether's checks come later.
+- Virtual interfaces (calls through `*Iface`) and async (`await`, `spawn`, `thread` expressions) are not compiled.
+- Compile-time evaluation of function calls: an `eval` constant cannot yet call a function to compute its value.
+- The parser still hands some malformed input to later passes as ordinary nodes. Poison nodes for invalid syntax, and fully safe pointers through the compiler's own AST, are scheduled before 0.3.5.
+- Incremental compilation phase 2 (reusing work inside a changed file's neighbours) is planned for 0.2.5.
+
+The list below is the detailed set of gaps in what is built.
+
+---
 
 ---
 
@@ -18,7 +34,6 @@ Prebuilt packages exist for Linux, macOS, Windows, FreeBSD and NetBSD. See [Inst
 |---|---|---|
 | Initializing a `const` field or a [field without a default](/docs/language/classes/#fields-without-a-default) in a constructor | Compiles, including in a generic constructor and for an array field built element by element (also an array of arrays, or of a generic length). Not yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): a constructor with an expression body; `try`, an `inline` block, `label!` or `jump!` before the last such initialization; a `static` or array local declared before it and used after it | Move that code after the last initialization, or give the field an initializer |
 | Virtual interfaces (`virtual interface`, calls through `*Iface`) | Not compiled yet: the declaration is accepted, but `&conformer` does not convert to `*Iface` (SC063E) | Dispatch through a base class with `virtual` methods |
-| [Class-specific `operator new` / `operator delete`](/docs/language/c-cpp-memory/#class-specific-operator-new-and-operator-delete) on Kairo classes | Not emitted yet: a C++ `new` or `delete` of a Kairo class uses C++'s global `operator new` / `operator delete`, not Kairo's allocator | Create and destroy Kairo objects on the Kairo side (`@create` / `@destroy`, or a `pub fn` that does it) |
 | An initializer on an `eval` array-typed field (`eval E: [i32; 2] = [1, 2]` in a class) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Declare the constant at module scope |
 | A generic record's field default that reads another field (`class <T> G { var a: i32 = 1  var b: i32 = a + 1 }`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Repeat the value instead of reading the field |
 | Struct destructuring (`var {a, b} = s`) | Rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported) | Read the fields one by one: `var a = s.a` |

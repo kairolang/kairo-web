@@ -97,10 +97,10 @@ fn load_config(path: string) -> Config {
     try {
         port = parse_port(read_file(path))
     } catch e: IOError {
-        std::println(f"cannot read file: {e.path}")
+        std::io::println(f"cannot read file: {e.path}")
         port = 8080
     } catch e: RangeError {
-        std::println(f"bad port: {e.value}")
+        std::io::println(f"bad port: {e.value}")
         port = 8080
     } catch {
         port = 8080   // EmptyInput, and anything std::parse propagates
@@ -444,9 +444,9 @@ fn process_file(path: string) panic {
 }
 ```
 
-A standalone `finally` behaves like the [destructor](/docs/language/classes-lifecycle/#destructors---delete-operators) of a local declared at the same point. It belongs to its enclosing block rather than the function, runs only if execution reached it, and runs in reverse declaration order (LIFO) together with the scope's destructors.
+A standalone `finally` behaves like the [destructor](/docs/language/classes-lifecycle/#destructors---op-finally) of a local declared at the same point. It belongs to its enclosing block rather than the function, runs only if execution reached it, and runs in reverse declaration order (LIFO) together with the scope's destructors.
 
-See [Control Flow](/docs/language/control-flow/#finally) for full `finally` semantics.
+See [Control Flow](/docs/language/control-flow/#standalone-finally-scope-exit) for full `finally` semantics.
 
 ---
 
@@ -490,7 +490,7 @@ fn fatal(msg: string) panic -> ! {
 }
 
 fn fatal(msg: string) -> ! {
-    std::println(msg)
+    std::io::println(msg)
     crash!() // valid: never returns
 }
 ```
@@ -580,7 +580,7 @@ fn safe_divide(a: i32, b: i32) -> i32 {
     try {
         return divide(a, b)
     } catch e: DivideByZero {
-        std::println("error: division by zero")
+        std::io::println("error: division by zero")
         return 0
     }
 }

@@ -31,10 +31,10 @@ import std::AST
 
 macro @add_logging(node: *AST::FunctionDecl) {
     node->body.prepend(
-        AST::parse!(std::println(f"entering {stringify!(node->name)}"))
+        AST::parse!(std::io::println(f"entering {stringify!(node->name)}"))
     )
     node->body.append(
-        AST::parse!(std::println(f"exiting {stringify!(node->name)}"))
+        AST::parse!(std::io::println(f"exiting {stringify!(node->name)}"))
     )
 }
 ```
@@ -50,9 +50,9 @@ After expansion:
 
 ```kairo
 fn process_data(x: i32) -> i32 {
-    std::println("entering process_data")
+    std::io::println("entering process_data")
     var __result = x * 2
-    std::println("exiting process_data")
+    std::io::println("exiting process_data")
     return __result
 }
 ```
@@ -83,7 +83,7 @@ macro @repeat(block: *AST::Block, times: i32) {
 
 @repeat(3)
 {
-    std::println("hello")
+    std::io::println("hello")
 }
 ```
 
@@ -91,9 +91,9 @@ After expansion:
 
 ```kairo
 {
-    { std::println("hello") }
-    { std::println("hello") }
-    { std::println("hello") }
+    { std::io::println("hello") }
+    { std::io::println("hello") }
+    { std::io::println("hello") }
 }
 ```
 
@@ -161,7 +161,7 @@ struct SimdData { ... }
 
 // On a block
 @repeat(3)
-{ std::println("repeated") }
+{ std::io::println("repeated") }
 
 // On a variable (if the attribute accepts VariableDecl)
 @deprecated("use new_config instead")
@@ -304,7 +304,7 @@ Each is a promise to the optimizer, written on the function and checked where th
 
 Reading globals and reading through pointers is allowed; that is the difference between `@pure` and a [const function](/docs/language/functions-declarations/#const-functions), which may read only its own inputs. A `@pure` function whose result changes between calls with the same arguments because something else wrote the memory it reads is fine: the optimizer only merges calls when no write could have happened in between.
 
-With `-finfer-purity` (off by default) the compiler also finds the functions that keep the const or `@pure` promise without saying so, by the same rules, and gives them the same C++ attribute, on their declaration in every file that imports them.
+By default the compiler also finds the functions that keep the const or `@pure` promise without saying so, by the same rules, and gives them the same C++ attribute, on their declaration in every file that imports them. `-fno-infer-purity` turns this off.
 
 ### Calling conventions
 
@@ -395,7 +395,7 @@ macro @timer(node: *AST::FunctionDecl) {
         AST::parse!(var __start = std::time::now())
     )
     node->body.append(
-        AST::parse!(std::println(f"elapsed: {std::time::now() - __start}ms"))
+        AST::parse!(std::io::println(f"elapsed: {std::time::now() - __start}ms"))
     )
 }
 

@@ -50,16 +50,16 @@ A destructor is **timing-insensitive** if and only if it does nothing but free m
 var *foo = @create SomeClass()    // trivial destructor
 use(foo)
 // @destroy foo inserted here
-std::println(10)
+std::io::println(10)
 ```
 
-**Non-trivial destructors** (a user-defined `op delete`, or any member with one file close, lock release, flush, disconnect) run at the **end of the owning binding's lexical scope**, in reverse declaration order. Tether does not move these to last use:
+**Non-trivial destructors** (a user-defined `op finally`, or any member with one file close, lock release, flush, disconnect) run at the **end of the owning binding's lexical scope**, in reverse declaration order. Tether does not move these to last use:
 
 ```kairo
 fn example() {
     var *cfg = @create Config(8080)    // side-effecting destructor
     use(cfg)
-    std::println(10)
+    std::io::println(10)
 }
 // cfg's destructor runs here, at the brace not after use(cfg)
 ```

@@ -1,4 +1,64 @@
 ---
 title: kfmt
-description: "kfmt, the Kairo code formatter: the toolchain command that keeps Kairo source files consistently formatted across a project."
+description: "kfmt, the Kairo code formatter: one fixed style at 100 columns, four flags, and a round-trip check that refuses any file it cannot format without changing its meaning."
 ---
+
+# kfmt
+
+`kfmt` formats Kairo source. There is one style and almost no knobs: the line width is 100 columns, blank lines are capped at 4, and there is no config file. It ships in the release beside `kairo` and `kcc`.
+
+```sh
+kfmt src/                 # --check (default): list files that would change, exit 1 if any
+kfmt --write src/main.k   # rewrite in place
+kfmt --stdout main.k      # print the formatted file
+```
+
+A directory argument formats every `.k` file under it.
+
+## Flags
+
+| Flag | Meaning |
+|---|---|
+| `--check` | the default: list the files that would change and exit 1 if there are any |
+| `--write` | rewrite files in place |
+| `--stdout` | print the formatted file |
+| `--no-align` | turn off every alignment rule; a wrapped parameter list falls back to the block form |
+| `--indent=spaces\|tabs` | indent with spaces (default) or tabs. Tabs are only ever indentation: the padding that aligns columns is always spaces, so alignment survives any tab width |
+| `--tab-size=N` | width of one indent level: N spaces (default 4) or N tabs (default 1). In tabs mode a tab counts as `N` columns toward the 100-column limit |
+| `--normalize-parens` | opt-in: remove redundant parentheses and add none, by Kairo's precedence. Every change is checked against the syntax tree |
+
+## What it does
+
+**Lists are on one line or one item per line.** Parameters, call arguments, tuple and list literals, named initializers and braced import lists either fit on one line or put every item on its own line; there is no "fill as many as fit". The one-line limit is 100 columns, but a call must end by column 80 or it is split. A list that does not fit has two shapes: the aligned form keeps the first item on the opener's line and aligns the rest under it (parameters), and the block form puts the items one level deeper with the closer on its own line (calls, literals). The block form ends with a trailing comma, the one-line and aligned forms have none. A table of more than six short items becomes a grid, padded per column.
+
+**Blocks always break.** `{` ends the line of its header and `}` stands alone; a block is never kept on one line, even for one short statement. `{ }` stays for an empty block. `} else {`, `} catch E {`, `} case B {`, `} default {` and `} finally {` chain on one line.
+
+**Imports.** A single name loses its braces (`import Foo::{foo}` becomes `import Foo::foo`, and an aliased one `import Foo::Bar as Baz`); two or more names are always one per line with a trailing comma and no `;` after the `}`. `ffi` header imports come first, Kairo imports are sorted by path. A list of more than six short names becomes a grid.
+
+**Alignment.** Runs of consecutive declarations align their keyword, name and type columns, with the `:` glued to the name; runs of assignments align their `=`; name/value lists align when broken; trailing comments in a run align. `--no-align` turns all of this off.
+
+**Semicolons.** A `;` that only ends a line is removed, unless the next line starts with something that would continue the statement (`.`, `->`, an infix operator, `else`, `catch`, `=>` and the like). Required semicolons stay (several statements on one line, a C-style `for` header, array types such as `[T; N]`, statement expressions). kfmt never adds one.
+
+**Breaks.** A long `&&` / `||` chain breaks before every operator. kfmt never breaks a line in front of `+ - * & ~ ! ++ -- .. ... = ? @ as`, because a line starting with one of those begins a new statement. A string literal is never split, and a line that cannot break is allowed to run over.
+
+**Blank lines.** Up to 4 blank lines are kept, none at the start or end of a block, and one blank line goes after a line made only of closers (`}`, `)`, `]`) before the next statement, unless that next line is a closer too.
+
+**Comments.** Comment text is never changed or reordered. An own-line comment takes the indentation of the code it precedes. A trailing comment is anchored to the first line of the node it was written on, so it stays with its code when the code is wrapped.
+
+**if, try and match expressions.** Both branches stay on aligned lines (`else if` chains are padded to line up under the `if`), a `try` expression's `catch` sits under the `try` with its `=>` aligned, and a `match` expression with more than two cases is broken one case per line. A case with more than six alternatives is laid out as a grid.
+
+Text inside string, character, raw-string and f-string literals (including the expressions inside `{...}`) is copied byte for byte.
+
+## Safety
+
+kfmt never writes a file whose meaning could have changed. Before `--write` replaces a file the output has to pass all of these:
+
+- it parses;
+- it re-lexes to the same code tokens, apart from removed `;`, a comma before a closer, import order (compared as a multiset) and, under `--normalize-parens`, parentheses;
+- every comment is present, in the same order;
+- it dumps to the same syntax tree as the input;
+- formatting the output again gives the same text.
+
+A file that fails any check (or does not parse at all) is left alone, reported as refused, and makes kfmt exit 1. Refusal is not a crash: the rest of the files are still formatted.
+
+For the full rule set, with before/after examples, see the formatter's specification in the repository, `Extras/Formatter/README`.

@@ -71,7 +71,7 @@ pub class Request {
     pub var body: string
     priv var query_params: {string: string}
 
-    fn Request(self, method: Method, path: string) {
+    pub fn Request(self, method: Method, path: string) {
         self.method = method
         self.path = path
         self.headers = []
@@ -100,7 +100,7 @@ pub class ParseError {
     pub var message: string
     pub var position: i32
 
-    fn ParseError(self, msg: string, pos: i32) {
+    pub fn ParseError(self, msg: string, pos: i32) {
         self.message = msg
         self.position = pos
     }
@@ -202,7 +202,7 @@ pub class Response {
     priv var headers: {string: string}
     priv var body: string
 
-    fn Response(self, status: StatusCode) {
+    pub fn Response(self, status: StatusCode) {
         self.status = status
         self.headers = {}
         self.body = ""
@@ -278,13 +278,13 @@ Key patterns:
 ```kairo
 // router.k
 import std
-import request::{Request, Method}
-import response::Response
+import self::request::{Request, Method}
+import self::response::Response
 
 pub class HandlerError {
     pub var message: string
 
-    fn HandlerError(self, msg: string) {
+    pub fn HandlerError(self, msg: string) {
         self.message = msg
     }
 
@@ -305,7 +305,7 @@ pub class Router {
     priv var routes: [Route]
     priv var not_found_handler: Handler
 
-    fn Router(self) {
+    pub fn Router(self) {
         self.routes = []
         self.not_found_handler = fn (req: *Request) -> Response {
             return Response::not_found()
@@ -327,7 +327,7 @@ pub class Router {
         return self
     }
 
-    pub fn delete(self, path: string, handler: Handler) -> Self {
+    pub fn del(self, path: string, handler: Handler) -> Self {
         self.routes.push(Route { method: .Delete, path: path, handler: handler })
         return self
     }
@@ -365,14 +365,14 @@ Key patterns:
 ```kairo
 // server.k
 import std
-import request::{parse_request, Request, ParseError}
-import response::Response
-import router::Router
+import self::request::{parse_request, Request, ParseError}
+import self::response::Response
+import self::router::Router
 
 pub class BindError {
     pub var port: i32
 
-    fn BindError(self, port: i32) {
+    pub fn BindError(self, port: i32) {
         self.port = port
     }
 
@@ -388,7 +388,7 @@ pub class Server {
     priv var port: i32
     priv var running: bool
 
-    fn Server(self, port: i32) {
+    pub fn Server(self, port: i32) {
         self.router = Router()
         self.port = port
         self.running = false
@@ -409,7 +409,7 @@ pub class Server {
             net::tcp_close(listener)
         }
 
-        std::println(f"listening on :{self.port}")
+        std::io::println(f"listening on :{self.port}")
         self.running = true
 
         while self.running {
@@ -463,9 +463,9 @@ Key patterns:
 ```kairo
 // main.k
 import std
-import server::{Server, BindError}
-import request::{Request, Method}
-import response::{Response, StatusCode}
+import self::server::{Server, BindError}
+import self::request::{Request, Method}
+import self::response::{Response, StatusCode}
 
 fn handle_index(req: *Request) -> Response {
     return Response::ok()
@@ -502,7 +502,7 @@ fn main() {
     try {
         srv.start()
     } catch e: BindError {
-        std::println(f"server error: cannot bind to port {e.port}")
+        std::io::println(f"server error: cannot bind to port {e.port}")
     }
 }
 ```

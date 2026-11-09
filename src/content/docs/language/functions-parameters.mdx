@@ -16,7 +16,7 @@ Parameters can have default values. When a caller omits a defaulted argument, th
 
 ```kairo
 fn greet(name: string = "world") {
-    std::println(f"Hello, {name}!")
+    std::io::println(f"Hello, {name}!")
 }
 
 greet()          // "Hello, world!"
@@ -160,7 +160,7 @@ interface Named {
 
 fn <...T impl Named> print_all(...args: T) {
     for arg in args {
-        std::println(arg as string)
+        std::io::println(arg as string)
     }
 }
 

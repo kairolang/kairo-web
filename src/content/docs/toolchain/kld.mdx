@@ -2,3 +2,27 @@
 title: kld
 description: "kld, the Kairo linker driver: defaults to LLD for ELF, Mach-O, PE/COFF and WASM targets and checks the C++ ABI contract at link time."
 ---
+
+# kld
+
+`kld` is the linker of the Kairo toolchain: LLD, run in-process, for ELF, Mach-O, PE/COFF (including MinGW) and WebAssembly. You rarely call it yourself. `kairo` and `kcc` link through it, and the toolchain ships no separate `ld.lld`.
+
+```sh
+kld -flavor gnu -o app main.o foo.o   # ELF
+kld -flavor link /out:app.exe main.obj
+```
+
+`-flavor` takes the same values as `lld`: `gnu` (ELF), `darwin` (Mach-O), `link` (COFF), `wasm` and `mingw`. Everything else is lld's own command line.
+
+## When it runs
+
+Normally the compiler links inside its own process and `kld` is not started. `kld` runs as a separate process when:
+
+- the link needs lld options that change global state (`-mllvm`, `--plugin-opt=-...`);
+- an earlier in-process link in the same run failed in a way that left lld unable to run again.
+
+For these the compiler looks for `kld` in the same `bin/` directory as itself, and a missing `kld` is a fatal error naming the path.
+
+## The C++ ABI check
+
+Because `kairo` and `kcc` both use the same pinned compiler, the objects of one program agree on layout and mangling. At link time the linker driver also verifies the contract recorded in those objects, so an object built by a different compiler version is reported as a link error instead of misbehaving at run time. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/) and [ABI Compatibility](/docs/language/c-cpp-abi/).

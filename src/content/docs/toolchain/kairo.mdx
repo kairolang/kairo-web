@@ -1,0 +1,37 @@
+---
+title: kairo
+description: "kairo, the Kairo compiler driver: compiles .k files and C/C++ inputs, links with kld, and reports diagnostics, progress and statistics."
+---
+
+# kairo
+
+`kairo` is the compiler. It is written in Kairo, runs clang and lld in-process, and compiles and links in one command.
+
+```sh
+kairo main.k -o main          # compile and link
+kairo --type-check-only main.k
+```
+
+## Common flags
+
+| Flag | Meaning |
+|---|---|
+| `-o <file>` | output name |
+| `-c`, `-S` | stop after the object / assembly |
+| `--emit=obj,asm,llvm-ir,llvm-bc` | choose the outputs |
+| `--emit-headers=<dir>` | write one C++ header per module ([Using Kairo in C++](/docs/language/c-cpp-exposing/)) |
+| `--type-check-only` | parse and check without generating code |
+| `--target=<triple>`, `--sysroot=<dir>`, `--freestanding`, `--native` | [cross-compilation and sysroots](/docs/language/c-cpp-toolchain/#cross-compilation) |
+| `--progress=auto\|always\|never\|lines` | the build status line |
+| `--sema-threads=N`, `--codegen-threads=N`, `--threads=N` | parallelism of type checking and code generation |
+| `--interface-pch=auto\|on\|off` | share precompiled Kairo interfaces between files |
+| `--cache-dir <dir>`, `--force-recompile` | [incremental compilation](/docs/language/c-cpp-toolchain/#incremental-compilation): unchanged files skip code generation |
+| `-finfer-purity` / `-fno-infer-purity` | infer `const` / `@pure` for functions that make no promise (on by default) |
+| `-Wconst-self` | opt-in lint for methods that could take `const self` |
+| `--error-format=...`, `--explain <CODE>`, `--diag-show-ids` | diagnostics: `--explain` prints the long form of a code |
+| `--print-stats`, `-v` | timings, counts, and what each step did |
+| `--help`, `--help-hidden` | list the flags; `--help-hidden` adds internal and not-yet-implemented ones |
+
+Pretty diagnostics show the location as `file:line:col`. On a terminal a build prints a single status line (`parse`, `sema`, `codegen` with counts) that disappears before any diagnostic appears.
+
+`kairo` finds its standard library, runtime and clang resources relative to its own location, so an unpacked release runs without flags. `python3 build.py` stages the same layout when building from source ([Installation](/docs/install/#building-from-source)). See also [kcc](/docs/toolchain/kcc/), [kld](/docs/toolchain/kld/) and [kfmt](/docs/toolchain/kfmt/).

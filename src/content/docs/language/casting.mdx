@@ -242,10 +242,10 @@ enum <T> ParseResult {
 
 extend <T> ParseResult<T> {
     fn tag(const self) -> u32 {
-        match self {
-            case .Success { 0 }
-            case .Error   { 1 }
-            case .EndOfInput { 2 }
+        return match self {
+            case .Success    => 0
+            case .Error      => 1
+            case .EndOfInput => 2
         }
     }
 }
