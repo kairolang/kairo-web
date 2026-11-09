@@ -1098,6 +1098,9 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 
 `<=>` returns an `Ordering`, matching the C++20 spaceship operator.
 
+> [!NOTE]
+> In 0.2.0, `<=>` on two primitive values (`1 <=> 2`) does not yet produce a usable `Ordering`. It works for types that define `op <=>`. On primitives, compare with `<`, `==` and `>` for now.
+
 #### `==` vs `===`
 
 `===` is valid when at least one operand is [nullable](/docs/language/nullables/) (`T?`). `a === b` is true when both are non-null and equal: it reads as `(a? && b?) && a == b`, with `==` applied to the unwrapped values. A non-nullable operand needs no test, so `a === 5` is `a? && a == 5`. On nullable pointers (`*T?`) it compares the values they point to, where `==` compares **addresses**. This goes one level only: on `(**T)?` it compares the `*T` values, which are addresses. Using `===` where neither operand is nullable is an error, including two `*T`. To compare the pointees of two non-null pointers, dereference them and use `==`. When a nullable pointer is involved, both sides must be pointers (`p === 42` is an error), and a nullable raw pointer (`unsafe *T?`) needs an `unsafe` block, since `===` dereferences it. `x === null` is never true, so it is an error, with a fix-it that writes the null test `!x?`.
@@ -17085,7 +17088,7 @@ Some macros are compiler intrinsics that perform operations beyond token substit
 | `is_trivially_copyable!(T)` | `true` when a `T` is copied as its bytes (C++ `__is_trivially_copyable`) | [Eval](/docs/language/eval/) |
 | `is_trivially_destructible!(T)` | `true` when destroying a `T` runs no code | [Eval](/docs/language/eval/) |
 | `unwrap!(expr)` | Force-unwrap a nullable; aborts the program on null | [Nullables](/docs/language/nullables/#force-unwrap) |
-| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Library](/docs/library/core/functions/move_refrence/) |
+| `mref!(T)` | Produce an rvalue reference type (`&&T`) | [Core library](/docs/library/core/) |
 
 These use macro syntax (`name!`) to make their usage explicit and searchable in a codebase, but they are not user-definable they are built into the compiler.
 

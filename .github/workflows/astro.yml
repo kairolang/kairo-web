@@ -47,6 +47,25 @@ jobs:
         run: bun install
         working-directory: ${{ env.BUILD_PATH }}
 
+      # generate-legal.mjs (run by generate-all) copies the license and the
+      # trademark policy from the kairo repository, which is their source of
+      # truth; only those two files are checked out.
+      - name: Checkout kairo legal files
+        uses: actions/checkout@v4
+        with:
+          repository: kairolang/kairo
+          path: .kairo-src
+          sparse-checkout: |
+            LICENSE
+            TRADEMARKS.md
+          sparse-checkout-cone-mode: false
+
+      - name: Update all (generate-*.mjs)
+        run: node generate-all.mjs
+        working-directory: ${{ env.BUILD_PATH }}
+        env:
+          KAIRO_REPO: ${{ github.workspace }}/.kairo-src
+
       - name: Build with Astro
         # Removed the --site and --base overrides to let astro.config.mjs handle the custom domain natively
         run: bun run astro build

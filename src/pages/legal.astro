@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import AsciiArt from '../components/ascii/AsciiArt.astro';
-import AsciiFrame from '../components/ascii/AsciiFrame.astro';
+import { Content as TrademarkPolicy } from '../generated/TRADEMARKS.md';
 import {
   CODE_LICENSE,
   COMPANY,
@@ -48,7 +48,7 @@ const contributingUrl = `${REPO}/blob/main/CONTRIBUTING.md`;
         <h2 id="code-license" class="display legal-h2">Code license</h2>
         <p>
           The Kairo compiler, toolchain and runtime are licensed under
-          <a href="/LICENSE.txt">{CODE_LICENSE}</a>. Programs compiled with Kairo, and code the compiler
+          <a href="/LICENSE">{CODE_LICENSE}</a>. Programs compiled with Kairo, and code the compiler
           generates into them, are yours under any terms you choose (see section 2 of the
           <a href={exceptionUrl}>Runtime Library Exception</a>).
         </p>
@@ -65,27 +65,12 @@ const contributingUrl = `${REPO}/blob/main/CONTRIBUTING.md`;
       <section class="legal-block" aria-labelledby="trademark">
         <h2 id="trademark" class="display legal-h2">Trademark policy</h2>
         <p>
-          Kairo™ is a trademark of {TRADEMARK_OWNER}. The full policy is in
-          <a href={trademarksUrl} target="_blank" rel="noopener noreferrer">TRADEMARKS.md</a>.
+          Kairo™ is a trademark of {TRADEMARK_OWNER}. This section is the repository's
+          <a href={trademarksUrl} target="_blank" rel="noopener noreferrer">TRADEMARKS.md</a>, word for word.
         </p>
-        <AsciiFrame title="allowed" meta="no permission needed" class="legal-frame">
-          <ul class="legal-list">
-            <li>Referring to Kairo by name.</li>
-            <li>"Built with Kairo" and "written in Kairo".</li>
-            <li>Redistributing unmodified official releases.</li>
-            <li>Community events, articles and talks.</li>
-            <li>Non-commercial user groups that use the name with "community" or a similar qualifier.</li>
-          </ul>
-        </AsciiFrame>
-        <AsciiFrame title="needs permission" meta={`write to ${CONTACT_LEGAL}`} variant="accent" class="legal-frame">
-          <ul class="legal-list">
-            <li>Naming a fork, modified build or derived language "Kairo", or anything confusingly similar.</li>
-            <li>Using the name or logo in a product, company or domain name.</li>
-            <li>Implying endorsement by {COPYRIGHT_HOLDER} or {COMPANY}.</li>
-            <li>Selling Kairo-branded merchandise.</li>
-          </ul>
-        </AsciiFrame>
-        <p>Modified builds must be renamed and must not use the Kairo logo.</p>
+        <div class="legal-policy">
+          <TrademarkPolicy />
+        </div>
       </section>
 
       <section class="legal-block" aria-labelledby="third-party">

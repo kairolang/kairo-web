@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-11-09T01:35:55.707Z
+> Generated: 2026-11-09T03:28:06.063Z
 
 ---
 
@@ -376,7 +376,7 @@ The archive contains:
 - `sysroot/`: prebuilt cross-compile sysroots (below)
 - `scripts/`: `msvc-sysroot.sh` / `msvc-sysroot.ps1` and `darwin-sysroot.sh`, which build the macOS and MSVC sysroots from your own SDK ([below](#macos-and-msvc-targets))
 - `share/kairo/runtimes/`: the LLVM runtimes source (libc++, compiler-rt builtins) those scripts compile
-- `LICENSE.txt`, `LICENSES/`, `THIRD-PARTY-NOTICES`
+- `LICENSE`, `NOTICE`, `LICENSES/`, `THIRD-PARTY-NOTICES`
 
 The compiler is built on an LLVM 22 toolchain from Kairo's [patched fork](https://github.com/kairolang/llvm-project), linked in-process.
 
@@ -1964,6 +1964,9 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 | `===` | Null-aware equality | `a === b` |
 
 `<=>` returns an `Ordering`, matching the C++20 spaceship operator.
+
+> [!NOTE]
+> In 0.2.0, `<=>` on two primitive values (`1 <=> 2`) does not yet produce a usable `Ordering`. It works for types that define `op <=>`. On primitives, compare with `<`, `==` and `>` for now.
 
 ### `==` vs `===`
 
@@ -20472,8 +20475,8 @@ Each primitive type implements `Hash` as follows.
 | `i16` | Signed integers hash through `mix64` of their value sign-extended to 64 bits. |
 | `i32` | Signed integers hash through `mix64` of their value sign-extended to 64 bits. |
 | `i64` | Signed integers hash through `mix64` of their value sign-extended to 64 bits. |
-| `usize` | Signed integers hash through `mix64` of their value sign-extended to 64 bits. |
-| `isize` | Signed integers hash through `mix64` of their value sign-extended to 64 bits. |
+| `usize` | Pointer-sized integers hash through `mix64` of their value widened to 64 bits. |
+| `isize` | Pointer-sized integers hash through `mix64` of their value widened to 64 bits. |
 | `char` | A `char` hashes through `mix64` of its value. |
 | `u128` | A 128-bit integer hashes as `fold_mul` of its two 64-bit halves. |
 | `i128` | A 128-bit integer hashes as `fold_mul` of its two 64-bit halves. |
@@ -21401,11 +21404,16 @@ User code does not name it (SC116E).
 Ok
 ```
 
+The function returned normally; `value` is its declared return value.
+
 ### `Panic.Err`
 
 ```kairo
 Err
 ```
+
+The function panicked with an error of one of the types in its panic set;
+one `Err` case exists per type in `E`.
 
 ---
 
@@ -23516,11 +23524,15 @@ pointer as the null case, for instance), so nothing may depend on the layout.
 Value
 ```
 
+A present value: `T?` holding `v`.
+
 ### `Nullable.Null`
 
 ```kairo
 Null
 ```
+
+No value: what `null` assigns to a `T?`.
 
 ## `__builtin_niche_of`
 

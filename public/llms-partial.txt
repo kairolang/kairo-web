@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-11-09T01:35:55.789Z
+> Generated: 2026-11-09T03:28:06.105Z
 
 ---
 
@@ -376,7 +376,7 @@ The archive contains:
 - `sysroot/`: prebuilt cross-compile sysroots (below)
 - `scripts/`: `msvc-sysroot.sh` / `msvc-sysroot.ps1` and `darwin-sysroot.sh`, which build the macOS and MSVC sysroots from your own SDK ([below](#macos-and-msvc-targets))
 - `share/kairo/runtimes/`: the LLVM runtimes source (libc++, compiler-rt builtins) those scripts compile
-- `LICENSE.txt`, `LICENSES/`, `THIRD-PARTY-NOTICES`
+- `LICENSE`, `NOTICE`, `LICENSES/`, `THIRD-PARTY-NOTICES`
 
 The compiler is built on an LLVM 22 toolchain from Kairo's [patched fork](https://github.com/kairolang/llvm-project), linked in-process.
 
@@ -1964,6 +1964,9 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 | `===` | Null-aware equality | `a === b` |
 
 `<=>` returns an `Ordering`, matching the C++20 spaceship operator.
+
+> [!NOTE]
+> In 0.2.0, `<=>` on two primitive values (`1 <=> 2`) does not yet produce a usable `Ordering`. It works for types that define `op <=>`. On primitives, compare with `<`, `==` and `>` for now.
 
 ### `==` vs `===`
 

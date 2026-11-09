@@ -1,0 +1,24 @@
+---
+// The Kairo license, rendered from src/generated/LICENSE.txt, which
+// generate-legal.mjs copies from the repository's LICENSE. The raw text
+// is also served at /LICENSE.txt.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import text from '../generated/LICENSE.txt?raw';
+import { CODE_LICENSE } from '../data/legal';
+---
+<BaseLayout title="License" description={`The Kairo license: ${CODE_LICENSE}.`}>
+  <main id="main">
+    <div class="container license-body">
+      <p class="license-meta">
+        {CODE_LICENSE}. Raw text: <a href="/LICENSE.txt">/LICENSE.txt</a>.
+      </p>
+      <pre class="license-text">{text}</pre>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .license-body { padding: 3rem 0 4rem; }
+  .license-meta { color: var(--text-2); margin-bottom: 1.5rem; }
+  .license-text { white-space: pre-wrap; font-size: 0.85rem; line-height: 1.5; overflow-wrap: anywhere; }
+</style>
