@@ -75,3 +75,6 @@ bun.lock
 .private
 
 .build-*
+
+# Local-only sensitive-information audit (contains contact details; never publish)
+audit.md
