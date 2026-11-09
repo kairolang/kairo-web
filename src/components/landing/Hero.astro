@@ -2,6 +2,7 @@
 import { Code } from 'astro:components';
 import { renderFiglet, artSize, toneArt } from '../../lib/ascii/figlet';
 import '../../styles/resize.css';
+import { REPO } from '../../data/legal';
 
 let kairoLang: any = 'rust';
 try {
@@ -24,7 +25,7 @@ const logoCols = artSize(logoArt).cols;
     <div class="container hero-grid">
       <div class="hero-copy" id="hero-copy">
         <a
-          href="https://github.com/kairolang/kairo/releases"
+          href={`${REPO}/releases`}
           target="_blank"
           rel="noopener noreferrer"
           class="hero-chip pop-in"
@@ -59,7 +60,7 @@ const logoCols = artSize(logoArt).cols;
             <span class="ascii-btn-icon" aria-hidden="true" data-scramble-skip>-&gt;</span>
           </a>
           <a
-            href="https://github.com/kairolang/kairo"
+            href={REPO}
             class="ascii-btn ascii-btn--ghost ascii-btn--lg"
             target="_blank"
             rel="noopener noreferrer"

@@ -14,6 +14,7 @@ const DOCS_FIELD = true;
 
 import { getCollection } from 'astro:content';
 import BaseLayout from './BaseLayout.astro';
+import { REPO } from '../data/legal';
 import DocsSidebar from '../components/docs/DocsSidebar.astro';
 import DocsSearch from '../components/docs/DocsSearch.astro';
 import TableOfContents from '../components/docs/TableOfContents.astro';
@@ -217,7 +218,7 @@ const hasToc = !hub && headings.filter(h => h.depth === 2 || h.depth === 3).leng
       <footer class="docs-footer">
         <div class="ascii-rule docs-eof" aria-hidden="true">EOF</div>
         <div class="docs-footer-links">
-          <a href="https://github.com/kairolang/kairo/issues" target="_blank" rel="noopener noreferrer" class="docs-footer-link">
+          <a href={`${REPO}/issues`} target="_blank" rel="noopener noreferrer" class="docs-footer-link">
             report an issue<span aria-hidden="true"> ↗</span><span class="sr-only"> (opens in a new tab)</span>
           </a>
           <a href={editUrl} target="_blank" rel="noopener noreferrer" class="docs-footer-link">

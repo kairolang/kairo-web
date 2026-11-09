@@ -1,28 +1,43 @@
 ---
 import AsciiArt from './ascii/AsciiArt.astro';
+import {
+  COPYRIGHT_HOLDER,
+  COPYRIGHT_YEAR,
+  TRADEMARK_OWNER,
+  COMPANY,
+  DOCS_LICENSE,
+  REPO,
+} from '../data/legal';
 
 const languageLinks = [
   { href: '/docs/', label: 'Documentation' },
   { href: '/docs/install/', label: 'Installation' },
   { href: '/docs/status/', label: 'Status' },
+  { href: `${REPO}/tree/main/Compiler/Spec`, label: `Compiler Specification (${DOCS_LICENSE})`, external: true },
   { href: '/llms.txt', label: 'LLM Context', hidden: true },
   { href: '/llms-full.txt', label: 'LLM Full Docs', hidden: true },
   { href: '/blog/', label: 'Blog' },
-  { href: 'https://github.com/kairolang/kairo/releases', label: 'Changelog', external: true },
+  { href: `${REPO}/releases`, label: 'Changelog', external: true },
 ];
 
 const helpLinks = [
-  { href: 'https://github.com/kairolang/kairo/discussions', label: 'Get help', external: true },
+  { href: `${REPO}/discussions`, label: 'Get help', external: true },
   { href: 'https://discord.gg/VHCnPccDc', label: 'Discord', external: true },
-  { href: 'https://github.com/kairolang/kairo/issues/new/choose', label: 'Report an issue', external: true },
-  { href: 'https://github.com/kairolang/kairo/blob/main/CONTRIBUTING.md', label: 'Contributing', external: true },
+  { href: `${REPO}/issues/new/choose`, label: 'Report an issue', external: true },
+  { href: `${REPO}/blob/main/CONTRIBUTING.md`, label: 'Contributing', external: true },
 ];
 
 const communityLinks = [
-  { href: 'https://github.com/kairolang/kairo', label: 'GitHub', external: true },
-  { href: 'https://www.linkedin.com/company/kairo-software-foundation', label: 'LinkedIn', external: true },
+  { href: REPO, label: 'GitHub', external: true },
   { href: '/contributors/', label: 'Contributors' },
   { href: '/ksf/', label: 'KSF' },
+];
+
+const legalLinks = [
+  { href: '/legal', label: 'Legal' },
+  { href: '/LICENSE.txt', label: 'License', external: true },
+  { href: '/security', label: 'Security' },
+  { href: REPO, label: 'GitHub', external: true },
 ];
 
 const columns = [
@@ -31,7 +46,6 @@ const columns = [
   { title: '~/community', label: 'Community', links: communityLinks },
 ];
 
-const year = new Date().getFullYear();
 ---
 <footer class="site-footer">
   <div class="container">
@@ -44,7 +58,7 @@ const year = new Date().getFullYear();
       <!-- Column 1: tagline as terminal output -->
       <div class="footer-brand">
         <p class="footer-cmd"><span class="prompt">kairo --version</span></p>
-        <p class="footer-out">kairo 0.1.0-alpha <span class="dim">(stage0, c++)</span></p>
+        <p class="footer-out">kairo 0.1.0-alpha <span class="dim">(stage1, kairo)</span></p>
         <p class="footer-tagline">
           The Language Beyond C++<br>
           Compiled systems language. Two-way C++ interop.
@@ -77,14 +91,24 @@ const year = new Date().getFullYear();
 
     <!-- Bottom status line -->
     <div class="footer-bottom">
-      <p class="footer-legal">
-        &copy; {year} Dhruvan Kartik. Open source under the
-        <a
-          href="/LICENSE.txt"
-          target="_blank"
-          rel="noopener noreferrer"
-        >Apache 2.0 License (with Runtime Exception)</a>.
-      </p>
+      <div class="footer-legal">
+        <p>
+          &copy; {COPYRIGHT_YEAR} {COPYRIGHT_HOLDER}. Kairo&trade; is a trademark of {TRADEMARK_OWNER}.
+          Commercial distribution and support by {COMPANY}.
+        </p>
+        <p class="footer-legal-links">
+          {legalLinks.map((link, i) => (
+            <>
+              {i > 0 && <span class="footer-sep" aria-hidden="true">·</span>}
+              <a
+                href={link.href}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : undefined}
+              >{link.label}</a>
+            </>
+          ))}
+        </p>
+      </div>
       <p class="footer-version">
         <span>v0.1.0-alpha</span>
         <span class="footer-sep" aria-hidden="true">│</span>

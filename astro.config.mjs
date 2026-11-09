@@ -9,6 +9,7 @@ import remarkCallouts from './remark-callouts.mjs';
 import rehypeSeoHeadings from './rehype-seo-headings.mjs';
 import { BUILD_DATE, lastmodFor } from './src/lib/lastmod.mjs';
 import codeHints from './shiki-code-hints.mjs';
+import legacyLibraryRedirects from './src/data/legacy-library-redirects.mjs';
 
 // Runs after rehype-katex:
 // - a display formula scrolls sideways inside its frame when it is wider than
@@ -79,6 +80,8 @@ export default defineConfig({
   // /llms.txt and /og/*.png are unaffected.)
   trailingSlash: 'always',
   build: { format: 'directory' },
+  // Removed Stage 0 library reference URLs -> the closest generated library page.
+  redirects: legacyLibraryRedirects,
   integrations: [
     mdx(),
     sitemap({

@@ -3,6 +3,7 @@ import { getCollection, render } from 'astro:content';
 import DocsLayout from '../../layouts/DocsLayout.astro';
 import { hubComponents } from '../../components/docs/hub';
 import { buildDocTree, flattenPages, docSourcePath } from '../../lib/docs-tree';
+import { CODE_LICENSE } from '../../data/legal';
 
 export async function getStaticPaths() {
   const docs = await getCollection('docs');
@@ -31,6 +32,9 @@ const { Content, headings } = await render(doc);
 const hub = doc.data.template === 'hub';
 // The source file, not the URL: "language/index.mdx", "library/core/containers.mdx".
 const editPath = docSourcePath(doc);
+// Library reference pages are generated from Lib/ source, so they carry the
+// code license, not the documentation license (CC BY 4.0).
+const isGeneratedLibrary = editPath?.startsWith('library/') ?? false;
 ---
 <DocsLayout
   title={doc.data.title}
@@ -43,4 +47,9 @@ const editPath = docSourcePath(doc);
   headings={hub ? [] : headings}
 >
   <Content components={hubComponents} />
+  {isGeneratedLibrary && (
+    <p style="font-size: 0.8rem; color: var(--text-2); margin-top: 2rem;">
+      Generated from Kairo source, {CODE_LICENSE}.
+    </p>
+  )}
 </DocsLayout>

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { buildDocTree, docSourcePath, flattenPages, sectionFromId } from '../lib/docs-tree';
+import { COMPANY, COPYRIGHT_HOLDER } from '../data/legal';
 
 export const GET: APIRoute = async ({ site }) => {
   const siteURL = (site ?? new URL('https://www.kairolang.org')).toString().replace(/\/$/, '');
@@ -32,7 +33,7 @@ export const GET: APIRoute = async ({ site }) => {
   };
 
   let content = `# Kairo\n\n`;
-  content += `> Kairo is a compiled systems programming language designed for control, performance, and clarity. Built by the Kairo Software Foundation, it targets the same problem space as Rust and Zig - with a distinct philosophy: you should be able to do anything the hardware supports, without the language standing in your way. Zero-cost abstractions, manual or assisted memory control, first-class C/C++ interop, and modern ergonomics (generics, interfaces, pattern matching, lambdas) - all compiled to optimal machine code.\n\n`;
+  content += `> Kairo is a compiled systems programming language designed for control, performance, and clarity. Created by ${COPYRIGHT_HOLDER} and commercially supported by ${COMPANY}, it targets the same problem space as Rust and Zig - with a distinct philosophy: you should be able to do anything the hardware supports, without the language standing in your way. Zero-cost abstractions, manual or assisted memory control, first-class C/C++ interop, and modern ergonomics (generics, interfaces, pattern matching, lambdas) - all compiled to optimal machine code.\n\n`;
 
   // Docs sections
   for (const [section, entries] of sections) {
@@ -62,7 +63,7 @@ export const GET: APIRoute = async ({ site }) => {
 
   content += `## Optional\n\n`;
   content += `- [Full Documentation](${siteURL}/llms-full.txt): Complete Kairo documentation in a single plaintext file for AI consumption\n`;
-  content += `- [Kairo Software Foundation](${siteURL}/ksf/): The nonprofit governing body behind Kairo\n`;
+  content += `- [${COMPANY}](${siteURL}/ksf/): Licensed to market, support and commercially distribute Kairo\n`;
   content += `- [Search API](${siteURL}/search.json): Structured JSON index of all documentation pages\n`;
 
   return new Response(content, {

@@ -4,6 +4,7 @@ import AsciiTitle from '../components/ascii/AsciiTitle.astro';
 import AsciiFrame from '../components/ascii/AsciiFrame.astro';
 import AsciiButton from '../components/ascii/AsciiButton.astro';
 import AsciiField from '../components/ascii/AsciiField.astro';
+import { REPO } from '../data/legal';
 import ContributorCard from '../components/contributors/ContributorCard.astro';
 import Leaderboard from '../components/contributors/Leaderboard.astro';
 import { getContributors } from '../lib/contributors';
@@ -27,10 +28,10 @@ const ctStats = [
 ].map((st) => ({ ...st, min: String(Math.floor(Math.max(st.label.length * 7.4, st.value.length * 14.4) + 35 + 1)) }));
 const synced = data.generated_at.slice(0, 10);
 
-const GFI = 'https://github.com/kairolang/kairo/issues?q=is%3Aopen+label%3A%22good+first+issue%22';
+const GFI = `${REPO}/issues?q=is%3Aopen+label%3A%22good+first+issue%22`;
 const ways = [
   { area: 'compiler', desc: 'the Kairo front end, type checker and code generation' },
-  { area: 'stdlib', desc: 'the standard library and lib-helix runtime' },
+  { area: 'stdlib', desc: 'the standard library and runtime' },
   { area: 'tooling', desc: 'kairo-lsp, editor support and build tooling' },
   { area: 'docs', desc: 'the language reference, guides and this website' },
 ];
@@ -140,7 +141,7 @@ const ways = [
         </ul>
         <div class="ct-actions">
           <AsciiButton href={GFI} label="Good first issues" external />
-          <AsciiButton href="https://github.com/kairolang/kairo" label="kairolang/kairo" variant="ghost" external />
+          <AsciiButton href={REPO} label="kairolang/kairo" variant="ghost" external />
           <AsciiButton href="/docs/" label="Read the docs" variant="ghost" />
           <AsciiButton href="/ksf/" label="Support the KSF" variant="ghost" />
         </div>

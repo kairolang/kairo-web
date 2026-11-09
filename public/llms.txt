@@ -70,5 +70,5 @@ Kairo's memory model distinguishes safe pointers (`*T`), which are non-nullable 
 
 ## Optional
 
-- [KSF](https://www.kairolang.org/ksf/): Kairo Software Foundation.
+- [KSF](https://www.kairolang.org/ksf/): KSF LLC, licensed to market, support and commercially distribute Kairo.
 - [GitHub](https://github.com/kairolang/kairo): Source code repository.

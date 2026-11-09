@@ -3,6 +3,8 @@
  * per-page OG image path (images rendered by src/pages/og/[...slug].png.ts).
  */
 
+import { COMPANY } from '../data/legal';
+
 export const SITE_URL = 'https://www.kairolang.org';
 export const SITE_NAME = 'Kairo';
 export const HOME_TITLE = 'Kairo: The Systems Programming Language Beyond C++';
@@ -76,7 +78,9 @@ export function fitDescription(desc: string | undefined, title: string, type: Pa
 export const OG_PAGES: Record<string, { title: string; kicker: string; subtitle?: string }> = {
   index: { title: 'The Language Beyond C++', kicker: '', subtitle: 'open-source systems programming language' },
   blog: { title: 'Kairo Blog', kicker: 'blog', subtitle: 'design notes, proposals and updates' },
-  ksf: { title: 'Kairo Software Foundation', kicker: 'ksf', subtitle: 'the nonprofit behind Kairo' },
+  ksf: { title: COMPANY, kicker: 'ksf', subtitle: 'licensed to market, support and distribute Kairo' },
+  legal: { title: 'Legal', kicker: 'legal', subtitle: 'ownership, licenses and trademark policy' },
+  security: { title: 'Security', kicker: 'security', subtitle: 'report vulnerabilities privately' },
   contributors: { title: 'Contributors', kicker: 'contributors', subtitle: 'the people building Kairo' },
 };
 

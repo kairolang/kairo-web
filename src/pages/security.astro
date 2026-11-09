@@ -1,0 +1,70 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AsciiArt from '../components/ascii/AsciiArt.astro';
+import AsciiFrame from '../components/ascii/AsciiFrame.astro';
+import { CONTACT_SECURITY, REPO } from '../data/legal';
+
+const advisoryUrl = `${REPO}/security/advisories/new`;
+---
+<BaseLayout
+  title="Security"
+  description="How to report a security vulnerability in Kairo privately. Do not open public issues for security bugs."
+>
+  <main id="main">
+    <section class="security-hero">
+      <div class="container">
+        <div class="section-label">security</div>
+        <h1 class="display security-title">
+          <AsciiArt as="span" text="SECURITY" max={34} lensDuration={900} lensDelay={60} />
+        </h1>
+        <p class="security-sub">
+          Found a vulnerability in Kairo? Report it privately. Do not open a public issue.
+        </p>
+      </div>
+    </section>
+
+    <div class="container security-body">
+      <AsciiFrame title="report" meta="private" variant="accent" class="security-frame">
+        <p>Send a report to one of these private channels:</p>
+        <ul class="security-list">
+          <li>
+            Email <a href={`mailto:${CONTACT_SECURITY}`}>{CONTACT_SECURITY}</a>.
+          </li>
+          <li>
+            GitHub private vulnerability reporting:
+            <a href={advisoryUrl} target="_blank" rel="noopener noreferrer">open a private advisory</a>.
+          </li>
+        </ul>
+      </AsciiFrame>
+
+      <section class="security-block" aria-labelledby="process">
+        <h2 id="process" class="display security-h2">What to expect</h2>
+        <ul class="security-list">
+          <li>We acknowledge your report within 7 days.</li>
+          <li>We work with you on a fix and agree on a disclosure timeline.</li>
+          <li>We do not offer a bounty.</li>
+        </ul>
+      </section>
+
+      <section class="security-block" aria-labelledby="public">
+        <h2 id="public" class="display security-h2">Please do not</h2>
+        <p>
+          Do not open public GitHub issues, pull requests or posts for security bugs. Public reports
+          expose users before a fix exists.
+        </p>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .security-hero { padding: 4rem 0 2rem; }
+  .security-title { margin: 0.75rem 0 1rem; }
+  .security-sub { color: var(--text-2); max-width: 60ch; }
+  .security-body { padding-bottom: 5rem; max-width: 760px; }
+  .security-frame { margin: 1rem 0 2rem; }
+  .security-block { margin: 2.5rem 0; line-height: 1.7; }
+  .security-h2 { font-size: 1.35rem; margin-bottom: 0.75rem; }
+  .security-block a, .security-frame a { color: var(--accent); }
+  .security-list { margin: 0.5rem 0 0; padding-left: 1.25rem; line-height: 1.7; }
+</style>

@@ -1,0 +1,127 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AsciiArt from '../components/ascii/AsciiArt.astro';
+import AsciiFrame from '../components/ascii/AsciiFrame.astro';
+import {
+  CODE_LICENSE,
+  COMPANY,
+  CONTACT_LEGAL,
+  COPYRIGHT_HOLDER,
+  DOCS_LICENSE,
+  REPO,
+  TRADEMARK_OWNER,
+} from '../data/legal';
+
+const exceptionUrl = `${REPO}/blob/main/LICENSES/AdditionRef-Kairo-Runtime-exception.txt`;
+const trademarksUrl = `${REPO}/blob/main/TRADEMARKS.md`;
+const noticeUrl = `${REPO}/blob/main/NOTICE`;
+const contributingUrl = `${REPO}/blob/main/CONTRIBUTING.md`;
+---
+<BaseLayout
+  title="Legal"
+  description={`Ownership, code and documentation licenses, trademark policy and contribution terms for Kairo. ${COMPANY} is not a nonprofit.`}
+>
+  <main id="main">
+    <section class="legal-hero">
+      <div class="container">
+        <div class="section-label">legal</div>
+        <h1 class="display legal-title">
+          <AsciiArt as="span" text="LEGAL" max={34} lensDuration={900} lensDelay={60} />
+        </h1>
+        <p class="legal-sub">
+          Who owns Kairo, what each license covers, and when you need permission to use the name.
+        </p>
+      </div>
+    </section>
+
+    <div class="container legal-body">
+      <section class="legal-block" aria-labelledby="ownership">
+        <h2 id="ownership" class="display legal-h2">Ownership</h2>
+        <p>
+          Kairo is created by {COPYRIGHT_HOLDER}, who owns its intellectual property.
+          {COMPANY}, a Delaware limited liability company, is licensed to market Kairo and to offer
+          commercial support and services. {COMPANY} is not a nonprofit; payments to it are not tax-deductible.
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="code-license">
+        <h2 id="code-license" class="display legal-h2">Code license</h2>
+        <p>
+          The Kairo compiler, toolchain and runtime are licensed under
+          <a href="/LICENSE.txt">{CODE_LICENSE}</a>. Programs compiled with Kairo, and code the compiler
+          generates into them, are yours under any terms you choose (see section 2 of the
+          <a href={exceptionUrl}>Runtime Library Exception</a>).
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="docs-license">
+        <h2 id="docs-license" class="display legal-h2">Documentation license</h2>
+        <p>
+          The language reference and compiler specification are licensed under
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">{DOCS_LICENSE}</a>.
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="trademark">
+        <h2 id="trademark" class="display legal-h2">Trademark policy</h2>
+        <p>
+          Kairo™ is a trademark of {TRADEMARK_OWNER}. The full policy is in
+          <a href={trademarksUrl} target="_blank" rel="noopener noreferrer">TRADEMARKS.md</a>.
+        </p>
+        <AsciiFrame title="allowed" meta="no permission needed" class="legal-frame">
+          <ul class="legal-list">
+            <li>Referring to Kairo by name.</li>
+            <li>"Built with Kairo" and "written in Kairo".</li>
+            <li>Redistributing unmodified official releases.</li>
+            <li>Community events, articles and talks.</li>
+            <li>Non-commercial user groups that use the name with "community" or a similar qualifier.</li>
+          </ul>
+        </AsciiFrame>
+        <AsciiFrame title="needs permission" meta={`write to ${CONTACT_LEGAL}`} variant="accent" class="legal-frame">
+          <ul class="legal-list">
+            <li>Naming a fork, modified build or derived language "Kairo", or anything confusingly similar.</li>
+            <li>Using the name or logo in a product, company or domain name.</li>
+            <li>Implying endorsement by {COPYRIGHT_HOLDER} or {COMPANY}.</li>
+            <li>Selling Kairo-branded merchandise.</li>
+          </ul>
+        </AsciiFrame>
+        <p>Modified builds must be renamed and must not use the Kairo logo.</p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="third-party">
+        <h2 id="third-party" class="display legal-h2">Third-party software</h2>
+        <p>
+          The toolchain and runtime include third-party components under their own licenses. See the
+          <a href={noticeUrl} target="_blank" rel="noopener noreferrer">NOTICE</a> file.
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="contributions">
+        <h2 id="contributions" class="display legal-h2">Contributions</h2>
+        <p>
+          Contributions require signing the Contributor License Agreement. See
+          <a href={contributingUrl} target="_blank" rel="noopener noreferrer">CONTRIBUTING.md</a>.
+        </p>
+      </section>
+
+      <section class="legal-block" aria-labelledby="contact">
+        <h2 id="contact" class="display legal-h2">Contact</h2>
+        <p>
+          Legal questions and permission requests: <a href={`mailto:${CONTACT_LEGAL}`}>{CONTACT_LEGAL}</a>.
+        </p>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .legal-hero { padding: 4rem 0 2rem; }
+  .legal-title { margin: 0.75rem 0 1rem; }
+  .legal-sub { color: var(--text-2); max-width: 60ch; }
+  .legal-body { padding-bottom: 5rem; max-width: 760px; }
+  .legal-block { margin: 2.5rem 0; line-height: 1.7; }
+  .legal-h2 { font-size: 1.35rem; margin-bottom: 0.75rem; }
+  .legal-block a { color: var(--accent); }
+  .legal-frame { margin: 1rem 0; }
+  .legal-list { margin: 0; padding-left: 1.25rem; line-height: 1.7; }
+</style>

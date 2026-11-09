@@ -10,6 +10,7 @@
  * formatTitle in lib/seo.ts). URLs always end in "/" (trailingSlash: 'always').
  */
 import { SITE_URL, absUrl } from '../lib/seo';
+import { COMPANY, CONTACT_SPONSORS, COPYRIGHT_HOLDER, REPO } from '../data/legal';
 
 interface Props {
   title: string;
@@ -79,7 +80,7 @@ const LOGO = {
   caption: 'Kairo',
 };
 const GITHUB_ORG = 'https://github.com/kairolang';
-const GITHUB_REPO = 'https://github.com/kairolang/kairo';
+const GITHUB_REPO = REPO;
 const languageRef = { '@type': 'ComputerLanguage', '@id': ID.lang, name: 'Kairo' };
 // Brand entity: the bare token "Kairo" is the name everywhere. The aliases are
 // the forms people actually search; nothing here targets look-alike names.
@@ -111,12 +112,12 @@ graph.push({
 graph.push({
   '@type': 'Organization',
   '@id': ID.org,
-  name: 'Kairo Software Foundation',
+  name: COMPANY,
   alternateName: ['KSF', 'kairolang'],
   url: `${siteURL}/ksf/`,
   logo: LOGO,
   image: { '@id': ID.logo },
-  email: 'donations@kairolang.org',
+  email: CONTACT_SPONSORS,
   sameAs: [GITHUB_ORG, GITHUB_REPO],
 });
 
@@ -133,7 +134,7 @@ if (type === 'home') {
     logo: { '@id': ID.logo },
     sameAs: [GITHUB_REPO, GITHUB_ORG],
     subjectOf: { '@id': ID.source },
-    creator: { '@id': ID.org },
+    creator: { '@type': 'Person', name: COPYRIGHT_HOLDER },
   });
   graph.push({
     '@type': 'SoftwareApplication',

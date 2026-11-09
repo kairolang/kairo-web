@@ -2,6 +2,7 @@
 import AsciiArt from '../ascii/AsciiArt.astro';
 import AsciiButton from '../ascii/AsciiButton.astro';
 import AsciiField from '../ascii/AsciiField.astro';
+import { COMPANY, REPO } from '../../data/legal';
 ---
 <section class="cta-section" data-snap aria-labelledby="cta-title">
   <!-- slow drifting noise field (starts on the old still frame); faded out under the copy.
@@ -41,7 +42,7 @@ import AsciiField from '../ascii/AsciiField.astro';
     <div class="cta-actions">
       <AsciiButton href="/docs/" label="Start with Docs" size="lg" data-resizable data-resize-anchor="center" data-resize-readout="off" />
       <a
-        href="https://github.com/kairolang/kairo"
+        href={REPO}
         class="ascii-btn ascii-btn--ghost ascii-btn--lg"
         target="_blank"
         rel="noopener noreferrer"
@@ -59,7 +60,7 @@ import AsciiField from '../ascii/AsciiField.astro';
 
     <p class="cta-footer-note">
       <span>Apache 2.0 License</span><span class="cta-sep" aria-hidden="true">│</span>
-      <span>Kairo Software Foundation</span><span class="cta-sep" aria-hidden="true">│</span>
+      <span>{COMPANY}</span><span class="cta-sep" aria-hidden="true">│</span>
       <span>Open Source</span>
     </p>
   </div>
