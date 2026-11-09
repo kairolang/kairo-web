@@ -5,24 +5,24 @@ import AsciiFrame from '../components/ascii/AsciiFrame.astro';
 import AsciiButton from '../components/ascii/AsciiButton.astro';
 import AsciiField from '../components/ascii/AsciiField.astro';
 
-const funding = [
+const support = [
   {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
-    slug: 'donations',
-    title: 'Individual Donations',
-    desc: 'Community members who believe in the mission and want to support open source systems programming.',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    slug: 'sponsorship',
+    title: 'Sponsorship',
+    desc: 'Companies and individuals who rely on Kairo can sponsor development of the compiler, toolchain and standard library.',
   },
   {
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
-    slug: 'grants',
-    title: 'Grants',
-    desc: 'Research and open source grants from foundations dedicated to advancing programming language technology.',
+    slug: 'commercial',
+    title: 'Commercial Support',
+    desc: 'Support contracts, integration help and priority fixes for teams adopting Kairo alongside existing C++ code.',
   },
   {
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-    slug: 'sponsorships',
-    title: 'Sponsorships',
-    desc: 'Companies and organizations that rely on or contribute to the Kairo ecosystem sponsor development efforts.',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+    slug: 'code',
+    title: 'Code',
+    desc: 'Kairo is open source under Apache-2.0 with the Kairo Runtime Library Exception. Contributions are the most direct support.',
   },
 ];
 
@@ -30,36 +30,32 @@ const involve = [
   {
     number: '01',
     title: 'Contribute',
-    desc: 'Contribute to the compiler, documentation, standard library, or tooling. All skill levels welcome.',
+    desc: 'Work on the compiler, documentation, standard library or tooling. Contributions require signing the CLA.',
     link: 'https://github.com/kairolang/kairo',
     linkLabel: 'View GitHub',
   },
   {
     number: '02',
-    title: 'Donate',
-    desc: 'Financial contributions go directly toward development, infrastructure, and contributor grants.',
-    link: 'mailto:donations@kairolang.org',
+    title: 'Sponsor',
+    desc: 'Sponsorship funds development, infrastructure and release engineering.',
+    link: 'mailto:sponsors@kairolang.org',
     linkLabel: 'Get in Touch',
   },
   {
     number: '03',
     title: 'Spread the Word',
-    desc: 'Star the repo, write blog posts, give talks, and help grow the Kairo community.',
+    desc: 'Star the repo, write about Kairo, give talks, and help grow the community.',
     link: 'https://github.com/kairolang/kairo',
     linkLabel: 'Star on GitHub',
   },
 ];
 ---
 <BaseLayout
-  title="Kairo Software Foundation"
-  description="The Kairo Software Foundation (KSF) is the nonprofit dedicated to the development and sustainability of the Kairo programming language ecosystem."
+  title="KSF LLC"
+  description="KSF LLC is the company licensed to market, support and commercially distribute the Kairo programming language."
 >
   <main id="main">
-  <!-- ── Hero: the page's one moment (KSF art + title load in under one rect-lens sweep) ── -->
   <section class="ksf-hero" data-snap>
-    <!-- slow drifting noise field, same tuning as the home CTA band (20fps, soft halo,
-         starts on the old still frame); masked away from the copy on the left.
-         Ticks only on screen; reduced motion: that one still frame. -->
     <AsciiField
       preset="noise"
       size={13}
@@ -72,66 +68,62 @@ const involve = [
       class="ksf-hero-field"
     />
     <div class="container ksf-hero-inner">
-      <div class="section-label pop-in" style="--d: 0ms;">00 - Nonprofit / ksf</div>
+      <div class="section-label pop-in" style="--d: 0ms;">00 - Company / ksf</div>
 
       <h1 class="ksf-h1">
-        <!-- lens text: the art and the (large, mono) title both shade in under one
-             ~900ms rect-lens sweep, in step; no print-in / glyph scramble on top -->
         <span class="ksf-art">
           <AsciiArt as="span" text="KSF" max={34} lensDuration={900} lensDelay={60} />
         </span>
-        <span class="display ksf-title" data-scramble="560" data-scramble-delay="60">Kairo Software<br />Foundation</span>
+        <span class="display ksf-title" data-scramble="560" data-scramble-delay="60">KSF LLC</span>
       </h1>
 
       <p class="ksf-sub sans pop-in" style="--d: 260ms;">
-        A nonprofit dedicated to the development and sustainability of the
-        Kairo programming language ecosystem.
+        The company licensed to market, support and commercially distribute
+        the Kairo programming language.
       </p>
 
-      <AsciiFrame as="aside" title="NOTICE" meta="501(c)(3)" variant="accent" class="ksf-notice pop-in" style="--d: 340ms;" aria-label="Notice">
+      <AsciiFrame as="aside" title="NOTICE" meta="legal" variant="accent" class="ksf-notice pop-in" style="--d: 340ms;" aria-label="Notice">
         <p>
           <strong class="ksf-warn">Note:</strong>
-          The Kairo Software Foundation (formerly Helix Software Foundation) is in the process
-          of registering as a 501(c)(3) nonprofit organization.
+          KSF LLC is a Delaware limited liability company. It is not a nonprofit,
+          and payments to KSF LLC are not tax-deductible.
         </p>
       </AsciiFrame>
     </div>
   </section>
 
-  <!-- ── 01 Mission ── -->
   <section class="ksf-section" data-snap>
     <div class="container ksf-container">
       <div class="ksf-mission-grid" data-reflow="grid" data-reflow-min="200">
         <div>
-          <div class="section-label">01 - Mission</div>
-          <h2 class="display ksf-h2">Our Mission</h2>
+          <div class="section-label">01 - Roles</div>
+          <h2 class="display ksf-h2">Who Does What</h2>
         </div>
-        <AsciiFrame title="mission.md" meta="readme" class="ksf-mission" data-reveal>
+        <AsciiFrame title="roles.md" meta="readme" class="ksf-mission" data-reveal>
           <p class="ksf-mission-p">
-            The KSF funds core language development, documentation, community events,
-            and contributor grants. We believe in an open, transparent,
-            community-driven approach to language development.
+            Kairo is created and led by Dhruvan Kartik, who owns the Kairo
+            intellectual property. The language, compiler and toolchain are
+            developed in the open at github.com/kairolang/kairo.
           </p>
           <p class="ksf-mission-p">
-            Kairo should be a language that serves its users - not a corporate
-            product, not a research toy. Every decision is made with the community
-            in mind, through open RFCs and public discussion.
+            KSF LLC holds a license to market Kairo and to offer commercial
+            support and services around it. The code itself stays open source
+            under Apache-2.0 with the Kairo Runtime Library Exception.
           </p>
         </AsciiFrame>
       </div>
     </div>
   </section>
 
-  <!-- ── 02 How We're Funded ── -->
   <section class="ksf-section ksf-section-line" data-snap>
     <div class="container ksf-container">
       <div class="ksf-section-head">
-        <div class="section-label">02 - Funding</div>
-        <h2 class="display ksf-h2">How We're Funded</h2>
+        <div class="section-label">02 - Support</div>
+        <h2 class="display ksf-h2">Ways to Support</h2>
       </div>
 
       <div class="ksf-grid" data-reflow="grid" data-reflow-min="200" data-reveal-stagger data-stagger-step="50">
-        {funding.map((item, i) => (
+        {support.map((item, i) => (
           <AsciiFrame as="article" title={item.slug} meta={`src.0${i + 1}`} variant="fill" hover class="ksf-card">
             <div class="ksf-card-icon" aria-hidden="true">
               <Fragment set:html={item.icon} />
@@ -144,7 +136,6 @@ const involve = [
     </div>
   </section>
 
-  <!-- ── 03 Get Involved ── -->
   <section class="ksf-section ksf-section-line" data-snap>
     <div class="container ksf-container">
       <div class="ksf-section-head">
@@ -168,225 +159,20 @@ const involve = [
     </div>
   </section>
 
-  <!-- ── 04 Donate CTA ── -->
   <section class="ksf-cta" data-snap>
     <div class="ambient ksf-cta-ambient" aria-hidden="true"></div>
     <div class="container ksf-cta-inner" data-reveal>
-      <div class="section-label">04 - Support Us</div>
-      <h2 class="display ksf-cta-title">Support Kairo's Development</h2>
+      <div class="section-label">04 - Contact</div>
+      <h2 class="display ksf-cta-title">Sponsorship and Support</h2>
       <p class="ksf-cta-sub sans">
-        Every contribution, big or small, helps us build a better language for everyone.
-        Reach out to discuss sponsorship opportunities or one-time donations.
+        Talk to KSF LLC about sponsoring Kairo's development or commercial
+        support for your team.
       </p>
       <p class="ksf-cta-cmd prompt" aria-hidden="true">mail --to</p>
-      <AsciiButton href="mailto:donations@kairolang.org" label="donations@kairolang.org" size="lg" class="ksf-cta-btn" />
+      <AsciiButton href="mailto:sponsors@kairolang.org" label="sponsors@kairolang.org" size="lg" class="ksf-cta-btn" />
     </div>
   </section>
   </main>
 </BaseLayout>
 
-<style>
-  /* ── Hero ── */
-  .ksf-hero {
-    padding: clamp(4rem, 11vh, 7rem) 0 clamp(3.5rem, 8vh, 5rem);
-    border-bottom: 1px solid var(--border);
-    position: relative;
-    overflow: hidden;
-  }
-  .ksf-hero-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 1100px;
-  }
-  .ksf-h1 {
-    margin: 0 0 1.5rem;
-    display: block;
-    max-width: 640px;
-  }
-  .ksf-art {
-    display: block;
-    width: 100%;
-    max-width: 520px;
-    margin-bottom: 1.4rem;
-  }
-  .ksf-art :global(.ascii-fit) { display: block; width: 100%; }
-  .ksf-title {
-    display: block;
-    font-size: clamp(1.6rem, 4.2vw, 2.7rem);
-  }
-  .ksf-sub {
-    font-size: 1.08rem;
-    color: var(--text-2);
-    line-height: 1.7;
-    max-width: 560px;
-    margin-bottom: 2.25rem;
-    /* near-solid backing: the (now moving) field can reach the copy on narrow screens */
-    background-color: color-mix(in srgb, var(--bg) 82%, transparent);
-  }
-
-  .ksf-notice {
-    --frame-bg: var(--bg);
-    --frame-pad: 1.15rem 1.25rem 1rem;
-    max-width: 600px;
-  }
-  .ksf-notice p {
-    font-family: var(--font-sans);
-    font-size: 0.9rem;
-    color: var(--text-2);
-    line-height: 1.65;
-    margin: 0;
-  }
-  .ksf-warn {
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #d29922;
-    margin-right: 0.5ch;
-  }
-  .ksf-warn::before { content: '[!!] '; content: '[!!] ' / ''; }
-  :global([data-theme="light"]) .ksf-warn { color: #8a5a00; }
-
-  /* ── Sections ── */
-  .ksf-section { padding: clamp(4rem, 9vh, 6.5rem) 0; }
-  .ksf-section-line { border-top: 1px solid var(--border); }
-  .ksf-container { max-width: 1100px; }
-
-  .ksf-h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); }
-  .ksf-section-head { margin-bottom: 2.75rem; }
-
-  .ksf-mission-grid {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 4rem;
-    align-items: start;
-  }
-  .ksf-mission { --frame-pad: 1.75rem 1.75rem 1.5rem; }
-  .ksf-mission-p {
-    font-family: var(--font-sans);
-    font-size: 1.04rem;
-    color: var(--text-2);
-    line-height: 1.8;
-    margin: 0 0 1.25rem;
-  }
-  .ksf-mission-p:last-child { margin-bottom: 0; }
-
-  /* funding frames */
-  .ksf-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-  }
-  .ksf-card {
-    --frame-pad: 1.9rem 1.6rem 1.6rem;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .ksf-card-icon {
-    width: 44px;
-    height: 44px;
-    border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent);
-    margin-bottom: 1.25rem;
-  }
-  .ksf-card-title {
-    font-family: var(--font-mono);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--text);
-    margin: 0 0 0.6rem;
-  }
-  .ksf-card-desc {
-    font-size: 0.9rem;
-    color: var(--text-2);
-    line-height: 1.65;
-    margin: 0;
-  }
-
-  /* numbered [01] blocks */
-  .ksf-steps {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0 2.5rem;
-  }
-  .ksf-step {
-    border-top: 1px dashed var(--frame-line);
-    padding-top: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .ksf-step-num {
-    font-family: var(--font-mono);
-    font-size: 2rem;
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    color: var(--red);
-    margin-bottom: 1.1rem;
-  }
-  .ksf-br { color: var(--text-3); font-weight: 400; }
-  .ksf-step-link { margin-top: 1.25rem; }
-
-  /* ── Donate CTA ── */
-  .ksf-cta {
-    padding: clamp(5rem, 11vh, 8rem) 0;
-    border-top: 1px solid var(--border);
-    position: relative;
-    overflow: hidden;
-  }
-  .ksf-cta-ambient {
-    width: min(640px, 100%);
-    height: 400px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
-  }
-  .ksf-cta-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 700px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .ksf-cta-title {
-    font-size: clamp(1.6rem, 4vw, 2.5rem);
-    margin-bottom: 1.25rem;
-  }
-  .ksf-cta-sub {
-    font-size: 1rem;
-    color: var(--text-2);
-    line-height: 1.7;
-    margin-bottom: 2rem;
-    text-wrap: balance;
-  }
-  .ksf-cta-cmd {
-    font-size: 0.75rem;
-    color: var(--text-2);
-    margin: 0 0 0.75rem;
-  }
-  .ksf-cta-btn { text-transform: none; letter-spacing: 0.02em; max-width: 100%; }
-
-  @media (max-width: 900px) {
-    .ksf-mission-grid { grid-template-columns: 1fr; gap: 1.5rem; }
-    .ksf-grid { grid-template-columns: 1fr; gap: 1.75rem; }
-    .ksf-steps { grid-template-columns: 1fr; gap: 2rem; }
-  }
-  @media (max-width: 480px) {
-    .ksf-mission { --frame-pad: 1.5rem 1.1rem 1.25rem; }
-    .ksf-card { --frame-pad: 1.75rem 1.1rem 1.4rem; }
-    .ksf-cta-btn { font-size: 0.72rem; }
-  }
-</style>
+<!-- <style> block unchanged -->
