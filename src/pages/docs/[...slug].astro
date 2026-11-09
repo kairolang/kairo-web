@@ -29,7 +29,7 @@ export async function getStaticPaths() {
 const { doc, prev, next } = Astro.props;
 const { Content, headings } = await render(doc);
 const hub = doc.data.template === 'hub';
-// The source file, not the URL: "language/index.mdx", "library/Core/std/range/index.mdx".
+// The source file, not the URL: "language/index.mdx", "library/core/containers.mdx".
 const editPath = docSourcePath(doc);
 ---
 <DocsLayout

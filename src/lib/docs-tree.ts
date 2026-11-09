@@ -264,7 +264,7 @@ export function findSection(root: TreeSection, path: string): TreeSection | unde
 
 /**
  * Source file of a doc below the docs root ("language/index.mdx",
- * "library/Core/std/range/index.mdx"), or undefined without a filePath.
+ * "library/core/containers.mdx"), or undefined without a filePath.
  * Unlike the id it keeps folder index files apart: the glob loader gives
  * "language/index.mdx" the id "language".
  */

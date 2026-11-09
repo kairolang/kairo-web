@@ -44,6 +44,7 @@ template: hub
 
 - [language map](#language)
 - [std library](#std)
+- [core library](#core)
 - [toolchain](#toolchain)
 - <HubSearch inline>search everything</HubSearch>
 
@@ -58,6 +59,9 @@ template: hub
 <HubSection n={3} title="Library & tools" id="library">
 <HubGrid cols={2}>
 <HubCard title="std" kicker="standard library" id="std">
+<ModuleIndex base="library/std" />
+</HubCard>
+<HubCard title="core" kicker="core library (prelude)" id="core">
 <ModuleIndex base="library/core" />
 </HubCard>
 <HubCard title="toolchain" kicker="commands" id="toolchain">
