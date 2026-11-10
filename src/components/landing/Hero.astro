@@ -31,7 +31,7 @@ const logoCols = artSize(logoArt).cols;
           class="hero-chip pop-in"
           style="--d: 0ms;"
         >
-          <span class="hero-chip-ver">v0.1.0-alpha</span>
+          <span class="hero-chip-ver">v0.2.1</span>
           <span class="hero-chip-note">open source systems language</span>
           <span class="hero-chip-arrow" aria-hidden="true">↗</span>
         </a>
@@ -72,7 +72,7 @@ const logoCols = artSize(logoArt).cols;
           </a>
         </div>
 
-        <!-- Boot log: compiler status. The tags are buttons: each drops a small
+        <!-- Boot log: compiler status. The tag is a button: it drops a small
              terminal readout below the log (Escape / second click closes). -->
         <div class="hero-boot" id="hero-boot">
           <p class="hero-boot-line">
@@ -83,40 +83,16 @@ const logoCols = artSize(logoArt).cols;
               data-boot="ok"
               aria-expanded="false"
               aria-controls="hero-boot-ok"
-            >[ok]<span class="sr-only"> stage(0) details</span></button>
-            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="560">stage(0) compiler: C++</span>
-          </p>
-          <p class="hero-boot-line">
-            <button
-              type="button"
-              class="hero-boot-tag hero-boot-tag--wip pop-in"
-              style="--d: 660ms;"
-              data-boot="wip"
-              aria-expanded="false"
-              aria-controls="hero-boot-wip"
-            >[..]<span class="sr-only"> stage(1) details</span></button>
-            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="680">stage(1) self-hosting: in progress</span>
-            <span class="hero-spin pop-in" style="--d: 900ms;" aria-hidden="true"><span>|/-\</span></span>
+            >[ok]<span class="sr-only"> self-hosting details</span></button>
+            <span data-typewriter data-typewriter-cps="110" data-typewriter-delay="560">self-hosting: done</span>
           </p>
 
-          <div class="hero-boot-pop" id="hero-boot-ok" data-boot-pop="ok" role="group" aria-label="stage(0) compiler" hidden>
+          <div class="hero-boot-pop" id="hero-boot-ok" data-boot-pop="ok" role="group" aria-label="self-hosted compiler" hidden>
             <p class="bp-line"><span class="bp-prompt" aria-hidden="true">$</span> <span class="bp-tw">kairo --version</span></p>
-            <p class="bp-line bp-out"><span class="bp-tw">kairo v0.1.0-alpha</span></p>
-            <p class="bp-line bp-out"><span class="bp-tw">stage(0) · bootstrap compiler · C++</span></p>
-            <p class="bp-line bp-out"><span class="bp-tw">transpiles Kairo -&gt; C++ · no LLVM</span></p>
-            <p class="bp-line bp-out"><span class="bp-tw">status: frozen, kept to build stage(1)</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">kairo v0.2.1</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">self-hosted compiler · written in Kairo</span></p>
+            <p class="bp-line bp-out"><span class="bp-tw">builds itself · Clang/LLVM backend</span></p>
             <p class="bp-line bp-exit"><span class="bp-tw">exit 0</span></p>
-          </div>
-
-          <div class="hero-boot-pop" id="hero-boot-wip" data-boot-pop="wip" role="group" aria-label="stage(1) self-hosting" hidden>
-            <p class="bp-line"><span class="bp-tw">stage(1) · self-hosted compiler · Kairo</span></p>
-            <p class="bp-line bp-out"><span class="bp-tw">builds with stage(0) + patched LLVM</span></p>
-            <p class="bp-line bp-bar-line">
-              <span class="bp-bar" data-boot-bar aria-hidden="true">[░░░░░░░░░░░░░░░░░░░░░░░░]</span>
-              <span class="bp-bar-note">in progress</span>
-            </p>
-            <p class="bp-line bp-dim">bar is illustrative, not a measurement</p>
-            <p class="bp-line bp-out bp-late"><span class="bp-tw">next: stage(1.5) -&gt; stage(2) · Tether</span></p>
             <p class="bp-line bp-late"><a class="bp-link" href="/docs/status/">-&gt; /docs/status/</a> <span class="bp-dim">what isn't compiled yet</span></p>
           </div>
         </div>
@@ -180,7 +156,7 @@ const logoCols = artSize(logoArt).cols;
     max-width: 620px;
   }
 
-  /* ── Version chip: [ v0.1.0-alpha ] ── */
+  /* ── Version chip: [ v0.2.1 ] ── */
   .hero-chip {
     display: inline-flex;
     align-items: center;
@@ -615,9 +591,8 @@ const logoCols = artSize(logoArt).cols;
   }
 
   /**
-   * Boot log tags open tiny terminal readouts. [ok] types a short stage(0)
-   * version log; [..] fills an (explicitly illustrative) stage(1) bar that
-   * stalls, then links to /docs/status/. One open at a time; a second click,
+   * Boot log tags open tiny terminal readouts. [ok] types a short
+   * version log, then links to /docs/status/. One open at a time; a second click,
    * Escape or a click elsewhere closes it. Opens instantly (one 160ms stepped
    * print); typing plays on the first open only. Reduced motion: final text.
    */

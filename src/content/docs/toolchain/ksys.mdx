@@ -1,0 +1,176 @@
+---
+title: ksys
+description: "ksys, the Kairo sysroot generator: builds the C library and C++ runtimes for a target from the sources the toolchain ships, on first use of --target."
+---
+
+# ksys
+
+`ksys` builds a **sysroot** (a target's C library, headers, C++ runtimes and compiler runtime) from sources shipped inside the toolchain, the way Zig builds its libc on demand. There is no per-target download: the release archive holds one input tree and the compiler, and the first time you ask for a target the toolchain builds its sysroot and caches it.
+
+You rarely run `ksys` yourself. `kairo` and `kcc` call the same code in-process, so this is all it takes:
+
+```sh
+kairo --target=aarch64-linux-musl main.k -o main   # first use builds the sysroot; later uses reuse it
+kcc   --target=riscv64-linux-gnu-glibc2.31 main.cc -o app
+```
+
+On the first use of a target the driver prints `building sysroot for <name>, first time only` on stderr. A typical build takes 5 to 30 seconds. It needs no network, no CMake, no Ninja and no `make`; it uses the toolchain's own `kcc`, `kld` and `llvm-ar`.
+
+## When the driver builds one
+
+For `--target T` with no `--sysroot`, `--freestanding` or `--macos-sdk`, the driver looks for a sysroot in this order:
+
+1. `<install>/sysroot/<name>`, a root shipped in the archive (the host's own);
+2. the cache (below);
+3. a build with `ksys`, when the install has its input tree (`share/kairo/sysroot`).
+
+`--no-sysroot-build` turns step 3 into a refusal. A build that has no input tree to work from is not attempted, and the compiler warns with `P008W` and names `--sysroot`, as before. `--help`, `--version`, `--explain` and the info queries never build; `--version` reports a cached sysroot but does not create one.
+
+```sh
+kairo --target=riscv32-linux-musl --no-sysroot-build main.k   # refuse instead of build
+```
+
+## Commands
+
+```
+usage: ksys [--share DIR] [--cache DIR] [-j N] [-q] <command>
+  probe <target>                               parse and probe; print the table
+  ensure <target> [--glibc=X.Y] [--input DIR]  the cached sysroot (built if missing); path on stdout
+  build <target> [--glibc=X.Y] [--input DIR] --out DIR
+                                               build into DIR, uncached
+  tables <target> --out DIR                    the runtimes tables the target compiles from, unbuilt
+  validate <dir>                               check a sysroot
+  verify-share                                 re-hash every input of the share tree
+  ls                                           cached sysroots by name
+  gc                                           drop unnamed sysroots and stage dirs older than 30 days
+  rm <name>                                    drop a cached sysroot
+  --print-runtimes-revision                    the LLVM runtimes revision this toolchain was built from
+```
+
+`<target>` is a sysroot name (`x86_64-linux-musl`, `x86_64-linux-gnu-glibc2.31`) or a clang triple.
+
+| Command | What it does |
+|---|---|
+| `ensure <target>` | Prints the path of the cached sysroot on stdout, building it first if it is missing. Progress goes to stderr, so `$(ksys ensure T)` is safe in a script. |
+| `build <target> --out DIR` | Builds into `DIR` and does not use or fill the cache. |
+| `probe <target>` | Parses the name and reports what is needed without building: the sysroot name, family, provider, libc version, whether the LLVM backend is compiled in, the clang triple, the quirks that apply, whether the provider supports the arch, whether the tools are present, and the target's properties (bits, endianness, int128, exception model). It stops with a refusal if the target cannot be built. |
+| `validate <dir>` | Checks a sysroot: its structure, that the toolchain builds against it, and a C, C++ and Kairo program built and run (under QEMU, Wine or Node where one is installed; a step that cannot run is printed as `SKIP`, never as a pass). |
+| `tables <target> --out DIR` | Writes the runtimes tables (the exact compile lines for compiler-rt, libunwind, libc++abi and libc++) that the target would be built from, without building. |
+| `verify-share` | Re-hashes every input of the share tree against its recorded hash. |
+| `ls`, `gc`, `rm <name>` | List the cache, drop unreferenced sysroots and stage directories older than 30 days, or remove one sysroot by name. |
+| `--print-runtimes-revision` | Prints the LLVM revision the toolchain's C++ runtimes sources must match. `kairo --print-runtimes-revision` prints the same. |
+
+Options before the command:
+
+| Option | Meaning |
+|---|---|
+| `--share DIR` | the input tree to build from (default `$KAIRO_SYSROOT_SHARE`, else `<install>/share/kairo/sysroot`) |
+| `--cache DIR` | the cache root (default below) |
+| `-j N` | parallel compile jobs (the default is the number of hardware threads; `$KSYS_JOBS` also sets it) |
+| `-q` | quiet: no progress on stderr |
+
+`--glibc=X.Y` picks a glibc version and `--input DIR` names the user-supplied SDK for the targets that need one ([below](#targets-that-need-your-sdk)).
+
+Exit status: `0` ok, `1` usage, `2` a refusal (nothing was built; one line says why), `3` a build or validation failure.
+
+## Target spelling
+
+A target is a name of the form `<arch>-<os>[-<env>][-glibc<version>]`, or any clang triple that maps to one. `ksys` and the compiler accept both and normalize:
+
+| You write | The sysroot is named | The clang triple is |
+|---|---|---|
+| `x86_64-linux-musl` | `x86_64-linux-musl` | `x86_64-unknown-linux-musl` |
+| `x86_64-unknown-linux-musl` | `x86_64-linux-musl` | `x86_64-unknown-linux-musl` |
+| `x86_64-linux-gnu-glibc2.31` | `x86_64-linux-gnu-glibc2.31` | `x86_64-unknown-linux-gnu` |
+| `aarch64-linux-gnu` | the default glibc version of the share, spelled out in the name | `aarch64-unknown-linux-gnu` |
+| `x86_64-linux-gnu.2.17` | `x86_64-linux-gnu-glibc2.17` | `x86_64-unknown-linux-gnu` |
+| `armv7-linux-gnueabihf-glibc2.31` | the same | `armv7-unknown-linux-gnueabihf` |
+
+The glibc version can be written two ways: `-glibc<X.Y>` at the end of the name, or Zig's `.<X.Y>` suffix after the environment (`x86_64-linux-gnu.2.17`). A glibc target without a version builds against glibc 2.31, the floor the shipped roots use, so its programs run on any distribution with glibc 2.31 or newer. Any version from 2.17 to 2.42 is available (`riscv32` from 2.33, `loongarch64` from 2.36); a version outside the architecture's range is refused.
+
+32-bit Arm on Linux is always hard-float (`gnueabihf`, `musleabihf`): the name carries no float ABI, so a soft-float triple is refused. A name that is not a sysroot name, or that matches several, stops with an error listing the candidates.
+
+Any well-formed triple names a target. Whether it can be built is then decided in this order, each with its own refusal: the LLVM backend must be compiled into the toolchain, the target's family must have a recipe for that architecture, and the runtimes must be derivable for it.
+
+## Where things live
+
+**The cache** holds what `ksys` built:
+
+| | |
+|---|---|
+| Location | `$KAIRO_SYSROOT_CACHE`, else `sysroot/` under the toolchain cache root |
+| Toolchain cache root | `$KAIRO_CACHE_DIR`, else `$XDG_CACHE_HOME/kairo`, else `~/.cache/kairo`, else `%LOCALAPPDATA%\kairo` on Windows |
+| Layout | `sysroots/<key>/` the finished sysroots, `by-name/<name>` the entry the driver looks up, `stage/` the build stages, `locks/` |
+
+A sysroot's key covers its inputs and the toolchain's own build, so a new toolchain builds fresh sysroots instead of reusing stale ones. Two compiles of the same target at once wait on one build. Delete the directory at any time: it is only a cache. `ksys gc` drops sysroots nothing names and stage directories older than 30 days.
+
+**The share** is the input tree: the libc sources and headers, the glibc symbol lists, the mingw-w64 and wasi-libc sources, the BSD base trees, the Linux UAPI headers and the licenses of all of it. It is at `<install>/share/kairo/sysroot`, or wherever `$KAIRO_SYSROOT_SHARE` or `--share` points. Every input is checked against a recorded hash before anything is built, and the toolchain refuses a share that does not match it. The C++ runtimes are built from `<install>/share/kairo/runtimes`, whose `REVISION` must equal `ksys --print-runtimes-revision`.
+
+A generated sysroot carries the licenses of the parts it was built from in `LICENSES/`, so you may ship it, for example inside a container image.
+
+## Diagnostics
+
+| Code | Exit | Meaning |
+|---|---|---|
+| `P009E` | 2 | The generator refused: the target is not a sysroot it knows, the input tree is missing or does not match its hashes, the runtimes revision does not match the compiler, the LLVM backend is not compiled in, the family has no port for that architecture, or a tool is missing. Nothing was built and nothing is downloaded. |
+| `P009N` | | The note under a `P009E`: what to do about it. |
+| `P010E` | 3 | A build stage or the validation ran and failed. The message names the stage and a log directory; the failed stage is kept as `<stage dir>.failed` and is retried on the next build. A failure that repeats with the same inputs is a toolchain bug: report it with that log. |
+
+`kairo --explain P009E` and `--explain P010E` print the long form. `--no-sysroot-build` produces a `P009E`.
+
+## Targets that need your SDK
+
+Apple's and Microsoft's licenses forbid redistributing their SDKs, so `ksys` never builds those roots from the shipped tree and the compiler never bundles them. Without one, `--target` for these triples stops with `P008E` that names the script to run, except where the compiler can assemble the root itself from an SDK you have installed: on a Mac the first macOS build does (see [Installation](/docs/install/#macos-and-msvc-targets)). The toolchain ships two scripts in `<install>/scripts/` that build your own copy into `<install>/sysroot/<target>`, where `kairo --target` finds it with no flags.
+
+**macOS** (`*-apple-macosx`; `arm64`, `arm64e`, `x86_64`), on a Mac with the Command Line Tools installed (`xcode-select --install`):
+
+```sh
+<install>/scripts/darwin-sysroot.sh arm64
+```
+
+It reads the SDK from `xcrun --sdk macosx --show-sdk-path`, or from `SDK=<path to MacOSX.sdk>`. A macOS sysroot can only be built on a macOS host with this script, or from a copy of the SDK you are licensed to use.
+
+**MSVC Windows** (`*-windows-msvc`; `x86_64`, `aarch64`, `i686`). On Windows with Visual Studio (the "Desktop development with C++" workload) the script uses the installed CRT and Windows SDK:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <install>\scripts\msvc-sysroot.ps1 x86_64
+```
+
+On Linux, macOS or WSL the script fetches the CRT and Windows SDK itself with [xwin](https://github.com/Jake-Shadle/xwin):
+
+```sh
+<install>/scripts/msvc-sysroot.sh x86_64          # or: aarch64 i686
+```
+
+It prints Microsoft's license and asks you to accept it. `--accept-license` or `KAIRO_ACCEPT_MSVC_LICENSE=1` accepts it up front (for CI); a non-interactive run with neither stops. The script uses `xwin` from `$XWIN_BIN`, else `PATH`, else downloads a pinned release (checking its sha256) into `<install>/share/kairo/tools/`. The download is kept in `<install>/share/kairo/msvc-cache/` and reused by later runs. To use a splat you made yourself, set `XWIN=<dir>`.
+
+Both scripts compile libc++ and compiler-rt from `share/kairo/runtimes` with the toolchain's own `kcc` and `kld`. Keep the generated roots on your machine: they contain Apple's or Microsoft's files.
+
+## Supported targets
+
+Names below are what `--target` accepts. "Built on first use" means the sysroot comes from the input tree; "shipped" means the archive of that host already holds it (see [Installation](/docs/install/#sysroots)).
+
+| Platform | Architectures | C library | Notes |
+|---|---|---|---|
+| Linux, musl (static) | `x86_64`, `x32`, `i686`, `aarch64`, `aarch64_be`, `armv6`, `armv7`, `thumbv7`, `riscv64`, `riscv32`, `powerpc`, `powerpc64`, `powerpc64le`, `s390x`, `mips`, `mipsel`, `mips64`, `mips64el`, `loongarch64` | musl | built from source on first use; the host's own is shipped |
+| Linux, glibc | `x86_64`, `i686`, `aarch64`, `aarch64_be`, `armv7` (`gnueabihf`), `riscv64`, `riscv32`, `powerpc`, `powerpc64`, `powerpc64le`, `s390x`, `mips`, `mipsel`, `mips64`, `mips64el`, `loongarch64` | glibc 2.17 to 2.42 (`riscv32` from 2.33, `loongarch64` from 2.36) | stub libraries, headers and start files built from glibc's own release data; the host's own, at 2.31, is shipped |
+| Windows, MinGW | `x86_64`, `aarch64`, `i686`, `armv7` (`*-windows-gnu`) | mingw-w64 (UCRT) | built from source on first use |
+| FreeBSD | `x86_64`, `aarch64` (`*-unknown-freebsd`) | FreeBSD 14.4 base | built on first use |
+| NetBSD | `x86_64` (`x86_64-unknown-netbsd`) | NetBSD 10.1 base | built on first use |
+| WebAssembly | `wasm32-wasi` | wasi-libc | built from source on first use |
+| Windows, MSVC | `x86_64`, `aarch64`, `i686` (`*-windows-msvc`) | Microsoft CRT | [your SDK](#targets-that-need-your-sdk) |
+| macOS | `arm64`, `arm64e`, `x86_64` (`*-apple-macosx`) | Apple libSystem | [your SDK](#targets-that-need-your-sdk) |
+
+That is 48 targets (`arm64e` compiles but is not linkable). Any glibc version in range works, written `x86_64-linux-gnu.2.28` or `x86_64-linux-gnu-glibc2.28`.
+
+**Not available yet:**
+
+- glibc on `sparc64` (lld can't link its relocations) and on `x32` (clang can't compile glibc's x32 syscall macros); `x32` with musl works;
+- C++ on big-endian `powerpc64` with glibc: it links C, but libc++abi fails to link;
+- other FreeBSD and NetBSD versions, which come from trimmed base-system files.
+
+The new glibc architectures (PowerPC, s390x, MIPS, LoongArch, `aarch64_be`, `riscv32`) are tested by linking, not by running, because there is no target glibc to run them under emulation here. Every musl target runs its test programs under QEMU. `thumbv7` code is compiled as 32-bit Arm (A32), not Thumb.
+
+The toolchain's LLVM has 16 backends plus the experimental Xtensa (X86, AArch64, ARM, RISC-V, WebAssembly, PowerPC, SystemZ, MIPS, LoongArch, Sparc, AVR, MSP430, BPF, NVPTX, AMDGPU, SPIRV), so `kcc` can compile C and C++ for those targets with `--freestanding` or your own `--sysroot`. The 0.2.0 binaries carry only the first five.
+
+See [kairo](/docs/toolchain/kairo/) and [kcc](/docs/toolchain/kcc/) for the flags, and [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/) for the toolchain model.

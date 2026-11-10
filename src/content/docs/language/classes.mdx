@@ -361,7 +361,7 @@ s.push(42)
 ```
 
 > [!NOTE]
-> A `panic` method of a generic class, like `pop` here, is not supported yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): a generic body's panic set will be inferred per instantiation. See [Status](/docs/status/#not-compiled-yet).
+> A `panic` method of a generic class, like `pop` here, works: the set is computed at the definition. See [Generic functions](/docs/language/panic/#generic-functions) in Panic.
 
 Generic classes can inherit from other generic classes:
 
@@ -662,7 +662,7 @@ class <T impl Comparable> PriorityQueue impl Iterable {
 
     fn PriorityQueue(self) { self.heap = [] }
     fn push(self, item: T) { ... }
-    fn pop(self) panic -> T { ... }   // `panic` in a generic class: not supported yet (SC116E)
+    fn pop(self) panic -> T { ... }
 }
 
 // Final class

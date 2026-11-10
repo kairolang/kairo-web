@@ -107,16 +107,17 @@ Not all modifiers can be combined:
 
 ## Visibility
 
-A top-level function with no visibility written is `pub`.
+A top-level function with no visibility written is `priv` to its file, or `prot` to its module when a `module.k` sits at or above the file. Write `pub` on what other modules may use.
 
 | Keyword | Scope of a top-level function |
 |---|---|
-| `pub` (default) | Any module that imports this module |
+| `pub` | Any module that imports this module |
 | `priv` | Current file only |
 | `prot` | Current file and sibling files in the same library subtree |
 
 ```kairo
-fn api()                  { /* ... */ }   // pub by default
+pub fn api()              { /* ... */ }
+fn helper()               { /* ... */ }   // priv, or prot under a module.k
 priv fn internal_helper() { /* ... */ }
 prot fn library_helper()  { /* ... */ }
 ```

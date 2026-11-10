@@ -971,19 +971,19 @@ The construct is part of the language but the current compiler does not handle i
 
 It is reported for:
 
-- iterating a vector, set, map, or string
+- `for ... in` over a Kairo `string` (`iterating a string is not yet supported`); vectors, sets, maps, slices, arrays and ranges work
 - `label!` and `jump!` in user code
 - `x.finally()` and `x.op finally()`, the explicit early destructor call (`'finally()' is not implemented yet (planned for 0.3)`); a local is destroyed at the end of its scope and a heap object with `@destroy`
 - matching a string against a pattern that isn't a string literal or a constant initialized with one
 - matching a record value against a literal-style pattern
-- an initializer on an `eval` field, and one on an array-typed field that is `static`, an array of arrays, or not a list literal
-- in a constructor that initializes a `const` field or a field without a default: a generic constructor or one with an expression body; `try`, `finally`, an `inline` block, `label!` or `jump!` before the last such initialization; a `static` or array local declared before it and used after it; initializing an array field of arrays, or one whose length is a generic parameter
+- an initializer on an `eval` array-typed field (`eval E: [i32; 2] = [1, 2]`)
+- in a constructor that initializes a `const` field or a field without a default: a constructor with an expression body; `try`, `finally`, an `inline` block, `label!` or `jump!` before the last such initialization; a `static` or array local declared before it and used after it
 - a vector, set, map or f-string in an `eval` context (`a vector in an eval context is not yet supported`); a string literal is fine
 - an array length computed by C++ from an `eval` constant of the field's own class (`an array length computed by C++ from 'J', an 'eval' constant of the field's own class, is not supported`): inside its own body the class is incomplete. A note points at the constant; the fix-it moves it to module scope
 - an array length or generic value argument that calls an `eval fn` (or reads an `eval` constant computed by one) in a declaration's type, a field or a signature (`... is not yet supported in a declaration's type; write it inside a function body, or make the constant fold`); inside a function body it is accepted
 - a generic value parameter whose type is neither an integer nor an eval class (`<eval B: bool>`)
 - a generic record's field default that reads another field
-- an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
+- an attribute applied to an expression other than `@create T(args)` and `@destroy p`, which compile (`the expression attribute '@likely' is not yet supported`); the initializer form `@create T{...}` is rejected too
 - `@unreachable`, and a user-defined attribute macro (`the attribute macro '@trace' is not yet supported: attribute macros are not expanded yet`)
 - building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
 - naming the panic result type `Panic<T, E...>` in source (`a panic result type cannot be named yet`): a panicking call's result is handled with `try` or propagated, not stored
@@ -995,7 +995,7 @@ It is reported for:
 - a call whose callee's panic set names a generic parameter the call does not bind (no bound declares the requirement it calls)
 - a `fn`, class, struct, union or enum declared in a function body that uses a generic parameter of the function or class around it (`'echo' is declared in a body and uses 'T', a generic parameter of 'wraps'; that is not yet supported`); a note points at the parameter. One that is generic in its own right, or names no outer parameter, compiles
 - an `extend` in a function body
-- [`where` dispatch](/docs/language/where/) on a generic function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
+- [`where` dispatch](/docs/language/where/) on a generic function with a pack parameter, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function with a pack parameter is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
@@ -1425,11 +1425,11 @@ priv class Derived derives Base {
 '@preserve_most' cannot cross the C/C++ boundary: GCC cannot call it
 ```
 
-GCC has no spelling for these conventions. An `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv` (functions are `pub` by default), is in the module's emitted C++ header and its `#include "x.k"` interface, where code GCC compiled could call it.
+GCC has no spelling for these conventions. An `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv` (one with no visibility written counts too), is in the module's emitted C++ header and its `#include "x.k"` interface, where code GCC compiled could call it.
 
 ```kairo
 @preserve_most
-fn grow(n: usize) { }            // error SC136E: pub by default
+fn grow(n: usize) { }            // error SC136E: not written `priv`
 
 @preserve_most
 priv fn grow_slow(n: usize) { }  // fine

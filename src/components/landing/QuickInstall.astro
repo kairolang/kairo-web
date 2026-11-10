@@ -8,7 +8,7 @@ const platforms = [
     shell: 'sh',
     commands: [
       { label: 'Quick install', cmd: 'curl -fsSL https://kairolang.org/install.sh | sh' },
-      { label: 'From source (needs a 0.2.0+ release on PATH as the seed)', cmd: 'git clone https://github.com/kairolang/kairo.git && cd kairo\ngit submodule update --init --recursive\npython3 build.py --release kairo kcc kld kfmt' },
+      { label: 'From source (needs a 0.2.1+ release on PATH as the seed)', cmd: 'git clone https://github.com/kairolang/kairo.git && cd kairo\ngit submodule update --init --recursive\npython3 build.py --release kairo kcc kld kfmt' },
     ],
   },
   {
@@ -17,7 +17,7 @@ const platforms = [
     shell: 'pwsh',
     commands: [
       { label: 'PowerShell', cmd: 'irm https://kairolang.org/install.ps1 | iex' },
-      { label: 'Or build from source (needs a 0.2.0+ release on PATH as the seed)', cmd: 'git clone https://github.com/kairolang/kairo.git\ncd kairo\ngit submodule update --init --recursive\npython3 build.py --release kairo kcc kld kfmt' },
+      { label: 'Or build from source (needs a 0.2.1+ release on PATH as the seed)', cmd: 'git clone https://github.com/kairolang/kairo.git\ncd kairo\ngit submodule update --init --recursive\npython3 build.py --release kairo kcc kld kfmt' },
     ],
   },
   {
@@ -25,7 +25,7 @@ const platforms = [
     label: 'From Source',
     shell: 'sh',
     commands: [
-      { label: 'Seed: unpack a 0.2.0+ release, put its bin/ on PATH', cmd: 'export PATH="/path/to/kairo-0.2.0/bin:$PATH"' },
+      { label: 'Seed: unpack a 0.2.1+ release, put its bin/ on PATH', cmd: 'export PATH="/path/to/kairo-0.2.1/bin:$PATH"' },
       { label: 'Clone', cmd: 'git clone https://github.com/kairolang/kairo.git && cd kairo\ngit submodule update --init --recursive' },
       { label: 'Build', cmd: 'python3 build.py --release kairo kcc kld kfmt' },
       { label: 'Test', cmd: 'build/llvm/bin/llvm-lit Tests -s' },
@@ -51,7 +51,7 @@ const platforms = [
         </p> -->
         <p class="install-alpha">
           <span class="install-alpha-tag">Alpha</span>
-          <span class="install-alpha-text">0.2.0: the compiler is written in Kairo and builds itself. APIs may change.</span>
+          <span class="install-alpha-text">0.2.1: the compiler is written in Kairo and builds itself. APIs may change.</span>
         </p>
         <AsciiButton href="/docs/install/" label="Full Install Guide" class="install-cta" />
       </div>

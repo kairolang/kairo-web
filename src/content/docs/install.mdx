@@ -7,9 +7,9 @@ section: Getting Started
 
 # Installation
 
-Kairo 0.2.0 ships as a **prebuilt package** for 14 host platforms: Linux (static musl, runs on any distribution), Windows, macOS and the BSDs. Pick your archive in the table below, or let the install script choose it. A host without an archive can [build from source](#building-from-source).
+Kairo 0.2.1 ships as a **prebuilt package** for 14 host platforms: Linux (static musl, runs on any distribution), Windows, macOS and the BSDs. Pick your archive in the table below, or let the install script choose it. A host without an archive can [build from source](#building-from-source).
 
-The compiler, `kairo`, is written in Kairo and compiles itself. The package holds everything it needs: `kairo`, `kcc`, `kld`, `kfmt`, the `builtin`, `std` and `rt` libraries, `compiler-rt` and prebuilt cross-compile sysroots. Clang and LLD run inside `kairo`, `kcc` and `kld`, so no separate `clang` or `lld` binaries ship. You do not need a system C or C++ toolchain.
+The compiler, `kairo`, is written in Kairo and compiles itself. The package holds everything it needs: `kairo`, `kcc`, `kld`, `kfmt`, `ksys`, the `builtin`, `std` and `rt` libraries, `compiler-rt`, the host's own sysroots and the sources `ksys` builds every other target's sysroot from. Clang and LLD run inside `kairo`, `kcc` and `kld`, so no separate `clang` or `lld` binaries ship. You do not need a system C or C++ toolchain.
 
 ---
 
@@ -33,37 +33,38 @@ Both are the same script. It detects your OS and CPU, downloads the matching arc
 
 ### Manual download
 
-Download the archive and `SHA256SUMS` from the [release page](https://github.com/kairolang/kairo/releases/tag/v0.2.0), verify it, extract it, and add `bin` to your `PATH`.
+Download the archive and `SHA256SUMS` from the [release page](https://github.com/kairolang/kairo/releases/tag/v0.2.1), verify it, extract it, and add `bin` to your `PATH`.
 
 | Platform | Architecture | File |
 |---|---|---|
-| Linux (static, musl) | x86_64 | `kairo-0.2.0-x86_64-linux-musl.tar.xz` |
-| Linux (static, musl) | aarch64 | `kairo-0.2.0-aarch64-linux-musl.tar.xz` |
-| Linux (static, musl) | armv7 | `kairo-0.2.0-armv7-linux-musl.tar.xz` |
-| Linux (static, musl) | i686 | `kairo-0.2.0-i686-linux-musl.tar.xz` |
-| Linux (static, musl) | riscv64 | `kairo-0.2.0-riscv64-linux-musl.tar.xz` |
-| Windows (MinGW) | x86_64 | `kairo-0.2.0-x86_64-windows-gnu.zip` |
-| Windows (MinGW) | aarch64 | `kairo-0.2.0-aarch64-windows-gnu.zip` |
-| Windows (MinGW) | armv7 | `kairo-0.2.0-armv7-windows-gnu.zip` |
-| Windows (MinGW) | i686 | `kairo-0.2.0-i686-windows-gnu.zip` |
-| macOS 11+ | arm64 | `kairo-0.2.0-arm64-apple-macosx11.0.zip` |
-| macOS 10.15+ | x86_64 | `kairo-0.2.0-x86_64-apple-macosx10.15.zip` |
-| FreeBSD | x86_64 | `kairo-0.2.0-x86_64-unknown-freebsd.tar.xz` |
-| FreeBSD | aarch64 | `kairo-0.2.0-aarch64-unknown-freebsd.tar.xz` |
-| NetBSD | x86_64 | `kairo-0.2.0-x86_64-unknown-netbsd.tar.xz` |
+| Linux (static, musl) | x86_64 | `kairo-0.2.1-x86_64-linux-musl.tar.xz` |
+| Linux (static, musl) | aarch64 | `kairo-0.2.1-aarch64-linux-musl.tar.xz` |
+| Linux (static, musl) | armv7 | `kairo-0.2.1-armv7-linux-musl.tar.xz` |
+| Linux (static, musl) | i686 | `kairo-0.2.1-i686-linux-musl.tar.xz` |
+| Linux (static, musl) | riscv64 | `kairo-0.2.1-riscv64-linux-musl.tar.xz` |
+| Windows (MinGW) | x86_64 | `kairo-0.2.1-x86_64-windows-gnu.zip` |
+| Windows (MinGW) | aarch64 | `kairo-0.2.1-aarch64-windows-gnu.zip` |
+| Windows (MinGW) | armv7 | `kairo-0.2.1-armv7-windows-gnu.zip` |
+| Windows (MinGW) | i686 | `kairo-0.2.1-i686-windows-gnu.zip` |
+| macOS 11+ | arm64 | `kairo-0.2.1-arm64-apple-macosx11.0.zip` |
+| macOS 10.15+ | x86_64 | `kairo-0.2.1-x86_64-apple-macosx10.15.zip` |
+| FreeBSD | x86_64 | `kairo-0.2.1-x86_64-unknown-freebsd.tar.xz` |
+| FreeBSD | aarch64 | `kairo-0.2.1-aarch64-unknown-freebsd.tar.xz` |
+| NetBSD | x86_64 | `kairo-0.2.1-x86_64-unknown-netbsd.tar.xz` |
 
 ```bash
 sha256sum -c --ignore-missing SHA256SUMS
-tar -xJf kairo-0.2.0-x86_64-linux-musl.tar.xz
+tar -xJf kairo-0.2.1-x86_64-linux-musl.tar.xz
 ```
 
 The archive contains:
 
-- `bin/`: `kairo`, `kcc`, `kld`, `kfmt`, `llvm-symbolizer`, `llvm-ar`, `llvm-ranlib`, `llvm-lib`
+- `bin/`: `kairo`, `kcc`, `kld`, `kfmt`, `ksys`, `llvm-symbolizer`, `llvm-ar`, `llvm-ranlib`, `llvm-lib`
 - `lib/`: the clang resource directory, `builtin`, `std` and `rt`
-- `sysroot/`: prebuilt cross-compile sysroots (below)
-- `scripts/`: `msvc-sysroot.sh` / `msvc-sysroot.ps1` and `darwin-sysroot.sh`, which build the macOS and MSVC sysroots from your own SDK ([below](#macos-and-msvc-targets))
-- `share/kairo/runtimes/`: the LLVM runtimes source (libc++, compiler-rt builtins) those scripts compile
+- `sysroot/`: the sysroots of the archive's own host (below); Linux archives hold the musl and glibc 2.31 roots of their architecture, Windows archives their `-windows-gnu` root, BSD and macOS archives none
+- `share/kairo/sysroot/`: the input tree `ksys` builds every other target's sysroot from (libc sources and headers, glibc symbol lists, mingw-w64 and wasi-libc sources, BSD base trees, licenses)
+- `scripts/`: `msvc-sysroot.sh` / `msvc-sysroot.ps1` (they fetch the CRT and Windows SDK with xwin if you accept Microsoft's license) and `darwin-sysroot.sh`, which build the macOS and MSVC sysroots from your own SDK ([below](#macos-and-msvc-targets))
+- `share/kairo/runtimes/`: the LLVM runtimes source (libc++, compiler-rt builtins) that `ksys` and those scripts compile
 - `LICENSE`, `NOTICE`, `LICENSES/`, `THIRD-PARTY-NOTICES`
 
 The compiler is built on an LLVM 22 toolchain from Kairo's [patched fork](https://github.com/kairolang/llvm-project), linked in-process.
@@ -73,22 +74,30 @@ The compiler is built on an LLVM 22 toolchain from Kairo's [patched fork](https:
 
 ### Sysroots
 
-A sysroot is the C library, headers and runtime libraries of a target. The package bundles 18, so it is also the cross-compiler for those targets with no extra download:
+A sysroot is the C library, headers and runtime libraries of a target. The archive ships the sysroots of its own host and builds every other one on demand, so it is also the cross-compiler for the [supported targets](/docs/toolchain/ksys/#supported-targets) with no extra download:
 
-- Linux musl and glibc 2.31: x86_64, aarch64, i686, riscv64, armv7
+- Linux musl: x86_64, x32, i686, aarch64, aarch64_be, armv6, armv7, thumbv7, riscv64, riscv32, powerpc, powerpc64, powerpc64le, s390x, mips, mipsel, mips64, mips64el, loongarch64; Linux glibc (2.17 to 2.42, 16 architectures): x86_64, i686, aarch64, aarch64_be, armv7, riscv32, riscv64, powerpc, powerpc64(le), s390x, mips, mipsel, mips64, mips64el, loongarch64
 - Windows (MinGW): x86_64, aarch64, i686, armv7 (`*-windows-gnu`)
 - FreeBSD: x86_64, aarch64; NetBSD: x86_64
 - WebAssembly: wasm32-wasi
 
-Pass `--target=<triple>` to pick one. Sysroots are not generated on demand in 0.2.0 (that is planned for a later release). For a target without a bundled sysroot, `--sysroot=<dir>` names one you have, and `--freestanding` compiles without system headers and libraries. Without a sysroot the compiler warns (`P008W`) and names the flag to pass.
+Pass `--target=<triple>` to pick one. The first time you name a target whose sysroot is not in the archive, `kairo` and `kcc` build it with [ksys](/docs/toolchain/ksys/) from `share/kairo/sysroot` and cache it (in `~/.cache/kairo/sysroot`, or `$KAIRO_SYSROOT_CACHE`); it takes 5 to 30 seconds and needs no network. Later builds find it in the cache. `--no-sysroot-build` turns the build into an error, `--sysroot=<dir>` names a sysroot you have, and `--freestanding` compiles without system headers and libraries. A target whose sysroot cannot be built, and for which there is no input tree, warns (`P008W`) and names the flag to pass.
 
-Apple's SDK and Microsoft's MSVC / Windows SDK are never shipped, on any host. To target macOS or MSVC-ABI Windows, build that sysroot once with the scripts in `scripts/` (next section): they read the SDK you have installed and put the result under `sysroot/`, where Kairo finds it with no flags. Without one, `--target` for those triples stops with an error naming `--sysroot`. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/).
+The target name can carry a glibc version: `x86_64-linux-gnu-glibc2.28` or `x86_64-linux-gnu.2.28`, any version from 2.17 to 2.42. Without one, Linux programs build against glibc 2.31, so they run on any distribution with glibc 2.31 or newer.
+
+Apple's SDK and Microsoft's MSVC / Windows SDK are never shipped or generated, on any host. To target macOS or MSVC-ABI Windows, build that sysroot once with the scripts in `scripts/` (next section): they read the SDK you have installed (or, for MSVC, fetch it with xwin after you accept Microsoft's license) and put the result under `sysroot/`, where Kairo finds it with no flags. Without one, `--target` for those triples stops with an error naming the script. See [ksys](/docs/toolchain/ksys/) and [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/).
 
 ### macOS and MSVC targets
 
-Apple's and Microsoft's licenses forbid redistributing their SDKs, so the package cannot include `*-apple-macosx` or `*-windows-msvc` sysroots. Instead it ships two scripts in `scripts/` that build them from your own copy. They compile libc++ and compiler-rt from the LLVM source in `share/kairo/runtimes` using the package's own `kcc` and `kld`, and write the root to `sysroot/<target>`, where `kairo --target` finds it with no flags. You need `cmake`, `ninja` and `python3`.
+Apple's and Microsoft's licenses forbid redistributing their SDKs, so the package cannot include `*-apple-macosx` or `*-windows-msvc` sysroots, and `ksys` never builds them from the shipped tree. Instead it ships scripts in `scripts/` that build them from your own copy. They compile libc++ and compiler-rt from the LLVM source in `share/kairo/runtimes` using the package's own `kcc` and `kld`, and write the root to `sysroot/<target>`, where `kairo --target` finds it with no flags. You need `cmake`, `ninja` and `python3`.
 
-For MSVC on Linux, macOS or WSL, fetch the CRT and Windows SDK with [xwin](https://github.com/Jake-Shadle/xwin). Running it with `--accept-license` is where you accept Microsoft's license:
+For MSVC on Linux, macOS or WSL, `msvc-sysroot` gets the CRT and Windows SDK for you with [xwin](https://github.com/Jake-Shadle/xwin):
+
+```bash
+<install>/scripts/msvc-sysroot.sh x86_64
+```
+
+It prints Microsoft's license and asks you to accept it; `--accept-license` or `KAIRO_ACCEPT_MSVC_LICENSE=1` accepts it up front (a non-interactive run with neither stops). It uses `xwin` from `$XWIN_BIN`, else `PATH`, else downloads a pinned release (checked against its sha256) into `share/kairo/tools/`, and keeps the download in `share/kairo/msvc-cache/` for later runs. To use a splat you made yourself:
 
 ```bash
 xwin --accept-license --arch x86_64,aarch64,x86 splat --output ~/xwin
@@ -109,6 +118,10 @@ For macOS, on a Mac with the Command Line Tools installed (`xcode-select --insta
 
 Each script accepts several architectures at once (`x86_64 aarch64 i686`, or `arm64 x86_64 arm64e`). Keep the generated roots on your machine: they contain Apple's or Microsoft's files.
 
+You often do not need to run them. On a Mac, the first `kairo` or `kcc` build for macOS (the native default, or `--target arm64-apple-macosx` / `x86_64-apple-macosx`) assembles the root itself from the SDK it finds (`SDKROOT`, the selected Xcode or the Command Line Tools) and the prebuilt libc++ in `share/kairo/sdk-overlays/`, in a few seconds, into the `ksys` cache. On Windows, the first `--target x86_64-windows-msvc` build does the same from an xwin splat (`XWIN`, or the one `msvc-sysroot` cached) or, with Visual Studio's C++ tools installed, by running `msvc-sysroot.ps1` for you. With neither, it stops with an error giving the exact command: the CRT and Windows SDK download asks for Microsoft's license, so Kairo never starts it on its own. The scripts remain the way to build `arm64e` (no prebuilt overlay) or to rebuild libc++ from source.
+
+A macOS target without a version (`x86_64-apple-macosx`) compiles for the oldest macOS the roots support, 11.0 on arm64 and 10.15 on x86_64; name one (`arm64-apple-macosx13.0`) to raise it.
+
 ### System requirements
 
 - **Linux x86_64:** any distribution. The compiler is statically linked against musl and needs no system libc, libc++ or libunwind.
@@ -119,7 +132,7 @@ Each script accepts several architectures at once (`x86_64 aarch64 i686`, or `ar
 If you used the install script, add `~/.local/bin` to your `PATH` if it is not already there. For a manual extract:
 
 ```bash
-export PATH="$PATH:/path/to/kairo-0.2.0-x86_64-linux-musl/bin"
+export PATH="$PATH:/path/to/kairo-0.2.1-x86_64-linux-musl/bin"
 ```
 
 Add that line to your `~/.bashrc` or `~/.zshrc` to make it permanent.
@@ -175,7 +188,7 @@ You do not need a system Clang or xmake. The earlier C++ bootstrap compiler, Sta
 git clone https://github.com/kairolang/kairo/
 cd kairo
 git submodule update --init --recursive   # pulls the patched LLVM (large download)
-python3 build.py --release --kairo /path/to/kairo-0.2.0-x86_64-linux-musl/bin/kairo kairo kcc kld kfmt kld kfmt
+python3 build.py --release --kairo /path/to/kairo-0.2.1-x86_64-linux-musl/bin/kairo kairo kcc kld kfmt ksys
 ```
 
 The first build also builds the patched LLVM (once; later builds reuse it). `--kairo` names the bootstrap compiler; it can be left out when that `kairo` is on your `PATH`, and later builds use the last one they produced.
@@ -235,7 +248,9 @@ Both work with `fn main()` or `fn Test()` entry points.
 
 ## Troubleshooting
 
-**`warning [P008W]: no sysroot found for target ...`.** The target has no bundled sysroot (or the `sysroot/` directory is not next to `bin/`). Pass `--sysroot=<dir>`; see [Sysroots](#sysroots).
+**`warning [P008W]: no sysroot found for target ...`.** The target has no sysroot in the archive and there is no `share/kairo/sysroot` to build one from (or the `sysroot/` directory is not next to `bin/`). Pass `--sysroot=<dir>`; see [Sysroots](#sysroots).
+
+**`error [P009E]` with `--target`.** `ksys` refused to build the sysroot: the target is not one it knows (`ksys probe <target>` says why), the input tree does not match its hashes, or a tool is missing. Nothing was built. `kairo --explain P009E` lists the causes; a build that ran and failed is `P010E` and names a log. See [ksys](/docs/toolchain/ksys/#diagnostics).
 
 **`error [P008E]: no sysroot found for target ...` (a `*-apple-macosx` or `*-windows-msvc` target).** These sysroots are never bundled; build one with the scripts in `scripts/`, see [macOS and MSVC targets](#macos-and-msvc-targets).
 

@@ -13,7 +13,7 @@ import BenchSummary from '../../components/blog/BenchSummary.astro';
 
 Fifteen programs written in Kairo, C++ and Rust, plus one that measures a Kairo-only feature, timed on one machine. All results are below, losses included.
 
-One fact frames everything: Kairo compiles through Clang and LLVM. Kairo source is lowered to C++ and handed to Kairo's own Clang/LLVM 22 build. On plain arithmetic, Kairo, Clang and rustc therefore share an optimizer and a code generator, and a gap between them comes from what each frontend hands LLVM, not from the backend. Large Kairo wins come from the runtime (its mimalloc heap) or from how a language feature is lowered.
+One fact frames everything: Kairo compiles through Clang and LLVM. Kairo's frontend parses and type-checks the source itself, and its own Clang/LLVM 22 build is the backend. On plain arithmetic, Kairo, Clang and rustc therefore share an optimizer and a code generator, and a gap between them comes from what each frontend hands LLVM, not from the backend. Large Kairo wins come from the runtime (its mimalloc heap) or from how a language feature is lowered.
 
 Summary: on 9 of 15 programs Kairo is within 10% of the best C++ or Rust build. It's well ahead where the heap dominates, ahead on generators, closures and the interpreter loop, and behind on nbody and, against GCC only, on virtual dispatch.
 
@@ -165,7 +165,7 @@ closures calls three capturing callbacks stored in an array, a billion times. Al
   { label: 'kcc',   median: 2.316, min: 2.309 },
 ]} />
 
-dispatch makes virtual calls over a mixed array of 1,024 shapes. GCC is 2.5× faster than Kairo, Clang and Rust, which all finish in 2.03 s. Kairo matching Clang here is expected, since its virtual calls lower to C++ virtual calls compiled by Clang. GCC is the outlier because of speculative devirtualization: the derived classes are `final`, so GCC knows the complete set of three overriders and can replace the indirect call with type checks and inlined bodies.
+dispatch makes virtual calls over a mixed array of 1,024 shapes. GCC is 2.5× faster than Kairo, Clang and Rust, which all finish in 2.03 s. Kairo matching Clang here is expected, since Kairo classes share the C++ vtable ABI and their virtual calls go through the same backend as Clang's. GCC is the outlier because of speculative devirtualization: the derived classes are `final`, so GCC knows the complete set of three overriders and can replace the indirect call with type checks and inlined bodies.
 
 <BenchChart name="gen" n="1000000000" rows={[
   { label: 'kairo', median: 0.560, min: 0.451 },
@@ -175,7 +175,7 @@ dispatch makes virtual calls over a mixed array of 1,024 shapes. GCC is 2.5× fa
   { label: 'gcc',   median: 3.698, min: 3.641 },
 ]} />
 
-gen is a three-stage pipeline of nested generators summing a billion values: `-> yield T` in Kairo, C++20 coroutines in C++, iterator adapters in Rust. Kairo generators lower to C++20 coroutines, so Kairo and the Clang row use the same coroutine machinery. In both, Clang elides the coroutine frames' heap allocations and inlines the whole pipeline into the caller's loop. GCC doesn't perform that elision, which is why its row is 6.6× slower. Kairo is 1.2× ahead of Clang and 1.7× ahead of Rust. The difference between Kairo and Clang is Kairo's promise type and how `yield` is lowered. Like fannkuch, gen has one outlier run (0.451 s, 20% under the median).
+gen is a three-stage pipeline of nested generators summing a billion values: `-> yield T` in Kairo, C++20 coroutines in C++, iterator adapters in Rust. Kairo generators are built on the same coroutine machinery as C++20 coroutines, so Kairo and the Clang row share it. In both, Clang elides the coroutine frames' heap allocations and inlines the whole pipeline into the caller's loop. GCC doesn't perform that elision, which is why its row is 6.6× slower. Kairo is 1.2× ahead of Clang and 1.7× ahead of Rust. The difference between Kairo and Clang is Kairo's promise type and how `yield` is lowered. Like fannkuch, gen has one outlier run (0.451 s, 20% under the median).
 
 <BenchChart name="gsort" n="10000000" rows={[
   { label: 'gcc',   median: 1.005, min: 1.001 },
@@ -202,7 +202,7 @@ gsort is a hand-written generic sort over a comparison bound, with closures for 
   { label: 'kcc',   median: 1.529, min: 1.520 },
 ]} />
 
-interp runs a small bytecode loop: an enum with payloads and `match` in Kairo and Rust, a tagged struct and `switch` in C++. Kairo and Rust tie, and both are at least 1.25× faster than every C++ build. Since Kairo and the Clang row share a backend, the difference is in the representation Kairo lowers its enum and `match` to, not in code generation.
+interp runs a small bytecode loop: an enum with payloads and `match` in Kairo and Rust, a tagged struct and `switch` in C++. Kairo and Rust tie, and both are at least 1.25× faster than every C++ build. Since Kairo and the Clang row share a backend, the difference is in the representation Kairo chooses for its enum and `match`, not in code generation.
 
 ## Errors and formatting
 

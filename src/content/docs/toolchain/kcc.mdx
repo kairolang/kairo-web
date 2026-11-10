@@ -19,4 +19,6 @@ Two additions over clang:
 
 An option that Kairo has its own flag for becomes that flag; any other option reaches clang unchanged. `kcc --help` and `kcc --version` describe `kcc`, and `-###` prints each compile job and the link without running them.
 
+`--target=<triple>` works as in [kairo](/docs/toolchain/kairo/): when the target's sysroot is not installed or cached, `kcc` builds it on first use with [ksys](/docs/toolchain/ksys/), and `--no-sysroot-build` refuses instead. `--sysroot=<dir>` names a root you already have and `--freestanding` compiles without one.
+
 `kcc` is the supported way to compile C++ in a Kairo project. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/) for the toolchain model, sysroots, separate compilation and incremental builds, and [Using Kairo in C++](/docs/language/c-cpp-exposing/) for what a C++ file sees.

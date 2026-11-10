@@ -368,6 +368,16 @@ Appends an `f128` hole via the runtime formatter (rt/fmt.h), honouring the sign 
 -0.0 and NaN. Precision, width, fill and alignment come from `spec`; the `e` base selects
 exponent form, `E` with the upper flag.
 
+### `f256` and `f512` holes
+
+An `f256` or `f512` hole has no `put_` method on `FmtBuf`: the value formats itself, through
+its class's `fmt_put_` (`F256::fmt_put_`, `F512::fmt_put_`), so `FmtBuf` never names the
+two types and a program that does not use them never compiles their code. The text is
+the same contract as the other floats': the sign bit of -0.0 and NaN is honoured;
+precision, width, fill and alignment come from `spec`; the `e` base selects exponent
+form, `E` with the upper flag. The shortest form has at most 73 significant digits for
+`f256` and 149 for `f512`; a precision gives at most 600.
+
 ### `FmtBuf.put_ptr`
 
 ```kairo

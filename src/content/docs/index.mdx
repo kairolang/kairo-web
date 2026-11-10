@@ -10,7 +10,7 @@ template: hub
 
 <AnchorForward to="/docs/welcome/" anchors={['kairo', 'why-kairo', 'at-a-glance', 'status', 'next-steps']} />
 
-<HubHero path="~/docs" command="man kairo" art="DOCS" subtitle="the language, the toolchain, the standard library · 0.2.0 reference">
+<HubHero path="~/docs" command="man kairo" art="DOCS" subtitle="the language, the toolchain, the standard library · 0.2.1 reference">
 
 # Kairo Documentation
 
@@ -19,7 +19,7 @@ template: hub
 <HubSearch />
 
 <HubNotice>
-0.2.0, the first self-hosted release: the compiler is written in Kairo and compiles itself. syntax and the standard library may change before 1.0. [install](/docs/install/) · [what's compiled today](/docs/status/)
+0.2.1, the second self-hosted release: the compiler is written in Kairo and compiles itself. syntax and the standard library may change before 1.0. [install](/docs/install/) · [what's compiled today](/docs/status/)
 </HubNotice>
 
 <HubSection n={1} title="Pick a path" id="paths">
@@ -70,6 +70,7 @@ template: hub
 - [kpkg](/docs/toolchain/kpkg/) package manager
 - [kfmt](/docs/toolchain/kfmt/) code formatter
 - [kld](/docs/toolchain/kld/) linker driver
+- [ksys](/docs/toolchain/ksys/) sysroot generator
 - [kals](/docs/toolchain/kals/) language server
 - [kcc](/docs/language/c-cpp-toolchain/) drivers & cross-compilation
 
@@ -82,7 +83,7 @@ template: hub
 <HubCard title="recently updated" kicker="git log">
 <RecentlyUpdated count={5} />
 </HubCard>
-<StatusCard title="status" kicker="compiler" items={[{ state: 'ok', label: '0.2.0, self-hosted' }, { state: 'ok', label: 'prebuilt packages, 14 targets' }, { state: 'wip', label: 'tether (stage 2)' }]}>
+<StatusCard title="status" kicker="compiler" items={[{ state: 'ok', label: '0.2.1, self-hosted' }, { state: 'ok', label: 'prebuilt packages for 14 platforms, 48 cross targets' }, { state: 'wip', label: 'tether (stage 2)' }]}>
 
 - [what's compiled](/docs/status/)
 - [compiler compliance](/docs/compilence/)

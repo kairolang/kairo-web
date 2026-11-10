@@ -6,6 +6,46 @@ import '../../styles/resize.css';
 
 const examples = [
   {
+    id: 'kairo-in-cpp',
+    label: 'Kairo in C++',
+    filename: 'kairo_ffi.cpp',
+    code: `// Include a Kairo module straight from C++ with kcc, a drop-in clang-compatible driver:
+//   \`kcc kairo_ffi.cpp -o app\` finds kairo_ffi.k, compiles it and links it in.
+// Shipping a library? \`kairo kairo_ffi.k -c --emit-headers include/\` writes the headers.
+// kairo_ffi.k:
+//   pub struct Vec2 { var x: f64; var y: f64 }
+//   pub fn dot(a: Vec2, b: Vec2) -> f64 { return a.x * b.x + a.y * b.y }
+//   pub struct Overdrawn { var short_by: i64 }
+//   pub fn withdraw(balance: i64, amount: i64) panic -> i64 {
+//       if amount > balance { panic Overdrawn { short_by: amount - balance } }
+//       return balance - amount
+//   }
+// The module's C++ namespace is its file name: kairo_ffi.
+
+#include "kairo_ffi.k"
+#include <iostream>
+
+int main() {
+    kairo_ffi::Vec2 v{3.0, 4.0};      // a Kairo struct is a plain C++ aggregate.
+    std::cout << kairo_ffi::dot(v, v) << std::endl;  // 25
+
+    try {   // a Kairo panic is a value; value_or_throw turns it into a C++ exception.
+        auto left = builtin::value_or_throw(kairo_ffi::withdraw(100, 30));  // 70
+        builtin::value_or_throw(kairo_ffi::withdraw(left, 500));
+    } catch (const builtin::panic_error<kairo_ffi::Overdrawn>& e) {
+        std::cout << "short by " << e.error.short_by << std::endl;  // 430
+    }
+}`,
+    blurb: {
+      heading: 'Adopt Kairo incrementally',
+      points: [
+        { label: 'Include like any header', body: 'With `kcc`, a Kairo module is `#include`-able directly from C++. The only change to your build is the C++ compiler it calls.' },
+        { label: 'Native C++ types', body: 'Kairo structs are plain C++ aggregates and functions are ordinary C++ calls, under a namespace named after the file. A panic is a value; `builtin::value_or_throw` turns it into a C++ exception when you want one.' },
+        { label: 'Ship Kairo as a C++ library', body: 'Use `kairo -c` to compile the module and `--emit-headers` to generate its C++ headers. Consumers see a normal library.' },
+      ],
+    },
+  },
+  {
     id: 'syntax',
     label: 'Printing to the console',
     filename: 'hello.k',
@@ -66,46 +106,6 @@ println(f"{points.size()} points, total {total}")  // 2 points, total 75`,
         { label: 'No binding step', body: 'Point Kairo at a C++ header and call it. Classes, methods and templates arrive as native Kairo symbols, with no generated wrappers and no intermediate layer.' },
         { label: 'Namespaces and templates just work', body: 'C++ namespaces map to Kairo module syntax, and `cxx::std::vector<my_cpp_lib::Vec2>` instantiates a C++ template from Kairo. Your existing library surface stays exactly as you designed it.' },
         { label: 'Migrate at your own pace', body: 'Move files to Kairo one at a time while the rest of your codebase stays in C++. There\'s no cutover point, no rewrite cliff.' },
-      ],
-    },
-  },
-  {
-    id: 'kairo-in-cpp',
-    label: 'Kairo in C++',
-    filename: 'kairo_ffi.cpp',
-    code: `// Include a Kairo module straight from C++ with kcc, a drop-in clang-compatible driver:
-//   \`kcc kairo_ffi.cpp -o app\` finds kairo_ffi.k, compiles it and links it in.
-// Shipping a library? \`kairo kairo_ffi.k -c --emit-headers include/\` writes the headers.
-// kairo_ffi.k:
-//   pub struct Vec2 { var x: f64; var y: f64 }
-//   pub fn dot(a: Vec2, b: Vec2) -> f64 { return a.x * b.x + a.y * b.y }
-//   pub struct Overdrawn { var short_by: i64 }
-//   pub fn withdraw(balance: i64, amount: i64) panic -> i64 {
-//       if amount > balance { panic Overdrawn { short_by: amount - balance } }
-//       return balance - amount
-//   }
-// The module's C++ namespace is its file name: kairo_ffi.
-
-#include "kairo_ffi.k"
-#include <iostream>
-
-int main() {
-    kairo_ffi::Vec2 v{3.0, 4.0};      // a Kairo struct is a plain C++ aggregate.
-    std::cout << kairo_ffi::dot(v, v) << std::endl;  // 25
-
-    try {   // a Kairo panic is a value; value_or_throw turns it into a C++ exception.
-        auto left = builtin::value_or_throw(kairo_ffi::withdraw(100, 30));  // 70
-        builtin::value_or_throw(kairo_ffi::withdraw(left, 500));
-    } catch (const builtin::panic_error<kairo_ffi::Overdrawn>& e) {
-        std::cout << "short by " << e.error.short_by << std::endl;  // 430
-    }
-}`,
-    blurb: {
-      heading: 'Adopt Kairo incrementally',
-      points: [
-        { label: 'Include like any header', body: 'With `kcc`, a Kairo module is `#include`-able directly from C++. The only change to your build is the C++ compiler it calls.' },
-        { label: 'Native C++ types', body: 'Kairo structs are plain C++ aggregates and functions are ordinary C++ calls, under a namespace named after the file. A panic is a value; `builtin::value_or_throw` turns it into a C++ exception when you want one.' },
-        { label: 'Ship Kairo as a C++ library', body: 'Use `kairo -c` to compile the module and `--emit-headers` to generate its C++ headers. Consumers see a normal library.' },
       ],
     },
   },

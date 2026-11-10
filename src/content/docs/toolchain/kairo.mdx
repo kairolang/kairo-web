@@ -22,6 +22,9 @@ kairo --type-check-only main.k
 | `--emit-headers=<dir>` | write one C++ header per module ([Using Kairo in C++](/docs/language/c-cpp-exposing/)) |
 | `--type-check-only` | parse and check without generating code |
 | `--target=<triple>`, `--sysroot=<dir>`, `--freestanding`, `--native` | [cross-compilation and sysroots](/docs/language/c-cpp-toolchain/#cross-compilation) |
+| `--no-sysroot-build` | with `--target` and no installed or cached sysroot, refuse (`P009E`, exit 2) instead of building one with [ksys](/docs/toolchain/ksys/) |
+| `--sysroot-exact` | use `--sysroot` exactly as given: never substitute a bundled or cached sysroot for the target (what `ksys` itself relies on when it compiles the runtimes) |
+| `--print-runtimes-revision` | print the LLVM runtimes revision this compiler was built from, and exit |
 | `--progress=auto\|always\|never\|lines` | the build status line |
 | `--sema-threads=N`, `--codegen-threads=N`, `--threads=N` | parallelism of type checking and code generation |
 | `--interface-pch=auto\|on\|off` | share precompiled Kairo interfaces between files |
@@ -32,6 +35,10 @@ kairo --type-check-only main.k
 | `--print-stats`, `-v` | timings, counts, and what each step did |
 | `--help`, `--help-hidden` | list the flags; `--help-hidden` adds internal and not-yet-implemented ones |
 
+## Targets and sysroots
+
+`--target=<triple>` compiles for another platform. The first time you name a target whose sysroot is neither shipped in the install (`<install>/sysroot/`) nor already cached, `kairo` builds it in-process from the sources the toolchain ships and prints `building sysroot for <name>, first time only`. Later builds reuse the cached root. `--sysroot=<dir>` names a root you already have, `--freestanding` compiles without one, and `--no-sysroot-build` turns the automatic build into an error. A failed build is `P010E` (exit 3); a refusal is `P009E` (exit 2). The `*-apple-macosx` and `*-windows-msvc` targets need your own SDK and are never built this way ([ksys](/docs/toolchain/ksys/#targets-that-need-your-sdk)). Target names, including the glibc version suffix (`x86_64-linux-gnu.2.17`), the cache and `KAIRO_SYSROOT_CACHE` are on the [ksys](/docs/toolchain/ksys/) page.
+
 Pretty diagnostics show the location as `file:line:col`. On a terminal a build prints a single status line (`parse`, `sema`, `codegen` with counts) that disappears before any diagnostic appears.
 
-`kairo` finds its standard library, runtime and clang resources relative to its own location, so an unpacked release runs without flags. `python3 build.py` stages the same layout when building from source ([Installation](/docs/install/#building-from-source)). See also [kcc](/docs/toolchain/kcc/), [kld](/docs/toolchain/kld/) and [kfmt](/docs/toolchain/kfmt/).
+`kairo` finds its standard library, runtime and clang resources relative to its own location, so an unpacked release runs without flags. `python3 build.py` stages the same layout when building from source ([Installation](/docs/install/#building-from-source)). See also [kcc](/docs/toolchain/kcc/), [ksys](/docs/toolchain/ksys/), [kld](/docs/toolchain/kld/) and [kfmt](/docs/toolchain/kfmt/).

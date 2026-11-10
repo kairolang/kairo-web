@@ -1,0 +1,98 @@
+---
+title: "From a 3 AM Dorm Room Python Script to a 311k-LOC Self-Hosted Compiler in 34 Months"
+description: "The history of Kairo from the first commit in January 2024 to a stable self-hosted compiler in November 2026, restarts and dead months included."
+pubDate: 2026-11-09
+author: dhruvan
+tags: [history, self-hosting]
+---
+
+# From a 3 AM Dorm Room Python Script to a 311k-LOC Self-Hosted Compiler in 34 Months
+
+Hi!
+
+Kairo's Stage 1 compiler went stable today. It's written in Kairo, it compiles itself, and it ships for 18 hosts. The first commit was on January 16, 2024: a Python script I started at 3 AM in a dorm room. This post covers the 34 months in between, and a fair amount of that time went badly.
+
+If you're new here: Kairo (called Helix until February 2026) is a pragmatic systems language with full native C++ interop in both directions. Kairo imports C and C++ headers directly, and C++ can `#include "file.k"`. There's also a memory safety proof model planned, but I won't talk about it here, since it isn't implemented and won't be until the core language is stabilized.
+
+## 2024: Python, three languages, four restarts
+
+The Python prototype had a working tokenizer by January 27. By February it was a functional compiler, in the sense that it compiled things and fell over a lot.
+
+On March 23 I started porting it to Rust and C++, my friend Josh joined, and for a while the project was a three-language experiment. April got us a lexer, a file reader and panic bindings. Then nothing happened for six weeks, from April 15 to May 29.
+
+On June 2 I archived everything and started over. There was a working lexer four days later, and the summer went to the AST parser, the preprocessor, the build system, LLVM integration and the error handler.
+
+Then I kept starting over. The AST parser was rewritten on September 1 (the expression parser was complete 21 days later), there was another restart on September 18, and on October 3 I refactored about 90% of the codebase. That's four restarts in four months. I don't recommend it, though each one did leave the code in better shape than the one before. October also produced CXIR token generation, which is the ancestor of how the compiler emits code today.
+
+Josh's last commits landed in November, and I was solo from there. Planning for self-hosting started on November 13.
+
+## 2025: Stage 0, then the real thing
+
+Stage 0 is the bootstrap compiler. Its job is to exist so that the real compiler can be written in Kairo. The parser and codegen were finished over the winter, MSVC and Clang support went in, and it was stable around March 2025.
+
+Right after that came the slowest stretch in the whole project: another six weeks of nothing, March 5 to April 14.
+
+April through August was Stage 0 refinement and syntax changes. `let` became `var`, `with` became `impl`, and the operator syntax changed. In May I rewrote the lexer, token and location code, which was restart number five.
+
+Stage 1 began on October 4, 2025, with the boring foundations: SourceManager, UTF8View, EvalHash, MMapRegion and the arenas. November and December were the lexer's core loop, keywords, numbers and strings. Ojas joined around then and took the CLI.
+
+## 2026: the long middle
+
+January was restart number six (a lexer refactor) and the start of the macro processor. On February 11 the lexer went from 20 MB/s to about 100 MB/s, and on the same day Helix was renamed to Kairo.
+
+The next few months were a list of compiler parts:
+
+- February and March: the preprocessor, macro expansion, the diagnostics engine, and kbld.
+- April: AST nodes, ASTContext, the LSP, and ClangBridge.
+- May: the type parser and expression nodes. The file extension changed from `.kro` to `.k`.
+- June: a three-day spike (June 9 to 12) that proved the `#include "foo.k"` model could work, then the rest of the parser: patterns, match, closures, f-strings and FFI. 151 commits.
+- July: a streaming lexer, a single-pass preprocessor, and the skeleton of semantic analysis. Ojas started the formatter. 166 commits.
+- August: lexer performance, name resolution, numeric conformance tests, and a three-week break back home in Dubai.
+- September: canonical types, type resolution, and the full expression typer with overloads, ADL and conversions. Foreign C++ templates could be instantiated, move checking went in, and so did an in-tree ELF linker. About 170 commits.
+
+## The part I was told was impossible
+
+Around the time I started the Stage 1 parser, I met someone whose compiler work I respect a lot. We had a good conversation about his language, and then he asked what I was working on, so I told him about Kairo. He kept drilling into the technicals. When I got to C++ interop, he said he'd tried it himself and it was outright impossible.
+
+So I told him the actual plan: use Clang as the MIR for Kairo (at the time Helix) and let it take the code to LLVM IR, and for the C++ side, feed Kairo declarations into Clang's parser as tokens so that C++ can include a Kairo file. He said that wasn't feasible either. Nobody had used Clang like that, Clang doesn't work that way, and there was no way to do it without going into Clang's internals. It would be cleaner to emit LLVM IR directly or to write a transpiler. His point was that you get forced into a corner: you end up with a transpiler bound by C++'s rules, or with a compiler stuck at the C subset.
+
+Around the same time, another well-known name in the compiler world came across Kairo (at the time Helix). He read my GitHub bio and said I was treating the project like a company when it should be a non-profit. He said the questionable types screamed random null pointer exceptions. He also said it would never self-host, because that's the trap people fall into when they write compilers. By then I was about 60,000 lines into Stage 1, written in Kairo, compiled by Stage 0, and linking against LLVM directly.
+
+I took all of it as genuinely constructive criticism. Both of them know far more about compilers than I do, and none of it was said to be mean. Mostly it made me lock in.
+
+The June spike is where the plan stopped being a plan. In about 200 lines I had the `#include "foo.k"` mechanism working: hand-built Clang tokens injected straight into Clang's parser, in-process, with diagnostics pointing back at the Kairo source, then codegen and linking, cross-compiled, on LLVM 22. He was right that it means going into Clang's internals. But the change itself is tiny. I read through Clang's internals until I found the right seam, and the patch that hooks Kairo's tokens into it adds about 50 lines, 30-something if you don't count the comments. It's in the Kairo repo if you want to read it.
+
+None of this makes Kairo a transpiler, which is the corner he said I'd end up in. A transpiler writes C++ source and leaves the checking to a C++ compiler. Kairo doesn't hand Clang C++ source text. It parses, resolves names, types every expression, picks overloads, checks moves, nullness and match exhaustiveness, and reports its own errors against your Kairo source, all before anything goes to Clang for codegen. Clang comes in after that, in the same process, doing the job a mid-level IR does in other compilers. Kairo's semantics are its own too. Checked integer arithmetic, left-to-right evaluation order and the panic system aren't C++ rules.
+
+## October and November: the sprint
+
+In the first two weeks of October the compiler learned to lower calls, extensions, generators, ADTs (as tagged unions), tuples and `match`, with pattern exhaustiveness checking. The linker grew Mach-O, COFF, MinGW and wasm support. We ran demos on a Pico, on real hardware.
+
+October 15 was the self-hosting burn-down, with about 50 commits in one day. libc++ containers were swapped for LLVM's ADT, filesystem calls for `llvm::sys`, and the inline C++ was swept out.
+
+On October 23, C++ and Objective-C++ could `#include "foo.k"` for the first time. This is the half of the interop I'd been told couldn't be done. The day after, kcc became a drop-in replacement for clang, to the point where Clang's own `-verify` and preprocessor tests run through it. That day was about 85 commits.
+
+The language features came in fast after that:
+
+- October 25 to 26: every `T?` is a `Nullable<T>` underneath, with nullness analysis, `?.`, `??` and `unwrap!`. Compile-time `eval` runs on Clang's constexpr engine.
+- October 27: panic effects, with declared and inferred sets, and C++ exceptions caught in `try`.
+- October 28: `pub`, `priv` and `prot` are enforced by Kairo, and C++ code that includes a `.k` file sees them as its own access levels.
+- November 1: checked integer arithmetic, left-to-right evaluation order everywhere, and calling conventions in the type system.
+- November 2: mimalloc as the runtime heap, a `string` that owns its bytes, `{K: V}` maps, and 12 fuzzer crashes fixed.
+
+Not every day was like that. October 29 and 30 produced 6 commits between them.
+
+The self-hosting pipeline proper started on November 3, with 28 migration passes. Inline C++ was removed from `Compiler/` and `Linker/`, and a test now keeps it out. November 3 and 4 were about 110 commits each, and roughly 100 of the second day's were Ojas's. November 5 and 6 went to performance and memory: a ThinLTO cache, codegen on every pool thread, and freeing things we had been holding onto for no reason.
+
+On November 7 and 8 the self-hosted compiler, the linker (kld), the formatter (kfmt) and KaTAR were committed, along with a tree-sitter grammar, a Zed extension and the 0.2.0 release pipeline.
+
+And today, November 9, Stage 1 is stable.
+
+## Where that leaves us
+
+The compiler is about 311,000 lines of Kairo. We know lines of code isn't really a measure of anything, but there are two of us actively working on it (me and Ojas), so I'm going to be a little proud of the number. It's released for 18 hosts and cross-compiles to 51 OS targets plus freestanding. 2,000+ lit tests are green.
+
+Days with 100 commits will make some of you wonder about AI, which is fair. Please read [how AI is used in Kairo](/blog/how-ai-is-used-in-kairo/) fully before jumping to conclusions.
+
+- GitHub: <https://github.com/kairolang/kairo>
+- GitHub Discussions: <https://github.com/kairolang/kairo/discussions>

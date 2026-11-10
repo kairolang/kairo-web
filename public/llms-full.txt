@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-11-09T03:28:06.063Z
+> Generated: 2026-11-10T08:15:30.448Z
 
 ---
 
@@ -174,33 +174,29 @@ URL: https://www.kairolang.org/docs/philosophy/
 
 # Philosophy
 
-Kairo is a systems programming language built around a simple idea: give developers full control without forcing them to fight the language.
+Kairo is a systems programming language built on one idea: you should have full control over your program without having to fight the language to get it.
 
----
+## The problem
 
-## The Problem
+Systems languages tend to fail in one of two ways.
 
-Systems programming is stuck between two failure modes.
+Some give you unlimited freedom and no guardrails. You manage memory, track lifetimes, and audit every pointer yourself, and you hope that discipline holds across a million-line codebase that a rotating team maintains for a decade. When it doesn't hold, you get CVEs.
 
-One class of languages gives you unlimited freedom and zero guardrails. You manage memory, track lifetimes, audit every pointer, and hope your discipline holds across a million-line codebase maintained by a rotating team for a decade. When it doesn't, you get CVEs.
+Others fix this by limiting what you can express. The compiler keeps rejecting your program until you restructure it to fit its model. That does produce safe code, but you pay in cognitive overhead. Simple patterns turn into puzzles, and prototyping starts to feel like negotiating with a bureaucracy.
 
-Another class of languages solves this by restricting what you're allowed to express. Safety comes from rejection: the compiler says no until you restructure your program to fit its model. This works, but it trades implementation freedom for cognitive overhead. Simple patterns become puzzles. Prototyping feels like negotiating with a bureaucracy.
+Kairo tries to avoid both. The language should help you write correct code and leave the structure of that code up to you.
 
-Kairo rejects both failure modes. The language should help you write correct code without dictating how you structure it.
+## Design principles
 
----
+There are four principles below, and they share one trade-off. Kairo moves accidental complexity out of your head and into the compiler, while keeping enough explicit information in the source that a person can still understand the code by reading it locally.
 
-## Design Principles
-
-Four ideas drive every decision in the language, and one trade sits underneath all of them: move accidental complexity out of the programmer's head and into the compiler, but keep enough explicit information in the source that a human can still understand the code locally.
-
-The compiler should carry the bookkeeping that has nothing to do with your actual problem, like lifetimes, ownership, null states, and panic paths. What it must not do is take the meaning of the code with it. If the only way to know what a line does is to ask the compiler, or to read five other files first, the complexity was hidden rather than removed. So inference handles the tedious parts, and anything that changes how you reason about a piece of code stays written down where you are reading it.
+Lifetimes, ownership, null states, and panic paths are bookkeeping. They have nothing to do with the problem you're solving, so the compiler should carry them. It shouldn't carry the meaning of the code, though. If you have to ask the compiler, or read five other files, to know what a line does, the complexity has only been hidden. Inference handles the tedious parts, and anything that changes how you reason about a piece of code stays written down where you're reading it.
 
 ### Control should exist
 
-Kairo is a systems language. You can manage memory directly, control struct layout and alignment, work with raw pointers, manipulate ABI boundaries, interoperate with C and C++ at zero cost, and write allocators, runtimes, compilers, or kernels. Nothing is hidden.
+Kairo is a systems language. You can manage memory directly, control struct layout and alignment, use raw pointers, work across ABI boundaries, call C and C++ at zero cost, and write allocators, runtimes, compilers, or kernels. None of that is hidden from you.
 
-But unlike traditional systems languages, Kairo does not assume you want to solve every problem manually. The compiler provides:
+Traditional systems languages also assume you want to do all of this by hand. Kairo doesn't. The compiler provides:
 
 - Ownership tracking and automatic smart pointer promotion
 - Null safety with compile-time null checks on safe pointers
@@ -208,25 +204,25 @@ But unlike traditional systems languages, Kairo does not assume you want to solv
 - Structural interface validation without explicit registration
 - Full-program lifetime analysis with no annotations required
 
-All of which you can override or opt out of when you need to. You are guided, not trapped.
+You can override or opt out of any of these when you need to.
 
 ### Safety should assist, not dominate
 
-Safety in Kairo works through visibility, not restriction.
+Kairo's safety features mostly make problems visible. They don't stop you from writing the code in the first place.
 
-The compiler explains mistakes clearly, preserves programmer intent, and keeps experimentation fluid. During development, it helps you move fast. When you ship, it gets stricter. This creates a workflow closer to real engineering: prototype freely, refine intentionally, harden for production.
+The compiler explains mistakes clearly, keeps what you meant intact, and stays out of the way while you experiment. It's lenient during development so you can move fast, and stricter when you build for release. The intended workflow is to prototype loosely, refine on purpose, and harden the code before it ships.
 
-The escape hatches are explicit. `unsafe` blocks suspend Tether tracking. `unsafe *T` pointers bypass null checks and bounds analysis. `unsafe` function overloads relax semantic invariants. Every dangerous operation is visible in the source: easy to find during review, easy to audit, easy to grep.
+Each escape hatch is spelled out in the source. `unsafe` blocks suspend Tether tracking. `unsafe *T` pointers skip null checks and bounds analysis. `unsafe` function overloads relax semantic invariants. Because every dangerous operation is marked, a reviewer can find all of them with grep.
 
 ### Code should explain itself
 
-A developer should not need IDE magic, hidden compiler behavior, or dense metaprogramming to understand what code does. The more work the compiler does on your behalf, the more this matters: what the compiler knows is no substitute for what a reader can see.
+You shouldn't need an IDE, knowledge of hidden compiler behavior, or a tour through dense metaprogramming to understand what code does. This matters more the more work the compiler does for you, since a reader can only go by what's on the page.
 
 - `self` is always visible in method signatures
-- Inheritance uses the `derives` keyword, no implicit resolution
-- Pointer types are visually distinct (`*T` vs `unsafe *T` vs `*const T`)
+- Inheritance uses the `derives` keyword, with no implicit resolution
+- Pointer types look different from each other (`*T` vs `unsafe *T` vs `*const T`)
 - All conversions use a single `as` keyword
-- Interfaces are structural: satisfy the methods, satisfy the interface
+- Interfaces are structural: if a type has the methods, it satisfies the interface
 - Operator overloads are declared with `fn op` syntax that mirrors the operator
 
 ```kairo
@@ -245,13 +241,13 @@ class Sensor {
 }
 ```
 
-Open this in a text editor with no tooling and you can still read the program. You know which methods mutate, which fields are mutable through `const`, and what the visibility boundaries are. Kairo treats readability as a systems programming requirement, not a beginner convenience.
+Open this in a plain text editor and you can still follow it. You can see which methods mutate, which fields stay mutable through `const`, and where the visibility boundaries are. Kairo treats readability as a requirement for systems code, including code written by experts.
 
 ### Adoption should be incremental
 
-Large codebases are built over decades. Entire ecosystems exist in C and C++. Most teams cannot afford full rewrites.
+Large codebases take decades to build, whole ecosystems are written in C and C++, and most teams can't afford to rewrite everything.
 
-Kairo integrates into existing systems one module at a time. Import C headers directly with `ffi "c"`. Import C++ headers with `ffi "c++"`. Kairo emits ABI-compatible object code (Itanium on Unix and MinGW, MSVC on `*-windows-msvc`), so Kairo `.o` files link with GCC, Clang, or MSVC output without shims. Object layout, vtable structure, name mangling, and calling conventions all follow platform standards.
+Kairo fits into an existing system one module at a time. You import C headers directly with `ffi "c"` and C++ headers with `ffi "c++"`. Kairo emits ABI-compatible object code (Itanium on Unix and MinGW, MSVC on `*-windows-msvc`), so its `.o` files link against GCC, Clang, or MSVC output without shims. Object layout, vtable structure, name mangling, and calling conventions all follow the platform standards.
 
 ```kairo
 ffi "c++" import "engine.hh" as engine
@@ -262,27 +258,23 @@ fn main() {
 }
 ```
 
-A team can migrate one file at a time, validate performance incrementally, and maintain the existing build system throughout. Kairo coexists with infrastructure; it does not demand replacement of it.
+A team can move over one file at a time, check performance as it goes, and keep its existing build system the whole way through.
 
----
-
-## Zero-Cost Abstractions
+## Zero-cost abstractions
 
 High-level features compile to predictable low-level code:
 
-- Interfaces are structural and carry no vtable or runtime dispatch cost. A type satisfies an interface if it has the right methods. No registration, no indirection.
-- Generics are monomorphized at compile time. No boxing, no type erasure, no runtime cost.
-- Panic handling compiles to tagged return values and branches. No unwinding tables, no runtime exception handler, no stack unwinding.
-- Tether runs at compile time. No garbage collector, no reference counting overhead unless the analysis determines shared ownership is required.
+- Interfaces are structural and have no vtable or runtime dispatch cost. A type satisfies an interface by having the right methods, with no registration or indirection.
+- Generics are monomorphized at compile time, so there's no boxing, type erasure, or runtime cost.
+- Panic handling compiles to tagged return values and branches. There are no unwinding tables, no runtime exception handler, and no stack unwinding.
+- Tether runs at compile time. There's no garbage collector, and reference counting only appears where the analysis decides ownership is actually shared.
 - Virtual dispatch exists only when you write `virtual`. Non-polymorphic classes have no vtable pointer.
 
-You pay for what you use. Nothing else.
+If you don't use a feature, it costs you nothing.
 
----
+## Familiar, but cleaner
 
-## Familiar, But Cleaner
-
-Kairo is intentionally familiar to experienced systems programmers. Most concepts map naturally from C++, with complexity stripped where it adds no value:
+Kairo should feel familiar if you've written systems code before. Most concepts carry over from C++, minus the complexity that doesn't earn its keep:
 
 | C++ complexity | Kairo simplification |
 |---|---|
@@ -296,13 +288,11 @@ Kairo is intentionally familiar to experienced systems programmers. Most concept
 | Implicit special member generation/suppression | Always generates unless explicitly deleted |
 | Exception unwinding tables | Zero-cost panic returns |
 
-The goal is not novelty. The goal is removing friction that decades of C++ evolution accumulated without losing any of the power that makes C++ valuable.
+Kairo isn't trying to be novel. It's trying to remove the friction C++ picked up over decades of evolution while keeping the power that makes C++ worth using.
 
----
+## Who Kairo is for
 
-## Who Kairo Is For
-
-Kairo is built for projects that grow:
+Kairo is meant for projects that keep growing, such as:
 
 - Compilers and language toolchains
 - Game engines and real-time systems
@@ -310,7 +300,7 @@ Kairo is built for projects that grow:
 - Operating systems and embedded firmware
 - Long-lived enterprise codebases
 
-It is designed for engineers who want the performance and control of systems programming without the maintenance cost that traditionally comes with it.
+It's for engineers who want the performance and control of systems programming without the maintenance burden that usually comes with it.
 
 ---
 
@@ -319,9 +309,9 @@ URL: https://www.kairolang.org/docs/install/
 
 # Installation
 
-Kairo 0.2.0 ships as a **prebuilt package** for 14 host platforms: Linux (static musl, runs on any distribution), Windows, macOS and the BSDs. Pick your archive in the table below, or let the install script choose it. A host without an archive can [build from source](#building-from-source).
+Kairo 0.2.1 ships as a **prebuilt package** for 14 host platforms: Linux (static musl, runs on any distribution), Windows, macOS and the BSDs. Pick your archive in the table below, or let the install script choose it. A host without an archive can [build from source](#building-from-source).
 
-The compiler, `kairo`, is written in Kairo and compiles itself. The package holds everything it needs: `kairo`, `kcc`, `kld`, `kfmt`, the `builtin`, `std` and `rt` libraries, `compiler-rt` and prebuilt cross-compile sysroots. Clang and LLD run inside `kairo`, `kcc` and `kld`, so no separate `clang` or `lld` binaries ship. You do not need a system C or C++ toolchain.
+The compiler, `kairo`, is written in Kairo and compiles itself. The package holds everything it needs: `kairo`, `kcc`, `kld`, `kfmt`, `ksys`, the `builtin`, `std` and `rt` libraries, `compiler-rt`, the host's own sysroots and the sources `ksys` builds every other target's sysroot from. Clang and LLD run inside `kairo`, `kcc` and `kld`, so no separate `clang` or `lld` binaries ship. You do not need a system C or C++ toolchain.
 
 ---
 
@@ -345,37 +335,38 @@ Both are the same script. It detects your OS and CPU, downloads the matching arc
 
 ### Manual download
 
-Download the archive and `SHA256SUMS` from the [release page](https://github.com/kairolang/kairo/releases/tag/v0.2.0), verify it, extract it, and add `bin` to your `PATH`.
+Download the archive and `SHA256SUMS` from the [release page](https://github.com/kairolang/kairo/releases/tag/v0.2.1), verify it, extract it, and add `bin` to your `PATH`.
 
 | Platform | Architecture | File |
 |---|---|---|
-| Linux (static, musl) | x86_64 | `kairo-0.2.0-x86_64-linux-musl.tar.xz` |
-| Linux (static, musl) | aarch64 | `kairo-0.2.0-aarch64-linux-musl.tar.xz` |
-| Linux (static, musl) | armv7 | `kairo-0.2.0-armv7-linux-musl.tar.xz` |
-| Linux (static, musl) | i686 | `kairo-0.2.0-i686-linux-musl.tar.xz` |
-| Linux (static, musl) | riscv64 | `kairo-0.2.0-riscv64-linux-musl.tar.xz` |
-| Windows (MinGW) | x86_64 | `kairo-0.2.0-x86_64-windows-gnu.zip` |
-| Windows (MinGW) | aarch64 | `kairo-0.2.0-aarch64-windows-gnu.zip` |
-| Windows (MinGW) | armv7 | `kairo-0.2.0-armv7-windows-gnu.zip` |
-| Windows (MinGW) | i686 | `kairo-0.2.0-i686-windows-gnu.zip` |
-| macOS 11+ | arm64 | `kairo-0.2.0-arm64-apple-macosx11.0.zip` |
-| macOS 10.15+ | x86_64 | `kairo-0.2.0-x86_64-apple-macosx10.15.zip` |
-| FreeBSD | x86_64 | `kairo-0.2.0-x86_64-unknown-freebsd.tar.xz` |
-| FreeBSD | aarch64 | `kairo-0.2.0-aarch64-unknown-freebsd.tar.xz` |
-| NetBSD | x86_64 | `kairo-0.2.0-x86_64-unknown-netbsd.tar.xz` |
+| Linux (static, musl) | x86_64 | `kairo-0.2.1-x86_64-linux-musl.tar.xz` |
+| Linux (static, musl) | aarch64 | `kairo-0.2.1-aarch64-linux-musl.tar.xz` |
+| Linux (static, musl) | armv7 | `kairo-0.2.1-armv7-linux-musl.tar.xz` |
+| Linux (static, musl) | i686 | `kairo-0.2.1-i686-linux-musl.tar.xz` |
+| Linux (static, musl) | riscv64 | `kairo-0.2.1-riscv64-linux-musl.tar.xz` |
+| Windows (MinGW) | x86_64 | `kairo-0.2.1-x86_64-windows-gnu.zip` |
+| Windows (MinGW) | aarch64 | `kairo-0.2.1-aarch64-windows-gnu.zip` |
+| Windows (MinGW) | armv7 | `kairo-0.2.1-armv7-windows-gnu.zip` |
+| Windows (MinGW) | i686 | `kairo-0.2.1-i686-windows-gnu.zip` |
+| macOS 11+ | arm64 | `kairo-0.2.1-arm64-apple-macosx11.0.zip` |
+| macOS 10.15+ | x86_64 | `kairo-0.2.1-x86_64-apple-macosx10.15.zip` |
+| FreeBSD | x86_64 | `kairo-0.2.1-x86_64-unknown-freebsd.tar.xz` |
+| FreeBSD | aarch64 | `kairo-0.2.1-aarch64-unknown-freebsd.tar.xz` |
+| NetBSD | x86_64 | `kairo-0.2.1-x86_64-unknown-netbsd.tar.xz` |
 
 ```bash
 sha256sum -c --ignore-missing SHA256SUMS
-tar -xJf kairo-0.2.0-x86_64-linux-musl.tar.xz
+tar -xJf kairo-0.2.1-x86_64-linux-musl.tar.xz
 ```
 
 The archive contains:
 
-- `bin/`: `kairo`, `kcc`, `kld`, `kfmt`, `llvm-symbolizer`, `llvm-ar`, `llvm-ranlib`, `llvm-lib`
+- `bin/`: `kairo`, `kcc`, `kld`, `kfmt`, `ksys`, `llvm-symbolizer`, `llvm-ar`, `llvm-ranlib`, `llvm-lib`
 - `lib/`: the clang resource directory, `builtin`, `std` and `rt`
-- `sysroot/`: prebuilt cross-compile sysroots (below)
-- `scripts/`: `msvc-sysroot.sh` / `msvc-sysroot.ps1` and `darwin-sysroot.sh`, which build the macOS and MSVC sysroots from your own SDK ([below](#macos-and-msvc-targets))
-- `share/kairo/runtimes/`: the LLVM runtimes source (libc++, compiler-rt builtins) those scripts compile
+- `sysroot/`: the sysroots of the archive's own host (below); Linux archives hold the musl and glibc 2.31 roots of their architecture, Windows archives their `-windows-gnu` root, BSD and macOS archives none
+- `share/kairo/sysroot/`: the input tree `ksys` builds every other target's sysroot from (libc sources and headers, glibc symbol lists, mingw-w64 and wasi-libc sources, BSD base trees, licenses)
+- `scripts/`: `msvc-sysroot.sh` / `msvc-sysroot.ps1` (they fetch the CRT and Windows SDK with xwin if you accept Microsoft's license) and `darwin-sysroot.sh`, which build the macOS and MSVC sysroots from your own SDK ([below](#macos-and-msvc-targets))
+- `share/kairo/runtimes/`: the LLVM runtimes source (libc++, compiler-rt builtins) that `ksys` and those scripts compile
 - `LICENSE`, `NOTICE`, `LICENSES/`, `THIRD-PARTY-NOTICES`
 
 The compiler is built on an LLVM 22 toolchain from Kairo's [patched fork](https://github.com/kairolang/llvm-project), linked in-process.
@@ -385,22 +376,30 @@ The compiler is built on an LLVM 22 toolchain from Kairo's [patched fork](https:
 
 ### Sysroots
 
-A sysroot is the C library, headers and runtime libraries of a target. The package bundles 18, so it is also the cross-compiler for those targets with no extra download:
+A sysroot is the C library, headers and runtime libraries of a target. The archive ships the sysroots of its own host and builds every other one on demand, so it is also the cross-compiler for the [supported targets](/docs/toolchain/ksys/#supported-targets) with no extra download:
 
-- Linux musl and glibc 2.31: x86_64, aarch64, i686, riscv64, armv7
+- Linux musl: x86_64, aarch64, i686, armv7, armv6, riscv64, riscv32; Linux glibc 2.31: x86_64, aarch64, i686, armv7, riscv64
 - Windows (MinGW): x86_64, aarch64, i686, armv7 (`*-windows-gnu`)
 - FreeBSD: x86_64, aarch64; NetBSD: x86_64
 - WebAssembly: wasm32-wasi
 
-Pass `--target=<triple>` to pick one. Sysroots are not generated on demand in 0.2.0 (that is planned for a later release). For a target without a bundled sysroot, `--sysroot=<dir>` names one you have, and `--freestanding` compiles without system headers and libraries. Without a sysroot the compiler warns (`P008W`) and names the flag to pass.
+Pass `--target=<triple>` to pick one. The first time you name a target whose sysroot is not in the archive, `kairo` and `kcc` build it with [ksys](/docs/toolchain/ksys/) from `share/kairo/sysroot` and cache it (in `~/.cache/kairo/sysroot`, or `$KAIRO_SYSROOT_CACHE`); it takes 5 to 30 seconds and needs no network. Later builds find it in the cache. `--no-sysroot-build` turns the build into an error, `--sysroot=<dir>` names a sysroot you have, and `--freestanding` compiles without system headers and libraries. A target whose sysroot cannot be built, and for which there is no input tree, warns (`P008W`) and names the flag to pass.
 
-Apple's SDK and Microsoft's MSVC / Windows SDK are never shipped, on any host. To target macOS or MSVC-ABI Windows, build that sysroot once with the scripts in `scripts/` (next section): they read the SDK you have installed and put the result under `sysroot/`, where Kairo finds it with no flags. Without one, `--target` for those triples stops with an error naming `--sysroot`. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/).
+The target name can carry a glibc version: `x86_64-linux-gnu-glibc2.31` or `x86_64-linux-gnu.2.31`. glibc 2.31 is the only version in this release's input tree; more versions, and musl on PowerPC, s390x, MIPS and LoongArch, are coming in this release.
+
+Apple's SDK and Microsoft's MSVC / Windows SDK are never shipped or generated, on any host. To target macOS or MSVC-ABI Windows, build that sysroot once with the scripts in `scripts/` (next section): they read the SDK you have installed (or, for MSVC, fetch it with xwin after you accept Microsoft's license) and put the result under `sysroot/`, where Kairo finds it with no flags. Without one, `--target` for those triples stops with an error naming the script. See [ksys](/docs/toolchain/ksys/) and [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/).
 
 ### macOS and MSVC targets
 
-Apple's and Microsoft's licenses forbid redistributing their SDKs, so the package cannot include `*-apple-macosx` or `*-windows-msvc` sysroots. Instead it ships two scripts in `scripts/` that build them from your own copy. They compile libc++ and compiler-rt from the LLVM source in `share/kairo/runtimes` using the package's own `kcc` and `kld`, and write the root to `sysroot/<target>`, where `kairo --target` finds it with no flags. You need `cmake`, `ninja` and `python3`.
+Apple's and Microsoft's licenses forbid redistributing their SDKs, so the package cannot include `*-apple-macosx` or `*-windows-msvc` sysroots, and `ksys` never builds them from the shipped tree. Instead it ships scripts in `scripts/` that build them from your own copy. They compile libc++ and compiler-rt from the LLVM source in `share/kairo/runtimes` using the package's own `kcc` and `kld`, and write the root to `sysroot/<target>`, where `kairo --target` finds it with no flags. You need `cmake`, `ninja` and `python3`.
 
-For MSVC on Linux, macOS or WSL, fetch the CRT and Windows SDK with [xwin](https://github.com/Jake-Shadle/xwin). Running it with `--accept-license` is where you accept Microsoft's license:
+For MSVC on Linux, macOS or WSL, `msvc-sysroot` gets the CRT and Windows SDK for you with [xwin](https://github.com/Jake-Shadle/xwin):
+
+```bash
+<install>/scripts/msvc-sysroot.sh x86_64
+```
+
+It prints Microsoft's license and asks you to accept it; `--accept-license` or `KAIRO_ACCEPT_MSVC_LICENSE=1` accepts it up front (a non-interactive run with neither stops). It uses `xwin` from `$XWIN_BIN`, else `PATH`, else downloads a pinned release (checked against its sha256) into `share/kairo/tools/`, and keeps the download in `share/kairo/msvc-cache/` for later runs. To use a splat you made yourself:
 
 ```bash
 xwin --accept-license --arch x86_64,aarch64,x86 splat --output ~/xwin
@@ -421,6 +420,10 @@ For macOS, on a Mac with the Command Line Tools installed (`xcode-select --insta
 
 Each script accepts several architectures at once (`x86_64 aarch64 i686`, or `arm64 x86_64 arm64e`). Keep the generated roots on your machine: they contain Apple's or Microsoft's files.
 
+You often do not need to run them. On a Mac, the first `kairo` or `kcc` build for macOS (the native default, or `--target arm64-apple-macosx` / `x86_64-apple-macosx`) assembles the root itself from the SDK it finds (`SDKROOT`, the selected Xcode or the Command Line Tools) and the prebuilt libc++ in `share/kairo/sdk-overlays/`, in a few seconds, into the `ksys` cache. On Windows, the first `--target x86_64-windows-msvc` build does the same from an xwin splat (`XWIN`, or the one `msvc-sysroot` cached) or, with Visual Studio's C++ tools installed, by running `msvc-sysroot.ps1` for you. With neither, it stops with an error giving the exact command: the CRT and Windows SDK download asks for Microsoft's license, so Kairo never starts it on its own. The scripts remain the way to build `arm64e` (no prebuilt overlay) or to rebuild libc++ from source.
+
+A macOS target without a version (`x86_64-apple-macosx`) compiles for the oldest macOS the roots support, 11.0 on arm64 and 10.15 on x86_64; name one (`arm64-apple-macosx13.0`) to raise it.
+
 ### System requirements
 
 - **Linux x86_64:** any distribution. The compiler is statically linked against musl and needs no system libc, libc++ or libunwind.
@@ -431,7 +434,7 @@ Each script accepts several architectures at once (`x86_64 aarch64 i686`, or `ar
 If you used the install script, add `~/.local/bin` to your `PATH` if it is not already there. For a manual extract:
 
 ```bash
-export PATH="$PATH:/path/to/kairo-0.2.0-x86_64-linux-musl/bin"
+export PATH="$PATH:/path/to/kairo-0.2.1-x86_64-linux-musl/bin"
 ```
 
 Add that line to your `~/.bashrc` or `~/.zshrc` to make it permanent.
@@ -487,7 +490,7 @@ You do not need a system Clang or xmake. The earlier C++ bootstrap compiler, Sta
 git clone https://github.com/kairolang/kairo/
 cd kairo
 git submodule update --init --recursive   # pulls the patched LLVM (large download)
-python3 build.py --release --kairo /path/to/kairo-0.2.0-x86_64-linux-musl/bin/kairo kairo kcc kld kfmt kld kfmt
+python3 build.py --release --kairo /path/to/kairo-0.2.1-x86_64-linux-musl/bin/kairo kairo kcc kld kfmt ksys
 ```
 
 The first build also builds the patched LLVM (once; later builds reuse it). `--kairo` names the bootstrap compiler; it can be left out when that `kairo` is on your `PATH`, and later builds use the last one they produced.
@@ -547,7 +550,9 @@ Both work with `fn main()` or `fn Test()` entry points.
 
 ## Troubleshooting
 
-**`warning [P008W]: no sysroot found for target ...`.** The target has no bundled sysroot (or the `sysroot/` directory is not next to `bin/`). Pass `--sysroot=<dir>`; see [Sysroots](#sysroots).
+**`warning [P008W]: no sysroot found for target ...`.** The target has no sysroot in the archive and there is no `share/kairo/sysroot` to build one from (or the `sysroot/` directory is not next to `bin/`). Pass `--sysroot=<dir>`; see [Sysroots](#sysroots).
+
+**`error [P009E]` with `--target`.** `ksys` refused to build the sysroot: the target is not one it knows (`ksys probe <target>` says why), the input tree does not match its hashes, or a tool is missing. Nothing was built. `kairo --explain P009E` lists the causes; a build that ran and failed is `P010E` and names a log. See [ksys](/docs/toolchain/ksys/#diagnostics).
 
 **`error [P008E]: no sysroot found for target ...` (a `*-apple-macosx` or `*-windows-msvc` target).** These sysroots are never bundled; build one with the scripts in `scripts/`, see [macOS and MSVC targets](#macos-and-msvc-targets).
 
@@ -830,6 +835,7 @@ Not built yet:
 - Compile-time evaluation of function calls: an `eval` constant cannot yet call a function to compute its value.
 - The parser still hands some malformed input to later passes as ordinary nodes. Poison nodes for invalid syntax, and fully safe pointers through the compiler's own AST, are scheduled before 0.3.5.
 - Incremental compilation phase 2 (reusing work inside a changed file's neighbours) is planned for 0.2.5.
+- Targets: the sysroot generator [ksys](/docs/toolchain/ksys/) builds Linux musl (x86_64, aarch64, i686, armv7, armv6, riscv64, riscv32), Linux glibc 2.31, MinGW, FreeBSD, NetBSD and `wasm32-wasi` sysroots on first use of `--target`. Coming in this release: several glibc versions per architecture, musl on PowerPC, s390x, MIPS and LoongArch (the Kairo library does not build for those yet: it needs `f16`, `bf16` and `f128` that clang lacks there, so C and C++ work first), and the wider set of LLVM backends (the 0.2.0 binaries carry X86, AArch64, ARM, RISC-V and WebAssembly). macOS and MSVC targets need your own SDK. Only x86_64 Linux is run by the test suite; generated sysroots for other targets are checked by building and running C, C++ and Kairo programs under QEMU, Node or Wine where those exist, and link-only otherwise.
 
 The list below is the detailed set of gaps in what is built.
 
@@ -1028,8 +1034,8 @@ All floating-point types except `f80` follow the IEEE 754 standard. A float lite
 | `f64` | 8 bytes | Double | `double` |
 | `f80` | 16 bytes (12 on i386); 10 hold the value | x87 extended; only on some targets, see below | `long double` |
 | `f128` | 16 bytes | Quadruple | `__float128` |
-| `f256` | 32 bytes | Extended (software) |   |
-| `f512` | 64 bytes | Extended (software) |   |
+| `f256` | 32 bytes | IEEE binary256, in software | `::builtin::num::f256_t::F256` |
+| `f512` | 64 bytes | binary512 (see below), in software | `::builtin::num::f512_t::F512` |
 
 ```kairo
 var x = 3.14        // f64 (default)
@@ -1039,12 +1045,26 @@ var w = 0x1.8p3f32  // f32 hexadecimal float: 12.0
 var b = 1.5bf16     // bf16
 ```
 
-The float suffixes are `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (`f80` and `f128` only where the target has them, see below), in lower or upper case. A literal is rounded once, to the type it is used at, from its decimal digits: `16777217.0f32` is `16777216.0` and `16777217.0f64` is exact, and `var q: f128 = 0.1` is `0.1` at `f128` precision, not the `f64` value `0.1` widened. An unknown float suffix (`1.5f8`, `1.5xyz`) is [SC074E](/docs/language/diagnostics/).
+The float suffixes are `f16`, `bf16`, `f32`, `f64`, `f80`, `f128`, `f256` and `f512` (`f80` and `f128` only where the target has them, see below), in lower or upper case. A literal is rounded once, to the type it is used at, from its decimal digits: `16777217.0f32` is `16777216.0` and `16777217.0f64` is exact, and `var q: f128 = 0.1` is `0.1` at `f128` precision, not the `f64` value `0.1` widened. An unknown float suffix (`1.5f8`, `1.5xyz`) is [SC074E](/docs/language/diagnostics/).
 
-Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 no crash, no trap. Test for `NaN` with `x != x`: a `NaN` compares unequal to everything, itself included, so `x == f64::NAN` is always `false`. An infinity is an ordinary value to compare with: `x == f64::INFINITY`. See [Limits](#limits).
+Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN` (e.g., `0.0 / 0.0`, `sqrt(-1.0)`) propagate `NaN` per IEEE 754 no crash, no trap. Test for `NaN` with `x.is_nan()` (or `x != x`): a `NaN` compares unequal to everything, itself included, so `x == f64::NAN` is always `false`. An infinity is an ordinary value to compare with: `x == f64::INFINITY`. See [Limits](#limits).
 
 > [!NOTE]
-> `f256` and `f512` are not natively supported on any current hardware and are implemented entirely in software, using SIMD instructions when available. Like extended-width integers, they are stack-allocated value types. Expect significantly lower performance compared to hardware-backed float types.
+> `f256` and `f512` are not natively supported on any current hardware and are implemented entirely in software (no LLVM type exists at these widths). Like extended-width integers, they are stack-allocated value types. Expect them to be far slower than hardware floats: on x86_64 at `-O2`, an `f256` add or multiply takes about 0.2 to 0.3 µs and a divide about 0.4 µs; `f512` up to about twice that.
+
+### `f256` and `f512`
+
+`f256` is IEEE 754 binary256: a sign bit, a 19-bit exponent (bias 262143) and a 236-bit fraction, so 237 bits of precision (about 71 decimal digits) and a range of about 10^±78913.
+
+IEEE 754 defines no 512-bit format. `f512` carries the standard's rule for its interchange formats (IEEE 754-2019, 3.6) to k = 512: precision p = k − round(4·log₂ k) + 13 = 489, leaving w = k − p = 23 exponent bits (bias 4194303) and a 488-bit fraction. The same rule gives the 15 exponent bits of binary128 and the 19 of binary256. That is about 147 decimal digits and a range of about 10^±1262612.
+
+Both behave as every other IEEE format does: each operation (`+ - * /`, conversions, square root, fused multiply-add) is rounded once, to nearest with ties to even; there are signed zeros, subnormals and infinities, and an operation that has no value gives a quiet NaN. That NaN is always the same one (sign 0, top fraction bit set); `-x` and `abs` only change the sign bit, NaN or not. There are no floating-point exceptions or flags.
+
+- **Conversions.** `x as T` between `f256`/`f512` and any float the target has (`f16`, `bf16`, `f32`, `f64`, `f80`, `f128`, each other) is rounded once, never through an intermediate format. To an integer it truncates toward zero and saturates at the type's limits, and NaN converts to 0, as for every float. From every integer type, `i8` to `u512`, it rounds to nearest even.
+- **Literals.** `1.5f256`, or any float literal used where an `f256` or `f512` is expected, is rounded once from all its digits, decimal or hex, as `var q: f128 = 0.1` is. A literal is converted when the code runs, not at compile time: an `f256` or `f512` value in an `eval` context (an `eval` constant, an `eval fn`'s parameter or result, an `eval if` condition) is not supported yet ([SC116E](/docs/language/diagnostics/)).
+- **Limits.** `f256::MAX`, `f256::EPSILON`, `f512::NAN` and the rest are the formats' own, as for every float ([Limits](#limits)).
+- **Methods.** The same as every float's ([Float methods](#float-methods)); `to_bits()` gives a `u256` / `u512`.
+- **Formatting.** In an f-string, `{x}` writes the shortest digits that read back as the same value (at most 73 for `f256`, 149 for `f512`); a precision (`{x:.30e}`, `{x:.10}`) gives that many digits, every one exact, the last rounded to even. Width, fill, alignment and sign work as for `f64`.
 
 ### `f80` follows the target's `long double`
 
@@ -1068,6 +1088,41 @@ var x: f80 = 1.0    // ok
 // building for aarch64-unknown-linux-gnu
 var y: f80 = 1.0    // error P003E: long double is binary128 here; use f128
 ```
+
+### Float methods
+
+Every float type has the same methods: `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (where the target has them), `f256` and `f512`. They are called on a value, a literal or a limit:
+
+```kairo
+var x: f64 = 2.0
+var r = x.sqrt()                 // 1.4142135623730951
+var y = x.fma(3.0, 1.0)          // 7.0: 2.0 * 3.0 + 1.0, rounded once
+var n = (0.0 / 0.0).is_nan()     // true
+var m = f64::MAX.is_finite()     // true
+var b = (-0.0f32).to_bits()      // 0x80000000
+```
+
+| Method | Meaning | Types |
+|---|---|---|
+| `to_bits()` | The encoding as an unsigned integer of the same width: `u16` for `f16` and `bf16`, `u32`, `u64`, `u128` for `f128`, `u256`, `u512`. `f80` gives a `u128` holding the 80-bit x87 encoding in its low bits (bit 79 the sign, bit 63 the explicit integer bit), the rest 0 | all |
+| `sqrt()` | The square root, correctly rounded; `sqrt(-0.0)` is `-0.0`, any other negative is NaN | all |
+| `fma(b, c)` | `self * b + c`, rounded once | all |
+| `abs()` | The magnitude: the sign bit cleared, NaN included | all |
+| `copysign(s)` | `self`'s magnitude with `s`'s sign bit | all |
+| `is_nan()` | Whether `self` is a NaN | all |
+| `is_infinite()` | Whether `self` is `+inf` or `-inf` | all |
+| `is_finite()` | Neither infinite nor NaN | all |
+| `is_zero()` | Whether `self` is `+0.0` or `-0.0` | all |
+| `is_subnormal()` | Nonzero and below the smallest normal (`T::MIN_POSITIVE`) | all |
+| `is_normal()` | Finite, nonzero and not subnormal | all |
+| `is_sign_negative()` | Whether the sign bit is set: true for `-0.0` and a negative NaN | all |
+| `is_unordered(o)` | Whether `self` or `o` is a NaN (IEEE 754's unordered relation) | all |
+
+"all" is every type above, on every target that has the type; `f8e4m3` and `f8e5m2` have no methods yet.
+
+- **Rounding.** `sqrt` and `fma` are correctly rounded (to nearest, ties to even) on every type. `f16` and `bf16` compute in `f32` and round back, which is exact for `sqrt`; their `fma` rounds the exact result to odd at `f32` and then to nearest, so it too rounds only once. `f32`, `f64` and `f80` use the hardware instruction, or the C library's `fmaf` / `fma` / `fmal` where there is none, which are correctly rounded in glibc and musl; elsewhere the result is as exact as that library's. `f80`'s `sqrt` is the x87 `fsqrt` instruction, exact at the default 64-bit precision control. `f128`, `f256` and `f512` use Kairo's software float engine, the same on every target.
+- **NaN results.** `f128`, `f256` and `f512` return the canonical quiet NaN. The hardware types return what the instruction or the C library gives, which may carry an operand's payload. `abs` and `copysign` only change the sign bit, so they keep a NaN's payload on every type.
+- **`f128` in a file.** `f128`'s methods are loaded only into the files that spell `f128` (the type, or a literal such as `1.5f128`), as `f256` and `f512` are, so that programs that never use it do not compile the software engine. A file that only receives an `f128` value from elsewhere and never names the type does not see them; writing the type anywhere in the file (`var x: f128 = v`) does.
 
 ---
 
@@ -1326,8 +1381,10 @@ Each one is a constant of its own type, exactly as a suffixed literal is: `u64::
 | `f64` | 53 | 2⁻⁵² | ≈1.80·10³⁰⁸ | 2⁻¹⁰²² | 2⁻¹⁰⁷⁴ | 15 | 17 | −1021 | 1024 | −307 | 308 |
 | `f80` | 64 | 2⁻⁶³ | ≈1.19·10⁴⁹³² | 2⁻¹⁶³⁸² | 2⁻¹⁶⁴⁴⁵ | 18 | 21 | −16381 | 16384 | −4931 | 4932 |
 | `f128` | 113 | 2⁻¹¹² | ≈1.19·10⁴⁹³² | 2⁻¹⁶³⁸² | 2⁻¹⁶⁴⁹⁴ | 33 | 36 | −16381 | 16384 | −4931 | 4932 |
+| `f256` | 237 | 2⁻²³⁶ | ≈1.61·10⁷⁸⁹¹³ | 2⁻²⁶²¹⁴² | 2⁻²⁶²³⁷⁸ | 71 | 73 | −262141 | 262144 | −78912 | 78913 |
+| `f512` | 489 | 2⁻⁴⁸⁸ | ≈2.07·10¹²⁶²⁶¹¹ | 2⁻⁴¹⁹⁴³⁰² | 2⁻⁴¹⁹⁴⁷⁹⁰ | 146 | 149 | −4194301 | 4194304 | −1262610 | 1262611 |
 
-The values are the formats' own (IEEE 754 for `f16`, `f32`, `f64` and `f128`; bfloat16; x87 extended; OCP FP8 E4M3FN and E5M2), computed by the compiler from each format's layout, never read from the host's `<float.h>`. Every finite one is exact.
+The values are the formats' own (IEEE 754 for `f16`, `f32`, `f64`, `f128` and `f256`; `f512`'s rule, see above; bfloat16; x87 extended; OCP FP8 E4M3FN and E5M2), computed by the compiler from each format's layout, never read from the host's `<float.h>`. Every finite one is exact.
 
 Comparing with an infinity works as with any value; comparing with `NAN` never does, because a `NaN` is unequal to everything, itself included:
 
@@ -1343,7 +1400,6 @@ A limit a format does not have is not defined, and naming it is an error ([R024E
 
 - `f8e4m3` is the FN format: it has no infinity, and overflow saturates to 448. `f8e4m3::INFINITY` and `f8e4m3::NEG_INFINITY` are errors; it has a `NAN`.
 - `f80` exists only where the target's `long double` is x87 extended. Elsewhere, `f80::MAX` is the same [P003E](/docs/language/diagnostics/) as spelling `f80` at all.
-- `f256` and `f512` have no limits until they have a fixed representation.
 - The float limits (`EPSILON`, `INFINITY`, ...) are not defined on integers.
 
 ### `char`, `byte`, `bool`
@@ -12770,7 +12826,7 @@ URL: https://www.kairolang.org/docs/language/c-cpp-toolchain/
 
 Kairo ships two drivers, `kairo` and `kcc`, written in Kairo (the compiler compiles itself). Both embed the **same pinned Clang** (an LLVM 22 fork). Neither invokes a system compiler.
 
-A release archive holds `bin/` (`kairo`, `kcc`, `kld`, `kfmt`, `llvm-symbolizer`, `llvm-ar`, `llvm-ranlib`, `llvm-lib`) and `lib/` (including `lib/clang/22`). There are no `clang` or `clang++` binaries: `kairo` and `kcc` run clang in-process and `kld` runs lld in-process. The `lib/` tree holds Clang's resource directory with compiler-rt, and the builtin, std and runtime sources). Archives exist for static musl Linux (x86_64, i686, aarch64, armv7, riscv64), Windows (MinGW; x86_64, i686, aarch64, armv7), FreeBSD (x86_64, aarch64), NetBSD (x86_64) and macOS (x86_64 10.15+, arm64 11+). Only x86_64 Linux is run by the test suite. The sysroots for every cross target are one separate archive, unpacked as `<prefix>/sysroot`.
+A release archive holds `bin/` (`kairo`, `kcc`, `kld`, `kfmt`, `ksys`, `llvm-symbolizer`, `llvm-ar`, `llvm-ranlib`, `llvm-lib`) and `lib/` (including `lib/clang/22`). There are no `clang` or `clang++` binaries: `kairo` and `kcc` run clang in-process and `kld` runs lld in-process. The `lib/` tree holds Clang's resource directory with compiler-rt, and the builtin, std and runtime sources). Archives exist for static musl Linux (x86_64, i686, aarch64, armv7, riscv64), Windows (MinGW; x86_64, i686, aarch64, armv7), FreeBSD (x86_64, aarch64), NetBSD (x86_64) and macOS (x86_64 10.15+, arm64 11+). Only x86_64 Linux is run by the test suite. `<prefix>/sysroot` holds the host's own prebuilt sysroots; every other target's is built on first use by [ksys](/docs/toolchain/ksys/) from `<prefix>/share/kairo/sysroot` and cached.
 
 ### `kairo`: the Kairo compiler
 
@@ -12822,7 +12878,7 @@ Sysroots are pinned to specific library versions (a particular glibc, a particul
 
 How `--target` finds its sysroot:
 
-- A `--target` uses the sysroot generated for it, kept beside the compiler: `<prefix>/sysroot/<dir>`, where `<prefix>` is the directory above the one holding `kairo`.
+- A `--target` uses the sysroot for it, looked up in order: `<prefix>/sysroot/<dir>` beside the compiler (`<prefix>` is the directory above the one holding `kairo`), then the [ksys](/docs/toolchain/ksys/) cache, then a build by `ksys` from the shipped input tree (first use only; `--no-sysroot-build` refuses it with `P009E`).
 - The folder is matched by target, not by spelling. Vendor, OS version, and LLVM's aliases do not matter, but the sub-architecture does. So `x86_64-pc-windows-msvc` finds `x86_64-windows-msvc`, `x86_64-linux-gnu` finds `x86_64-linux-gnu-glibc2.31`, `aarch64-apple-darwin` finds `arm64-apple-macosx`, and `arm64e` does not match `arm64`.
 - `-m32` / `-m64` look up the architecture they switch to: `--target=x86_64-linux-musl -m32` uses `i686-linux-musl`.
 - A bundled sysroot takes precedence over `--sysroot`. With no matching folder, `--sysroot` is used if given; otherwise the compiler warns ([P008W](/docs/language/diagnostics/)) and there are no system headers.
@@ -19614,6 +19670,8 @@ kairo --type-check-only main.k
 | `--emit-headers=<dir>` | write one C++ header per module ([Using Kairo in C++](/docs/language/c-cpp-exposing/)) |
 | `--type-check-only` | parse and check without generating code |
 | `--target=<triple>`, `--sysroot=<dir>`, `--freestanding`, `--native` | [cross-compilation and sysroots](/docs/language/c-cpp-toolchain/#cross-compilation) |
+| `--no-sysroot-build` | with `--target` and no installed or cached sysroot, refuse (`P009E`, exit 2) instead of building one with [ksys](/docs/toolchain/ksys/) |
+| `--print-runtimes-revision` | print the LLVM runtimes revision this compiler was built from, and exit |
 | `--progress=auto\|always\|never\|lines` | the build status line |
 | `--sema-threads=N`, `--codegen-threads=N`, `--threads=N` | parallelism of type checking and code generation |
 | `--interface-pch=auto\|on\|off` | share precompiled Kairo interfaces between files |
@@ -19624,9 +19682,13 @@ kairo --type-check-only main.k
 | `--print-stats`, `-v` | timings, counts, and what each step did |
 | `--help`, `--help-hidden` | list the flags; `--help-hidden` adds internal and not-yet-implemented ones |
 
+## Targets and sysroots
+
+`--target=<triple>` compiles for another platform. The first time you name a target whose sysroot is neither shipped in the install (`<install>/sysroot/`) nor already cached, `kairo` builds it in-process from the sources the toolchain ships and prints `building sysroot for <name>, first time only`. Later builds reuse the cached root. `--sysroot=<dir>` names a root you already have, `--freestanding` compiles without one, and `--no-sysroot-build` turns the automatic build into an error. A failed build is `P010E` (exit 3); a refusal is `P009E` (exit 2). The `*-apple-macosx` and `*-windows-msvc` targets need your own SDK and are never built this way ([ksys](/docs/toolchain/ksys/#targets-that-need-your-sdk)). Target names, including the glibc version suffix (`x86_64-linux-gnu.2.17`), the cache and `KAIRO_SYSROOT_CACHE` are on the [ksys](/docs/toolchain/ksys/) page.
+
 Pretty diagnostics show the location as `file:line:col`. On a terminal a build prints a single status line (`parse`, `sema`, `codegen` with counts) that disappears before any diagnostic appears.
 
-`kairo` finds its standard library, runtime and clang resources relative to its own location, so an unpacked release runs without flags. `python3 build.py` stages the same layout when building from source ([Installation](/docs/install/#building-from-source)). See also [kcc](/docs/toolchain/kcc/), [kld](/docs/toolchain/kld/) and [kfmt](/docs/toolchain/kfmt/).
+`kairo` finds its standard library, runtime and clang resources relative to its own location, so an unpacked release runs without flags. `python3 build.py` stages the same layout when building from source ([Installation](/docs/install/#building-from-source)). See also [kcc](/docs/toolchain/kcc/), [ksys](/docs/toolchain/ksys/), [kld](/docs/toolchain/kld/) and [kfmt](/docs/toolchain/kfmt/).
 
 ---
 
@@ -19662,6 +19724,8 @@ Two additions over clang:
 - **`.k` inputs** are compiled by the Kairo compiler and linked with everything else.
 
 An option that Kairo has its own flag for becomes that flag; any other option reaches clang unchanged. `kcc --help` and `kcc --version` describe `kcc`, and `-###` prints each compile job and the link without running them.
+
+`--target=<triple>` works as in [kairo](/docs/toolchain/kairo/): when the target's sysroot is not installed or cached, `kcc` builds it on first use with [ksys](/docs/toolchain/ksys/), and `--no-sysroot-build` refuses instead. `--sysroot=<dir>` names a root you already have and `--freestanding` compiles without one.
 
 `kcc` is the supported way to compile C++ in a Kairo project. See [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/) for the toolchain model, sysroots, separate compilation and incremental builds, and [Using Kairo in C++](/docs/language/c-cpp-exposing/) for what a C++ file sees.
 
@@ -19765,6 +19829,178 @@ Because `kairo` and `kcc` both use the same pinned compiler, the objects of one 
 URL: https://www.kairolang.org/docs/toolchain/kpkg/
 
 
+
+---
+
+## ksys
+URL: https://www.kairolang.org/docs/toolchain/ksys/
+
+# ksys
+
+`ksys` builds a **sysroot** (a target's C library, headers, C++ runtimes and compiler runtime) from sources shipped inside the toolchain, the way Zig builds its libc on demand. There is no per-target download: the release archive holds one input tree and the compiler, and the first time you ask for a target the toolchain builds its sysroot and caches it.
+
+You rarely run `ksys` yourself. `kairo` and `kcc` call the same code in-process, so this is all it takes:
+
+```sh
+kairo --target=aarch64-linux-musl main.k -o main   # first use builds the sysroot; later uses reuse it
+kcc   --target=riscv64-linux-gnu-glibc2.31 main.cc -o app
+```
+
+On the first use of a target the driver prints `building sysroot for <name>, first time only` on stderr. A typical build takes 5 to 30 seconds. It needs no network, no CMake, no Ninja and no `make`; it uses the toolchain's own `kcc`, `kld` and `llvm-ar`.
+
+## When the driver builds one
+
+For `--target T` with no `--sysroot`, `--freestanding` or `--macos-sdk`, the driver looks for a sysroot in this order:
+
+1. `<install>/sysroot/<name>`, a root shipped in the archive (the host's own);
+2. the cache (below);
+3. a build with `ksys`, when the install has its input tree (`share/kairo/sysroot`).
+
+`--no-sysroot-build` turns step 3 into a refusal. A build that has no input tree to work from is not attempted, and the compiler warns with `P008W` and names `--sysroot`, as before. `--help`, `--version`, `--explain` and the info queries never build; `--version` reports a cached sysroot but does not create one.
+
+```sh
+kairo --target=riscv32-linux-musl --no-sysroot-build main.k   # refuse instead of build
+```
+
+## Commands
+
+```
+usage: ksys [--share DIR] [--cache DIR] [-j N] [-q] <command>
+  probe <target>                               parse and probe; print the table
+  ensure <target> [--glibc=X.Y] [--input DIR]  the cached sysroot (built if missing); path on stdout
+  build <target> [--glibc=X.Y] [--input DIR] --out DIR
+                                               build into DIR, uncached
+  tables <target> --out DIR                    the runtimes tables the target compiles from, unbuilt
+  validate <dir>                               check a sysroot
+  verify-share                                 re-hash every input of the share tree
+  ls                                           cached sysroots by name
+  gc                                           drop unnamed sysroots and stage dirs older than 30 days
+  rm <name>                                    drop a cached sysroot
+  --print-runtimes-revision                    the LLVM runtimes revision this toolchain was built from
+```
+
+`<target>` is a sysroot name (`x86_64-linux-musl`, `x86_64-linux-gnu-glibc2.31`) or a clang triple.
+
+| Command | What it does |
+|---|---|
+| `ensure <target>` | Prints the path of the cached sysroot on stdout, building it first if it is missing. Progress goes to stderr, so `$(ksys ensure T)` is safe in a script. |
+| `build <target> --out DIR` | Builds into `DIR` and does not use or fill the cache. |
+| `probe <target>` | Parses the name and reports what is needed without building: the sysroot name, family, provider, libc version, whether the LLVM backend is compiled in, the clang triple, the quirks that apply, whether the provider supports the arch, whether the tools are present, and the target's properties (bits, endianness, int128, exception model). It stops with a refusal if the target cannot be built. |
+| `validate <dir>` | Checks a sysroot: its structure, that the toolchain builds against it, and a C, C++ and Kairo program built and run (under QEMU, Wine or Node where one is installed; a step that cannot run is printed as `SKIP`, never as a pass). |
+| `tables <target> --out DIR` | Writes the runtimes tables (the exact compile lines for compiler-rt, libunwind, libc++abi and libc++) that the target would be built from, without building. |
+| `verify-share` | Re-hashes every input of the share tree against its recorded hash. |
+| `ls`, `gc`, `rm <name>` | List the cache, drop unreferenced sysroots and stage directories older than 30 days, or remove one sysroot by name. |
+| `--print-runtimes-revision` | Prints the LLVM revision the toolchain's C++ runtimes sources must match. `kairo --print-runtimes-revision` prints the same. |
+
+Options before the command:
+
+| Option | Meaning |
+|---|---|
+| `--share DIR` | the input tree to build from (default `$KAIRO_SYSROOT_SHARE`, else `<install>/share/kairo/sysroot`) |
+| `--cache DIR` | the cache root (default below) |
+| `-j N` | parallel compile jobs (the default is the number of hardware threads; `$KSYS_JOBS` also sets it) |
+| `-q` | quiet: no progress on stderr |
+
+`--glibc=X.Y` picks a glibc version and `--input DIR` names the user-supplied SDK for the targets that need one ([below](#targets-that-need-your-sdk)).
+
+Exit status: `0` ok, `1` usage, `2` a refusal (nothing was built; one line says why), `3` a build or validation failure.
+
+## Target spelling
+
+A target is a name of the form `<arch>-<os>[-<env>][-glibc<version>]`, or any clang triple that maps to one. `ksys` and the compiler accept both and normalize:
+
+| You write | The sysroot is named | The clang triple is |
+|---|---|---|
+| `x86_64-linux-musl` | `x86_64-linux-musl` | `x86_64-unknown-linux-musl` |
+| `x86_64-unknown-linux-musl` | `x86_64-linux-musl` | `x86_64-unknown-linux-musl` |
+| `x86_64-linux-gnu-glibc2.31` | `x86_64-linux-gnu-glibc2.31` | `x86_64-unknown-linux-gnu` |
+| `aarch64-linux-gnu` | the default glibc version of the share, spelled out in the name | `aarch64-unknown-linux-gnu` |
+| `x86_64-linux-gnu.2.17` | `x86_64-linux-gnu-glibc2.17` | `x86_64-unknown-linux-gnu` |
+| `armv7-linux-gnueabihf-glibc2.31` | the same | `armv7-unknown-linux-gnueabihf` |
+
+The glibc version can be written two ways: `-glibc<X.Y>` at the end of the name, or Zig's `.<X.Y>` suffix after the environment (`x86_64-linux-gnu.2.17`). A glibc target without a version takes the default of the share. glibc 2.31 is the only version in the input tree of this release, so any other version is refused with `glibc <v> is not in the shipped set`; more versions are coming in this release.
+
+32-bit Arm on Linux is always hard-float (`gnueabihf`, `musleabihf`): the name carries no float ABI, so a soft-float triple is refused. A name that is not a sysroot name, or that matches several, stops with an error listing the candidates.
+
+Any well-formed triple names a target. Whether it can be built is then decided in this order, each with its own refusal: the LLVM backend must be compiled into the toolchain, the target's family must have a recipe for that architecture, and the runtimes must be derivable for it.
+
+## Where things live
+
+**The cache** holds what `ksys` built:
+
+| | |
+|---|---|
+| Location | `$KAIRO_SYSROOT_CACHE`, else `sysroot/` under the toolchain cache root |
+| Toolchain cache root | `$KAIRO_CACHE_DIR`, else `$XDG_CACHE_HOME/kairo`, else `~/.cache/kairo`, else `%LOCALAPPDATA%\kairo` on Windows |
+| Layout | `sysroots/<key>/` the finished sysroots, `by-name/<name>` the entry the driver looks up, `stage/` the build stages, `locks/` |
+
+A sysroot's key covers its inputs and the toolchain's own build, so a new toolchain builds fresh sysroots instead of reusing stale ones. Two compiles of the same target at once wait on one build. Delete the directory at any time: it is only a cache. `ksys gc` drops sysroots nothing names and stage directories older than 30 days.
+
+**The share** is the input tree: the libc sources and headers, the glibc symbol lists, the mingw-w64 and wasi-libc sources, the BSD base trees, the Linux UAPI headers and the licenses of all of it. It is at `<install>/share/kairo/sysroot`, or wherever `$KAIRO_SYSROOT_SHARE` or `--share` points. Every input is checked against a recorded hash before anything is built, and the toolchain refuses a share that does not match it. The C++ runtimes are built from `<install>/share/kairo/runtimes`, whose `REVISION` must equal `ksys --print-runtimes-revision`.
+
+A generated sysroot carries the licenses of the parts it was built from in `LICENSES/`, so you may ship it, for example inside a container image.
+
+## Diagnostics
+
+| Code | Exit | Meaning |
+|---|---|---|
+| `P009E` | 2 | The generator refused: the target is not a sysroot it knows, the input tree is missing or does not match its hashes, the runtimes revision does not match the compiler, the LLVM backend is not compiled in, the family has no port for that architecture, or a tool is missing. Nothing was built and nothing is downloaded. |
+| `P009N` | | The note under a `P009E`: what to do about it. |
+| `P010E` | 3 | A build stage or the validation ran and failed. The message names the stage and a log directory; the failed stage is kept as `<stage dir>.failed` and is retried on the next build. A failure that repeats with the same inputs is a toolchain bug: report it with that log. |
+
+`kairo --explain P009E` and `--explain P010E` print the long form. `--no-sysroot-build` produces a `P009E`.
+
+## Targets that need your SDK
+
+Apple's and Microsoft's licenses forbid redistributing their SDKs, so `ksys` never builds those roots from the shipped tree and the compiler never bundles them. Without one, `--target` for these triples stops with `P008E` that names the script to run. The toolchain ships two scripts in `<install>/scripts/` that build your own copy into `<install>/sysroot/<target>`, where `kairo --target` finds it with no flags.
+
+**macOS** (`*-apple-macosx`; `arm64`, `arm64e`, `x86_64`), on a Mac with the Command Line Tools installed (`xcode-select --install`):
+
+```sh
+<install>/scripts/darwin-sysroot.sh arm64
+```
+
+It reads the SDK from `xcrun --sdk macosx --show-sdk-path`, or from `SDK=<path to MacOSX.sdk>`. A macOS sysroot can only be built on a macOS host with this script, or from a copy of the SDK you are licensed to use.
+
+**MSVC Windows** (`*-windows-msvc`; `x86_64`, `aarch64`, `i686`). On Windows with Visual Studio (the "Desktop development with C++" workload) the script uses the installed CRT and Windows SDK:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <install>\scripts\msvc-sysroot.ps1 x86_64
+```
+
+On Linux, macOS or WSL the script fetches the CRT and Windows SDK itself with [xwin](https://github.com/Jake-Shadle/xwin):
+
+```sh
+<install>/scripts/msvc-sysroot.sh x86_64          # or: aarch64 i686
+```
+
+It prints Microsoft's license and asks you to accept it. `--accept-license` or `KAIRO_ACCEPT_MSVC_LICENSE=1` accepts it up front (for CI); a non-interactive run with neither stops. The script uses `xwin` from `$XWIN_BIN`, else `PATH`, else downloads a pinned release (checking its sha256) into `<install>/share/kairo/tools/`. The download is kept in `<install>/share/kairo/msvc-cache/` and reused by later runs. To use a splat you made yourself, set `XWIN=<dir>`.
+
+Both scripts compile libc++ and compiler-rt from `share/kairo/runtimes` with the toolchain's own `kcc` and `kld`. Keep the generated roots on your machine: they contain Apple's or Microsoft's files.
+
+## Supported targets
+
+Names below are what `--target` accepts. "Built on first use" means the sysroot comes from the input tree; "shipped" means the archive of that host already holds it (see [Installation](/docs/install/#sysroots)).
+
+| Platform | Architectures | C library | Notes |
+|---|---|---|---|
+| Linux, musl (static) | `x86_64`, `aarch64`, `i686`, `armv7`, `armv6`, `riscv64`, `riscv32` | musl | built on first use; the host's own is shipped |
+| Linux, glibc | `x86_64`, `aarch64`, `i686`, `armv7` (`gnueabihf`), `riscv64` | glibc 2.31 | built against stub libraries generated from glibc's symbol lists; the host's own is shipped |
+| Windows, MinGW | `x86_64`, `aarch64`, `i686`, `armv7` (`*-windows-gnu`) | mingw-w64 | built from source on first use |
+| FreeBSD | `x86_64`, `aarch64` (`*-unknown-freebsd`) | FreeBSD base | built on first use |
+| NetBSD | `x86_64` (`x86_64-unknown-netbsd`) | NetBSD base | built on first use |
+| WebAssembly | `wasm32-wasi` | wasi-libc | built from source on first use |
+| Windows, MSVC | `x86_64`, `aarch64`, `i686` (`*-windows-msvc`) | Microsoft CRT | [your SDK](#targets-that-need-your-sdk) |
+| macOS | `arm64`, `arm64e`, `x86_64` (`*-apple-macosx`) | Apple libSystem | [your SDK](#targets-that-need-your-sdk) |
+
+**Coming in this release:**
+
+- glibc with several versions per architecture (the `.2.17` and `-glibc2.17` spellings already parse; only 2.31 is in the input tree today);
+- musl on `powerpc`, `powerpc64`, `powerpc64le`, `s390x`, `mips`, `mipsel`, `mips64`, `mips64el` and `loongarch64`.
+
+The toolchain's LLVM is now configured with 16 backends plus the experimental Xtensa (X86, AArch64, ARM, RISC-V, WebAssembly, PowerPC, SystemZ, MIPS, LoongArch, Sparc, AVR, MSP430, BPF, NVPTX, AMDGPU, SPIRV), also coming in this release, so `kcc` can compile C and C++ for those targets with `--freestanding` or your own `--sysroot`. The 0.2.0 binaries carry the first five.
+
+See [kairo](/docs/toolchain/kairo/) and [kcc](/docs/toolchain/kcc/) for the flags, and [kairo, kcc & Cross-compilation](/docs/language/c-cpp-toolchain/) for the toolchain model.
 
 ---
 
@@ -21780,6 +22016,16 @@ inline fn put_f128(self, v: f128, spec: u64)
 Appends an `f128` hole via the runtime formatter (rt/fmt.h), honouring the sign bit of
 -0.0 and NaN. Precision, width, fill and alignment come from `spec`; the `e` base selects
 exponent form, `E` with the upper flag.
+
+### `f256` and `f512` holes
+
+An `f256` or `f512` hole has no `put_` method on `FmtBuf`: the value formats itself, through
+its class's `fmt_put_` (`F256::fmt_put_`, `F512::fmt_put_`), so `FmtBuf` never names the
+two types and a program that does not use them never compiles their code. The text is
+the same contract as the other floats': the sign bit of -0.0 and NaN is honoured;
+precision, width, fill and alignment come from `spec`; the `e` base selects exponent
+form, `E` with the upper flag. The shortest form has at most 73 significant digits for
+`f256` and 149 for `f512`; a precision gives at most 600.
 
 ### `FmtBuf.put_ptr`
 
@@ -24559,7 +24805,7 @@ URL: https://www.kairolang.org/blog/first-benchmarks/
 
 Fifteen programs written in Kairo, C++ and Rust, plus one that measures a Kairo-only feature, timed on one machine. All results are below, losses included.
 
-One fact frames everything: Kairo compiles through Clang and LLVM. Kairo source is lowered to C++ and handed to Kairo's own Clang/LLVM 22 build. On plain arithmetic, Kairo, Clang and rustc therefore share an optimizer and a code generator, and a gap between them comes from what each frontend hands LLVM, not from the backend. Large Kairo wins come from the runtime (its mimalloc heap) or from how a language feature is lowered.
+One fact frames everything: Kairo compiles through Clang and LLVM. Kairo's frontend parses and type-checks the source itself, and its own Clang/LLVM 22 build is the backend. On plain arithmetic, Kairo, Clang and rustc therefore share an optimizer and a code generator, and a gap between them comes from what each frontend hands LLVM, not from the backend. Large Kairo wins come from the runtime (its mimalloc heap) or from how a language feature is lowered.
 
 Summary: on 9 of 15 programs Kairo is within 10% of the best C++ or Rust build. It's well ahead where the heap dominates, ahead on generators, closures and the interpreter loop, and behind on nbody and, against GCC only, on virtual dispatch.
 
@@ -24632,11 +24878,11 @@ closures calls three capturing callbacks stored in an array, a billion times. Al
 
 
 
-dispatch makes virtual calls over a mixed array of 1,024 shapes. GCC is 2.5× faster than Kairo, Clang and Rust, which all finish in 2.03 s. Kairo matching Clang here is expected, since its virtual calls lower to C++ virtual calls compiled by Clang. GCC is the outlier because of speculative devirtualization: the derived classes are `final`, so GCC knows the complete set of three overriders and can replace the indirect call with type checks and inlined bodies.
+dispatch makes virtual calls over a mixed array of 1,024 shapes. GCC is 2.5× faster than Kairo, Clang and Rust, which all finish in 2.03 s. Kairo matching Clang here is expected, since Kairo classes share the C++ vtable ABI and their virtual calls go through the same backend as Clang's. GCC is the outlier because of speculative devirtualization: the derived classes are `final`, so GCC knows the complete set of three overriders and can replace the indirect call with type checks and inlined bodies.
 
 
 
-gen is a three-stage pipeline of nested generators summing a billion values: `-> yield T` in Kairo, C++20 coroutines in C++, iterator adapters in Rust. Kairo generators lower to C++20 coroutines, so Kairo and the Clang row use the same coroutine machinery. In both, Clang elides the coroutine frames' heap allocations and inlines the whole pipeline into the caller's loop. GCC doesn't perform that elision, which is why its row is 6.6× slower. Kairo is 1.2× ahead of Clang and 1.7× ahead of Rust. The difference between Kairo and Clang is Kairo's promise type and how `yield` is lowered. Like fannkuch, gen has one outlier run (0.451 s, 20% under the median).
+gen is a three-stage pipeline of nested generators summing a billion values: `-> yield T` in Kairo, C++20 coroutines in C++, iterator adapters in Rust. Kairo generators are built on the same coroutine machinery as C++20 coroutines, so Kairo and the Clang row share it. In both, Clang elides the coroutine frames' heap allocations and inlines the whole pipeline into the caller's loop. GCC doesn't perform that elision, which is why its row is 6.6× slower. Kairo is 1.2× ahead of Clang and 1.7× ahead of Rust. The difference between Kairo and Clang is Kairo's promise type and how `yield` is lowered. Like fannkuch, gen has one outlier run (0.451 s, 20% under the median).
 
 
 
@@ -24646,7 +24892,7 @@ gsort is a hand-written generic sort over a comparison bound, with closures for 
 
 
 
-interp runs a small bytecode loop: an enum with payloads and `match` in Kairo and Rust, a tagged struct and `switch` in C++. Kairo and Rust tie, and both are at least 1.25× faster than every C++ build. Since Kairo and the Clang row share a backend, the difference is in the representation Kairo lowers its enum and `match` to, not in code generation.
+interp runs a small bytecode loop: an enum with payloads and `match` in Kairo and Rust, a tagged struct and `switch` in C++. Kairo and Rust tie, and both are at least 1.25× faster than every C++ build. Since Kairo and the Clang row share a backend, the difference is in the representation Kairo chooses for its enum and `match`, not in code generation.
 
 ## Errors and formatting
 
@@ -24695,6 +24941,102 @@ The code is in [`Tests/bench`](https://github.com/kairolang/kairo/tree/main/Test
 - Single-threaded micro-benchmarks. No threads, I/O, or large programs.
 
 If you run the suite on other hardware, especially ARM, send me the results.
+
+---
+
+## From a 3 AM Dorm Room Python Script to a 311k-LOC Self-Hosted Compiler in 34 Months
+URL: https://www.kairolang.org/blog/from-python-script-to-self-hosted-compiler/
+
+# From a 3 AM Dorm Room Python Script to a 311k-LOC Self-Hosted Compiler in 34 Months
+
+Hi!
+
+Kairo's Stage 1 compiler went stable today. It's written in Kairo, it compiles itself, and it ships for 18 hosts. The first commit was on January 16, 2024: a Python script I started at 3 AM in a dorm room. This post covers the 34 months in between, and a fair amount of that time went badly.
+
+If you're new here: Kairo (called Helix until February 2026) is a pragmatic systems language with full native C++ interop in both directions. Kairo imports C and C++ headers directly, and C++ can `#include "file.k"`. There's also a memory safety proof model planned, but I won't talk about it here, since it isn't implemented and won't be until the core language is stabilized.
+
+## 2024: Python, three languages, four restarts
+
+The Python prototype had a working tokenizer by January 27. By February it was a functional compiler, in the sense that it compiled things and fell over a lot.
+
+On March 23 I started porting it to Rust and C++, my friend Josh joined, and for a while the project was a three-language experiment. April got us a lexer, a file reader and panic bindings. Then nothing happened for six weeks, from April 15 to May 29.
+
+On June 2 I archived everything and started over. There was a working lexer four days later, and the summer went to the AST parser, the preprocessor, the build system, LLVM integration and the error handler.
+
+Then I kept starting over. The AST parser was rewritten on September 1 (the expression parser was complete 21 days later), there was another restart on September 18, and on October 3 I refactored about 90% of the codebase. That's four restarts in four months. I don't recommend it, though each one did leave the code in better shape than the one before. October also produced CXIR token generation, which is the ancestor of how the compiler emits code today.
+
+Josh's last commits landed in November, and I was solo from there. Planning for self-hosting started on November 13.
+
+## 2025: Stage 0, then the real thing
+
+Stage 0 is the bootstrap compiler. Its job is to exist so that the real compiler can be written in Kairo. The parser and codegen were finished over the winter, MSVC and Clang support went in, and it was stable around March 2025.
+
+Right after that came the slowest stretch in the whole project: another six weeks of nothing, March 5 to April 14.
+
+April through August was Stage 0 refinement and syntax changes. `let` became `var`, `with` became `impl`, and the operator syntax changed. In May I rewrote the lexer, token and location code, which was restart number five.
+
+Stage 1 began on October 4, 2025, with the boring foundations: SourceManager, UTF8View, EvalHash, MMapRegion and the arenas. November and December were the lexer's core loop, keywords, numbers and strings. Ojas joined around then and took the CLI.
+
+## 2026: the long middle
+
+January was restart number six (a lexer refactor) and the start of the macro processor. On February 11 the lexer went from 20 MB/s to about 100 MB/s, and on the same day Helix was renamed to Kairo.
+
+The next few months were a list of compiler parts:
+
+- February and March: the preprocessor, macro expansion, the diagnostics engine, and kbld.
+- April: AST nodes, ASTContext, the LSP, and ClangBridge.
+- May: the type parser and expression nodes. The file extension changed from `.kro` to `.k`.
+- June: a three-day spike (June 9 to 12) that proved the `#include "foo.k"` model could work, then the rest of the parser: patterns, match, closures, f-strings and FFI. 151 commits.
+- July: a streaming lexer, a single-pass preprocessor, and the skeleton of semantic analysis. Ojas started the formatter. 166 commits.
+- August: lexer performance, name resolution, numeric conformance tests, and a three-week break back home in Dubai.
+- September: canonical types, type resolution, and the full expression typer with overloads, ADL and conversions. Foreign C++ templates could be instantiated, move checking went in, and so did an in-tree ELF linker. About 170 commits.
+
+## The part I was told was impossible
+
+Around the time I started the Stage 1 parser, I met someone whose compiler work I respect a lot. We had a good conversation about his language, and then he asked what I was working on, so I told him about Kairo. He kept drilling into the technicals. When I got to C++ interop, he said he'd tried it himself and it was outright impossible.
+
+So I told him the actual plan: use Clang as the MIR for Kairo (at the time Helix) and let it take the code to LLVM IR, and for the C++ side, feed Kairo declarations into Clang's parser as tokens so that C++ can include a Kairo file. He said that wasn't feasible either. Nobody had used Clang like that, Clang doesn't work that way, and there was no way to do it without going into Clang's internals. It would be cleaner to emit LLVM IR directly or to write a transpiler. His point was that you get forced into a corner: you end up with a transpiler bound by C++'s rules, or with a compiler stuck at the C subset.
+
+Around the same time, another well-known name in the compiler world came across Kairo (at the time Helix). He read my GitHub bio and said I was treating the project like a company when it should be a non-profit. He said the questionable types screamed random null pointer exceptions. He also said it would never self-host, because that's the trap people fall into when they write compilers. By then I was about 60,000 lines into Stage 1, written in Kairo, compiled by Stage 0, and linking against LLVM directly.
+
+I took all of it as genuinely constructive criticism. Both of them know far more about compilers than I do, and none of it was said to be mean. Mostly it made me lock in.
+
+The June spike is where the plan stopped being a plan. In about 200 lines I had the `#include "foo.k"` mechanism working: hand-built Clang tokens injected straight into Clang's parser, in-process, with diagnostics pointing back at the Kairo source, then codegen and linking, cross-compiled, on LLVM 22. He was right that it means going into Clang's internals. But the change itself is tiny. I read through Clang's internals until I found the right seam, and the patch that hooks Kairo's tokens into it adds about 50 lines, 30-something if you don't count the comments. It's in the Kairo repo if you want to read it.
+
+None of this makes Kairo a transpiler, which is the corner he said I'd end up in. A transpiler writes C++ source and leaves the checking to a C++ compiler. Kairo doesn't hand Clang C++ source text. It parses, resolves names, types every expression, picks overloads, checks moves, nullness and match exhaustiveness, and reports its own errors against your Kairo source, all before anything goes to Clang for codegen. Clang comes in after that, in the same process, doing the job a mid-level IR does in other compilers. Kairo's semantics are its own too. Checked integer arithmetic, left-to-right evaluation order and the panic system aren't C++ rules.
+
+## October and November: the sprint
+
+In the first two weeks of October the compiler learned to lower calls, extensions, generators, ADTs (as tagged unions), tuples and `match`, with pattern exhaustiveness checking. The linker grew Mach-O, COFF, MinGW and wasm support. We ran demos on a Pico, on real hardware.
+
+October 15 was the self-hosting burn-down, with about 50 commits in one day. libc++ containers were swapped for LLVM's ADT, filesystem calls for `llvm::sys`, and the inline C++ was swept out.
+
+On October 23, C++ and Objective-C++ could `#include "foo.k"` for the first time. This is the half of the interop I'd been told couldn't be done. The day after, kcc became a drop-in replacement for clang, to the point where Clang's own `-verify` and preprocessor tests run through it. That day was about 85 commits.
+
+The language features came in fast after that:
+
+- October 25 to 26: every `T?` is a `Nullable<T>` underneath, with nullness analysis, `?.`, `??` and `unwrap!`. Compile-time `eval` runs on Clang's constexpr engine.
+- October 27: panic effects, with declared and inferred sets, and C++ exceptions caught in `try`.
+- October 28: `pub`, `priv` and `prot` are enforced by Kairo, and C++ code that includes a `.k` file sees them as its own access levels.
+- November 1: checked integer arithmetic, left-to-right evaluation order everywhere, and calling conventions in the type system.
+- November 2: mimalloc as the runtime heap, a `string` that owns its bytes, `{K: V}` maps, and 12 fuzzer crashes fixed.
+
+Not every day was like that. October 29 and 30 produced 6 commits between them.
+
+The self-hosting pipeline proper started on November 3, with 28 migration passes. Inline C++ was removed from `Compiler/` and `Linker/`, and a test now keeps it out. November 3 and 4 were about 110 commits each, and roughly 100 of the second day's were Ojas's. November 5 and 6 went to performance and memory: a ThinLTO cache, codegen on every pool thread, and freeing things we had been holding onto for no reason.
+
+On November 7 and 8 the self-hosted compiler, the linker (kld), the formatter (kfmt) and KaTAR were committed, along with a tree-sitter grammar, a Zed extension and the 0.2.0 release pipeline.
+
+And today, November 9, Stage 1 is stable.
+
+## Where that leaves us
+
+The compiler is about 311,000 lines of Kairo. We know lines of code isn't really a measure of anything, but there are two of us actively working on it (me and Ojas), so I'm going to be a little proud of the number. It's released for 18 hosts and cross-compiles to 51 OS targets plus freestanding. 2,000+ lit tests are green.
+
+Days with 100 commits will make some of you wonder about AI, which is fair. Please read [how AI is used in Kairo](/blog/how-ai-is-used-in-kairo/) fully before jumping to conclusions.
+
+- GitHub: <https://github.com/kairolang/kairo>
+- GitHub Discussions: <https://github.com/kairolang/kairo/discussions>
 
 ---
 
