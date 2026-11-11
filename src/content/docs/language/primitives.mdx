@@ -147,7 +147,7 @@ var y: f80 = 1.0    // error P003E: long double is binary128 here; use f128
 
 ### Float methods
 
-Every float type has the same methods: `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (where the target has them), `f256` and `f512`. They are called on a value, a literal or a limit:
+Every float type has the same methods: `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (where the target has them), `f256` and `f512`. The one exception is `bf16` on WebAssembly, which has no methods yet. They are called on a value, a literal or a limit:
 
 ```kairo
 var x: f64 = 2.0
