@@ -61,7 +61,7 @@ function rehypeMathBlocks() {
 let kairoLang = null;
 try {
   const res = await fetch(
-    'https://raw.githubusercontent.com/kairolang/kairo-lsp/lsp-v1/public/syntaxes/kairo.tmLanguage.json'
+    'https://raw.githubusercontent.com/kairolang/kairo-lsp/lsp-v1/vscode/public/syntaxes/kairo.tmLanguage.json'
   );
   if (res.ok) {
     kairoLang = await res.json();

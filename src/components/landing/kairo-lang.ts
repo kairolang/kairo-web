@@ -4,7 +4,7 @@
  * to 'rust' highlighting when the grammar can't be fetched.
  */
 const GRAMMAR_URL =
-  'https://raw.githubusercontent.com/kairolang/kairo-lsp/lsp-v1/public/syntaxes/kairo.tmLanguage.json';
+  'https://raw.githubusercontent.com/kairolang/kairo-lsp/lsp-v1/vscode/public/syntaxes/kairo.tmLanguage.json';
 
 let cached: Promise<any> | null = null;
 
