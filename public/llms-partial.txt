@@ -4,7 +4,7 @@
 
 > This file contains the complete language documentation concatenated for LLM consumption.
 
-> Generated: 2026-11-13T04:35:46.677Z
+> Generated: 2026-11-13T06:32:24.147Z
 
 ---
 
@@ -322,13 +322,13 @@ The compiler, `kairo`, is written in Kairo and compiles itself. The package hold
 Linux, macOS, FreeBSD and NetBSD (any shell, fish included):
 
 ```bash
-curl -fsSL https://kairolang.org/install.sh | sh
+curl -fsSL https://www.kairolang.org/install.sh | sh
 ```
 
 Windows (PowerShell 5.1 or 7):
 
 ```powershell
-irm https://kairolang.org/install.ps1 | iex
+irm https://www.kairolang.org/install.ps1 | iex
 ```
 
 Both are the same script. It detects your OS and CPU, downloads the matching archive and `SHA256SUMS`, verifies the checksum before unpacking, and never needs root or administrator rights. On Linux, macOS and the BSDs it unpacks to `~/.local/share/kairo/<version>` and links the tools into `~/.local/bin`. On Windows it unpacks to `%LOCALAPPDATA%\Kairo\<version>` and adds that `bin` directory to your user `Path`. It honours `KAIRO_VERSION`, `KAIRO_PREFIX`, `KAIRO_BASE_URL` and `KAIRO_TRIPLE`; set `KAIRO_TRIPLE` to pick a different archive from the table (for example `armv7-windows-gnu`).
@@ -10435,7 +10435,7 @@ extend Tree {
 | Primitive types (`i8`–`u512`, `isize`, `usize`, the floats, `bool`, `char`, `byte`, `void`, `string`) | Yes. A static is called through the type: `i32::make()` |
 | `[T]`, `[T;]`, `[T; N]`, `{T}`, `{K: V}`, tuples | Yes (operators and `impl` on a concrete `[T; N]` work; a generic `[T; N]` extension is not supported yet, SC116E) |
 | Pointers (`*T`, `*const T`, `unsafe *T`) | No (SC282E): extend the pointee type. A container of pointers (`[*T]`) can be extended |
-| Nullables (`T?`: `i32?`, `string?`, `Foo?`, `<T> [T]?`) | Yes. `self` is the `T?`, so a method can be called on a null value. A static is called through an alias (`type OI = i32?`, `OI::make()`). A binary operator (`+ - * / % & | ^ << >> < <= > >=`) in a non-generic extension of a struct's or class's nullable is the nullable's own: `a + b` with `a: Foo?` calls it whether `a` is null or not. Where `Foo` has that operator too, the use is an error. Other operators on a nullable, and any operator on a primitive's or a library container's nullable, are not supported yet |
+| Nullables (`T?`: `i32?`, `string?`, `Foo?`, `<T> [T]?`) | Yes. `self` is the `T?`, so a method can be called on a null value. A static is called through an alias (`type OI = i32?`, `OI::make()`). A binary operator (`+ - * / % & \| ^ << >> < <= > >=`) in a non-generic extension of a struct's or class's nullable is the nullable's own: `a + b` with `a: Foo?` calls it whether `a` is null or not. Where `Foo` has that operator too, the use is an error. Other operators on a nullable, and any operator on a primitive's or a library container's nullable, are not supported yet |
 | Function types (`fn(A) -> R`, `unsafe fn`) | No (SC283E): write a free function, or wrap the function in a struct |
 | A bare type parameter (`extend <T> T`, `<T impl I> T`, `<T> T?`) | No (SC284E): it would add members to every type; extend a named type or a generic type such as `[T]` |
 

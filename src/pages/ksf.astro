@@ -4,6 +4,7 @@ import AsciiArt from '../components/ascii/AsciiArt.astro';
 import AsciiFrame from '../components/ascii/AsciiFrame.astro';
 import AsciiButton from '../components/ascii/AsciiButton.astro';
 import AsciiField from '../components/ascii/AsciiField.astro';
+import { CONTACT_SPONSORS, CONTACT_SUPPORT } from '../data/legal';
 
 const support = [
   {
@@ -38,7 +39,7 @@ const involve = [
     number: '02',
     title: 'Sponsor',
     desc: 'Sponsorship funds development, infrastructure and release engineering.',
-    link: 'mailto:sponsors@kairolang.org',
+    link: `mailto:${CONTACT_SPONSORS}`,
     linkLabel: 'Get in Touch',
   },
   {
@@ -169,7 +170,10 @@ const involve = [
         support for your team.
       </p>
       <p class="ksf-cta-cmd prompt" aria-hidden="true">mail --to</p>
-      <AsciiButton href="mailto:sponsors@kairolang.org" label="sponsors@kairolang.org" size="lg" class="ksf-cta-btn" />
+      <div class="ksf-cta-btns">
+        <AsciiButton href={`mailto:${CONTACT_SPONSORS}`} label={CONTACT_SPONSORS} size="lg" class="ksf-cta-btn" />
+        <AsciiButton href={`mailto:${CONTACT_SUPPORT}`} label={CONTACT_SUPPORT} size="lg" class="ksf-cta-btn" />
+      </div>
     </div>
   </section>
   </main>
@@ -367,6 +371,7 @@ const involve = [
     color: var(--text-2);
     margin: 0 0 0.75rem;
   }
+  .ksf-cta-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; max-width: 100%; }
   .ksf-cta-btn { text-transform: none; letter-spacing: 0.02em; max-width: 100%; }
 
   @media (max-width: 900px) {

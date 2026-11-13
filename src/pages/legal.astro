@@ -5,7 +5,9 @@ import { Content as TrademarkPolicy } from '../generated/TRADEMARKS.md';
 import {
   CODE_LICENSE,
   COMPANY,
+  CONTACT_GENERAL,
   CONTACT_LEGAL,
+  CONTACT_SUPPORT,
   COPYRIGHT_HOLDER,
   DOCS_LICENSE,
   REPO,
@@ -93,6 +95,10 @@ const contributingUrl = `${REPO}/blob/main/CONTRIBUTING.md`;
         <h2 id="contact" class="display legal-h2">Contact</h2>
         <p>
           Legal questions and permission requests: <a href={`mailto:${CONTACT_LEGAL}`}>{CONTACT_LEGAL}</a>.
+        </p>
+        <p>
+          Help with the toolchain: <a href={`mailto:${CONTACT_SUPPORT}`}>{CONTACT_SUPPORT}</a>.
+          Anything else: <a href={`mailto:${CONTACT_GENERAL}`}>{CONTACT_GENERAL}</a>.
         </p>
       </section>
     </div>

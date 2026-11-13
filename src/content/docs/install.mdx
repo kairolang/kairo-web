@@ -20,13 +20,13 @@ The compiler, `kairo`, is written in Kairo and compiles itself. The package hold
 Linux, macOS, FreeBSD and NetBSD (any shell, fish included):
 
 ```bash
-curl -fsSL https://kairolang.org/install.sh | sh
+curl -fsSL https://www.kairolang.org/install.sh | sh
 ```
 
 Windows (PowerShell 5.1 or 7):
 
 ```powershell
-irm https://kairolang.org/install.ps1 | iex
+irm https://www.kairolang.org/install.ps1 | iex
 ```
 
 Both are the same script. It detects your OS and CPU, downloads the matching archive and `SHA256SUMS`, verifies the checksum before unpacking, and never needs root or administrator rights. On Linux, macOS and the BSDs it unpacks to `~/.local/share/kairo/<version>` and links the tools into `~/.local/bin`. On Windows it unpacks to `%LOCALAPPDATA%\Kairo\<version>` and adds that `bin` directory to your user `Path`. It honours `KAIRO_VERSION`, `KAIRO_PREFIX`, `KAIRO_BASE_URL` and `KAIRO_TRIPLE`; set `KAIRO_TRIPLE` to pick a different archive from the table (for example `armv7-windows-gnu`).

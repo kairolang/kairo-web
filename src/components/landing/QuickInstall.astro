@@ -7,7 +7,7 @@ const platforms = [
     label: 'macOS / Linux',
     shell: 'sh',
     commands: [
-      { label: 'Quick install', cmd: 'curl -fsSL https://kairolang.org/install.sh | sh' },
+      { label: 'Quick install', cmd: 'curl -fsSL https://www.kairolang.org/install.sh | sh' },
       { label: 'From source (needs a 0.2.1+ release on PATH as the seed)', cmd: 'git clone https://github.com/kairolang/kairo.git && cd kairo\ngit submodule update --init --recursive\npython3 build.py --release kairo kcc kld kfmt' },
     ],
   },
@@ -16,7 +16,7 @@ const platforms = [
     label: 'Windows',
     shell: 'pwsh',
     commands: [
-      { label: 'PowerShell', cmd: 'irm https://kairolang.org/install.ps1 | iex' },
+      { label: 'PowerShell', cmd: 'irm https://www.kairolang.org/install.ps1 | iex' },
       { label: 'Or build from source (needs a 0.2.1+ release on PATH as the seed)', cmd: 'git clone https://github.com/kairolang/kairo.git\ncd kairo\ngit submodule update --init --recursive\npython3 build.py --release kairo kcc kld kfmt' },
     ],
   },

@@ -10,7 +10,7 @@
  * formatTitle in lib/seo.ts). URLs always end in "/" (trailingSlash: 'always').
  */
 import { SITE_URL, absUrl } from '../lib/seo';
-import { COMPANY, CONTACT_SPONSORS, COPYRIGHT_HOLDER, REPO } from '../data/legal';
+import { COMPANY, CONTACT_GENERAL, COPYRIGHT_HOLDER, REPO } from '../data/legal';
 
 interface Props {
   title: string;
@@ -117,7 +117,7 @@ graph.push({
   url: `${siteURL}/ksf/`,
   logo: LOGO,
   image: { '@id': ID.logo },
-  email: CONTACT_SPONSORS,
+  email: CONTACT_GENERAL,
   sameAs: [GITHUB_ORG, GITHUB_REPO],
 });
 

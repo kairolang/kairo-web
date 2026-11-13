@@ -1,6 +1,6 @@
 {
   "org": "kairolang",
-  "generated_at": "2026-10-22T05:55:30.537Z",
+  "generated_at": "2026-11-13T06:32:23.981Z",
   "repos": [
     ".github",
     "kairo",
@@ -8,6 +8,7 @@
     "kairo-std",
     "kairo-sysroots",
     "kairo-web",
+    "kairo.nvim",
     "lib-helix"
   ],
   "contributors": [
@@ -15,11 +16,11 @@
       "login": "Ze7111",
       "avatar_url": "https://avatars.githubusercontent.com/u/68388561?v=4",
       "html_url": "https://github.com/Ze7111",
-      "contributions": 1628,
+      "contributions": 2476,
       "repos": [
         {
           "name": "kairo",
-          "contributions": 1269
+          "contributions": 2045
         },
         {
           "name": "lib-helix",
@@ -27,11 +28,11 @@
         },
         {
           "name": "kairo-web",
-          "contributions": 69
+          "contributions": 122
         },
         {
           "name": "kairo-lsp",
-          "contributions": 36
+          "contributions": 52
         },
         {
           "name": "kairo-std",
@@ -39,11 +40,15 @@
         },
         {
           "name": "kairo-sysroots",
-          "contributions": 10
+          "contributions": 12
         },
         {
           "name": ".github",
           "contributions": 2
+        },
+        {
+          "name": "kairo.nvim",
+          "contributions": 1
         }
       ]
     },
@@ -51,11 +56,11 @@
       "login": "OjasTalgaonkar",
       "avatar_url": "https://avatars.githubusercontent.com/u/98263229?v=4",
       "html_url": "https://github.com/OjasTalgaonkar",
-      "contributions": 121,
+      "contributions": 275,
       "repos": [
         {
           "name": "kairo",
-          "contributions": 120
+          "contributions": 274
         },
         {
           "name": "kairo-web",
