@@ -4,7 +4,7 @@
 > Kairo is a statically typed, compiled systems language with native
 > bidirectional C++ interoperability.
 >
-> Source: https://www.kairolang.org/docs/language/  ·  Generated: 2026-11-10
+> Source: https://www.kairolang.org/docs/language/  ·  Generated: 2026-11-13
 
 ## Contents
 
@@ -146,6 +146,8 @@ If the target hardware supports wide registers (e.g., AVX-512), these types map 
 
 Extended-width integers are always stack-allocated they are value types, not heap-allocated objects.
 
+`i128` and `u128` exist on 32-bit targets too (`i686`, `armv7`, `wasm32`, ...), as structs of smaller integers.
+
 ---
 
 ### Floating-Point
@@ -161,6 +163,8 @@ All floating-point types except `f80` follow the IEEE 754 standard. A float lite
 | `f128` | 16 bytes | Quadruple | `__float128` |
 | `f256` | 32 bytes | IEEE binary256, in software | `::builtin::num::f256_t::F256` |
 | `f512` | 64 bytes | binary512 (see below), in software | `::builtin::num::f512_t::F512` |
+
+`f8e4m3` (OCP E4M3, finite-only) and `f8e5m2` (OCP E5M2) are 1-byte floats. A literal is rounded once; an `f8e4m3` overflow saturates to ±448 and an infinity converts to NaN. Arithmetic rounds the exact result once. `as` converts to and from every float and integer type, and `{x}` prints the shortest digits that read back as the same value. They have no methods yet, are not supported in eval contexts (SC116E), and convert to `f256`/`f512` only through `f32` or `f64` (SC116E).
 
 ```kairo
 var x = 3.14        // f64 (default)
@@ -204,7 +208,7 @@ Both behave as every other IEEE format does: each operation (`+ - * /`, conversi
 | AArch64 and RISC-V Linux | binary128 | not available |
 | Apple ARM, Windows on ARM | binary64 | not available |
 
-Anywhere else, writing `f80` is an error ([P003E](/docs/language/diagnostics/#p003e-a-primitive-type-is-not-available-on-the-target)). The error names the target and what its `long double` is, and suggests `f64` where `long double` is binary64 and `f128` where it is binary128. Kairo never silently substitutes another float type for `f80`.
+Anywhere else, writing `f80` is an error ([P003E](/docs/language/diagnostics/#p003e-a-primitive-type-is-not-available-on-the-target)). The error names the target and what its `long double` is, and suggests `f64` where `long double` is binary64 and `f128` where it is binary128. Kairo never silently substitutes another float type for `f80`. Where `f80` exists it formats in an f-string like the other floats (`f"{x}"` with `x: f80`).
 
 ```kairo
 // building for x86_64-unknown-linux-gnu
@@ -216,7 +220,7 @@ var y: f80 = 1.0    // error P003E: long double is binary128 here; use f128
 
 #### Float methods
 
-Every float type has the same methods: `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (where the target has them), `f256` and `f512`. They are called on a value, a literal or a limit:
+Every float type has the same methods: `f16`, `bf16`, `f32`, `f64`, `f80` and `f128` (where the target has them), `f256` and `f512`. The one exception is `bf16` on WebAssembly, which has no methods yet. They are called on a value, a literal or a limit:
 
 ```kairo
 var x: f64 = 2.0
@@ -368,6 +372,14 @@ struct string {
 ```kairo
 var greeting = "Hello, Kairo! 📣"   // len 18, cp_len 15, no allocation
 var name     = "Name"               // len 4, cp_len 4
+```
+
+String literals written next to each other, separated only by spaces, tabs or newlines, are one string, whatever their prefixes: `"a" "b"`, `"a" r"\b"` and `"total: " f"{n}" " items"` are each a single literal. Each piece keeps its own prefix, so a raw piece keeps its backslashes and an `f` piece has its own `{...}` holes. If any piece is an f-string, the whole is the formatted `string` you would get by joining the pieces with `+`, holes evaluated left to right. Otherwise it stays a compile-time literal. A prefix must touch its quote (`f "b"` is a name and a string), and a character literal never joins. A literal suffix on any piece belongs to the whole string, as in C++: `"12" "3"_km` passes `"123"` to `operator""_km`, and so does `"12"_km "3"`. Because a suffix on one piece reads as if it were only that piece's, the compiler warns (SC276W) on every joined string with a suffix, with a fix-it that writes it as one literal (`"123"_km`) when the pieces can be joined as text: all have the first piece's prefix, none is an `f` or triple-quoted piece or comes from a macro, and joining does not change an escape. Two pieces with different suffixes are an error (SC277E), and a joined string with an `f` piece takes no suffix at all (SC074E).
+
+```kairo
+var n = 3
+var s = "total: " f"{n}" r" \items"   // "total: 3 \items"
+var p = "C:" r"\path"                // one literal, still compile-time
 ```
 
 Because UTF-8 is a variable-width encoding, indexing by codepoint (`s[i]`) complexity depends on how the string was constructed. For string literals, the compiler pre-populates a breadcrumb cache at codegen time mapping codepoint positions to byte offsets, making indexing O(1) with zero runtime cost. For strings constructed at runtime from a raw pointer, no cache is available and indexing is O(n). Indexing by byte (`s.bytes[i]`) is always O(1) but returns raw `u8` bytes, not characters.
@@ -1149,7 +1161,7 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 `<=>` returns an `Ordering`, matching the C++20 spaceship operator.
 
 > [!NOTE]
-> In 0.2.0, `<=>` on two primitive values (`1 <=> 2`) does not yet produce a usable `Ordering`. It works for types that define `op <=>`. On primitives, compare with `<`, `==` and `>` for now.
+> `<=>` on two floating-point values does not yet produce a usable `Ordering` (a NaN has no ordering). On integers, characters and booleans, and on types that define `op <=>`, it does. Compare floats with `<`, `==` and `>` for now.
 
 #### `==` vs `===`
 
@@ -1643,7 +1655,7 @@ for item in collection {
 }
 ```
 
-The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does not make it iterable. See [Operators](/docs/language/operators/#ranges) for the `Steppable` interface and [Operators](/docs/language/operator-overloading/#special-operators) for the `op in` overload.
+The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does not make it iterable. See [Operators](/docs/language/operators/#ranges) for the `Steppable` interface and [Operators](/docs/language/operator-overloading/#special-operators) for the `op in` overload. A `const` iterable uses `op in (const self)`; a type whose `op in` takes `self` cannot be iterated through a const value (SC063E). A plain binder is a copy of each element. Binding an element type that cannot be copied is SC182E; bind `*x` for the element's address.
 
 An [imported C++ class](/docs/language/c-cpp-calling/) iterates the way a C++ range-based `for` does: through its member `begin()` and `end()`, or else through free `begin()` and `end()` functions found by argument-dependent lookup.
 
@@ -2198,6 +2210,8 @@ For C++ developers the following C++ constructs have no equivalent in Kairo:
 - [Variables](/docs/language/variables/#scope-and-lifetime)
 - [Attributes](/docs/language/attributes/#branch-hints)
 
+`for *x` over a generator binds a pointer to const unless the generator yields a mutable place, so a write through `x` that would land in a copy is an error (SC071E).
+
 ---
 
 ## Functions
@@ -2591,7 +2605,7 @@ var opr: fn(i32, i32) -> i32 = fn (a: i32, b: i32) -> i32 { return a + b }
 
 ### Capture Modes
 
-By default, closures [capture variables](/docs/language/ownership/#closure-captures) **by copy**. The closure receives its own copy of each captured variable, mutations inside the closure do not affect the original.
+By default, closures [capture variables](/docs/language/ownership/#closure-captures) **by copy**. The closure receives its own copy of each captured variable, mutations inside the closure do not affect the original. In a script, a closure written in the top-level code captures the script's top-level variables by copy too; a function of the script reads the variable itself. A closure nested in such a closure sees the outer closure's copy: an inner `|*|` points at the copy, not the script's variable.
 
 ```kairo
 var x = 10
@@ -3265,7 +3279,7 @@ s.push(42)
 ```
 
 > [!NOTE]
-> A `panic` method of a generic class, like `pop` here, is not supported yet ([SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported)): a generic body's panic set will be inferred per instantiation. See [Status](/docs/status/#not-compiled-yet).
+> A `panic` method of a generic class, like `pop` here, works: the set is computed at the definition. See [Generic functions](/docs/language/panic/#generic-functions) in Panic.
 
 Generic classes can inherit from other generic classes:
 
@@ -3335,6 +3349,8 @@ sensor->value()        // ok: const method
 
 `const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables/#the-const-binding-rule).
 
+Inside a `const self` method, assigning to a field of `self` is a compile error (SC071E) unless the field is declared `mutable var`.
+
 #### Mutable members
 
 The `mutable` qualifier allows a member to be modified even through a `const` reference or in a `const` method:
@@ -3362,6 +3378,8 @@ class Cache {
 > `mutable` breaks the semantic guarantee that `const` methods do not modify the object. Use it sparingly caching, reference counting, and lazy initialization are the canonical use cases. If you find yourself marking many members `mutable`, reconsider the `const` boundary.
 
 ---
+
+A method may be named `test`, and a C++ method named `test` can be called; `test` is a keyword only to open a top-level test block.
 
 ### `inline` Methods
 
@@ -3566,7 +3584,7 @@ class <T impl Comparable> PriorityQueue impl Iterable {
 
     fn PriorityQueue(self) { self.heap = [] }
     fn push(self, item: T) { ... }
-    fn pop(self) panic -> T { ... }   // `panic` in a generic class: not supported yet (SC116E)
+    fn pop(self) panic -> T { ... }
 }
 
 // Final class
@@ -3578,6 +3596,8 @@ final class Immutable {
 ```
 
 ---
+
+A class or struct whose only constructor is `@copy` or `@move` cannot be built with braces (SC088E).
 
 ### See also
 
@@ -5176,6 +5196,8 @@ fn <T impl Drawable> total_width(items: [T;]) -> f64 {
 - [Classes](/docs/language/classes/)
 - [Classes: Inheritance](/docs/language/classes-inheritance/)
 
+A builtin type meets an operator requirement through its own operator when the shapes match (operands `Self`, the requirement's result with `Self` substituted): `i32` meets `fn op +(const self, o: Self) -> Self`, `fn op <(const self, o: Self) -> bool` and `fn op <=>(const self, o: Self) -> Ordering`, and `op +=` when it has `+`. A requirement the type does not have built in, such as `bool + bool`, is SC162E.
+
 ---
 
 ## Type System
@@ -6246,6 +6268,8 @@ enum <T> Compact
 
 Type-level constraints are always `requires`. There is no runtime dispatch on type instantiation either the type is valid or it isn't.
 
+A member's `requires P impl I` gives its body `I`'s members on `P`; the member exists only on instances that meet it, and calling it on another instance is an error (SC153E).
+
 #### Partial specializations selected by `requires`
 
 A partial specialization may carry a `requires` clause: it is chosen for an instantiation only when its pattern matches and its clause holds there. Its pattern can be the type's own parameters:
@@ -6255,6 +6279,8 @@ struct <T> Store { var value: T }
 struct <P> Store<P> requires sizeof P <= 8 { var small: P }   // Store<i32> is this one
 struct <P> Store<*P> requires sizeof P >= 8 { var wide: *P }  // Store<*i64> is this one
 ```
+
+A pattern argument can be qualified: `class <P> V<const P>` is chosen for `V<const i32>` with `P = i32`, and is more specialized than `V<P>`; `V<*const P>` is more specialized than `V<*P>`.
 
 The more specialized pattern wins first (`Store<*P>` over `Store<P>`); between two equal patterns, one with a clause wins over one without, and two with clauses that both hold are ambiguous (an error). The clause is decided at compile time from literals, `sizeof` and `alignof` of builtin types, pointers and arrays of them, arithmetic and comparisons. A clause the compiler cannot decide for an instantiation (the `sizeof` of a struct, an `eval` function) is an error where that instantiation is used, and a conformance (`requires P impl I`) in a partial's clause is not supported yet.
 
@@ -7791,6 +7817,8 @@ fn main() {
 }
 ```
 
+An [`inline "asm"`](/docs/language/c-cpp/) block is also only allowed inside an `unsafe` block or an unsafe function; anywhere else it is an error (SC296E) with a fix-it that wraps it.
+
 #### When unsafe blocks are NOT required
 
 Calling C/C++ functions that use safe parameter types does not require an `unsafe` block:
@@ -9046,7 +9074,7 @@ Inside a class, `eval` marks three different things:
 
 An `eval` field can be an array length (`[i32; Grid::W]`), also for a field of its own class when its initializer is plain arithmetic over literals and constants. One whose value has to be computed by calling an `eval fn` cannot size a field of its own class: inside its own body the class is still incomplete, so the value does not exist there yet. The compiler reports it (SC116E) and offers to move the constant to module scope, where it can size the field. For the same reason, a field's length may call an `eval fn` (`var a: [i32; size()]`) only when that function does not itself need the class: one that takes `sizeof` of it, builds a local of it or is a method of it is an error.
 
-A class can mix `eval` and regular members; regular methods simply cannot be called from compile-time code. A class with a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---op-finally) cannot be an `eval` value: a compile-time object is never destroyed.
+A class can mix `eval` and regular members; regular methods cannot be called from compile-time code. A class with a non-trivial [destructor](/docs/language/classes-lifecycle/#destructors---op-finally) cannot be an `eval` value: a compile-time object is never destroyed. A destructor cannot be `eval` (SC290E). An `eval` constant cannot have a slice type yet (SC116E); use a fixed array.
 
 ```kairo
 eval FNV_OFFSET: u64 = 2166136261
@@ -9243,7 +9271,7 @@ The compiler looks for named libraries in each search directory and in its immed
 Import a library by its name. A file in a library never falls back to the search directories: a library does not depend on what one build's command line contains. Files beside each other can always use [`self::`](/docs/language/imports/#sibling-imports), and files anywhere in one module [`module::`](/docs/language/imports/#module-imports).
 
 > [!NOTE]
-> Older compilers named a directory after its folder (`-I ~/foo` was library `foo`) or with `-I name=dir`. Both are gone. An `-I` with an `=` that is not an existing directory is now an error that says where the name goes: put `module name` as the first line of that directory's `module.k`.
+> Older compilers named a directory after its folder (`-I ~/foo` was library `foo`) or with `-I name=dir`. Both are gone. An `-I` with an `=` that is not an existing directory is an error that says where the name goes: put `module name` as the first line of that directory's `module.k`.
 
 #### Collisions
 
@@ -9469,6 +9497,8 @@ Using a declaration where it is not visible is an error at the use, with a note 
 > Until 2026-11-08 an unmarked declaration was `pub` (a class's variables `priv`). The standard library and `builtin` still follow that rule until they are marked, and so does the compiler's own source, built with an internal flag.
 
 See [Imports](/docs/language/imports/#visibility-on-imports) for how visibility affects what is re-exported via `pub import`.
+In a script, a list literal of constants initializes a top-level array in place. An array variable with a non-constant initializer is SC235E.
+
 ### See also
 
 - [Imports](/docs/language/imports/)
@@ -9548,6 +9578,12 @@ extend Tree {
 | Classes | Yes |
 | Unions | No |
 | Interfaces | No |
+| Primitive types (`i8`–`u512`, `isize`, `usize`, the floats, `bool`, `char`, `byte`, `void`, `string`) | Yes. A static is called through the type: `i32::make()` |
+| `[T]`, `[T;]`, `[T; N]`, `{T}`, `{K: V}`, tuples | Yes (operators and `impl` on a concrete `[T; N]` work; a generic `[T; N]` extension is not supported yet, SC116E) |
+| Pointers (`*T`, `*const T`, `unsafe *T`) | No (SC282E): extend the pointee type. A container of pointers (`[*T]`) can be extended |
+| Nullables (`T?`: `i32?`, `string?`, `Foo?`, `<T> [T]?`) | Yes. `self` is the `T?`, so a method can be called on a null value. A static is called through an alias (`type OI = i32?`, `OI::make()`). A binary operator (`+ - * / % & | ^ << >> < <= > >=`) in a non-generic extension of a struct's or class's nullable is the nullable's own: `a + b` with `a: Foo?` calls it whether `a` is null or not. Where `Foo` has that operator too, the use is an error. Other operators on a nullable, and any operator on a primitive's or a library container's nullable, are not supported yet |
+| Function types (`fn(A) -> R`, `unsafe fn`) | No (SC283E): write a free function, or wrap the function in a struct |
+| A bare type parameter (`extend <T> T`, `<T impl I> T`, `<T> T?`) | No (SC284E): it would add members to every type; extend a named type or a generic type such as `[T]` |
 
 ---
 
@@ -9721,6 +9757,37 @@ extend Point {
 An extension member with no modifier is `priv`, or `prot` when the `extend` block's file is under a `module.k`, like any other declaration; the members of an `extend X impl I` block are the exception, `pub` unless marked, since they implement the interface wherever the conformance is used. A `priv` extension member is visible only inside the file that contains the `extend` block, not everywhere the type is visible. `prot` reaches every file of the module.
 
 An `extend` in another file of the type's module reads the type's `prot` members (written, or unmarked under the `module.k`), so a large class can be split across the files of one module; its `priv` members stay with the file that declares the type.
+
+An `extend` is outside code, not a subclass: an `extend Derived` does not get the `prot` members of Derived's base. It can use them only where any code can, in a file of the module that declares them (the base's module); the error says so and names that module's root.
+
+#### Which files see an extension
+
+The members an `extend` block adds (methods, statics, operators, and the conformance of an `extend X impl I`) are visible in a file only when the block is:
+
+1. in that file itself;
+2. in a file it imports (any import form: `import m`, `import m::*`, `import m::{x}`, `import m as n`), or in a file one of those re-exports: through a `pub import` (a library's `module.k` exports are its `pub import`s), or a `prot import` when your file is in that module. A `priv import` further down the chain carries nothing: what a file imports privately is its own business;
+3. in the file that declares the extended type: an extension written beside its type goes wherever the type goes;
+4. in the builtin library, which every file sees.
+
+The conformance an `extend X impl I` declares follows the same rule: an impl your file cannot see cannot satisfy a bound in it.
+
+```kairo
+// shapes.k
+pub struct Point { pub var x: i32 }
+extend Point { pub fn half(self) -> i32 = self.x / 2 }      // rule 3: travels with Point
+
+// ext.k
+
+extend Point { pub fn twice(self) -> i32 = self.x * 2 }
+
+// user.k
+
+fn f(p: Point) -> i32 {
+    return p.half() + p.twice()   // error R025E: no member named 'twice'; ext.k is not imported
+}
+```
+
+The error names the file whose extension declares the member and offers the import. Which other files the program happens to compile has no effect: `user.k` reads the same in every build.
 
 ---
 
@@ -10070,7 +10137,7 @@ var old_config: Config
 
 An attribute can also be applied to an expression: `@name operand`, or `@name(args) operand`. The operand is one unary expression, including its calls, member accesses and initializers, so `@create Config(8080)` applies to the whole constructor call. Binary operators bind looser (`@a x + 1` is `(@a x) + 1`), and a member access on the result needs parentheses: `(@create Config(8080))->port`. At the start of a statement, an `@name` is an expression attribute when an expression follows it on the same line (`@destroy p`, `@create Config(8080)`); it attaches to the statement or declaration instead when what follows is a declaration (`@deprecated var`, `@copy fn`), a keyword statement (`@likely if`), a block (`@repeat(3) { ... }`), a loop label, or a line break.
 
-> Expression attributes parse, but none has a meaning yet: `@create` and every other one are rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported). See [Status](/docs/status/).
+> Two expression attributes have a meaning: `@create T(args)` and `@destroy p` (see [Heap Allocation](/docs/language/pointers/#heap-allocation)). Every other one parses but is rejected with [SC116E](/docs/language/diagnostics/#sc116e-a-feature-is-not-yet-supported), as is the initializer form `@create T{...}`. See [Status](/docs/status/).
 
 ---
 
@@ -10333,6 +10400,8 @@ struct CacheLine {
 }
 ```
 
+`@no_warn` also covers warnings the parser reports inside the declaration, such as S055W. Lexer and preprocessor warnings, such as S025W, are not covered.
+
 ### See also
 
 - [Macros](/docs/language/macros/)
@@ -10501,6 +10570,8 @@ priv macro INTERNAL_FLAG! { true }     // file-scoped
 
 ---
 
+A declaration made by a macro is reported at the macro's invocation; a duplicate adds a note "in expansion of macro" pointing into the macro body.
+
 ### Macros vs Attributes
 
 | | Macros | Attributes |
@@ -10556,6 +10627,8 @@ module config {
 ```
 
 ---
+
+Import a macro by its `!` name: `import lib::MAX_RETRIES!`, or `import lib::{MAX_RETRIES!, f}`.
 
 ### See also
 
@@ -11099,6 +11172,8 @@ Unary `*` on an imported C++ class calls its `operator*`, which is how C++ itera
 
 C and C++ signatures are judged by Kairo's conversion rules, with one addition: a fixed-width integer argument widens into a `size_t`, `ptrdiff_t`, `uintptr_t` or `intptr_t` parameter, and a `usize`/`isize` argument widens into a fixed-width one, whenever that is lossless on every 32- and 64-bit target. `n: u32` passes to a `size_t` directly on 32- and 64-bit targets; `n: u64` needs `as usize`. See the [Conversion Lattice section 4.1](/docs/language/conversion-lattice/#41-the-cc-boundary).
 
+C++'s own implicit conversions do not apply by default: an argument C++ would convert through a converting constructor or conversion operator (a string literal to a `std::string` or a class with a `const char*` constructor, an `A` to a `B(const A&)`) is an error whose fix-it writes ` as T`. `-fcxx-implicit-conv` lets C++ apply that one conversion at calls, initialisations and returns that cross into C++. `-fimplicit-conv` governs only Kairo's own conversions and does not turn this on.
+
 #### Tags and ordinary names
 
 C and C++ keep struct, class, union and enum names (tags) apart from variables, functions and typedefs, so a header can declare both under one name. glibc does: `struct timezone` in `<sys/time.h>` and `extern long timezone` in `<time.h>`. As in C++, the plain name means the ordinary declaration:
@@ -11136,7 +11211,6 @@ In a type, `timezone` is then the struct; in an expression, it is still the vari
 `ffi` controls linkage and name mangling. It is written on a declaration.
 
 > [!NOTE]
-> Not yet: the block form `ffi "c++" { fn ... }` type-checks but stops code generation with an internal compiler error (`EmitIR: decl kind FFIBlockDecl has no body to emit`). Write `ffi "c++"` or `ffi "c"` on each declaration.
 
 ```kairo
 // C++ linkage: name mangling, overloading, classes, templates all permitted
@@ -11151,6 +11225,8 @@ ffi "c" fn add(x: i32, y: i32) -> i32 {
 ```
 
 `ffi "c"` follows the same rules as `extern "C"` in C++: no classes, no overloading, no templates. `ffi "c++"` follows the same rules as `extern "C++"`: full C++ feature set, Itanium or MSVC mangling depending on the target.
+
+The language string is matched without case: `ffi "C"` is `ffi "c"`, and `ffi "c++"` may also be written `"cpp"` or `"cxx"`.
 
 Name mangling is covered in [ABI Contract & Verification](/docs/language/c-cpp-abi/#name-mangling).
 
@@ -11227,7 +11303,7 @@ fn syscall_example(fd: i32, buf: *u8, len: usize) -> isize {
 
 - **Volatile**: the `volatile` modifier (`inline "asm" volatile { ... }`), meant for assembly with side effects the optimizer might otherwise remove, is not accepted yet: the parser rejects it (S056E).
 - **Clobbers**: Always list registers modified by the assembly (like `memory` or specific registers) to prevent the [Tether analysis](/docs/language/tether-internals/#cc-interop) and LLVM from making incorrect assumptions about the state of the machine.
-- **Unsafe**: Assembly code is inherently unsafe and should be wrapped in an [`unsafe` block](/docs/language/unsafe/#unsafe-blocks) to indicate that the programmer is responsible for ensuring the correctness of the assembly.
+- **Unsafe**: Assembly code is inherently unsafe and must be inside an `unsafe` block or an unsafe function (SC296E otherwise); it is wrapped in an [`unsafe` block](/docs/language/unsafe/#unsafe-blocks) to indicate that the programmer is responsible for ensuring the correctness of the assembly.
 
 ---
 
@@ -11269,6 +11345,12 @@ fn main() {
     var x = v.at(0) + 1     // operand
 }
 ```
+
+An override of a C++ virtual must return what the virtual returns; a mismatch is SC294E with the C++ type as a fix-it.
+
+A C++ `operator[]` that returns by value gives a temporary: `c[0] = x` on it is an error. One that returns a reference is a place. `std::pair` of a move-only Kairo class is move-only: it moves, and copying it is SC182E. `std::optional`, `std::tuple`, `std::variant` and `std::expected` of a move-only Kairo class are move-only too: they move, and copying one is SC182E. A `std::span` of one is a view and copies. A field of a temporary (`f().x`, `v[0].x` through a by-value `operator[]`) is not assignable, and its address cannot be taken.
+
+Such a call is an lvalue of the referenced type (an xvalue for `T&&`): `&v.at(0)` is a `*i32`, and `var x = v.at(0)` copies. Editor hovers show these functions with the return spelling a Kairo definition uses, `-> ffi::ref<i32>`. To define or override a C++ function that returns a reference, see [Reference returns from C++](/docs/language/functions-parameter-modes/#reference-returns-from-c).
 
 See [Reference returns from C++](/docs/language/functions-parameter-modes/#reference-returns-from-c) for how these calls are typed.
 
@@ -11395,7 +11477,7 @@ fn main() -> i32 {
 ```
 
 > [!NOTE]
-> Not yet: a Kairo generic bounded by an imported concept (`fn <T impl Addable> add(a: T, b: T) -> T { return a + b }`) is rejected with R025E, because the concept's `requires` expression grants no operations on `T`. A bound whose body does not use `T`'s operations type-checks but fails in code generation (CL001E, `no member named '<header>' in the global namespace`). A bound on a Kairo interface works: `fn <T impl Shape> twice(a: T)` becomes a `requires` clause over the concept the compiler emits for `Shape`, and a C++ call with a type that does not satisfy it fails with `'Bad' does not satisfy 'Shape_c'`. A bound on a generic class or struct is not translated (see [Generics](/docs/language/c-cpp-exposing/#generics)).
+> Not yet: a Kairo generic bounded by an imported concept (`fn <T impl Addable> add(a: T, b: T) -> T { return a + b }`) is rejected with R025E, because the concept's `requires` expression grants no operations on `T`. A bound whose body does not use `T`'s operations works: the imported concept is named by its own C++ name. A bound on a Kairo interface works: `fn <T impl Shape> twice(a: T)` becomes a `requires` clause over the concept the compiler emits for `Shape`, and a C++ call with a type that does not satisfy it fails with `'Bad' does not satisfy 'Shape_c'`. A bound on a generic class or struct is not translated (see [Generics](/docs/language/c-cpp-exposing/#generics)).
 
 #### Template arguments, pointers and forwarding
 
@@ -11612,6 +11694,8 @@ Throwing a Kairo error *out of Kairo* is not a roadmap item; it is excluded by t
 
 Use the **`kcc`** driver, which makes `#include "file.k"` work transparently in C++ translation units.
 
+`#include "file.k"` works only in a C++ source file compiled by `kcc`. A header that Kairo itself imports with `ffi import` (or any header it includes) cannot include a `.k` file: the include is skipped with error R070 and the rest of the header is still imported, so the header must declare what it needs itself.
+
 ```kairo
 // my_code.k
 
@@ -11758,7 +11842,7 @@ Every Kairo class, struct and ADT enum in C++-facing output carries class-scope 
 
 #### Generics
 
-Kairo [generics](/docs/language/generics/) are C++ templates in the header, bodies included. Instances Kairo already compiled are listed as `extern template`, so linking against the module's objects reuses them; any other instance is instantiated by your C++ compiler like any template. An `#include "file.k"` lists none: the C++ side instantiates every instance it uses, and the linker keeps one copy. A Kairo `impl` bound on a generic function or method is a C++ constraint: each interface is emitted as a C++ concept (`Shape` is `Shape_c`, in the interface's namespace), and the template carries `requires(Shape_c<T>)`, so a C++ call with a type that does not satisfy the bound is rejected at the call. A bound on a generic class or struct is not translated: the class template is unconstrained, and instantiating it with a type that does not satisfy the bound fails inside the member that needs it. Each instance Kairo compiled also carries a `static_assert` that its bounds hold.
+Kairo [generics](/docs/language/generics/) are C++ templates in the header, bodies included. Instances Kairo already compiled are listed as `extern template`, so linking against the module's objects reuses them; any other instance is instantiated by your C++ compiler like any template. An `#include "file.k"` lists none: the C++ side instantiates every instance it uses, and the linker keeps one copy. A Kairo `impl` bound on a generic function or method is a C++ constraint: each interface is emitted as a C++ concept (`Shape` is `Shape_c`, in the interface's namespace), and the template carries `requires(Shape_c<T>)`, so a C++ call with a type that does not satisfy the bound is rejected at the call. A bound on a generic class is not part of the class template's head, since C++ would check it where the class names itself while still incomplete. Instead each of its constructors asserts the bound, so making one with a type that does not implement the interface is a compile error naming the bound (`'Holder' requires 'T' to implement 'Named'`). A struct with no constructor of its own is not checked.
 
 #### Constructing enum variants from C++
 
@@ -12039,7 +12123,7 @@ How `--target` finds its sysroot:
 - A `--target` uses the sysroot for it, looked up in order: `<prefix>/sysroot/<dir>` beside the compiler (`<prefix>` is the directory above the one holding `kairo`), then the [ksys](/docs/toolchain/ksys/) cache, then a build by `ksys` from the shipped input tree (first use only; `--no-sysroot-build` refuses it with `P009E`).
 - The folder is matched by target, not by spelling. Vendor, OS version, and LLVM's aliases do not matter, but the sub-architecture does. So `x86_64-pc-windows-msvc` finds `x86_64-windows-msvc`, `x86_64-linux-gnu` finds `x86_64-linux-gnu-glibc2.31`, `aarch64-apple-darwin` finds `arm64-apple-macosx`, and `arm64e` does not match `arm64`.
 - `-m32` / `-m64` look up the architecture they switch to: `--target=x86_64-linux-musl -m32` uses `i686-linux-musl`.
-- A bundled sysroot takes precedence over `--sysroot`. With no matching folder, `--sysroot` is used if given; otherwise the compiler warns ([P008W](/docs/language/diagnostics/)) and there are no system headers.
+- A bundled sysroot takes precedence over `--sysroot`, unless `--sysroot-exact` is given: then `--sysroot` is used exactly as written and no bundled or cached sysroot is substituted. With no matching folder, `--sysroot` is used if given; otherwise the compiler warns ([P008W](/docs/language/diagnostics/)) and there are no system headers.
 - A matching folder without a loadable `SYSROOT.toml` is an error: [P007E](/docs/language/diagnostics/#p007e-bundled-sysroot-for-the-target-is-malformed) "bundled sysroot for the target is malformed".
 
 #### Host headers and libraries
@@ -12241,6 +12325,8 @@ Without `--tls-model`, each `thread` global gets a TLS model of its own. Builtin
 
 `kairo` has no raw Clang passthrough. After a bare `--`, every word is an input file, so `kairo main.k -- -ftls-model=initial-exec` is an error that names the Kairo spelling. To pass a Clang flag to the C and C++ inputs alone, use `--cxx-flags=<flag>` (repeatable). Kairo's own code never sees those flags.
 
+A `kcc` link with no Kairo code (no `.k` input, no `#include` of a `.k`, no Kairo object) is linked exactly as clang links it, without the Kairo runtime.
+
 ### See also
 
 - [C & C++ Interoperability](/docs/language/c-cpp/)
@@ -12386,6 +12472,8 @@ class Derived derives Base {
 
 The qualified call is not virtual: `Base::method(self)` runs `Base`'s version even when `method` is `virtual` and overridden further down. A derived method with the same parameters (and the same `const self` or plain `self`) overrides or hides the base's, so `d.method()` on a derived value calls the derived one; a base overload with different parameters stays callable on the derived value (Kairo merges the overload sets, as C++ does with a `using` declaration). A C++ class keeps C++'s lookup: a name it declares hides the base's unless its definition says `using Base::name;`.
 
+A derived method meant to replace a hook its generic base calls through `self.dyn()` (the [mixin pattern](/docs/language/generics/#mixins-a-base-that-calls-its-derived-class)) must take the hook's exact parameters. One with the same name and number of parameters but a different parameter type (`*Node?` for `unsafe *Node`) is a second overload, and the base's `self.dyn()->hook(n)` keeps calling the base's own `hook`. The compiler warns (SC278W), with notes at the base's hook and at the call, and a fix-it when only the pointer's safety, nullability or `const` differs. `*T` and `unsafe *T` count as the same parameter here (both are `T*` in C++), so that pair does replace the hook. To keep a deliberate second overload, put `@no_warn(SC278W)` on it.
+
 #### Protected members from another file
 
 A subclass declared in a different file than its base reaches a `prot` instance member only through an object of its own type or a type deriving from it, and calls a `prot` constructor only as its base initializer:
@@ -12524,6 +12612,8 @@ shape->area()   // 78.539... dynamic dispatch
 
 A `virtual` method that may [panic](/docs/language/panic/) must declare its panic set (`virtual fn load(self) panic(IOError) -> Data`), since it is the contract for every override. An `override` may leave its own set inferred, but that set must be a subset of the base method's. See [Declared Panic Sets](/docs/language/panic/#declared-panic-sets).
 
+An override returns the virtual method's type, or a pointer to a class derived from the one the virtual returns a pointer to, with no more `const` (a covariant return). A nullable pointer is not covariant; any other mismatch is SC297E.
+
 #### Abstract classes (pure virtual)
 
 A `virtual` method declared with no body is pure virtual: it must be overridden by any non-abstract derived class:
@@ -12552,7 +12642,7 @@ class Circle derives Shape {
 var c = Circle(5.0)  // ok: all pure virtuals overridden
 ```
 
-A class with a pure virtual method is abstract, and so is a derived class that leaves any of its bases' pure methods unoverridden. Creating an object of an abstract class (`Shape()`, `Shape{ }`) is a compile error that points at the method keeping it abstract; a pointer to one (`*Shape`) is fine. In C++ a pure virtual method is `virtual R f() = 0`, so a C++ class can derive a Kairo abstract class and a Kairo class can derive a C++ one.
+A class with a pure virtual method is abstract, and so is a derived class that leaves any of its bases' pure methods unoverridden. Creating an object of an abstract class (`Shape()`, `Shape{ }`) is a compile error that points at the method keeping it abstract; a pointer to one (`*Shape`) is fine. In C++ a pure virtual method is `virtual R f() = 0`, so a C++ class can derive a Kairo abstract class and a Kairo class can derive a C++ one. Taking or returning one by value, or holding one in a field, is also an error (SC249E); take a pointer, or a `const` or `@inout` parameter.
 
 Kairo methods are `noexcept` in C++ (see [Exceptions](/docs/language/c-cpp-exceptions/#c-exceptions-through-kairo-frames)), so a C++ class overriding a Kairo `virtual fn` must declare its override `noexcept` as well, unless the Kairo method is `@unwind`:
 
@@ -12969,6 +13059,8 @@ This pattern keeps the class body small and readable as an API surface, with imp
 - **Default arguments** must appear on the in-class declaration, not the out-of-line definition.
 - Parameter names may differ between declaration and definition; the definition's names are used in the body.
 
+A member of a C++ class, or a function in a C++ namespace, that an imported header declares can be defined in Kairo the same way (`fn Widget::get(self) -> i32 { ... }`, `static fn Widget::make() -> ...`, `fn ns::f(...)`). The definition is the C++ declaration's: C++ code that calls it runs the Kairo body. Constructors, destructors and members of class templates can't be defined this way yet.
+
 ### Generic classes
 
 For [generic classes](/docs/language/classes/#generic-classes), the type parameters are re-declared on the out-of-line definition and the class name carries its generic arguments:
@@ -13063,7 +13155,7 @@ rgb[0] = 10
 // rgb.push(42)  // compile error: fixed size
 ```
 
-An array is **not a value type**. It cannot be copied, assigned, passed by value, or returned. It can be a local, a field, or an element of another array; it can be viewed by a slice, pointed to, and passed as a `const` or [`@inout` parameter](/docs/language/functions-parameter-modes/). Each of the following is a compile error, and each diagnostic names the fix:
+An array is **not a value type**. It cannot be copied, assigned, passed by value, or returned. It can be a local, a field, or an element of another array; it can be viewed by a slice, pointed to, and passed as a `const` or [`@inout` parameter](/docs/language/functions-parameter-modes/). Each of the following is a compile error, and each diagnostic names the fix: The same error (SC045E) is reported at a call that passes an array to a generic parameter taken by value (`fn <T> f(a: T)`). A constant index outside `0..N-1` is a compile error (SC291E). A generic function that copies its `T` cannot be called with a fixed array (SC083E at the call). A vector, set or map literal copies its elements; a literal of move-only elements is not supported yet (SC182E).
 
 ```kairo
 var a = [1, 2, 3]              // [i32; 3]
@@ -13267,7 +13359,7 @@ f(3, 4)  // 7
 
 ## Kairo Primitive Conversion Lattice
 
-Normative specification for implicit and explicit conversions between primitive types. This document is the single source of truth for `-f[no-]implicit-conv`, overload resolution ranking, and binary operator result typing.
+Normative specification for implicit and explicit conversions between primitive types. This document is the single source of truth for `-f[no-]implicit-conv`, overload resolution ranking, and binary operator result typing. C++'s own implicit conversions where a value crosses into C++ are `-f[no-]cxx-implicit-conv` ([Calling C and C++](/docs/language/c-cpp-calling/#argument-conversions)); this document does not govern them.
 
 ---
 
@@ -13497,6 +13589,8 @@ None of these participate in overload resolution or operand unification.
 - [Operators](/docs/language/operators/)
 - [Function Overloading](/docs/language/functions-overloading/)
 - [Calling C/C++](/docs/language/c-cpp-calling/#argument-conversions)
+
+`[T;]` and `[T]` convert implicitly to `[const T;]`, ranked like `*T` to `*const T`; the reverse does not convert, and the conversion does not apply under `?`.
 
 ---
 
@@ -14187,7 +14281,7 @@ The one place the import looks holds both a file `x.k` and a library entry `x/mo
 
 #### S089E: `'import module foo' was removed`
 
-`import module foo` (with a space) forced the library form of a module. Each import form now looks in one place where a file and a library entry with one name are already an error, so the form is gone. A fix-it deletes `module`, and the line is then read as a plain `import foo`.
+`import module foo` (with a space) forced the library form of a module. Each import form looks in one place where a file and a library entry with one name are already an error, so the form is gone. A fix-it deletes `module`, and the line is then read as a plain `import foo`.
 
 **Fix:** apply the fix-it and pick the form for where `foo` is: `import foo` (a library or search directory), `import self::foo` (beside this file) or `import module::foo` (from the module root).
 
@@ -14470,19 +14564,19 @@ The construct is part of the language but the current compiler does not handle i
 
 It is reported for:
 
-- iterating a vector, set, map, or string
+- `for ... in` over a Kairo `string` (`iterating a string is not yet supported`); vectors, sets, maps, slices, arrays and ranges work
 - `label!` and `jump!` in user code
 - `x.finally()` and `x.op finally()`, the explicit early destructor call (`'finally()' is not implemented yet (planned for 0.3)`); a local is destroyed at the end of its scope and a heap object with `@destroy`
 - matching a string against a pattern that isn't a string literal or a constant initialized with one
 - matching a record value against a literal-style pattern
-- an initializer on an `eval` field, and one on an array-typed field that is `static`, an array of arrays, or not a list literal
-- in a constructor that initializes a `const` field or a field without a default: a generic constructor or one with an expression body; `try`, `finally`, an `inline` block, `label!` or `jump!` before the last such initialization; a `static` or array local declared before it and used after it; initializing an array field of arrays, or one whose length is a generic parameter
+- an initializer on an `eval` array-typed field (`eval E: [i32; 2] = [1, 2]`)
+- in a constructor that initializes a `const` field or a field without a default: a constructor with an expression body; `try`, `finally`, an `inline` block, `label!` or `jump!` before the last such initialization; a `static` or array local declared before it and used after it
 - a vector, set, map or f-string in an `eval` context (`a vector in an eval context is not yet supported`); a string literal is fine
 - an array length computed by C++ from an `eval` constant of the field's own class (`an array length computed by C++ from 'J', an 'eval' constant of the field's own class, is not supported`): inside its own body the class is incomplete. A note points at the constant; the fix-it moves it to module scope
 - an array length or generic value argument that calls an `eval fn` (or reads an `eval` constant computed by one) in a declaration's type, a field or a signature (`... is not yet supported in a declaration's type; write it inside a function body, or make the constant fold`); inside a function body it is accepted
 - a generic value parameter whose type is neither an integer nor an eval class (`<eval B: bool>`)
 - a generic record's field default that reads another field
-- an attribute applied to an expression, such as `@create T(args)` (`the expression attribute '@create' is not yet supported`)
+- an attribute applied to an expression other than `@create T(args)` and `@destroy p`, which compile (`the expression attribute '@likely' is not yet supported`); the initializer form `@create T{...}` is rejected too
 - `@unreachable`, and a user-defined attribute macro (`the attribute macro '@trace' is not yet supported: attribute macros are not expanded yet`)
 - building or matching a [pack-expanded variant](/docs/language/enums-adt/#variadic-enums) at a type that depends on a generic parameter, and a pack-expanded variant's field whose type is built from the pack (`e: *E`)
 - naming the panic result type `Panic<T, E...>` in source (`a panic result type cannot be named yet`): a panicking call's result is handled with `try` or propagated, not stored
@@ -14494,7 +14588,7 @@ It is reported for:
 - a call whose callee's panic set names a generic parameter the call does not bind (no bound declares the requirement it calls)
 - a `fn`, class, struct, union or enum declared in a function body that uses a generic parameter of the function or class around it (`'echo' is declared in a body and uses 'T', a generic parameter of 'wraps'; that is not yet supported`); a note points at the parameter. One that is generic in its own right, or names no outer parameter, compiles
 - an `extend` in a function body
-- [`where` dispatch](/docs/language/where/) on a generic function, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function is not yet supported`)
+- [`where` dispatch](/docs/language/where/) on a generic function with a pack parameter, a `virtual` or `override` method, an `extend` member, an operator, a constructor, an out-of-line definition, a forward declaration, a generator, an `async` function, a variadic function, or an overload with a default argument (`'where' dispatch on a generic function with a pack parameter is not yet supported`)
 
 It means "not yet supported", not "invalid": the code is correct Kairo that the current compiler cannot build.
 
@@ -14644,6 +14738,21 @@ A by-value parameter of a record type that is never mutated is SC224W, which is 
 ---
 
 ### Generators
+
+
+#### SC290E: a destructor cannot be `eval`
+
+`eval fn op finally` is rejected: a compile-time object is never destroyed, and C++ has no constant-evaluated destructor to map it to.
+
+#### SC291E: a constant index past a fixed array's extent
+
+`index {k} is out of range for '[T; N]', which has N elements`. A constant index into a fixed array is checked at compile time; valid indices are `0..N-1`.
+
+#### SC292E: a kind bound is not met
+
+`'T' is not a class, so it cannot be 'T'`. A generic parameter bounded `: class`, `: struct`, `: enum` or `: union` was given an argument of another kind. The note points at the bound.
+
+SC249E also covers a by-value parameter, return or field of an abstract class, and SC227E a by-value parameter of a record that is only forward-declared.
 
 #### SC111E: `yield` where nothing can yield
 
@@ -14924,11 +15033,11 @@ priv class Derived derives Base {
 '@preserve_most' cannot cross the C/C++ boundary: GCC cannot call it
 ```
 
-GCC has no spelling for these conventions. An `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv` (functions are `pub` by default), is in the module's emitted C++ header and its `#include "x.k"` interface, where code GCC compiled could call it.
+GCC has no spelling for these conventions. An `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv`, written or by default (an unmarked function is `priv` when no `module.k` is above its file, and `prot` under one), is in the module's emitted C++ header and its `#include "x.k"` interface, where code GCC compiled could call it.
 
 ```kairo
 @preserve_most
-fn grow(n: usize) { }            // error SC136E: pub by default
+pub fn grow(n: usize) { }        // error SC136E: not priv
 
 @preserve_most
 priv fn grow_slow(n: usize) { }  // fine
@@ -15505,16 +15614,17 @@ Not all modifiers can be combined:
 
 ### Visibility
 
-A top-level function with no visibility written is `pub`.
+A top-level function with no visibility written is `priv` to its file, or `prot` to its module when a `module.k` sits at or above the file. Write `pub` on what other modules may use.
 
 | Keyword | Scope of a top-level function |
 |---|---|
-| `pub` (default) | Any module that imports this module |
+| `pub` | Any module that imports this module |
 | `priv` | Current file only |
 | `prot` | Current file and sibling files in the same library subtree |
 
 ```kairo
-fn api()                  { /* ... */ }   // pub by default
+pub fn api()              { /* ... */ }
+fn helper()               { /* ... */ }   // priv, or prot under a module.k
 priv fn internal_helper() { /* ... */ }
 prot fn library_helper()  { /* ... */ }
 ```
@@ -15658,7 +15768,7 @@ None of them changes inlining: the optimizer may still inline the function, and 
 - **Every declaration agrees.** A forward declaration and its definition, or an in-class declaration and its out-of-line definition, carry the same convention ([Signature matching](#signature-matching)). A convention alone never makes two declarations distinct overloads: the same signature with a different convention is a redeclaration error.
 - **Not on functions called by code Kairo does not write**: a constructor, a destructor (`op finally`), any operator, `main`, a generator, an `async` function, a closure or an `eval fn` ([SC134E](/docs/language/diagnostics/#sc134e)).
 - **One convention per override set.** A `virtual` or `override` method may carry a convention only if every method it overrides or is overridden by carries the same one ([SC135E](/docs/language/diagnostics/#sc135e)).
-- **Not across the C/C++ boundary.** GCC has no spelling for these conventions, so a function C or C++ can see may not carry one: an `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv` (it is in the module's emitted C++ header and its `#include "x.k"` interface). A `priv` or local function is fine ([SC136E](/docs/language/diagnostics/#sc136e)).
+- **Not across the C/C++ boundary.** GCC has no spelling for these conventions, so a function C or C++ can see may not carry one: an `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv`, written or by default (an unmarked function is `priv` when no `module.k` is above its file; under one it is `prot` and is in the header). Such a function is in the module's emitted C++ header and its `#include "x.k"` interface. A `priv` or local function is fine ([SC136E](/docs/language/diagnostics/#sc136e)).
 - **x86-64 and AArch64 only**, on any operating system. On any other target the attribute is an error, never silently ignored ([SC137E](/docs/language/diagnostics/#sc137e)).
 
 #### In a function type
@@ -15764,6 +15874,8 @@ These return type modifiers interact with Kairo's concurrency and type system. E
 |---|---|---|
 | `yield T` | Generator: produces a sequence of `T` values | [Generators](#generators) |
 | `atomic T` | Atomic wrapper thread-safe operations | [Concurrency](/docs/language/concurrency/) |
+
+Yielding a const place (a field in a `const self` generator) yields a copy; a move-only value cannot be yielded from a const place (SC182E).
 
 ### See also
 
@@ -16009,7 +16121,16 @@ fn f(xs: [i32;]) { }            // ok: a view of any length
 | `@move x: T`  | `f(a)`   |
 | receiver      | `a.f()`  |
 
-In argument position, `&` marks an `@inout` argument. It is not the address-of operator and never produces a `*T`. The marker is required, so every mutation of a caller's variable is visible where the call is made, and it is rejected anywhere else:
+In argument position, `&x` says the call may mutate `x`. Which of two things it is depends on the parameter it is passed to:
+
+| Parameter | Argument | Meaning |
+| --------- | -------- | ------- |
+| `@inout x: T` | `f(&a)` | the `@inout` marker: `a` is passed by reference, no pointer is made |
+| `p: *T` | `f(&a)` | address-of: a safe, non-null pointer to `a` |
+| `p: *const T` | `f(&a)` | address-of, read through a const pointer |
+| `p: unsafe *T` | `f(unsafe &a)` | an unsafe pointer to `a`, outside the borrow rules |
+
+The marker is required, so every mutation of a caller's variable is visible where the call is made. A `const` `@inout`-free parameter and a `@move` parameter take no marker. `&` is rejected anywhere it means neither:
 
 ```kairo
 read(&n)           // compile error: parameter 'x' of 'read' is not @inout
@@ -16041,13 +16162,29 @@ Overload resolution by mode and overloading on mode are covered in [Function Ove
 
 ### Reference returns from C++
 
-Modes don't exist in return position. [An imported function returning a reference](/docs/language/c-cpp-calling/#calls-that-return-a-reference) is seen as returning a pointer, and the value category keeps the reference's meaning:
+Modes don't exist in return position. A C++ function that returns a reference is written, on the Kairo side, with one of three return spellings:
 
-| C++ return  | Kairo type | Value category |
-| ----------- | ---------- | -------------- |
-| `T&`        | `*T`       | lvalue         |
-| `const T&`  | `*const T` | lvalue         |
-| `T&&`       | `*T`       | xvalue         |
+| C++ return | Kairo return | Value category of a call |
+| ---------- | ------------ | ------------------------ |
+| `T&`       | `ffi::ref<T>`        | lvalue |
+| `const T&` | `ffi::ref<const T>`  | lvalue |
+| `T&&`      | `ffi::mref<T>`       | xvalue |
+
+These are not types: nothing in Kairo can hold a reference, so a variable, parameter, field, alias or generic argument can't be one, and `typeof(f())` is `T`. They appear only as the whole return type of a Kairo definition of a function C++ declares (an out-of-line `fn Widget::at`, or a `fn ns::f` for a function in a C++ namespace) and of an override of a C++ virtual method. The return type must match the C++ declaration exactly; the compiler's fix-it gives the right spelling. The body returns the place itself, with no `&` (`return self.items[i]`); returning a temporary or a local is an error, because the caller would hold a reference to nothing.
+
+```kairo
+ffi "c++" import "widget.h"   // int& at(size_t); int at(size_t) const;
+
+fn Widget::at(self, i: usize) -> ffi::ref<i32> { return self.items[i] }
+fn Widget::at(const self, i: usize) -> i32     { return self.items[i] }
+
+class D derives Base {         // virtual const std::string& name() const;
+    pub var label: cxx::std::string
+    override fn name(const self) -> ffi::ref<const cxx::std::string> { return self.label }
+}
+```
+
+[Calling an imported function that returns a reference](/docs/language/c-cpp-calling/#calls-that-return-a-reference) needs no spelling at all: the call is a place.
 
 Because a `T&&` return is an xvalue, `f(g())` where `g` returns `T&&` selects `f`'s `@move` overload, as it does in C++.
 
@@ -16335,6 +16472,10 @@ fn <T: enum>   stringify(item: T) { ... }
 fn <T: union>  inspect(item: T)   { ... }
 ```
 
+An argument of another kind is an error (SC292E) where the generic is used.
+
+A bound may be a rooted path, `fn <T impl ::m::I>`, naming the interface from the file's root.
+
 **Interface bounds** restrict `T` to types that satisfy a given [interface](/docs/language/interfaces/). The standard library will provide interfaces describing [lifecycle capabilities](/docs/language/classes-lifecycle/#lifecycle-categories), allowing constraints like "T must be copyable" or "T must be movable" to be written as interface bounds. The exact names and shapes of these interfaces are still being finalized in `std` write your own if you need them now:
 
 ```kairo
@@ -16451,6 +16592,8 @@ The argument is an `eval` binding of the class or a call of its `eval` construct
 - [Generic Structs](/docs/language/structures/#generic-structs)
 - [Class Lifecycle](/docs/language/classes-lifecycle/#lifecycle-categories)
 
+A vector, set or map type can head a static path: `[i32]::with_capacity(8)` is `Vector<i32>::with_capacity(8)`, and likewise `{T}::f()` and `{K: V}::f()`.
+
 ---
 
 ## Imports
@@ -16563,7 +16706,11 @@ An import makes a name reachable, not visible: a name the imported file declares
 
 #### Re-export Pattern
 
-Use `pub import` explicitly in library entry files to curate the public API:
+Use `pub import` explicitly in library entry files to curate the public API: A re-export also carries the `extend` blocks of the file it names; a private import does not.
+
+A macro is imported by its `!` name: `import Foo::mac!`, or in a list `import Foo::{mac!, f}`. Without the `!` the name is a declaration, not the macro.
+
+A file may be named like a primitive type (`f8.k`, `i32.k`): import it like any other. Since `i32::` names the type, a plain `import self::i32` must give the module another name with `as`, or import its contents with `::*`.
 
 ```kairo
 // network/module.k
@@ -16633,6 +16780,8 @@ m::Vector3(1.0, 2.0, 3.0)
 The alias replaces the module name in the current scope. The original name (`math`) is **not** available, only `m`.
 
 ### FFI Header Imports
+
+Each `ffi` import names one header; write one line per header. The language string and the import, declaration or block it applies to must be on the same line. A list (`import {"a.h", "b.h"}`) is an error.
 
 C and C++ headers are imported via the [`ffi` keyword](/docs/language/c-cpp-calling/#the-ffi-keyword):
 
@@ -17454,7 +17603,7 @@ See [Pointers](/docs/language/pointers/) for the full pointer model and how [Tet
 
 ## Operator Overloading
 
-Operators are overloaded by defining `fn op` methods on a [class](/docs/language/classes/) or [struct](/docs/language/structures/), or in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may declare any overloadable operator except `as`, `[]`, `->` and `delete`, which are **member-only**: they must be declared in the type's own body.
+Operators are overloaded by defining `fn op` methods on a [class](/docs/language/classes/) or [struct](/docs/language/structures/), or in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may declare any overloadable operator except `as`, `[]`, `[]=`, `->` and `delete`, which are **member-only**: they must be declared in the type's own body.
 
 The built-in types follow the same rules. `[T]`, `{T}`, `{K: V}`, `[T;]` and `string` are ordinary types to the compiler, so an operator they declare (for example `fn op in (self) -> yield T`, or `fn op [] (self, i: usize) -> *T`) is the one a `for` loop or a subscript calls. Only when such a type declares no operator of that kind does the compiler fall back to the built-in behavior.
 
@@ -17473,6 +17622,7 @@ The built-in types follow the same rules. `[T]`, `{T}`, `{K: V}`, `[T;]` and `st
 | `<=>` | ok | no | Returns `Ordering`. |
 | `l++` `r++` `l--` `r--` | ok | no | Mutating operators. |
 | `[]` | ok | ok | Returns a place into `self` (`*T` / `*const T`). Member-only. |
+| `[]=` | ok | no | Returns the place a write goes through (`*T`). Member-only. See [Reading and writing](#reading-and-writing--and-). |
 | `->` | ok | ok | Returns a place into `self` (`*T` / `*const T`). Member-only. |
 | `in` (containment) | ok | no | Returns `bool`. |
 | `in` (iteration) | ok | no | Returns `yield T`. |
@@ -17557,6 +17707,8 @@ var acc2 = acc + 7   // op + derived from op +=: acc2.total == 12
 Declaring `op +` instead derives `+=` the other way. Declare whichever form is natural for the type; the in-place form usually avoids a copy.
 
 [Imported C++ types](/docs/language/c-cpp-calling/#operators-on-c-types) are not paired: they get exactly the operators their C++ declaration has.
+
+For a type that cannot be copied, `a + b` with a variable `a` is SC182E, because the derived `+` copies `a`. Write `a += b`, or use a temporary on the left.
 
 ### Increment and decrement
 
@@ -17734,6 +17886,45 @@ b[0] = 10          // through the place
 var s = b[0..2]    // a new value
 var *p = &b[1]     // *i32 into b.data
 ```
+
+On a const object only the `const self` form of `op []` can be called; an element reached through it, or through a const array or vector, is const, so writing it, passing `&x[i]` to `@inout`, or calling a `self` method on it is an error.
+
+### Reading and writing: `[]` and `[]=`
+
+A type can declare its subscript in two forms. `op []` is the **read form**: it gives the element to read, as `*const T` or a value. `op []=` is the **place form**: it gives the place a write goes through, as `*T`.
+
+```kairo
+class Buf {
+    priv var data: [i32]
+    fn op [] (const self, i: usize) -> *const i32 { return &self.data[i] }
+    fn op []= (self, i: usize) -> *i32 { return &self.data[i] }
+}
+
+var b = Buf { data: [1, 2, 3] }
+b[0] = 10          // op []=
+b[1] += 1          // op []=, called once
+var x = b[2]       // op []
+var *p = &b[0]     // op []=, *i32
+
+const cb = Buf { data: [1, 2, 3] }
+var *q = &cb[0]    // op [], *const i32
+cb[0] = 1          // error: 'cb' is const, and 'op []=' takes 'self'
+```
+
+When a type declares `op []=`, each use of `b[i]` calls the form that matches what it does with the element. Neither the type's constness nor the return type decides.
+
+- **Writes call `op []=`:** the left side of `=` and of every compound assignment, the operand of `++` and `--`, a member written through the element (`b[i].x = 4`), the container of a written nested subscript (`g[i][j] = 0` writes `g[i]` too), and the receiver of a method or `op in` that takes `self`.
+- **`&b[i]` takes `op []=` and gives `*T`** when `b` is mutable. On a const `b`, or where `*const T` is wanted, it takes `op []` and gives `*const T`. An `@inout` argument needs the place form.
+- **`var t = b[i..j]`** on a mutable `b` binds the place form, so `t` is a view you can write through. `const t = b[i..j]` binds the read form. If `t` is never written through, SC281W suggests `const`.
+- **Every other use reads** and calls `op []`.
+
+The forms do not stand in for each other. A read through a type that declares only `op []=` is SC279E.
+
+For one index type, the two forms describe one element: `op []` returns `*const T` (or a value) where `op []=` returns `*T`. `op []` beside an `op []=` cannot return `*T`, and `op []=` takes `self` and returns `*T` or a mutable view `[T;]` (SC280E).
+
+A type that declares no `op []=` keeps the single `op []` of [Places and values](#places-and-values---). The builtin containers are such types today.
+
+C++ sees the forms as `__kairo_op_get` and `__kairo_op_set`, and the class gets `operator[]` overloads that forward to them: `T& operator[](I)` to the place form and `const T& operator[](I) const` to a `const self` read form. When both forms would be the same C++ overload, `operator[]` is the place form and the read form is `__kairo_op_get`.
 
 ### Finally Operator
 
@@ -18151,7 +18342,7 @@ No pointer value outside `[base, base + count]` ever exists in a safe program, s
 
 This is a larger expressiveness envelope than safe Rust, which routes all of this through slices and iterators. The safety **guarantee** is the same no out-of-bounds access reaches memory but the cost model is pay-only-when-unprovable rather than always-checked-unless-elided, and the surface syntax is C-style arithmetic rather than slice methods.
 
-> Tether does not present an unprovable bounds access as a *warning*. The programmer did nothing questionable; the allocation size is simply runtime data. It is reported as an **optimization remark** when remarks are enabled, naming the fact that blocked the proof: `[amt] runtime bounds check at <loc>: allocation size depends on runtime value 'n'; cost: one check; to eliminate: bound the index by a compile-time constant or hoist the proof.`
+> Tether does not present an unprovable bounds access as a *warning*. The programmer did nothing questionable; the allocation size is runtime data. It is reported as an **optimization remark** when remarks are enabled, naming the fact that blocked the proof: `[amt] runtime bounds check at <loc>: allocation size depends on runtime value 'n'; cost: one check; to eliminate: bound the index by a compile-time constant or hoist the proof.`
 
 ---
 

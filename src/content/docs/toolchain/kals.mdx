@@ -2,3 +2,184 @@
 title: kals
 description: "kals, the Kairo language server: editor and IDE integration for the Kairo programming language via the Language Server Protocol (LSP)."
 ---
+
+# kals
+
+`kals` is the Kairo language server. It speaks the Language Server Protocol over stdin and stdout, so any editor with an LSP client can use it.
+
+```sh
+kals            # run the server (an editor starts this)
+kals --version
+```
+
+`kals` ships with the Kairo toolchain, in the same `bin/` as `kairo` and `kfmt`, so installing Kairo installs it. Formatting runs `kfmt`, found beside `kals` or on `PATH`.
+
+## What it does
+
+| Feature | Notes |
+|---|---|
+| Diagnostics | the compiler's own, from the text in the editor, saved or not. Syntax errors in the file being edited come first, from a parse of that file alone; the type check's diagnostics follow and replace them |
+| Quick fixes | every compiler fix-it is a code action |
+| Semantic highlighting | functions, methods, types, parameters, constants, enum members, namespaces; see below for the two Kairo-specific marks |
+| Go to definition | a call goes to the overload that was chosen; an operator goes to its `op` function. Also go to type definition and declaration |
+| Signature help | every overload of the function being called, with the argument being typed marked |
+| Hover | the declaration and its `///` documentation; a type shows its body (an enum its underlying type and every variant with its value or payload, a union its members) and, when it follows from the fields alone, its size and alignment |
+| Completion | as a name is typed: the locals and parameters in scope, the file's declarations, what it imports, the builtin library, macros (`name!`) and the keywords that fit the position; members after `.`, `->` and `::`, with only what the file may access; attributes after `@`; import paths and the names a module exports; header paths inside `ffi "c++" import "..."`. Answered from the server's index in a few milliseconds, also while the line does not parse; see below |
+| References, highlight, rename | across the files of the project |
+| Formatting | `kfmt`'s output, so the editor and the command line never disagree |
+| Outline, workspace symbols, folding | |
+| Inlay hints | the type of a declaration that did not write one; parameter names at calls; what an interface inherits from the ones it derives |
+| Hierarchies | callers and callees of a function; supertypes and subtypes; go to implementation |
+| Code lenses | reference counts above functions and types |
+| Links | an import path opens the file it resolved to |
+| Macros | hover an invocation to see what it expands to; the quick-fix menu offers **View expanded macro** (VS Code shows it read-only beside the editor) and **Expand macro here** (replaces the invocation with its expansion) |
+| Generate interface | on a class or struct name, the refactor menu offers **Generate interface for 'Name'**: `pub interface IName` above the type with every public instance method's signature and doc comment, and `impl IName` added to the type |
+| C and C++ beside Kairo | a C or C++ file of the project that writes `#include "foo.k"` resolves in clangd: kals writes `foo.k`'s C++ header into `.kairo/clangd/`, keeps it current as you type, and points clangd at it through a VFS overlay in a `.clangd` file (see below) |
+| Progress | shown while a workspace is first indexed, in editors that display LSP progress |
+
+### Overloads and `where` dispatch
+
+A call in Kairo can be more than it looks: the name may stand for several overloads, `a + b` may run a user-defined `op +`, and a function with [`where`](/docs/language/where/) guards picks its body at run time. kals marks these with two semantic token modifiers:
+
+| Modifier | Meaning |
+|---|---|
+| `overloaded` | the callee is one of several declarations of that name, is constrained by a `requires` clause, or the operator is user-defined |
+| `dispatched` | the callee dispatches through `where` guards |
+
+Other modifiers kals sends:
+
+| Modifier | Meaning |
+|---|---|
+| `extension` | a call to a method or operator an `extend` block supplies |
+| `ffi` | a name declared in C or C++ (such a call is never also `overloaded`) |
+| `unsafe` | a call to an `unsafe fn`, the operator of `unsafe &x` / `unsafe *p`, and the `unsafe` keyword |
+| `mutates` | the `&` of an argument the call may write through: an `@inout` marker, or the address of a `var` passed to a `*T` parameter (never to a `*const T`) |
+| `inout` | the `&` of an argument bound to an `@inout` parameter, or to a C++ `T&` |
+| `pointer` | the `&` of an argument bound to a pointer parameter; with `unsafe` for `unsafe *T` (a C++ `T*`), with `readonly` for `*const T` (both for a C++ `const T*`) |
+| `deprecated` | a use of a `@deprecated` declaration |
+| `mutable` | a `var` binding and its uses |
+| `constant` | a `const` or `eval` binding |
+| `panics` | a call to a function declared `panic`; sent only when `highlightPanics` is on |
+
+A macro name and its `!` are one token of the standard `macro` type: an invocation (`double!(5)`, `greeting!`, `lib::twice!(2)`), a definition's name (with `declaration`), and a macro imported by name. A builtin macro such as `stringify!` or `file!` also carries `defaultLibrary`. This comes from the raw text, so it stays the same while a line does not parse.
+
+The editor extensions draw them the same way: `overloaded` underlined, `dispatched` underlined and italic, `extension` and `ffi` italic, `unsafe` bold, `mutates` bold, `deprecated` struck through, constants in the enum-member colour, macros in amber, and `panics` with a dotted underline where the editor can draw one (Neovim; not VS Code).
+
+The `&` of a call argument is bold and coloured by the parameter it binds to, so a call site shows what the call can do with the argument:
+
+| Argument | Parameter | Colour |
+|---|---|---|
+| `bump(&n)` | `@inout x: i32`, or a C++ `int&` | green |
+| `poke(&n)` | `p: *i32` (or `*i32?`) | the theme's operator colour |
+| `raw(unsafe &n)` | `p: unsafe *i32`, or a C++ `int*` | purple |
+| `peek(&n)` | `p: *const i32` | grey-blue |
+| `rawc(unsafe &n)` | `p: unsafe *const i32`, or a C++ `const int*` | purple, italic |
+
+The same holds for `&a.b`, `&v[i]`, named arguments and method calls. A C++ `const T&` or `T&&` parameter takes no `&` at the call, so there is nothing to colour. In VS Code these are defaults you can override:
+
+```json
+"editor.semanticTokenColorCustomizations": {
+  "rules": {
+    "*.overloaded:kairo": { "underline": true },
+    "*.dispatched:kairo": { "underline": true, "italic": true },
+    "operator.inout:kairo": { "bold": true, "foreground": "#2EA043" },
+    "operator.pointer.unsafe:kairo": { "bold": true, "foreground": "#B44FD6" },
+    "operator.pointer.readonly:kairo": { "bold": true, "foreground": "#7088A8" },
+    "macro:kairo": { "foreground": "#D4900A" }
+  }
+}
+```
+
+An undeclared name reports R020E without hiding the inferred types of the rest of the file.
+
+## Completion
+
+Completion does not run the compiler. kals keeps, for every file of the project and of the library, a table of what the file declares (each name with its kind, signature, visibility and type), and for every open file the names its imports bring in. A request is answered from those tables and from the text in the editor, so the list arrives in a few milliseconds and does not depend on the line, or the file, parsing.
+
+| Where | What is offered |
+|---|---|
+| a name | locals and parameters in scope (a local of a block that has closed is not), the members of the enclosing type, the file's declarations, what it imports, the builtin library, macros as `name!`, and keywords: statement keywords at a statement's start, declaration keywords at file level and in a type's body, types and primitive type names where a type is written |
+| after `.`, `->`, `::` | the members of the receiver: a value's type, a type, a module, an enum. Inherited members and the methods of the `extend` blocks the file sees are included; a `priv` or `prot` member is offered only where the file may use it |
+| after `@` | the built-in attributes, each with how it is written and what it does; before a declaration that is already written, the attributes that declaration takes |
+| in `import a::b::` | module paths, and inside `import a::{ ... }` the names the module declares |
+| in `ffi "c" import "` / `ffi "c++" import "` | headers from the include directories of the project's compile (`-I`, `--cxx-include`, the C and C++ libraries), one directory at a time |
+| in a comment, in a string, where a name is being declared | nothing |
+
+Each item shows its signature; its documentation is loaded when the item is selected. The list holds every candidate for the position, so the editor filters it as you type or delete and does not ask again.
+
+The compiler is asked only when the tables cannot say what the receiver is: a range subscript (`v[a..b].`), a C or C++ value, the result of a generic function, a call to overloads that return different types. After a primitive type's name and `::` (`usize::`, `f64::`), completion offers the type's constants (`MAX`, `EPSILON`, …) and the statics of the `extend` blocks the file sees. A local typed since the last check shows its type when it is a construction or a literal. That answer takes a re-check of the file (a few hundred milliseconds, more for a file in a large import cycle).
+
+Completion after a deletion: kals answers wherever the cursor is in or after a name. Whether a request is sent after a backspace is the editor's choice. The VS Code extension asks again after a deletion that leaves the cursor in a name (`kairo.completion.triggerOnDelete`, on by default).
+
+
+## Projects
+
+A Kairo command line names one entry point; the compiler finds every other file through imports. kals reads the project's entry points from `kairo_compile.json`, in the workspace folder or any directory above it:
+
+```json
+{
+  "version": 1,
+  "entries": [
+    { "entry": "src/main.k", "args": ["-I", "include/", "-fimplicit-conv"] }
+  ],
+  "default_args": ["-I", "include/"]
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `entry` | the file you pass to `kairo` |
+| `args` | every other argument, exactly as on the command line |
+| `directory` | where the command runs, relative to this file; `.` when omitted |
+| `default_args` | flags for a file no entry imports yet |
+
+A file belongs to the entry that imports it. A file no entry reaches is checked on its own with `default_args`. With no `kairo_compile.json`, every file is checked on its own with no flags, which is enough for a single script.
+
+The file is written by hand for now; the build tool will write it.
+
+## Editors
+
+The editor clients are in [kairo-lsp](https://github.com/kairolang/kairo-lsp). Each finds `kals` on `PATH` and needs no configuration. The VS Code extension (0.9.2) shows completions again after a deletion that leaves the cursor in a name; `kairo.completion.triggerOnDelete` turns that off.
+
+| Editor | Install |
+|---|---|
+| Visual Studio Code | the Kairo extension (`vscode/`) |
+| Zed | `zed/` as a dev extension, then `"languages": { "Kairo": { "semantic_tokens": "combined" } }` (semantic highlighting is off in Zed by default) |
+| Neovim 0.11+ | put `nvim/` on the runtimepath |
+| Helix 25.01+ | merge `helix/languages.toml` into `~/.config/helix/languages.toml`, copy `helix/runtime/queries/kairo` into `~/.config/helix/runtime/queries/`, then `hx --grammar fetch` and `hx --grammar build`. Helix colours with tree-sitter only, so the semantic-token marks are not shown |
+
+Any other client: start `kals` with no arguments and speak LSP on its stdin and stdout. Positions are UTF-16.
+
+Settings, as LSP `initializationOptions` (the VS Code extension passes them from `kairo.kals.*`):
+
+| Option | Default | |
+|---|---|---|
+| `syntaxDebounceMs` | `100` | fallback only: the edited file is re-parsed alone (its syntax errors, and keyword highlighting while it does not parse) by a long-lived parser process on every keystroke, with no wait; this delay applies only where that process cannot run (Windows for now) and a process is started per pass instead |
+| `debounceMs` | `150` | wait after the last keystroke before the type check |
+| `liveCheck` | `true` | Keeps each project entry's graph checked in a worker process and re-checks an edit in place. Set `false` (or `KALS_LIVE_CHECK=0` in the server's environment) for a process per analysis. |
+| `indexCompletion` | `true` | answer completion from the index. `false` (or `KALS_INDEX_COMPLETION=0` in the server's environment) asks the compiler for every list; for comparing the two |
+| `maxWorkers` | `2` | entry points analysed at once (a large project always runs one at a time) |
+| `highlightPanics` | `false` | send the `panics` modifier on calls that can panic (VS Code: `kairo.kals.highlightPanics`; Neovim: `setup({ init_options = { highlightPanics = true } })` or `vim.g.kairo_highlight_panics`) |
+
+## C and C++ files: clangd
+
+When a C or C++ file of the project (one named in `compile_commands.json`, or any under the workspace when there is none) includes a Kairo file with `#include "foo.k"`, kals writes the C++ declarations `foo.k` exports to `<project>/.kairo/clangd/foo.hh`, regenerates it on every edit of `foo.k` (saved or not) and of the modules it reads, and writes `<project>/.kairo/clangd/overlay.yaml`, which tells clang to read that header wherever it would read `foo.k`. clangd picks the overlay up from a `.clangd` file in the project:
+
+```yaml
+CompileFlags:
+  Add: [-ivfsoverlay, /path/to/project/.kairo/clangd/overlay.yaml, -I/path/to/project/.kairo/clangd]
+```
+
+kals writes that file itself when the project has none (its first line marks it as kals'). A `.clangd` you wrote is never changed: kals logs the two lines to add instead. Add `.kairo/` to `.gitignore`.
+
+clangd then knows every Kairo name the C++ file uses, and a jump to a Kairo declaration opens `foo.k` at the declaration's line: the header is laid out so each declaration sits on the line it has in `foo.k`, with what the compiler adds around it in `foo.hh.prelude` beside it. A declaration on the first line of `foo.k`, or one the C++ header must order after a later declaration (a class that depends on a class below it), can still land a few lines off.
+
+## How it works
+
+Each analysis is a separate `kals` process that type-checks one entry point and exits, so a compiler crash on half-typed code costs one stale answer, not the editor's connection. The server keeps the last good result and answers from it until a newer one arrives.
+
+There is no incremental analysis yet: a change re-checks the entry's import graph. That is a fraction of a second for a small project and much longer for a very large one.
+
+## Not yet
+
+On-type formatting and go to implementation of a single method. Completion after a range subscript (`v[a..b].`), a C or C++ value or a generic function's result asks the compiler, and offers nothing there while the expression does not parse (an unclosed call). User-defined attributes are not listed after `@`.

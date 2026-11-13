@@ -12,6 +12,8 @@ parent: c-cpp
 
 Use the **`kcc`** driver, which makes `#include "file.k"` work transparently in C++ translation units.
 
+`#include "file.k"` works only in a C++ source file compiled by `kcc`. A header that Kairo itself imports with `ffi import` (or any header it includes) cannot include a `.k` file: the include is skipped with error R070 and the rest of the header is still imported, so the header must declare what it needs itself.
+
 ```kairo
 // my_code.k
 import std::io
@@ -158,7 +160,7 @@ Every Kairo class, struct and ADT enum in C++-facing output carries class-scope 
 
 ### Generics
 
-Kairo [generics](/docs/language/generics/) are C++ templates in the header, bodies included. Instances Kairo already compiled are listed as `extern template`, so linking against the module's objects reuses them; any other instance is instantiated by your C++ compiler like any template. An `#include "file.k"` lists none: the C++ side instantiates every instance it uses, and the linker keeps one copy. A Kairo `impl` bound on a generic function or method is a C++ constraint: each interface is emitted as a C++ concept (`Shape` is `Shape_c`, in the interface's namespace), and the template carries `requires(Shape_c<T>)`, so a C++ call with a type that does not satisfy the bound is rejected at the call. A bound on a generic class or struct is not translated: the class template is unconstrained, and instantiating it with a type that does not satisfy the bound fails inside the member that needs it. Each instance Kairo compiled also carries a `static_assert` that its bounds hold.
+Kairo [generics](/docs/language/generics/) are C++ templates in the header, bodies included. Instances Kairo already compiled are listed as `extern template`, so linking against the module's objects reuses them; any other instance is instantiated by your C++ compiler like any template. An `#include "file.k"` lists none: the C++ side instantiates every instance it uses, and the linker keeps one copy. A Kairo `impl` bound on a generic function or method is a C++ constraint: each interface is emitted as a C++ concept (`Shape` is `Shape_c`, in the interface's namespace), and the template carries `requires(Shape_c<T>)`, so a C++ call with a type that does not satisfy the bound is rejected at the call. A bound on a generic class is not part of the class template's head, since C++ would check it where the class names itself while still incomplete. Instead each of its constructors asserts the bound, so making one with a type that does not implement the interface is a compile error naming the bound (`'Holder' requires 'T' to implement 'Named'`). A struct with no constructor of its own is not checked.
 
 ### Constructing enum variants from C++
 

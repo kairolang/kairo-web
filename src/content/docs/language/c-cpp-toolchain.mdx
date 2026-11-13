@@ -269,6 +269,8 @@ Without `--tls-model`, each `thread` global gets a TLS model of its own. Builtin
 
 `kairo` has no raw Clang passthrough. After a bare `--`, every word is an input file, so `kairo main.k -- -ftls-model=initial-exec` is an error that names the Kairo spelling. To pass a Clang flag to the C and C++ inputs alone, use `--cxx-flags=<flag>` (repeatable). Kairo's own code never sees those flags.
 
+A `kcc` link with no Kairo code (no `.k` input, no `#include` of a `.k`, no Kairo object) is linked exactly as clang links it, without the Kairo runtime.
+
 ## See also
 
 - [C & C++ Interoperability](/docs/language/c-cpp/)

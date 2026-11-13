@@ -17,7 +17,7 @@ set "x\" <# "
 # Both halves download kairo-<ver>-<triple>.{tar.xz,zip} and SHA256SUMS, verify the archive
 # BEFORE unpacking, never need root, and install per user:
 #
-#   KAIRO_VERSION    version to install            (default: 0.2.1)
+#   KAIRO_VERSION    version to install            (default: 0.2.3)
 #   KAIRO_PREFIX     sh: install prefix            (default: $HOME/.local; tree in
 #                       $KAIRO_PREFIX/share/kairo/<ver>, tools linked into $KAIRO_PREFIX/bin)
 #                    PowerShell: install root      (default: %LOCALAPPDATA%\Kairo; tree in
@@ -38,8 +38,8 @@ set "x\" <# "
 # SDK or a failure prints the command to run later. Every other target's sysroot is built on
 # demand by ksys, the first time --target names it, and cached.
 
-VERSION_DEFAULT=0.2.1
-BUILD_CMD='python3 build.py --release kairo kcc kld kfmt'
+VERSION_DEFAULT=0.2.3
+BUILD_CMD='python3 build.py --release kairo kcc kld kfmt kals'
 
 say() { printf 'kairo-install: %s\n' "$*"; }
 die() { printf 'kairo-install: error: %s\n' "$*" >&2; exit 1; }
@@ -312,8 +312,8 @@ function Install-Kairo {
     $ProgressPreference = 'SilentlyContinue'   # the progress bar makes 5.1 downloads ~10x slower
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
 
-    $ver = if ($env:KAIRO_VERSION) { $env:KAIRO_VERSION } else { '0.2.1' }
-    $buildCmd = 'python3 build.py --release kairo kcc kld kfmt'
+    $ver = if ($env:KAIRO_VERSION) { $env:KAIRO_VERSION } else { '0.2.3' }
+    $buildCmd = 'python3 build.py --release kairo kcc kld kfmt kals'
     # $IsWindows only exists in pwsh 6+; Windows PowerShell 5.1 is Windows by definition.
     $onWindows = ($PSVersionTable.PSVersion.Major -lt 6) -or [bool]$IsWindows
     $testWin = ($env:KAIRO_TEST_FORCE_WINDOWS -eq '1')   # test hook, deliberately undocumented

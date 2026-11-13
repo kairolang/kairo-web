@@ -688,7 +688,7 @@ The one place the import looks holds both a file `x.k` and a library entry `x/mo
 
 ### S089E: `'import module foo' was removed`
 
-`import module foo` (with a space) forced the library form of a module. Each import form now looks in one place where a file and a library entry with one name are already an error, so the form is gone. A fix-it deletes `module`, and the line is then read as a plain `import foo`.
+`import module foo` (with a space) forced the library form of a module. Each import form looks in one place where a file and a library entry with one name are already an error, so the form is gone. A fix-it deletes `module`, and the line is then read as a plain `import foo`.
 
 **Fix:** apply the fix-it and pick the form for where `foo` is: `import foo` (a library or search directory), `import self::foo` (beside this file) or `import module::foo` (from the module root).
 
@@ -1146,6 +1146,21 @@ A by-value parameter of a record type that is never mutated is SC224W, which is 
 
 ## Generators
 
+
+### SC290E: a destructor cannot be `eval`
+
+`eval fn op finally` is rejected: a compile-time object is never destroyed, and C++ has no constant-evaluated destructor to map it to.
+
+### SC291E: a constant index past a fixed array's extent
+
+`index {k} is out of range for '[T; N]', which has N elements`. A constant index into a fixed array is checked at compile time; valid indices are `0..N-1`.
+
+### SC292E: a kind bound is not met
+
+`'T' is not a class, so it cannot be 'T'`. A generic parameter bounded `: class`, `: struct`, `: enum` or `: union` was given an argument of another kind. The note points at the bound.
+
+SC249E also covers a by-value parameter, return or field of an abstract class, and SC227E a by-value parameter of a record that is only forward-declared.
+
 ### SC111E: `yield` where nothing can yield
 
 `yield` is allowed only in a function declared `-> yield T`. It is an error outside a function, inside a closure, or in a function with any other return type.
@@ -1425,11 +1440,11 @@ priv class Derived derives Base {
 '@preserve_most' cannot cross the C/C++ boundary: GCC cannot call it
 ```
 
-GCC has no spelling for these conventions. An `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv` (one with no visibility written counts too), is in the module's emitted C++ header and its `#include "x.k"` interface, where code GCC compiled could call it.
+GCC has no spelling for these conventions. An `ffi "c"` / `ffi "c++"` declaration, or any function that is not `priv`, written or by default (an unmarked function is `priv` when no `module.k` is above its file, and `prot` under one), is in the module's emitted C++ header and its `#include "x.k"` interface, where code GCC compiled could call it.
 
 ```kairo
 @preserve_most
-fn grow(n: usize) { }            // error SC136E: not written `priv`
+pub fn grow(n: usize) { }        // error SC136E: not priv
 
 @preserve_most
 priv fn grow_slow(n: usize) { }  // fine

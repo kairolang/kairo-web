@@ -616,3 +616,5 @@ fn <T impl Drawable> total_width(items: [T;]) -> f64 {
 - [Extends](/docs/language/extends/)
 - [Classes](/docs/language/classes/)
 - [Classes: Inheritance](/docs/language/classes-inheritance/)
+
+A builtin type meets an operator requirement through its own operator when the shapes match (operands `Self`, the requirement's result with `Self` substituted): `i32` meets `fn op +(const self, o: Self) -> Self`, `fn op <(const self, o: Self) -> bool` and `fn op <=>(const self, o: Self) -> Ordering`, and `op +=` when it has `+`. A requirement the type does not have built in, such as `bool + bool`, is SC162E.

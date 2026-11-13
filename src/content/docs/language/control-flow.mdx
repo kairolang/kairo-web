@@ -148,7 +148,7 @@ for item in collection {
 }
 ```
 
-The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does not make it iterable. See [Operators](/docs/language/operators/#ranges) for the `Steppable` interface and [Operators](/docs/language/operator-overloading/#special-operators) for the `op in` overload.
+The range operators `..` and `..=` produce a `Range` object that implements the iterator protocol. Any type that defines `fn op in (self) -> yield T` is iterable. Defining `begin()` and `end()` on a Kairo class does not make it iterable. See [Operators](/docs/language/operators/#ranges) for the `Steppable` interface and [Operators](/docs/language/operator-overloading/#special-operators) for the `op in` overload. A `const` iterable uses `op in (const self)`; a type whose `op in` takes `self` cannot be iterated through a const value (SC063E). A plain binder is a copy of each element. Binding an element type that cannot be copied is SC182E; bind `*x` for the element's address.
 
 An [imported C++ class](/docs/language/c-cpp-calling/) iterates the way a C++ range-based `for` does: through its member `begin()` and `end()`, or else through free `begin()` and `end()` functions found by argument-dependent lookup.
 
@@ -702,3 +702,5 @@ For C++ developers the following C++ constructs have no equivalent in Kairo:
 - [Functions](/docs/language/functions/)
 - [Variables](/docs/language/variables/#scope-and-lifetime)
 - [Attributes](/docs/language/attributes/#branch-hints)
+
+`for *x` over a generator binds a pointer to const unless the generator yields a mutable place, so a write through `x` that would land in a copy is an error (SC071E).

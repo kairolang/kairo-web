@@ -8,21 +8,23 @@
 //
 // /LICENSE is a page rather than a raw file because GitHub Pages serves an
 // extensionless file as application/octet-stream (a download, not text).
-// Never edit the generated copies by hand. Requires KAIRO_REPO to point at a
-// checkout of github.com/kairolang/kairo (CI checks out just these two files).
+// Never edit the generated copies by hand. KAIRO_REPO names a checkout of
+// github.com/kairolang/kairo (CI checks out just these two files); when it is
+// unset, a sibling checkout at ../kairo-lang is used.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)));
-const repo = process.env.KAIRO_REPO;
+const sibling = resolve(root, '..', 'kairo-lang');
+const repo = process.env.KAIRO_REPO || (existsSync(join(sibling, 'LICENSE')) ? sibling : undefined);
 
 function fail(msg) {
   console.error(`[generate-legal] ${msg}`);
   process.exit(1);
 }
 
-if (!repo) fail('KAIRO_REPO is not set. Point it at a kairo repository checkout, e.g. KAIRO_REPO=/path/to/kairo.');
+if (!repo) fail('KAIRO_REPO is not set and ../kairo-lang does not exist. Point KAIRO_REPO at a kairo repository checkout, e.g. KAIRO_REPO=/path/to/kairo.');
 
 const license = join(resolve(repo), 'LICENSE');
 const trademarks = join(resolve(repo), 'TRADEMARKS.md');

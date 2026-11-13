@@ -18,7 +18,7 @@ kairo --type-check-only main.k
 |---|---|
 | `-o <file>` | output name |
 | `-c`, `-S` | stop after the object / assembly |
-| `--emit=obj,asm,llvm-ir,llvm-bc` | choose the outputs |
+| `--emit=obj,asm,llvm-ir,llvm-bc` | choose the outputs. `obj` alone links; one other kind stops there and `-o` names that file; two or more kinds link only with `-o`, which names the executable, and the kinds are written beside it. Empty or repeated items change nothing (`obj,` is `obj`) |
 | `--emit-headers=<dir>` | write one C++ header per module ([Using Kairo in C++](/docs/language/c-cpp-exposing/)) |
 | `--type-check-only` | parse and check without generating code |
 | `--target=<triple>`, `--sysroot=<dir>`, `--freestanding`, `--native` | [cross-compilation and sysroots](/docs/language/c-cpp-toolchain/#cross-compilation) |
@@ -30,10 +30,15 @@ kairo --type-check-only main.k
 | `--interface-pch=auto\|on\|off` | share precompiled Kairo interfaces between files |
 | `--cache-dir <dir>`, `--force-recompile` | [incremental compilation](/docs/language/c-cpp-toolchain/#incremental-compilation): unchanged files skip code generation |
 | `-finfer-purity` / `-fno-infer-purity` | infer `const` / `@pure` for functions that make no promise (on by default) |
+| `-fimplicit-conv` / `-fno-implicit-conv` | Kairo's implicit conversions ([Conversion Lattice](/docs/language/conversion-lattice/)); on by default. Applies to your files only: the builtin and std libraries always compile with the default rules |
+| `-funwind`, `-fcxx-implicit-conv` | apply to your own files only; the standard library always compiles with `noexcept` functions and without C++ implicit conversions |
+| `-fcxx-implicit-conv` / `-fno-cxx-implicit-conv` | at a call into C++, apply the implicit conversions C++ would (one converting constructor or conversion operator; a string literal as its `const char[N]`); off by default, so such an argument needs ` as T` |
 | `-Wconst-self` | opt-in lint for methods that could take `const self` |
 | `--error-format=...`, `--explain <CODE>`, `--diag-show-ids` | diagnostics: `--explain` prints the long form of a code |
-| `--print-stats`, `-v` | timings, counts, and what each step did |
+| `--print-stats`, `-v` | timings, counts, and what each step did Also, in a build with an import cycle, the number of re-export fixpoint rounds |
 | `--help`, `--help-hidden` | list the flags; `--help-hidden` adds internal and not-yet-implemented ones |
+
+On x86, `--march` names a CPU as `--mcpu` does, and an unknown one is an error (P006E) before compilation starts. `--print-ast=tree` lists a struct's and union's constructors and operators as well as its fields.
 
 ## Targets and sysroots
 

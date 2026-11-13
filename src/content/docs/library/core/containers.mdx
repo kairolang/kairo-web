@@ -700,7 +700,9 @@ fn op in (const self) -> yield T
 Iterates the elements in order: `for x in v` / `for *x in v`.
 
 `for x in v` binds each element as a value; `for *x in v` binds a pointer to the element
-itself, so it can be modified. Do not grow or erase while iterating.
+itself, so it can be modified. Do not grow or erase while iterating. A write to `x` in a
+`for x in v` body that nothing reads afterwards changes only the copy, and is warned
+(SC275W) with a fix-it that writes `for *x in v`.
 
 ### `Vector.push_back`
 

@@ -69,7 +69,7 @@ Overflow produces `inf`, underflow produces `0.0`. Operations that produce `NaN`
 `<=>` returns an `Ordering`, matching the C++20 spaceship operator.
 
 > [!NOTE]
-> In 0.2.0, `<=>` on two primitive values (`1 <=> 2`) does not yet produce a usable `Ordering`. It works for types that define `op <=>`. On primitives, compare with `<`, `==` and `>` for now.
+> `<=>` on two floating-point values does not yet produce a usable `Ordering` (a NaN has no ordering). On integers, characters and booleans, and on types that define `op <=>`, it does. Compare floats with `<`, `==` and `>` for now.
 
 ### `==` vs `===`
 

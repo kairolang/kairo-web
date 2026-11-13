@@ -36,6 +36,10 @@ fn <T: enum>   stringify(item: T) { ... }
 fn <T: union>  inspect(item: T)   { ... }
 ```
 
+An argument of another kind is an error (SC292E) where the generic is used.
+
+A bound may be a rooted path, `fn <T impl ::m::I>`, naming the interface from the file's root.
+
 **Interface bounds** restrict `T` to types that satisfy a given [interface](/docs/language/interfaces/). The standard library will provide interfaces describing [lifecycle capabilities](/docs/language/classes-lifecycle/#lifecycle-categories), allowing constraints like "T must be copyable" or "T must be movable" to be written as interface bounds. The exact names and shapes of these interfaces are still being finalized in `std` write your own if you need them now:
 
 ```kairo
@@ -151,3 +155,5 @@ The argument is an `eval` binding of the class or a call of its `eval` construct
 - [Generic Functions](/docs/language/functions/#generic-functions)
 - [Generic Structs](/docs/language/structures/#generic-structs)
 - [Class Lifecycle](/docs/language/classes-lifecycle/#lifecycle-categories)
+
+A vector, set or map type can head a static path: `[i32]::with_capacity(8)` is `Vector<i32>::with_capacity(8)`, and likewise `{T}::f()` and `{K: V}::f()`.

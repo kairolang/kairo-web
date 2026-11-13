@@ -431,6 +431,8 @@ sensor->value()        // ok: const method
 
 `const` and non-`const` methods with the same name and parameter types cannot coexist use distinct names like `get()` and `get_mut()`. See [Variables](/docs/language/variables/#the-const-binding-rule).
 
+Inside a `const self` method, assigning to a field of `self` is a compile error (SC071E) unless the field is declared `mutable var`.
+
 ### Mutable members
 
 The `mutable` qualifier allows a member to be modified even through a `const` reference or in a `const` method:
@@ -458,6 +460,8 @@ class Cache {
 > `mutable` breaks the semantic guarantee that `const` methods do not modify the object. Use it sparingly caching, reference counting, and lazy initialization are the canonical use cases. If you find yourself marking many members `mutable`, reconsider the `const` boundary.
 
 ---
+
+A method may be named `test`, and a C++ method named `test` can be called; `test` is a keyword only to open a top-level test block.
 
 ## `inline` Methods
 
@@ -674,6 +678,8 @@ final class Immutable {
 ```
 
 ---
+
+A class or struct whose only constructor is `@copy` or `@move` cannot be built with braces (SC088E).
 
 ## See also
 

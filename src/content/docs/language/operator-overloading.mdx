@@ -7,7 +7,7 @@ order: 60
 
 # Operator Overloading
 
-Operators are overloaded by defining `fn op` methods on a [class](/docs/language/classes/) or [struct](/docs/language/structures/), or in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may declare any overloadable operator except `as`, `[]`, `->` and `delete`, which are **member-only**: they must be declared in the type's own body.
+Operators are overloaded by defining `fn op` methods on a [class](/docs/language/classes/) or [struct](/docs/language/structures/), or in an [extension](/docs/language/extends/). The syntax mirrors the operator being defined. An extension may declare any overloadable operator except `as`, `[]`, `[]=`, `->` and `delete`, which are **member-only**: they must be declared in the type's own body.
 
 The built-in types follow the same rules. `[T]`, `{T}`, `{K: V}`, `[T;]` and `string` are ordinary types to the compiler, so an operator they declare (for example `fn op in (self) -> yield T`, or `fn op [] (self, i: usize) -> *T`) is the one a `for` loop or a subscript calls. Only when such a type declares no operator of that kind does the compiler fall back to the built-in behavior.
 
@@ -26,6 +26,7 @@ The built-in types follow the same rules. `[T]`, `{T}`, `{K: V}`, `[T;]` and `st
 | `<=>` | ok | no | Returns `Ordering`. |
 | `l++` `r++` `l--` `r--` | ok | no | Mutating operators. |
 | `[]` | ok | ok | Returns a place into `self` (`*T` / `*const T`). Member-only. |
+| `[]=` | ok | no | Returns the place a write goes through (`*T`). Member-only. See [Reading and writing](#reading-and-writing--and-). |
 | `->` | ok | ok | Returns a place into `self` (`*T` / `*const T`). Member-only. |
 | `in` (containment) | ok | no | Returns `bool`. |
 | `in` (iteration) | ok | no | Returns `yield T`. |
@@ -110,6 +111,8 @@ var acc2 = acc + 7   // op + derived from op +=: acc2.total == 12
 Declaring `op +` instead derives `+=` the other way. Declare whichever form is natural for the type; the in-place form usually avoids a copy.
 
 [Imported C++ types](/docs/language/c-cpp-calling/#operators-on-c-types) are not paired: they get exactly the operators their C++ declaration has.
+
+For a type that cannot be copied, `a + b` with a variable `a` is SC182E, because the derived `+` copies `a`. Write `a += b`, or use a temporary on the left.
 
 ## Increment and decrement
 
@@ -287,6 +290,45 @@ b[0] = 10          // through the place
 var s = b[0..2]    // a new value
 var *p = &b[1]     // *i32 into b.data
 ```
+
+On a const object only the `const self` form of `op []` can be called; an element reached through it, or through a const array or vector, is const, so writing it, passing `&x[i]` to `@inout`, or calling a `self` method on it is an error.
+
+## Reading and writing: `[]` and `[]=`
+
+A type can declare its subscript in two forms. `op []` is the **read form**: it gives the element to read, as `*const T` or a value. `op []=` is the **place form**: it gives the place a write goes through, as `*T`.
+
+```kairo
+class Buf {
+    priv var data: [i32]
+    fn op [] (const self, i: usize) -> *const i32 { return &self.data[i] }
+    fn op []= (self, i: usize) -> *i32 { return &self.data[i] }
+}
+
+var b = Buf { data: [1, 2, 3] }
+b[0] = 10          // op []=
+b[1] += 1          // op []=, called once
+var x = b[2]       // op []
+var *p = &b[0]     // op []=, *i32
+
+const cb = Buf { data: [1, 2, 3] }
+var *q = &cb[0]    // op [], *const i32
+cb[0] = 1          // error: 'cb' is const, and 'op []=' takes 'self'
+```
+
+When a type declares `op []=`, each use of `b[i]` calls the form that matches what it does with the element. Neither the type's constness nor the return type decides.
+
+- **Writes call `op []=`:** the left side of `=` and of every compound assignment, the operand of `++` and `--`, a member written through the element (`b[i].x = 4`), the container of a written nested subscript (`g[i][j] = 0` writes `g[i]` too), and the receiver of a method or `op in` that takes `self`.
+- **`&b[i]` takes `op []=` and gives `*T`** when `b` is mutable. On a const `b`, or where `*const T` is wanted, it takes `op []` and gives `*const T`. An `@inout` argument needs the place form.
+- **`var t = b[i..j]`** on a mutable `b` binds the place form, so `t` is a view you can write through. `const t = b[i..j]` binds the read form. If `t` is never written through, SC281W suggests `const`.
+- **Every other use reads** and calls `op []`.
+
+The forms do not stand in for each other. A read through a type that declares only `op []=` is SC279E.
+
+For one index type, the two forms describe one element: `op []` returns `*const T` (or a value) where `op []=` returns `*T`. `op []` beside an `op []=` cannot return `*T`, and `op []=` takes `self` and returns `*T` or a mutable view `[T;]` (SC280E).
+
+A type that declares no `op []=` keeps the single `op []` of [Places and values](#places-and-values---). The builtin containers are such types today.
+
+C++ sees the forms as `__kairo_op_get` and `__kairo_op_set`, and the class gets `operator[]` overloads that forward to them: `T& operator[](I)` to the place form and `const T& operator[](I) const` to a `const self` read form. When both forms would be the same C++ overload, `operator[]` is the place form and the read form is `__kairo_op_get`.
 
 ## Finally Operator
 
